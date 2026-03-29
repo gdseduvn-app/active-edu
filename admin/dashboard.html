@@ -2622,10 +2622,11 @@ async function nocoLoadRecords(where = '') {
     document.getElementById('noco-count').textContent = nocoTotalRows;
     document.getElementById('noco-sync-last').textContent = new Date().toLocaleTimeString('vi-VN');
 
-    // Populate filter field select
+    // Populate filter field select with fixed columns
     const fsel = document.getElementById('noco-filter-field');
-    if (fsel && keys.length) {
-      fsel.innerHTML = '<option value="">— Chọn field —</option>' + keys.map(k => `<option value="${k}">${k}</option>`).join('');
+    if (fsel) {
+      const fixedKeys = ['Title','Folder','Path','Description','Access','Updated'];
+      fsel.innerHTML = '<option value="">— Chọn field —</option>' + fixedKeys.map(k => `<option value="${k}">${k}</option>`).join('');
     }
   } catch(e) {
     tbody.innerHTML = `<tr><td colspan="99" style="text-align:center;padding:28px;color:var(--danger)"><i class="fas fa-circle-xmark"></i> Lỗi: ${e.message}</td></tr>`;
