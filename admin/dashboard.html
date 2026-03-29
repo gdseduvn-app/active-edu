@@ -1795,9 +1795,13 @@ function useTemplate(type) {
 // ═══════════════════════════════════════════════════
 // DASHBOARD & UTILS
 // ═══════════════════════════════════════════════════
+function flattenFolders(tree) {
+  return (tree||[]).flatMap(i => i.type==='folder' ? [i, ...flattenFolders(i.children)] : []);
+}
+
 function updateDashboard() {
-  const files = flattenFiles(indexTree);
-  const folders = indexTree.filter(i => i.type==='folder');
+  const files   = flattenFiles(indexTree);
+  const folders = flattenFolders(indexTree);
   document.getElementById('d-articles').textContent = files.length;
   document.getElementById('d-folders').textContent  = folders.length;
   const c = cfg();
@@ -2060,24 +2064,34 @@ async function syncFromNoco() {
 
     const tree = [];
 
-    // Tạo thư mục từ Folders table trước (kể cả thư mục rỗng)
-    for (const f of folders) {
-      const path = f.Path || f.Name || f.name || '';
-      if (!path) continue;
-      const parts = path.split('/');
+    // Helper: ensure folder path exists in tree
+    function ensureFolderPath(tree, folderPath, extraProps = {}) {
+      if (!folderPath) return tree;
+      const parts = folderPath.split('/');
       let node = tree;
       for (let i = 0; i < parts.length; i++) {
         const part = parts[i];
+        const currentPath = parts.slice(0, i+1).join('/');
         let found = node.find(n => n.type === 'folder' && n.name === part);
         if (!found) {
-          found = { type:'folder', name:part, path:parts.slice(0,i+1).join('/'), children:[], nocoFolderId:f.Id };
+          found = { type:'folder', name:part, path:currentPath, children:[], access:'public' };
           node.push(found);
         }
+        // Apply extra props to the leaf folder
+        if (i === parts.length - 1) Object.assign(found, extraProps);
         node = found.children;
       }
+      return node;
     }
 
-    // Thêm bài học vào đúng thư mục
+    // Step 1: Create folders from Folders table (includes empty folders + access info)
+    for (const f of folders) {
+      const path = f.Path || f.Name || f.name || '';
+      if (!path) continue;
+      ensureFolderPath(tree, path, { nocoFolderId: f.Id, access: f.Access || 'public' });
+    }
+
+    // Step 2: Add articles into correct folders (auto-create folder if not in Folders table)
     for (const r of records) {
       const folder = r.Folder || '';
       const item = {
@@ -2086,16 +2100,14 @@ async function syncFromNoco() {
         description:r.Description||'', access:r.Access||'public',
         updated:r.Updated||r.NgayCapNhat||'', nocoId:r.Id
       };
-      if (!folder) { tree.push(item); }
-      else {
-        const parts = folder.split('/');
-        let node = tree;
-        for (const part of parts) {
-          let found = node.find(n => n.type==='folder' && n.name===part);
-          if (!found) { found = {type:'folder', name:part, children:[]}; node.push(found); }
-          node = found.children;
+      if (!folder) {
+        tree.push(item);
+      } else {
+        const targetChildren = ensureFolderPath(tree, folder);
+        // Avoid duplicate articles
+        if (!targetChildren.find(n => n.type==='file' && n.path === item.path)) {
+          targetChildren.push(item);
         }
-        node.push(item);
       }
     }
 
@@ -2113,7 +2125,7 @@ async function syncFromNoco() {
 
     // Update top stats
     document.getElementById('d-articles').textContent = flattenFiles(indexTree).length;
-    document.getElementById('d-folders').textContent  = indexTree.filter(i=>i.type==='folder').length;
+    document.getElementById('d-folders').textContent  = flattenFolders(indexTree).length;
 
     const syncMsg = `✓ ${folders.length} thư mục · ${records.length} bài viết`;
     setSyncBar(false, syncMsg, new Date().toLocaleTimeString('vi-VN'));
