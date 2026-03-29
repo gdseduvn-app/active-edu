@@ -7,8 +7,8 @@
 <title>ActiveEdu Admin</title>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-<link href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
+<!-- TinyMCE - Rich Text Editor như Canvas LMS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.4/tinymce.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
@@ -228,10 +228,12 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
 #wrap-html{flex:1;display:none;flex-direction:column;overflow:hidden}
 #wrap-html .CodeMirror{height:100%;border-radius:0}
 /* Visual editor iframe */
-#wysiwyg-frame{flex:1;width:100%;border:none;min-height:400px;display:block;background:#fff}
-.visual-toolbar{padding:6px 10px;background:#f8fafc;border-bottom:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0}
-.visual-toolbar button{padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:#fff;cursor:pointer;font-size:12px;font-family:inherit;color:var(--text)}
-.visual-toolbar button:hover{background:var(--primary);color:#fff;border-color:var(--primary)}
+/* TinyMCE editor container */
+#tinymce-container{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+.tox-tinymce{flex:1!important;border:none!important;border-radius:0!important}
+.tox .tox-toolbar-overlord,.tox .tox-toolbar__primary{background:#f8fafc!important;border-bottom:1px solid var(--border)!important}
+.tox:not(.tox-tinymce-inline) .tox-editor-header{box-shadow:none!important;border-bottom:1px solid var(--border)!important}
+.tox .tox-statusbar{border-top:1px solid var(--border)!important;background:#f8fafc!important}
 .preview-wrap{flex:1;background:#fff;overflow:hidden}
 .preview-wrap iframe{width:100%;height:100%;border:none;min-height:340px}
 
@@ -441,29 +443,10 @@ tr:hover td{background:var(--hover)}
             </div>
           </div>
           <!-- Rich: Visual iframe editor -->
-          <div id="wrap-rich" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
-            <div class="visual-toolbar" id="visual-toolbar">
-              <button onclick="vCmd('bold')"><b>B</b></button>
-              <button onclick="vCmd('italic')"><i>I</i></button>
-              <button onclick="vCmd('underline')"><u>U</u></button>
-              <button onclick="vCmd('strikeThrough')"><s>S</s></button>
-              <span style="width:1px;background:var(--border);margin:0 2px"></span>
-              <button onclick="vCmd('insertUnorderedList')">• List</button>
-              <button onclick="vCmd('insertOrderedList')">1. List</button>
-              <span style="width:1px;background:var(--border);margin:0 2px"></span>
-              <button onclick="vInsertBlock('h2')">H2</button>
-              <button onclick="vInsertBlock('h3')">H3</button>
-              <button onclick="vInsertBlock('p')">P</button>
-              <button onclick="vInsertBlock('blockquote')">❝</button>
-              <button onclick="vInsertBlock('pre')">Code</button>
-              <span style="width:1px;background:var(--border);margin:0 2px"></span>
-              <button onclick="vInsertLink()">🔗 Link</button>
-              <button onclick="vInsertImage()">🖼 Ảnh</button>
-              <span style="flex:1"></span>
-              <button onclick="vCmd('undo')" title="Undo">↩</button>
-              <button onclick="vCmd('redo')" title="Redo">↪</button>
+          <div id="wrap-rich" style="flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0">
+            <div id="tinymce-container" style="flex:1;display:flex;flex-direction:column;min-height:0">
+              <textarea id="tinymce-editor"></textarea>
             </div>
-            <iframe id="wysiwyg-frame" style="flex:1;width:100%;border:none;min-height:400px"></iframe>
           </div>
           <!-- HTML: CodeMirror -->
           <div id="wrap-html" style="flex:1;display:none;flex-direction:column;overflow:hidden">
@@ -965,7 +948,7 @@ function renderTreeItems(items, container, parentPath = '') {
           <div class="tree-actions">
             <button class="tree-act-btn" title="Đổi tên" onclick="event.stopPropagation();renameFolder('${item.folderPath}','${item.name}')"><i class="fas fa-pen"></i></button>
             <button class="tree-act-btn" title="Đổi quyền" onclick="event.stopPropagation();toggleFolderAccess('${item.folderPath}','${fAccess}')"><i class="fas fa-${fAccess==='private'?'lock':'unlock'}"></i></button>
-            <button class="tree-act-btn" title="Xóa thư mục" onclick="event.stopPropagation();confirmDeleteFolder('${item.name}')"><i class="fas fa-trash"></i></button>
+            <button class="tree-act-btn" title="Xóa thư mục" onclick="event.stopPropagation();confirmDeleteFolder('${item.folderPath}')"><i class="fas fa-trash"></i></button>
           </div>
         </div>
         <div class="tree-folder-children"></div>`;
@@ -1331,14 +1314,20 @@ async function confirmCreate() {
       showToast('Thư mục đã tồn tại!', 'warn'); return;
     }
     const folderPath = parentPath ? parentPath + '/' + name : name;
-    target.push({ type:'folder', name, path: folderPath, children:[] });
+    target.push({ type:'folder', name, path: folderPath, access:'public', children:[] });
     commitIndexTree();
+    // Auto-mở thư mục mới trong cây
+    selectedFolder = folderPath;
     closeModal();
-    showToast(`✓ Đã thêm thư mục "${name}"`, 'success');
     // Lưu vào NocoDB Folders table
     if (cfg().nocoFolderTable) {
       NOCO.createFolder({ Name: name, Path: folderPath, Parent: parentPath || '', Access: 'public' })
-        .catch(e => console.warn('Folder save:', e.message));
+        .then(() => showToast(`✓ Đã tạo thư mục "${name}" và lưu vào NocoDB!`, 'success'))
+        .catch(e => {
+          showToast(`✓ Thư mục "${name}" đã tạo (chưa lưu NocoDB: ${e.message})`, 'warn');
+        });
+    } else {
+      showToast(`✓ Đã tạo thư mục "${name}" (chưa cấu hình Folders Table ID)`, 'warn');
     }
   } else {
     const folder = document.getElementById('modal-parent').value;
@@ -1358,9 +1347,8 @@ async function confirmCreate() {
       // Nội dung mẫu ban đầu
       const initHtml = `<h2>${name}</h2><p>Nội dung bài học...</p>`;
       if (cmEditor) cmEditor.setValue(initHtml);
-      wysiwygReady = false;
-      if (editorTab === 'rich') initVisualEditor(initHtml);
-      else editorTab = 'rich';
+      initTinyMCE(initHtml);
+      editorTab = 'rich';
       isDirty = true;
       markDirty();
       document.getElementById('save-status').textContent = 'Bài mới — chưa lưu';
@@ -1406,48 +1394,98 @@ async function confirmDeleteFile(path) {
   } finally { hideLoading(); }
 }
 
-async function confirmDeleteFolder(name) {
-  const folder = indexTree.find(i => i.type === 'folder' && i.name === name);
+async function confirmDeleteFolder(folderPath) {
+  // Tìm folder node trong indexTree theo path
+  function findFolderByPath(items, path) {
+    for (const i of items) {
+      if (i.type === 'folder') {
+        if (i.path === path || i.folderPath === path) return i;
+        const found = findFolderByPath(i.children||[], path);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+  const folder = findFolderByPath(indexTree, folderPath);
   const files = folder ? flattenFiles(folder.children||[]) : [];
-  if (!confirm(`Xóa thư mục "${name}" và ${files.length} bài viết khỏi NocoDB?`)) return;
-  showLoading(`Đang xóa thư mục "${name}" trong NocoDB...`);
+  const subFolders = folder ? flattenFolders(folder.children||[]) : [];
+  const name = folder?.name || folderPath.split('/').pop();
+
+  // Cảnh báo nếu có bài viết
+  let msg = `Xóa thư mục "${name}"?`;
+  if (files.length > 0) {
+    msg = `⚠️ Thư mục "${name}" còn ${files.length} bài viết${subFolders.length ? ` và ${subFolders.length} thư mục con` : ''}.
+
+Xóa sẽ XÓA VĨNH VIỄN tất cả bài viết trong NocoDB.
+Bạn có chắc chắn muốn tiếp tục không?`;
+  } else if (subFolders.length > 0) {
+    msg = `⚠️ Thư mục "${name}" còn ${subFolders.length} thư mục con (không có bài).
+
+Xóa thư mục này?`;
+  }
+  if (!confirm(msg)) return;
+
+  showLoading(`Đang xóa thư mục "${name}"...`);
   try {
+    // Xóa tất cả bài viết trong thư mục khỏi NocoDB
     for (const file of files) {
       try {
         const data = await NOCO.listRecords({ where: `(Path,eq,${file.path})`, limit: 1 });
-        const row = (data.list || [])[0];
+        const row = (data.list||[])[0];
         if (row) await NOCO.deleteRecord(row.Id);
-      } catch(e) { console.warn('Delete error:', file.path, e.message); }
+      } catch(e) { console.warn('Delete article:', file.path, e.message); }
     }
-    function removeFolder(tree, folderName) {
-      const idx = tree.findIndex(i => i.type === 'folder' && i.name === folderName);
-      if (idx !== -1) { tree.splice(idx, 1); return true; }
-      for (const i of tree) { if (i.children && removeFolder(i.children, folderName)) return true; }
-      return false;
+
+    // Xóa folder khỏi Folders table
+    if (cfg().nocoFolderTable) {
+      try {
+        const fData = await NOCO.listFolders();
+        for (const f of (fData.list||[])) {
+          if (f.Path === folderPath || (f.Path||'').startsWith(folderPath + '/')) {
+            await fetch(`${NOCO.folderBase()}/records`, {
+              method:'DELETE', headers: NOCO.headers(), body: JSON.stringify([{Id:f.Id}])
+            });
+          }
+        }
+      } catch(e) { console.warn('Delete folder NocoDB:', e.message); }
     }
-    removeFolder(indexTree, name);
-    commitIndexTree();
-    // CASCADE: xóa permissions liên quan đến thư mục này
+
+    // CASCADE: xóa permissions
     if (cfg().nocoPermTable) {
       try {
-        const folderPath = files.length > 0 ? files[0].folder : name;
         const permData = await fetch(
-          `${NOCO.permBase()}/records?where=(TargetPath,like,${encodeURIComponent(folderPath)}%)&limit=1000`,
-          { headers: NOCO.headers() }
+          `${NOCO.permBase()}/records?limit=1000`, { headers: NOCO.headers() }
         );
         if (permData.ok) {
           const perms = await permData.json();
           for (const p of (perms.list||[])) {
-            await fetch(`${NOCO.permBase()}/records`, {
-              method:'DELETE', headers: NOCO.headers(), body: JSON.stringify([{Id:p.Id}])
-            });
+            const tp = p.TargetPath || '';
+            if (tp === folderPath || tp.startsWith(folderPath + '/')) {
+              await fetch(`${NOCO.permBase()}/records`, {
+                method:'DELETE', headers: NOCO.headers(), body: JSON.stringify([{Id:p.Id}])
+              });
+            }
           }
         }
-      } catch(e) { console.warn('Permission cascade on folder delete:', e.message); }
+      } catch(e) { console.warn('Permission cascade:', e.message); }
     }
-    showToast(`✓ Đã xóa thư mục "${name}" và toàn bộ dữ liệu liên quan!`, 'success');
+
+    // Xóa khỏi indexTree
+    function removeFolderByPath(items, path) {
+      for (let i = items.length-1; i >= 0; i--) {
+        const item = items[i];
+        if (item.type === 'folder' && (item.path === path || item.folderPath === path)) {
+          items.splice(i, 1); return true;
+        }
+        if (item.children && removeFolderByPath(item.children, path)) return true;
+      }
+      return false;
+    }
+    removeFolderByPath(indexTree, folderPath);
+    commitIndexTree();
+    showToast(`✓ Đã xóa thư mục "${name}"${files.length ? ` và ${files.length} bài viết` : ''}!`, 'success');
   } catch(e) {
-    showToast('Lỗi: ' + e.message, 'error');
+    showToast('Lỗi xóa: ' + e.message, 'error');
   } finally { hideLoading(); }
 }
 
@@ -1462,142 +1500,105 @@ function removeFromTree(tree, path) {
 // ═══════════════════════════════════════════════════
 // EDITOR
 // ═══════════════════════════════════════════════════
-let quill = null;
 let editorTab = 'rich';
-
-// ── EDITOR: CodeMirror (HTML tab) + iframe WYSIWYG (Rich tab) ──
-let cmEditor = null;   // CodeMirror instance
-let wysiwygReady = false;
+let cmEditor = null;      // CodeMirror instance
+let tinyEditor = null;    // TinyMCE instance
+let tinyReady = false;
 
 function initCodeMirror() {
   if (cmEditor) return;
   const ta = document.getElementById('html-source');
   if (!ta || typeof CodeMirror === 'undefined') return;
   cmEditor = CodeMirror.fromTextArea(ta, {
-    mode: 'htmlmixed',
-    theme: 'default',
-    lineNumbers: true,
-    lineWrapping: true,
-    matchBrackets: true,
-    autoCloseTags: true,
-    tabSize: 2,
-    indentWithTabs: false,
+    mode: 'htmlmixed', theme: 'default',
+    lineNumbers: true, lineWrapping: true,
+    matchBrackets: true, autoCloseTags: true,
+    tabSize: 2, indentWithTabs: false,
     extraKeys: { 'Ctrl-S': () => saveToNoco(), 'Tab': cm => cm.execCommand('indentMore') }
   });
   cmEditor.on('change', () => { markDirty(); updateEditorStats(); });
-  // Auto resize
   cmEditor.setSize('100%', '100%');
 }
 
-function initVisualEditor(html) {
-  const iframe = document.getElementById('wysiwyg-frame');
-  if (!iframe) return;
-
-  // Tái sử dụng iframe nếu đã load - chỉ update nội dung body
-  if (wysiwygReady) {
-    try {
-      const body = iframe.contentDocument?.body;
-      if (body) {
-        body.innerHTML = html || '';
-        body.addEventListener('input', () => { markDirty(); updateEditorStats(); });
-        return;
-      }
-    } catch(e) {}
+// ── TinyMCE Init ──
+function initTinyMCE(html, callback) {
+  if (typeof tinymce === 'undefined') {
+    console.warn('TinyMCE not loaded');
+    if (callback) callback();
+    return;
   }
-
-  wysiwygReady = false;
-  // Không dùng Tailwind CDN - dùng plain CSS để tránh warnings
-  const doc = `<!DOCTYPE html>
-<html><head>
-<meta charset="UTF-8">
-<style>
-  html,body{margin:0;padding:0;min-height:100%}
-  body{padding:20px 24px;outline:none;min-height:300px;font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;line-height:1.75;color:#1e293b}
-  body:empty:before{content:'Bắt đầu soạn thảo hoặc paste HTML vào tab HTML...';color:#94a3b8;font-style:italic}
-  [contenteditable]:focus{outline:none}
-  h1{font-size:22px;font-weight:700;margin:16px 0 8px;color:#0f172a}
-  h2{font-size:18px;font-weight:700;margin:14px 0 6px;color:#1e293b;border-bottom:2px solid #dbeafe;padding-bottom:4px}
-  h3{font-size:15px;font-weight:600;margin:12px 0 5px;color:#334155}
-  p{margin:0 0 10px}ul,ol{padding-left:22px;margin-bottom:10px}
-  blockquote{border-left:4px solid #2563eb;background:#eff6ff;padding:10px 14px;margin:10px 0;border-radius:0 6px 6px 0}
-  pre{background:#1e293b;color:#e2e8f0;padding:14px;border-radius:8px;overflow-x:auto;font-size:13px}
-  code{background:#f1f5f9;padding:2px 6px;border-radius:4px;font-size:12px;color:#1e40af}
-  img{max-width:100%;border-radius:6px}a{color:#2563eb}
-  table{border-collapse:collapse;width:100%;margin-bottom:10px}
-  td,th{border:1px solid #e2e8f0;padding:8px 12px}th{background:#f8fafc;font-weight:600}
-</style>
-</head>
-<body contenteditable="true" spellcheck="false">${html || ''}</body>
-</html>`;
-  iframe.srcdoc = doc;
-  iframe.onload = () => {
-    wysiwygReady = true;
-    try {
-      const body = iframe.contentDocument.body;
-      body.addEventListener('input', () => { markDirty(); updateEditorStats(); });
-      // Auto resize iframe
-      const resize = () => { iframe.style.height = Math.max(body.scrollHeight + 40, 400) + 'px'; };
-      body.addEventListener('input', resize);
-      new ResizeObserver(resize).observe(body);
-      resize();
-    } catch(e) {}
-  };
+  // Nếu đã có instance, chỉ set content
+  if (tinyEditor && tinyReady) {
+    tinyEditor.setContent(html || '');
+    if (callback) callback();
+    return;
+  }
+  // Remove old instance nếu có
+  if (tinymce.get('tinymce-editor')) {
+    tinymce.get('tinymce-editor').remove();
+    tinyEditor = null;
+    tinyReady = false;
+  }
+  tinymce.init({
+    selector: '#tinymce-editor',
+    height: '100%',
+    resize: false,
+    menubar: 'edit view insert format tools table',
+    plugins: [
+      'advlist', 'autolink', 'lists', 'link', 'image', 'charmap',
+      'searchreplace', 'visualblocks', 'code', 'fullscreen',
+      'insertdatetime', 'media', 'table', 'wordcount', 'emoticons',
+      'codesample', 'accordion'
+    ],
+    toolbar: [
+      'undo redo | styles | bold italic underline strikethrough | forecolor backcolor',
+      'alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | link image media table codesample | fullscreen code'
+    ],
+    toolbar_mode: 'sliding',
+    content_style: `
+      body { font-family: "Segoe UI", system-ui, sans-serif; font-size: 14px; line-height: 1.75; color: #1e293b; margin: 16px 20px; }
+      h1 { font-size: 22px; font-weight: 700; color: #0f172a; margin: 16px 0 8px; }
+      h2 { font-size: 18px; font-weight: 700; color: #1e293b; border-bottom: 2px solid #dbeafe; padding-bottom: 4px; margin: 14px 0 6px; }
+      h3 { font-size: 15px; font-weight: 600; color: #334155; margin: 12px 0 5px; }
+      blockquote { border-left: 4px solid #2563eb; background: #eff6ff; padding: 10px 14px; margin: 10px 0; border-radius: 0 6px 6px 0; }
+      pre { background: #1e293b; color: #e2e8f0; padding: 14px; border-radius: 8px; overflow-x: auto; font-size: 13px; }
+      code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 12px; color: #1e40af; }
+      table { border-collapse: collapse; width: 100%; } td, th { border: 1px solid #e2e8f0; padding: 8px 12px; } th { background: #f8fafc; }
+      img { max-width: 100%; border-radius: 6px; }
+    `,
+    language: 'vi',
+    language_url: 'https://cdn.jsdelivr.net/npm/tinymce-i18n@23.10.9/langs6/vi.js',
+    branding: false,
+    promotion: false,
+    setup: (editor) => {
+      tinyEditor = editor;
+      editor.on('init', () => {
+        tinyReady = true;
+        editor.setContent(html || '');
+        if (callback) callback();
+      });
+      editor.on('input keyup change', () => { markDirty(); updateEditorStats(); });
+    }
+  });
 }
 
-function getVisualHTML() {
-  try {
-    const iframe = document.getElementById('wysiwyg-frame');
-    return iframe?.contentDocument?.body?.innerHTML || '';
-  } catch { return ''; }
+function getTinyHTML() {
+  if (tinyEditor && tinyReady) return tinyEditor.getContent();
+  return '';
 }
 
-// Toolbar commands for visual editor
-function vCmd(cmd) {
-  const iframe = document.getElementById('wysiwyg-frame');
-  try { iframe.contentDocument.execCommand(cmd, false, null); iframe.contentDocument.body.focus(); } catch(e) {}
-  markDirty();
-}
-function vInsertBlock(tag) {
-  const iframe = document.getElementById('wysiwyg-frame');
-  try {
-    const doc = iframe.contentDocument;
-    doc.body.focus();
-    const sel = doc.getSelection();
-    const el = doc.createElement(tag);
-    el.innerHTML = sel.toString() || (tag === 'pre' ? 'code here' : tag.toUpperCase() + ' text');
-    if (sel.rangeCount) { const r = sel.getRangeAt(0); r.deleteContents(); r.insertNode(el); }
-    else doc.body.appendChild(el);
-  } catch(e) {}
-  markDirty();
-}
-function vInsertLink() {
-  const url = prompt('Nhập URL:'); if (!url) return;
-  vCmd('createLink'); 
-  // Try again with the URL
-  const iframe = document.getElementById('wysiwyg-frame');
-  try { iframe.contentDocument.execCommand('createLink', false, url); } catch(e) {}
-  markDirty();
-}
-function vInsertImage() {
-  const url = prompt('Nhập URL ảnh:'); if (!url) return;
-  const iframe = document.getElementById('wysiwyg-frame');
-  try { iframe.contentDocument.execCommand('insertImage', false, url); } catch(e) {}
-  markDirty();
-}
+function getVisualHTML() { return getTinyHTML(); }
 
 function switchTab(tab) {
-  const prevTab = editorTab; // Save BEFORE changing
+  const prevTab = editorTab;
 
-  // ── Step 1: Sync content OUT of current tab ──
+  // Sync OUT khỏi tab hiện tại
   if (prevTab === 'rich') {
-    // Leaving rich: save visual HTML to CodeMirror
-    const html = getVisualHTML();
+    const html = getTinyHTML();
     if (cmEditor) cmEditor.setValue(html);
     else { const src = document.getElementById('html-source'); if (src) src.value = html; }
   }
-  // html tab: content already in cmEditor, no need to sync out
 
-  // ── Step 2: Switch tab ──
   editorTab = tab;
   document.getElementById('wrap-rich').style.display    = tab==='rich'    ? 'flex' : 'none';
   document.getElementById('wrap-html').style.display    = tab==='html'    ? 'flex' : 'none';
@@ -1605,51 +1606,62 @@ function switchTab(tab) {
   document.querySelectorAll('.etab').forEach(b => b.classList.remove('active'));
   document.getElementById('etab-' + tab)?.classList.add('active');
 
-  // ── Step 3: Init destination tab ──
   if (tab === 'rich') {
-    // Load latest HTML from CodeMirror into visual editor
     const html = cmEditor ? cmEditor.getValue() : (document.getElementById('html-source')?.value || '');
-    initVisualEditor(html);
+    initTinyMCE(html);
   } else if (tab === 'html') {
     setTimeout(() => { initCodeMirror(); if (cmEditor) cmEditor.refresh(); }, 50);
   } else if (tab === 'preview') {
     const html = getEditorHTML();
     const iframe = document.getElementById('preview-iframe');
-    if (iframe) iframe.srcdoc = `<!DOCTYPE html><html><head>
-      <meta charset="UTF-8">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%232563eb'/><text y='75' x='50' text-anchor='middle' font-size='65' font-family='sans-serif'>⚡</text></svg>">
-      <script src="https://cdn.tailwindcss.com"><\/script>
-      <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    </head><body>${html}</body></html>`;
+    if (iframe) {
+      iframe.srcdoc = `<!DOCTYPE html><html><head>
+        <meta charset="UTF-8">
+        <style>
+          body{font-family:'Segoe UI',sans-serif;padding:28px;max-width:860px;line-height:1.85;color:#1e293b}
+          h1{font-size:22px;font-weight:700;color:#0f172a}
+          h2{font-size:18px;font-weight:700;border-bottom:2px solid #dbeafe;padding-bottom:5px;margin:18px 0 9px}
+          h3{font-size:15px;font-weight:600;margin:14px 0 7px;color:#334155}
+          p{margin-bottom:11px}
+          code{background:#f1f5f9;padding:2px 6px;border-radius:4px;font-size:13px;color:#1e40af}
+          pre{background:#1e293b;color:#e2e8f0;padding:14px;border-radius:9px;overflow-x:auto}
+          blockquote{border-left:4px solid #2563eb;background:#eff6ff;padding:11px 14px;border-radius:0 7px 7px 0;margin:10px 0}
+          table{border-collapse:collapse;width:100%} td,th{border:1px solid #e2e8f0;padding:8px 12px} th{background:#f8fafc}
+          ul,ol{padding-left:22px;margin-bottom:11px} img{max-width:100%;border-radius:7px}
+        </style>
+      </head><body>${html}</body></html>`;
+    }
   }
 }
 
 function getEditorHTML() {
-  if (editorTab === 'rich') return getVisualHTML();
-  if (editorTab === 'html') return cmEditor ? cmEditor.getValue() : (document.getElementById('html-source')?.value || '');
-  return cmEditor ? cmEditor.getValue() : '';
+  if (editorTab === 'rich') return getTinyHTML();
+  return cmEditor ? cmEditor.getValue() : (document.getElementById('html-source')?.value || '');
 }
 
 function setEditorHTML(html) {
-  // Always sync to CodeMirror
   if (cmEditor) cmEditor.setValue(html || '');
   else { const src = document.getElementById('html-source'); if (src) src.value = html || ''; }
-  // If on rich tab, load visual editor
-  if (editorTab === 'rich') initVisualEditor(html || '');
+  if (editorTab === 'rich') initTinyMCE(html || '');
 }
 
+function initVisualEditor(html) {
+  // Alias - dùng TinyMCE thay iframe
+  initTinyMCE(html);
+}
+
+
 function initQuill() {
-  // Legacy — now using Visual iframe + CodeMirror
-  // Initialize visual editor by default
+  // Legacy stub — now using TinyMCE
   if (editorTab === 'rich') {
-    const html = cmEditor ? cmEditor.getValue() : (document.getElementById('html-source')?.value || '');
-    initVisualEditor(html);
+    const html = cmEditor ? cmEditor.getValue() : '';
+    initTinyMCE(html);
   }
 }
 
 function updateEditorStats() {
   const html = getEditorHTML();
-  const text = html.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
+  const text = (html || '').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
   const chars = text.length;
   const words = text ? text.split(/\s+/).filter(Boolean).length : 0;
   const ec = document.getElementById('e-chars');
@@ -1761,13 +1773,19 @@ async function editFile(path) {
       if (src) src.value = html;
     }
 
-    // Load vào visual editor (reset wysiwygReady để init lại)
-    wysiwygReady = false;
+    // Load vào TinyMCE
     setTimeout(() => {
-      if (editorTab === 'rich') initVisualEditor(html);
-      else editorTab = 'rich'; // default rich khi mở bài
-      updateEditorStats();
-    }, 150);
+      initTinyMCE(html, () => {
+        editorTab = 'rich';
+        updateEditorStats();
+        // Sync tabs active state
+        document.querySelectorAll('.etab').forEach(b => b.classList.remove('active'));
+        document.getElementById('etab-rich')?.classList.add('active');
+        document.getElementById('wrap-rich').style.display = 'flex';
+        document.getElementById('wrap-html').style.display = 'none';
+        document.getElementById('wrap-preview').style.display = 'none';
+      });
+    }, 100);
 
     isDirty = false;
     document.getElementById('save-dot').className = 'save-dot';
@@ -2064,7 +2082,7 @@ function showPanel(id, navEl) {
       initCodeMirror();
       if (cmEditor) cmEditor.refresh();
       if (editorTab === 'rich' && !currentEditPath) {
-        initVisualEditor(cmEditor ? cmEditor.getValue() : '');
+        initTinyMCE(cmEditor ? cmEditor.getValue() : '');
       }
     }, 80);
 
