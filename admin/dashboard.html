@@ -1074,6 +1074,30 @@ const GH = {
 // ═══════════════════════════════════════════════════
 let ghTree   = [];   // raw GitHub tree items
 let indexTree = [];  // structured tree for index.json
+
+// ── setIndexTree: cập nhật indexTree và sync tất cả panels ──
+// Gọi hàm này MỌI LÚC muốn thay đổi indexTree
+function setIndexTree(tree) {
+  indexTree = tree;
+  localStorage.setItem(TREE_KEY, JSON.stringify(indexTree));
+  _syncAllPanels();
+}
+
+// Cập nhật indexTree tại chỗ rồi broadcast
+function commitIndexTree() {
+  localStorage.setItem(TREE_KEY, JSON.stringify(indexTree));
+  _syncAllPanels();
+}
+
+// Broadcast thay đổi đến tất cả panels
+function _syncAllPanels() {
+  renderTree(indexTree);          // Quản lý tệp
+  updateDashboard();               // Dashboard
+  updateFolderSelects();           // Soạn thảo - dropdown thư mục
+  // NocoDB panel: chỉ reload nếu đang active (tránh request thừa)
+  const nocoPanel = document.getElementById('panel-nocodb');
+  if (nocoPanel?.classList.contains('active')) nocoLoadRecords();
+}
 let fileShaMap = {}; // path → sha (for updates)
 let selectedFilePath = null;
 let selectedFolder = '';
@@ -1155,11 +1179,7 @@ async function syncFromGitHub() {
   showLoading('Đồng bộ từ GitHub...');
   try {
     ghTree = await GH.getTree();
-    indexTree = buildIndexTree(ghTree);
-    localStorage.setItem(TREE_KEY, JSON.stringify(indexTree));
-    renderTree(indexTree);
-    updateDashboard();
-    updateFolderSelects();
+    setIndexTree(buildIndexTree(ghTree));
     setSyncBar(false, `✓ Đồng bộ xong — ${flattenFiles(indexTree).length} bài viết`, new Date().toLocaleTimeString('vi-VN'));
     updateGhStatus(true);
     showToast(`✓ Đồng bộ xong! ${flattenFiles(indexTree).length} bài`, 'success');
@@ -1307,9 +1327,7 @@ async function confirmCreate() {
     }
     const folderPath = parentPath ? parentPath + '/' + name : name;
     target.push({ type:'folder', name, path: folderPath, children:[] });
-    localStorage.setItem(TREE_KEY, JSON.stringify(indexTree));
-    renderTree(indexTree);
-    updateFolderSelects();
+    commitIndexTree();
     closeModal();
     showToast(`✓ Đã thêm thư mục "${name}"`, 'success');
     // Lưu vào NocoDB Folders table
@@ -1361,10 +1379,7 @@ async function confirmDeleteFile(path) {
       } catch(e) { console.warn('Permission cascade on article delete:', e.message); }
     }
     removeFromTree(indexTree, path);
-    localStorage.setItem(TREE_KEY, JSON.stringify(indexTree));
-    renderTree(indexTree);
-    updateDashboard();
-    updateFolderSelects();
+    commitIndexTree();
     showToast('✓ Đã xóa bài và quyền liên quan!', 'success');
   } catch(e) {
     showToast('Lỗi xóa: ' + e.message, 'error');
@@ -1391,10 +1406,7 @@ async function confirmDeleteFolder(name) {
       return false;
     }
     removeFolder(indexTree, name);
-    localStorage.setItem(TREE_KEY, JSON.stringify(indexTree));
-    renderTree(indexTree);
-    updateDashboard();
-    updateFolderSelects();
+    commitIndexTree();
     // CASCADE: xóa permissions liên quan đến thư mục này
     if (cfg().nocoPermTable) {
       try {
@@ -1827,21 +1839,12 @@ async function saveToNoco() {
       }
       insertIntoTree(indexTree, folder, newItem);
     }
-    // Cập nhật indexTree local
-    localStorage.setItem(TREE_KEY, JSON.stringify(indexTree));
-
-    // Sync tất cả panels từ indexTree mới (không fetch NocoDB lại)
-    renderTree(indexTree);      // Quản lý tệp
-    updateDashboard();           // Dashboard
-    updateFolderSelects();       // Dropdown thư mục
+    // Broadcast thay đổi đến tất cả panels
+    commitIndexTree();
 
     // Cập nhật path label trong editor
     document.getElementById('e-path-label').innerHTML =
       `<i class="fas fa-file-lines" style="color:var(--primary)"></i> ${filePath}`;
-
-    // Cập nhật NocoDB panel nếu đang mở
-    const nocoPanel = document.getElementById('panel-nocodb');
-    if (nocoPanel?.classList.contains('active')) nocoLoadRecords();
 
     markSaved(new Date().toLocaleTimeString('vi-VN'));
     showToast('✓ Đã lưu vào NocoDB!', 'success');
@@ -2085,7 +2088,7 @@ function showToast(msg, type='info') {
 function initAdmin() {
   const cached = localStorage.getItem(TREE_KEY);
   if (cached) {
-    try { indexTree = JSON.parse(cached); renderTree(indexTree); updateDashboard(); updateFolderSelects(); } catch {}
+    try { indexTree = JSON.parse(cached); _syncAllPanels(); } catch {}
   }
   const c = cfg();
   const hasNoco = !!c.nocoToken && !!c.nocoTable;
@@ -2169,19 +2172,7 @@ async function syncFromNoco() {
       }
     }
 
-    indexTree = tree;
-    localStorage.setItem(TREE_KEY, JSON.stringify(indexTree));
-
-    // Cập nhật tất cả panels từ indexTree mới — nguồn dữ liệu duy nhất
-    renderTree(indexTree);       // Quản lý tệp
-    updateDashboard();            // Dashboard
-    updateFolderSelects();        // Dropdown thư mục trong Soạn thảo
-
-    // Nếu đang ở tab NocoDB → reload bảng articles
-    const nocoPanel = document.getElementById('panel-nocodb');
-    if (nocoPanel && nocoPanel.classList.contains('active')) {
-      nocoLoadRecords();
-    }
+    setIndexTree(tree);
 
     // Nếu đang ở Soạn thảo và có bài đang sửa → cập nhật folder dropdown
     if (currentEditPath) {
@@ -2417,8 +2408,7 @@ async function toggleFolderAccess(folderPath, currentAccess) {
     return false;
   }
   updateAccess(indexTree);
-  localStorage.setItem(TREE_KEY, JSON.stringify(indexTree));
-  renderTree(indexTree);
+  commitIndexTree();
 
   // Update in NocoDB Folders table
   if (cfg().nocoFolderTable) {
@@ -2539,10 +2529,7 @@ async function renameFolder(folderPath, oldName) {
       }
     }
     renameFolderInTree(indexTree);
-    localStorage.setItem(TREE_KEY, JSON.stringify(indexTree));
-    renderTree(indexTree);
-    updateFolderSelects();
-    updateDashboard();
+    commitIndexTree();
     showToast(`✓ Đổi tên xong! Cập nhật ${ok} bài${err?' · '+err+' lỗi':''}`, 'success');
   } catch(e) {
     showToast('Lỗi đổi tên: ' + e.message, 'error');
