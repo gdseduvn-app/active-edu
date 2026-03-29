@@ -8,6 +8,16 @@
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closetag.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/fold/foldcode.min.js"></script>
 <style>
 :root {
   --primary:      #2563eb;
@@ -201,7 +211,26 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
 .ql-snow.ql-toolbar button:hover .ql-stroke,.ql-snow.ql-toolbar button.ql-active .ql-stroke{stroke:var(--primary)!important}
 .ql-snow.ql-toolbar button:hover .ql-fill,.ql-snow.ql-toolbar button.ql-active .ql-fill{fill:var(--primary)!important}
 
-#html-source{flex:1;width:100%;border:none;padding:18px;font-family:'Cascadia Code','Fira Code','Courier New',monospace;font-size:13px;line-height:1.85;outline:none;resize:none;background:#1e293b;color:#e2e8f0;tab-size:2;min-height:340px}
+#html-source{display:none}
+.CodeMirror{flex:1;height:100%;min-height:400px;font-family:'Cascadia Code','Fira Code','Courier New',monospace;font-size:13px;line-height:1.85;background:#f8fafc;color:#1e293b}
+.CodeMirror-scroll{height:100%}
+.CodeMirror-gutters{background:#f1f5f9;border-right:1px solid #e2e8f0}
+.CodeMirror-linenumber{color:#94a3b8;min-width:32px}
+.CodeMirror-selected{background:#dbeafe}
+.CodeMirror-cursor{border-left:2px solid #2563eb}
+.cm-tag{color:#2563eb;font-weight:600}
+.cm-attribute{color:#7c3aed}
+.cm-string{color:#059669}
+.cm-comment{color:#94a3b8;font-style:italic}
+.cm-keyword{color:#dc2626}
+.cm-number{color:#d97706}
+#wrap-html{flex:1;display:none;flex-direction:column;overflow:hidden}
+#wrap-html .CodeMirror{height:100%;border-radius:0}
+/* Visual editor iframe */
+#wysiwyg-frame{flex:1;width:100%;border:none;min-height:400px;display:block;background:#fff}
+.visual-toolbar{padding:6px 10px;background:#f8fafc;border-bottom:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0}
+.visual-toolbar button{padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:#fff;cursor:pointer;font-size:12px;font-family:inherit;color:var(--text)}
+.visual-toolbar button:hover{background:var(--primary);color:#fff;border-color:var(--primary)}
 .preview-wrap{flex:1;background:#fff;overflow:hidden}
 .preview-wrap iframe{width:100%;height:100%;border:none;min-height:340px}
 
@@ -410,12 +439,33 @@ tr:hover td{background:var(--hover)}
               <button class="btn btn-outline btn-sm" onclick="useTemplate('code')"><i class="fas fa-laptop-code"></i> Code</button>
             </div>
           </div>
-          <!-- Rich -->
+          <!-- Rich: Visual iframe editor -->
           <div id="wrap-rich" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
-            <div id="quill-editor"></div>
+            <div class="visual-toolbar" id="visual-toolbar">
+              <button onclick="vCmd('bold')"><b>B</b></button>
+              <button onclick="vCmd('italic')"><i>I</i></button>
+              <button onclick="vCmd('underline')"><u>U</u></button>
+              <button onclick="vCmd('strikeThrough')"><s>S</s></button>
+              <span style="width:1px;background:var(--border);margin:0 2px"></span>
+              <button onclick="vCmd('insertUnorderedList')">• List</button>
+              <button onclick="vCmd('insertOrderedList')">1. List</button>
+              <span style="width:1px;background:var(--border);margin:0 2px"></span>
+              <button onclick="vInsertBlock('h2')">H2</button>
+              <button onclick="vInsertBlock('h3')">H3</button>
+              <button onclick="vInsertBlock('p')">P</button>
+              <button onclick="vInsertBlock('blockquote')">❝</button>
+              <button onclick="vInsertBlock('pre')">Code</button>
+              <span style="width:1px;background:var(--border);margin:0 2px"></span>
+              <button onclick="vInsertLink()">🔗 Link</button>
+              <button onclick="vInsertImage()">🖼 Ảnh</button>
+              <span style="flex:1"></span>
+              <button onclick="vCmd('undo')" title="Undo">↩</button>
+              <button onclick="vCmd('redo')" title="Redo">↪</button>
+            </div>
+            <iframe id="wysiwyg-frame" style="flex:1;width:100%;border:none;min-height:400px"></iframe>
           </div>
-          <!-- HTML -->
-          <div id="wrap-html" style="flex:1;display:none;flex-direction:column">
+          <!-- HTML: CodeMirror -->
+          <div id="wrap-html" style="flex:1;display:none;flex-direction:column;overflow:hidden">
             <textarea id="html-source" spellcheck="false" placeholder="<!-- HTML tại đây -->"></textarea>
           </div>
           <!-- Preview -->
@@ -1220,7 +1270,7 @@ async function confirmCreate() {
       document.getElementById('e-title').value = name;
       document.getElementById('e-folder').value = folder;
       currentEditPath = null;
-      if (quill) quill.root.innerHTML = `<h2>${name}</h2><p>Nội dung bài học...</p>`;
+      setEditorHTML(`<h2>${name}</h2><p>Nội dung bài học...</p>`);
       markDirty();
     }, 100);
   }
@@ -1292,36 +1342,116 @@ function removeFromTree(tree, path) {
 let quill = null;
 let editorTab = 'rich';
 
-function initQuill() {
-  if (quill) return;
-  quill = new Quill('#quill-editor', {
-    theme: 'snow',
-    placeholder: 'Bắt đầu soạn thảo...',
-    modules: {
-      toolbar: [
-        [{ header:[2,3,4,false] }],
-        [{ font:[] }, { size:[] }],
-        ['bold','italic','underline','strike'],
-        [{ color:[] }, { background:[] }],
-        [{ list:'ordered' }, { list:'bullet' }],
-        [{ indent:'-1' }, { indent:'+1' }, { align:[] }],
-        ['blockquote','code-block'],
-        ['link','image'],
-        ['clean']
-      ]
-    }
+// ── EDITOR: CodeMirror (HTML tab) + iframe WYSIWYG (Rich tab) ──
+let cmEditor = null;   // CodeMirror instance
+let wysiwygReady = false;
+
+function initCodeMirror() {
+  if (cmEditor) return;
+  const ta = document.getElementById('html-source');
+  if (!ta || typeof CodeMirror === 'undefined') return;
+  cmEditor = CodeMirror.fromTextArea(ta, {
+    mode: 'htmlmixed',
+    theme: 'default',
+    lineNumbers: true,
+    lineWrapping: true,
+    matchBrackets: true,
+    autoCloseTags: true,
+    tabSize: 2,
+    indentWithTabs: false,
+    extraKeys: { 'Ctrl-S': () => saveToNoco(), 'Tab': cm => cm.execCommand('indentMore') }
   });
-  quill.on('text-change', () => { markDirty(); updateEditorStats(); });
+  cmEditor.on('change', () => { markDirty(); updateEditorStats(); });
+  // Auto resize
+  cmEditor.setSize('100%', '100%');
+}
+
+function initVisualEditor(html) {
+  const iframe = document.getElementById('wysiwyg-frame');
+  if (!iframe) return;
+  wysiwygReady = false;
+  const doc = `<!DOCTYPE html>
+<html><head>
+<meta charset="UTF-8">
+<script src="https://cdn.tailwindcss.com"><\/script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+<style>
+  html,body{margin:0;padding:0;min-height:100%}
+  body{padding:16px;outline:none;min-height:300px;font-family:sans-serif}
+  body:empty:before{content:'Bắt đầu soạn thảo hoặc paste HTML vào tab HTML...';color:#94a3b8;font-style:italic}
+  [contenteditable]:focus{outline:none}
+  h1,h2,h3{color:#1e293b}p{margin-bottom:8px}
+</style>
+</head>
+<body contenteditable="true" spellcheck="false">${html || ''}</body>
+</html>`;
+  iframe.srcdoc = doc;
+  iframe.onload = () => {
+    wysiwygReady = true;
+    try {
+      const body = iframe.contentDocument.body;
+      body.addEventListener('input', () => { markDirty(); updateEditorStats(); });
+      // Auto resize iframe
+      const resize = () => { iframe.style.height = Math.max(body.scrollHeight + 40, 400) + 'px'; };
+      body.addEventListener('input', resize);
+      new ResizeObserver(resize).observe(body);
+      resize();
+    } catch(e) {}
+  };
+}
+
+function getVisualHTML() {
+  try {
+    const iframe = document.getElementById('wysiwyg-frame');
+    return iframe?.contentDocument?.body?.innerHTML || '';
+  } catch { return ''; }
+}
+
+// Toolbar commands for visual editor
+function vCmd(cmd) {
+  const iframe = document.getElementById('wysiwyg-frame');
+  try { iframe.contentDocument.execCommand(cmd, false, null); iframe.contentDocument.body.focus(); } catch(e) {}
+  markDirty();
+}
+function vInsertBlock(tag) {
+  const iframe = document.getElementById('wysiwyg-frame');
+  try {
+    const doc = iframe.contentDocument;
+    doc.body.focus();
+    const sel = doc.getSelection();
+    const el = doc.createElement(tag);
+    el.innerHTML = sel.toString() || (tag === 'pre' ? 'code here' : tag.toUpperCase() + ' text');
+    if (sel.rangeCount) { const r = sel.getRangeAt(0); r.deleteContents(); r.insertNode(el); }
+    else doc.body.appendChild(el);
+  } catch(e) {}
+  markDirty();
+}
+function vInsertLink() {
+  const url = prompt('Nhập URL:'); if (!url) return;
+  vCmd('createLink'); 
+  // Try again with the URL
+  const iframe = document.getElementById('wysiwyg-frame');
+  try { iframe.contentDocument.execCommand('createLink', false, url); } catch(e) {}
+  markDirty();
+}
+function vInsertImage() {
+  const url = prompt('Nhập URL ảnh:'); if (!url) return;
+  const iframe = document.getElementById('wysiwyg-frame');
+  try { iframe.contentDocument.execCommand('insertImage', false, url); } catch(e) {}
+  markDirty();
 }
 
 function switchTab(tab) {
-  if (editorTab === 'rich' && quill) {
-    const src = document.getElementById('html-source');
-    if (src) src.value = quill.root.innerHTML;
-  } else if (editorTab === 'html' && quill) {
-    const src = document.getElementById('html-source');
-    if (src) quill.root.innerHTML = src.value;
+  // Sync content OUT of current tab
+  if (editorTab === 'rich') {
+    const html = getVisualHTML();
+    if (cmEditor) cmEditor.setValue(html);
+    else { const src = document.getElementById('html-source'); if (src) src.value = html; }
+  } else if (editorTab === 'html') {
+    const html = cmEditor ? cmEditor.getValue() : (document.getElementById('html-source')?.value || '');
+    if (tab === 'rich') initVisualEditor(html);
   }
+
   editorTab = tab;
   document.getElementById('wrap-rich').style.display    = tab==='rich'    ? 'flex' : 'none';
   document.getElementById('wrap-html').style.display    = tab==='html'    ? 'flex' : 'none';
@@ -1329,39 +1459,49 @@ function switchTab(tab) {
   document.querySelectorAll('.etab').forEach(b => b.classList.remove('active'));
   document.getElementById('etab-' + tab)?.classList.add('active');
 
-  if (tab === 'preview') {
+  if (tab === 'html') {
+    setTimeout(() => { initCodeMirror(); if (cmEditor) cmEditor.refresh(); }, 50);
+  } else if (tab === 'rich' && editorTab === 'rich') {
+    // Already switched, visual editor loading
+  } else if (tab === 'preview') {
     const html = getEditorHTML();
     const iframe = document.getElementById('preview-iframe');
     if (iframe) iframe.srcdoc = `<!DOCTYPE html><html><head>
       <meta charset="UTF-8">
-      <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
-      <style>body{font-family:'Be Vietnam Pro',sans-serif;padding:28px;max-width:800px;line-height:1.85;color:#1e293b}
-      h2{font-size:19px;font-weight:700;border-bottom:2px solid #dbeafe;padding-bottom:5px;margin:18px 0 9px}
-      h3{font-size:15px;font-weight:600;margin:14px 0 7px;color:#334155}
-      p{margin-bottom:11px}code{background:#f1f5f9;padding:2px 6px;border-radius:4px;font-size:13px;color:#1e40af;border:1px solid #e2e8f0}
-      pre{background:#1e293b;color:#94a3b8;padding:14px;border-radius:9px;overflow-x:auto}
-      blockquote{border-left:4px solid #2563eb;background:#eff6ff;padding:11px 14px;border-radius:0 7px 7px 0;margin:10px 0}
-      details{border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin:10px 0}
-      summary{padding:10px 14px;background:#f8fafc;cursor:pointer;font-weight:600;color:#2563eb}
-      ul,ol{padding-left:22px;margin-bottom:11px}img{max-width:100%;border-radius:7px}</style>
+      <script src="https://cdn.tailwindcss.com"><\/script>
+      <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     </head><body>${html}</body></html>`;
   }
 }
 
 function getEditorHTML() {
-  if (editorTab === 'rich') return quill ? quill.root.innerHTML : '';
-  return document.getElementById('html-source')?.value || '';
+  if (editorTab === 'rich') return getVisualHTML();
+  if (editorTab === 'html') return cmEditor ? cmEditor.getValue() : (document.getElementById('html-source')?.value || '');
+  return cmEditor ? cmEditor.getValue() : '';
 }
+
 function setEditorHTML(html) {
-  if (quill) quill.root.innerHTML = html || '';
-  const src = document.getElementById('html-source');
-  if (src) src.value = html || '';
+  // Always sync to CodeMirror
+  if (cmEditor) cmEditor.setValue(html || '');
+  else { const src = document.getElementById('html-source'); if (src) src.value = html || ''; }
+  // If on rich tab, load visual editor
+  if (editorTab === 'rich') initVisualEditor(html || '');
+}
+
+function initQuill() {
+  // Legacy — now using Visual iframe + CodeMirror
+  // Initialize visual editor by default
+  if (editorTab === 'rich') {
+    const html = cmEditor ? cmEditor.getValue() : (document.getElementById('html-source')?.value || '');
+    initVisualEditor(html);
+  }
 }
 
 function updateEditorStats() {
-  const text = quill ? quill.getText() : '';
-  const chars = text.replace(/\n/g,'').length;
-  const words = text.trim().split(/\s+/).filter(Boolean).length;
+  const html = getEditorHTML();
+  const text = html.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
+  const chars = text.length;
+  const words = text ? text.split(/\s+/).filter(Boolean).length : 0;
   const ec = document.getElementById('e-chars');
   const ew = document.getElementById('e-words');
   if (ec) ec.textContent = chars.toLocaleString() + ' ký tự';
@@ -1508,8 +1648,7 @@ function useTemplate(type) {
     quiz:   `<h2>Câu hỏi ôn tập</h2><div style="background:#eff6ff;border-left:4px solid #2563eb;padding:14px;border-radius:0 8px 8px 0;margin:14px 0"><strong>Câu 1:</strong> Câu hỏi?</div><details style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin:10px 0"><summary style="padding:10px 14px;background:#f8fafc;cursor:pointer;font-weight:600;color:#2563eb">👁 Xem đáp án</summary><div style="padding:14px">Đáp án: ...</div></details>`,
     code:   `<h2>Bài tập lập trình</h2><p>Mô tả bài tập...</p><h3>Đề bài</h3><div style="background:#f8fafc;border:1px solid #e2e8f0;padding:14px;border-radius:8px;margin:10px 0">Viết chương trình...</div><h3>Code mẫu</h3><pre><code>function solution(input) {\n  // code\n  return result;\n}</code></pre>`
   };
-  if (quill && editorTab === 'rich') { quill.root.innerHTML = tpl[type]||''; markDirty(); updateEditorStats(); }
-  else { const s = document.getElementById('html-source'); if(s){s.value=tpl[type]||'';markDirty();} }
+  setEditorHTML(tpl[type]||''); markDirty(); updateEditorStats();
 }
 
 // ═══════════════════════════════════════════════════
