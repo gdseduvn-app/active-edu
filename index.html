@@ -720,51 +720,78 @@ function renderNavItems(items, container) {
 function buildCards(tree) {
   const grid = document.getElementById('home-cards');
   grid.innerHTML = '';
-  if (!tree || !tree.length) {
+
+  // Lấy TẤT CẢ bài từ mọi cấp thư mục
+  const allFiles = flatA(tree);
+  const allFolders = tree.filter(i => i.type === 'folder');
+
+  // Lọc bài user có thể xem
+  const visibleFiles = allFiles.filter(f => canViewArticle(f));
+  const visibleFolders = allFolders.filter(f => canViewFolder(f));
+
+  if (!visibleFiles.length && !visibleFolders.length) {
     grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="emoji">📂</div><h3>Chưa có nội dung</h3></div>`;
     return;
   }
-  tree.forEach((item, idx) => {
+
+  // Hiển thị thư mục cấp 1 trước
+  visibleFolders.forEach((item, idx) => {
     const c = COLORS[idx % COLORS.length];
-    const ico = ICONS[idx % ICONS.length];
+    const n = countA(item.children || []);
     const card = document.createElement('div');
     card.className = 'content-card';
-    if (item.type === 'folder') {
-      const n = countA(item.children || []);
-      card.innerHTML = `
-        <div class="card-banner ${c}"><i class="fas fa-folder-open"></i></div>
-        <div class="card-body">
-          <div class="card-tags"><span class="card-tag">Chủ đề</span></div>
-          <div class="card-title">${item.name}</div>
-          <div class="card-desc">${n} bài học trong chủ đề này</div>
-          <div class="card-footer">
-            <span><i class="far fa-folder"></i> ${n} bài</span>
-            <span class="card-cta">Xem ngay <i class="fas fa-arrow-right"></i></span>
-          </div>
-        </div>`;
-      card.onclick = () => expandFolder(item.name);
-    } else {
-      const isPrivate = item.access === 'private';
-      const canView = canViewArticle(item);
-      const accessBadge = isPrivate
-        ? '<span class="access-badge badge-private"><i class="fas fa-lock" style="font-size:9px"></i> Private</span>'
-        : '<span class="access-badge badge-public"><i class="fas fa-globe" style="font-size:9px"></i> Public</span>';
-      card.innerHTML = `
-        <div class="card-banner ${c}"><i class="${ico}"></i></div>
-        <div class="card-body">
-          <div class="card-tags">
-            ${item.folder ? `<span class="card-tag">${item.folder}</span>` : ''}
-            ${accessBadge}
-          </div>
-          <div class="card-title">${item.name}</div>
-          <div class="card-desc">${isPrivate && !canView ? '<i class="fas fa-lock" style="color:#94a3b8"></i> Đăng nhập để xem bài học này' : (item.description || 'Nhấn để xem bài học')}</div>
-          <div class="card-footer">
-            <span><i class="far fa-calendar-alt"></i> ${item.updated || ''}</span>
-            <span class="card-cta">${isPrivate && !canView ? 'Đăng nhập <i class="fas fa-arrow-right"></i>' : 'Học ngay <i class="fas fa-arrow-right"></i>'}</span>
-          </div>
-        </div>`;
-      card.onclick = () => loadArticle(item);
-    }
+    const lockIcon = item.access === 'private' ? ' <i class="fas fa-lock" style="font-size:10px;color:#fca5a5"></i>' : '';
+    card.innerHTML = `
+      <div class="card-banner ${c}"><i class="fas fa-folder-open"></i></div>
+      <div class="card-body">
+        <div class="card-tags"><span class="card-tag">Chủ đề${lockIcon}</span></div>
+        <div class="card-title">${item.name}</div>
+        <div class="card-desc">${n} bài học trong chủ đề này</div>
+        <div class="card-footer">
+          <span><i class="far fa-folder"></i> ${n} bài</span>
+          <span class="card-cta">Xem ngay <i class="fas fa-arrow-right"></i></span>
+        </div>
+      </div>`;
+    card.onclick = () => expandFolder(item.name);
+    grid.appendChild(card);
+  });
+
+  // Hiển thị TẤT CẢ bài (kể cả trong thư mục con sâu)
+  visibleFiles.forEach((item, idx) => {
+    const c = COLORS[(visibleFolders.length + idx) % COLORS.length];
+    const ico = ICONS[idx % ICONS.length];
+    const isPrivate = item.access === 'private' || item.folderAccess === 'private';
+    const canView = canViewArticle(item);
+    const accessBadge = isPrivate
+      ? '<span class="access-badge badge-private"><i class="fas fa-lock" style="font-size:9px"></i> Private</span>'
+      : '<span class="access-badge badge-public"><i class="fas fa-globe" style="font-size:9px"></i> Public</span>';
+
+    // Hiện breadcrumb thư mục
+    const folderBreadcrumb = item.folder
+      ? `<span class="card-tag">${item.folder.replace(/\//g,' › ')}</span>`
+      : '';
+
+    const card = document.createElement('div');
+    card.className = 'content-card';
+    card.innerHTML = `
+      <div class="card-banner ${c}"><i class="${ico}"></i></div>
+      <div class="card-body">
+        <div class="card-tags">
+          ${folderBreadcrumb}
+          ${accessBadge}
+        </div>
+        <div class="card-title">${item.name}</div>
+        <div class="card-desc">${isPrivate && !canView
+          ? '<i class="fas fa-lock" style="color:#94a3b8"></i> Đăng nhập để xem bài học này'
+          : (item.description || 'Nhấn để xem bài học')}</div>
+        <div class="card-footer">
+          <span><i class="far fa-calendar-alt"></i> ${item.updated || ''}</span>
+          <span class="card-cta">${isPrivate && !canView
+            ? 'Đăng nhập <i class="fas fa-arrow-right"></i>'
+            : 'Học ngay <i class="fas fa-arrow-right"></i>'}</span>
+        </div>
+      </div>`;
+    card.onclick = () => loadArticle(item);
     grid.appendChild(card);
   });
 }
@@ -856,11 +883,14 @@ function setActiveNav(path) {
 function countA(items) { return (items||[]).reduce((n,i) => n+(i.type==='file'?1:countA(i.children)),0); }
 function flatA(tree)   { return (tree||[]).flatMap(i => i.type==='file'?[i]:flatA(i.children)); }
 
+function flatFolders(tree) { return (tree||[]).flatMap(i => i.type==='folder'?[i,...flatFolders(i.children)]:[]); }
+
 function updateStats() {
-  const all = flatA(contentTree);
-  const priv = all.filter(i => i.access === 'private');
+  const all  = flatA(contentTree);
+  const priv = all.filter(i => i.access === 'private' || i.folderAccess === 'private');
+  const folders = flatFolders(contentTree);
   document.getElementById('stat-articles').textContent = all.length;
-  document.getElementById('stat-folders').textContent  = (contentTree||[]).filter(i => i.type==='folder').length;
+  document.getElementById('stat-folders').textContent  = folders.length;
   document.getElementById('stat-private').textContent  = priv.length;
   document.getElementById('article-count').textContent = all.length + ' bài học';
 }
