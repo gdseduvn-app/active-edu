@@ -1854,11 +1854,12 @@ const NOCO = {
     return await r.json();
   },
 
-  // Test: get table info
+  // Test: get records (limit 1) to verify connection
   async testConnection() {
-    const r = await fetch(`${this.base()}/tables/${this.tableId()}`, { headers: this.headers() });
+    const r = await fetch(`${this.base()}/tables/${this.tableId()}/records?limit=1`, { headers: this.headers() });
     if (!r.ok) throw new Error(`${r.status}: ${await r.text()}`);
-    return await r.json();
+    const data = await r.json();
+    return { title: 'Articles', table_name: this.tableId() };
   },
 
   // ── USER TABLE ──
