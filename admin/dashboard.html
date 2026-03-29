@@ -2143,110 +2143,6 @@ const NOCO = {
     return (data.list || []);
   },
 
-  
-// ── RENAME FOLDER: cascade update Articles + Folders + Permissions ──
-async function renameFolder(folderPath, oldName) {
-  const newName = prompt(`Đổi tên thư mục "${oldName}" thành:`, oldName);
-  if (!newName || newName.trim() === oldName) return;
-  const trimmed = newName.trim();
-
-  // Calculate new path
-  const parentPath = folderPath.includes('/')
-    ? folderPath.substring(0, folderPath.lastIndexOf('/'))
-    : '';
-  const newPath = parentPath ? parentPath + '/' + trimmed : trimmed;
-
-  showLoading(`Đang đổi tên "${oldName}" → "${trimmed}"...`);
-  let ok = 0, err = 0;
-
-  try {
-    // 1. Update all Articles with Folder starting with oldPath
-    const artData = await NOCO.listRecords({ limit: 1000 });
-    for (const art of (artData.list || [])) {
-      const artFolder = art.Folder || '';
-      if (artFolder === folderPath || artFolder.startsWith(folderPath + '/')) {
-        const newFolder = artFolder.replace(folderPath, newPath);
-        const newArtPath = (art.Path || '').replace(folderPath, newPath);
-        try {
-          await NOCO.updateRecord(art.Id, { Folder: newFolder, Path: newArtPath });
-          ok++;
-        } catch(e) { err++; }
-      }
-    }
-
-    // 2. Update Folders table
-    if (cfg().nocoFolderTable) {
-      const fData = await NOCO.listFolders();
-      for (const f of (fData.list || [])) {
-        const fPath = f.Path || '';
-        if (fPath === folderPath || fPath.startsWith(folderPath + '/')) {
-          const newFPath = fPath.replace(folderPath, newPath);
-          const newFName = fPath === folderPath ? trimmed : f.Name;
-          try {
-            await fetch(`${NOCO.folderBase()}/records`, {
-              method: 'PATCH', headers: NOCO.headers(),
-              body: JSON.stringify([{ Id: f.Id, Name: newFName, Path: newFPath,
-                Parent: (f.Parent||'').replace(folderPath, newPath) }])
-            });
-          } catch(e) {}
-        }
-      }
-    }
-
-    // 3. Cascade update Permissions (TargetPath)
-    if (cfg().nocoPermTable) {
-      const permData = await fetch(
-        `${NOCO.permBase()}/records?limit=1000`, { headers: NOCO.headers() }
-      );
-      if (permData.ok) {
-        const perms = await permData.json();
-        for (const p of (perms.list || [])) {
-          const tp = p.TargetPath || '';
-          if (tp === folderPath || tp.startsWith(folderPath + '/')) {
-            const newTp = tp.replace(folderPath, newPath);
-            try {
-              await fetch(`${NOCO.permBase()}/records`, {
-                method: 'PATCH', headers: NOCO.headers(),
-                body: JSON.stringify([{ Id: p.Id, TargetPath: newTp }])
-              });
-            } catch(e) {}
-          }
-        }
-      }
-    }
-
-    // 4. Update local indexTree
-    function renameFolderInTree(items) {
-      for (const i of items) {
-        if (i.type === 'folder') {
-          if (i.path === folderPath || i.folderPath === folderPath) {
-            i.name = trimmed;
-            i.path = newPath;
-            i.folderPath = newPath;
-          } else if ((i.path||'').startsWith(folderPath + '/')) {
-            i.path = (i.path||'').replace(folderPath, newPath);
-          }
-          if (i.children) renameFolderInTree(i.children);
-        } else {
-          if ((i.folder||'') === folderPath || (i.folder||'').startsWith(folderPath + '/')) {
-            i.folder = (i.folder||'').replace(folderPath, newPath);
-            i.path = (i.path||'').replace(folderPath, newPath);
-          }
-        }
-      }
-    }
-    renameFolderInTree(indexTree);
-    localStorage.setItem(TREE_KEY, JSON.stringify(indexTree));
-    renderTree(indexTree);
-    updateFolderSelects();
-    updateDashboard();
-    showToast(`✓ Đổi tên xong! Cập nhật ${ok} bài${err?' · '+err+' lỗi':''}`, 'success');
-  } catch(e) {
-    showToast('Lỗi đổi tên: ' + e.message, 'error');
-  } finally { hideLoading(); }
-}
-
-
 // Toggle folder access public/private
 async function toggleFolderAccess(folderPath, currentAccess) {
   const newAccess = currentAccess === 'private' ? 'public' : 'private';
@@ -2372,7 +2268,111 @@ async function toggleFolderAccess(folderPath, currentAccess) {
     if (!r.ok) throw new Error(`NocoDB ${r.status}: ${await r.text()}`);
     return true;
   }
+
+
 };
+
+// ── RENAME FOLDER: cascade update Articles + Folders + Permissions ──
+async function renameFolder(folderPath, oldName) {
+  const newName = prompt(`Đổi tên thư mục "${oldName}" thành:`, oldName);
+  if (!newName || newName.trim() === oldName) return;
+  const trimmed = newName.trim();
+
+  // Calculate new path
+  const parentPath = folderPath.includes('/')
+    ? folderPath.substring(0, folderPath.lastIndexOf('/'))
+    : '';
+  const newPath = parentPath ? parentPath + '/' + trimmed : trimmed;
+
+  showLoading(`Đang đổi tên "${oldName}" → "${trimmed}"...`);
+  let ok = 0, err = 0;
+
+  try {
+    // 1. Update all Articles with Folder starting with oldPath
+    const artData = await NOCO.listRecords({ limit: 1000 });
+    for (const art of (artData.list || [])) {
+      const artFolder = art.Folder || '';
+      if (artFolder === folderPath || artFolder.startsWith(folderPath + '/')) {
+        const newFolder = artFolder.replace(folderPath, newPath);
+        const newArtPath = (art.Path || '').replace(folderPath, newPath);
+        try {
+          await NOCO.updateRecord(art.Id, { Folder: newFolder, Path: newArtPath });
+          ok++;
+        } catch(e) { err++; }
+      }
+    }
+
+    // 2. Update Folders table
+    if (cfg().nocoFolderTable) {
+      const fData = await NOCO.listFolders();
+      for (const f of (fData.list || [])) {
+        const fPath = f.Path || '';
+        if (fPath === folderPath || fPath.startsWith(folderPath + '/')) {
+          const newFPath = fPath.replace(folderPath, newPath);
+          const newFName = fPath === folderPath ? trimmed : f.Name;
+          try {
+            await fetch(`${NOCO.folderBase()}/records`, {
+              method: 'PATCH', headers: NOCO.headers(),
+              body: JSON.stringify([{ Id: f.Id, Name: newFName, Path: newFPath,
+                Parent: (f.Parent||'').replace(folderPath, newPath) }])
+            });
+          } catch(e) {}
+        }
+      }
+    }
+
+    // 3. Cascade update Permissions (TargetPath)
+    if (cfg().nocoPermTable) {
+      const permData = await fetch(
+        `${NOCO.permBase()}/records?limit=1000`, { headers: NOCO.headers() }
+      );
+      if (permData.ok) {
+        const perms = await permData.json();
+        for (const p of (perms.list || [])) {
+          const tp = p.TargetPath || '';
+          if (tp === folderPath || tp.startsWith(folderPath + '/')) {
+            const newTp = tp.replace(folderPath, newPath);
+            try {
+              await fetch(`${NOCO.permBase()}/records`, {
+                method: 'PATCH', headers: NOCO.headers(),
+                body: JSON.stringify([{ Id: p.Id, TargetPath: newTp }])
+              });
+            } catch(e) {}
+          }
+        }
+      }
+    }
+
+    // 4. Update local indexTree
+    function renameFolderInTree(items) {
+      for (const i of items) {
+        if (i.type === 'folder') {
+          if (i.path === folderPath || i.folderPath === folderPath) {
+            i.name = trimmed;
+            i.path = newPath;
+            i.folderPath = newPath;
+          } else if ((i.path||'').startsWith(folderPath + '/')) {
+            i.path = (i.path||'').replace(folderPath, newPath);
+          }
+          if (i.children) renameFolderInTree(i.children);
+        } else {
+          if ((i.folder||'') === folderPath || (i.folder||'').startsWith(folderPath + '/')) {
+            i.folder = (i.folder||'').replace(folderPath, newPath);
+            i.path = (i.path||'').replace(folderPath, newPath);
+          }
+        }
+      }
+    }
+    renameFolderInTree(indexTree);
+    localStorage.setItem(TREE_KEY, JSON.stringify(indexTree));
+    renderTree(indexTree);
+    updateFolderSelects();
+    updateDashboard();
+    showToast(`✓ Đổi tên xong! Cập nhật ${ok} bài${err?' · '+err+' lỗi':''}`, 'success');
+  } catch(e) {
+    showToast('Lỗi đổi tên: ' + e.message, 'error');
+  } finally { hideLoading(); }
+}
 
 // ── State ──
 let nocoPageIndex = 0;
