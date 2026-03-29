@@ -849,6 +849,60 @@ function doLogout() {
 }
 
 // ═══════════════════════════════════════════════════
+// TREE RENDER
+// ═══════════════════════════════════════════════════
+function renderTree(tree) {
+  const body = document.getElementById('tree-body');
+  if (!body) return;
+  const all = flattenFiles(tree);
+  const countEl = document.getElementById('tree-count');
+  if (countEl) countEl.textContent = `${all.length} bài`;
+  if (!tree || !tree.length) {
+    body.innerHTML = '<div class="tree-empty"><i class="fas fa-database" style="font-size:24px;color:var(--border);display:block;margin-bottom:8px"></i>Kết nối NocoDB<br>để xem danh sách bài</div>';
+    return;
+  }
+  body.innerHTML = '';
+  renderTreeItems(tree, body, '');
+}
+
+function renderTreeItems(items, container, parentPath = '') {
+  (items||[]).forEach(item => {
+    if (item.type === 'folder') {
+      item.folderPath = parentPath ? parentPath + '/' + item.name : item.name;
+      const wrap = document.createElement('div');
+      wrap.className = 'tree-folder';
+      wrap.innerHTML = `
+        <div class="tree-folder-hd" onclick="this.parentElement.classList.toggle('open');selectFolder('${item.folderPath}',this)">
+          <i class="fas fa-chevron-right"></i>
+          <i class="fas fa-folder" style="color:#60a5fa;font-size:13px"></i>
+          <span style="flex:1">${item.name}</span>
+          <div class="tree-actions">
+            <button class="tree-act-btn" title="Xóa thư mục" onclick="event.stopPropagation();confirmDeleteFolder('${item.name}')"><i class="fas fa-trash"></i></button>
+          </div>
+        </div>
+        <div class="tree-folder-children"></div>`;
+      renderTreeItems(item.children||[], wrap.querySelector('.tree-folder-children'), item.folderPath);
+      container.appendChild(wrap);
+    } else {
+      const el = document.createElement('div');
+      el.className = 'tree-file';
+      el.dataset.path = item.path;
+      el.innerHTML = `
+        <i class="fas fa-file-lines"></i>
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.name}</span>
+        ${item.access === 'private' ? '<span style="font-size:10px;background:#fee2e2;color:#b91c1c;padding:1px 5px;border-radius:4px;margin-right:4px">🔒</span>' : '<span style="font-size:10px;background:#ccfbf1;color:#0f766e;padding:1px 5px;border-radius:4px;margin-right:4px">🌐</span>'}
+        <div class="tree-actions">
+          <button class="tree-act-btn edit-btn" title="Sửa" onclick="event.stopPropagation();editFile('${item.path}')"><i class="fas fa-pen"></i></button>
+          <button class="tree-act-btn" title="Xóa" onclick="event.stopPropagation();confirmDeleteFile('${item.path}')"><i class="fas fa-trash"></i></button>
+        </div>`;
+      el.onclick = () => selectFile(item);
+      container.appendChild(el);
+    }
+  });
+}
+
+
+// ═══════════════════════════════════════════════════
 // GITHUB API — Single Source of Truth
 // ═══════════════════════════════════════════════════
 const GH = {
