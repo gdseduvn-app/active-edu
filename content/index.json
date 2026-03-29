@@ -2,17 +2,7 @@
   {
     "type": "folder",
     "name": "JavaScript",
-    "children": [
-      {
-        "type": "file",
-        "name": "Bien Va Kieu Du Lieu",
-        "path": "JavaScript/bien-va-kieu-du-lieu.html",
-        "folder": "JavaScript",
-        "description": "",
-        "access": "public",
-        "updated": "29/3/2026"
-      }
-    ]
+    "children": []
   },
   {
     "type": "folder",
