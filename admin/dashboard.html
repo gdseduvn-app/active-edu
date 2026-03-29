@@ -1833,31 +1833,40 @@ function flattenFiles(tree) {
 // ═══════════════════════════════════════════════════
 function loadSettings() {
   const c = cfg();
-  document.getElementById('s-token').value = c.token || '';
-  document.getElementById('s-repo').value = c.repo || '';
-  document.getElementById('s-branch').value = c.branch || 'main';
-  document.getElementById('s-content-dir').value = c.contentDir || 'content';
-  document.getElementById('s-title').value = c.title || 'ActiveEdu';
-  document.getElementById('s-url').value = c.url || '';
-  document.getElementById('s-user').value = c.adminUser || 'admin';
-  document.getElementById('s-pass').value = '';
+  // Helper: set value only if element exists
+  const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+
+  // GitHub (optional - may not exist in HTML)
+  setVal('s-token', c.token || '');
+  setVal('s-repo', c.repo || '');
+  setVal('s-branch', c.branch || 'main');
+  setVal('s-content-dir', c.contentDir || 'content');
+
+  // General
+  setVal('s-title', c.title || 'ActiveEdu');
+  setVal('s-url', c.url || '');
+  setVal('s-user', c.adminUser || 'admin');
+  setVal('s-pass', '');
+
   // NocoDB
-  document.getElementById('s-noco-url').value   = c.nocoUrl   || '';
-  document.getElementById('s-noco-token').value = c.nocoToken || '';
-  document.getElementById('s-noco-table').value = c.nocoTable || '';
-  document.getElementById('s-noco-base').value  = c.nocoBase  || '';
-  document.getElementById('s-noco-user-table').value   = c.nocoUserTable   || '';
-  if (document.getElementById('s-noco-folder-table')) document.getElementById('s-noco-folder-table').value = c.nocoFolderTable || '';
-  if (document.getElementById('s-noco-perm-table')) document.getElementById('s-noco-perm-table').value = c.nocoPermTable || '';
+  setVal('s-noco-url',         c.nocoUrl         || '');
+  setVal('s-noco-token',       c.nocoToken        || '');
+  setVal('s-noco-table',       c.nocoTable        || '');
+  setVal('s-noco-base',        c.nocoBase         || '');
+  setVal('s-noco-user-table',  c.nocoUserTable    || '');
+  setVal('s-noco-folder-table',c.nocoFolderTable  || '');
+  setVal('s-noco-perm-table',  c.nocoPermTable    || '');
 }
 
 function saveSettings() {
   const c = cfg();
-  c.token      = document.getElementById('s-token').value.trim();
-  c.repo       = document.getElementById('s-repo').value.trim();
-  c.branch     = document.getElementById('s-branch').value.trim() || 'main';
-  c.contentDir = document.getElementById('s-content-dir').value.trim() || 'content';
-  c.title      = document.getElementById('s-title').value.trim();
+  const getVal = (id, def='') => document.getElementById(id)?.value?.trim() || def;
+
+  c.token      = getVal('s-token');
+  c.repo       = getVal('s-repo');
+  c.branch     = getVal('s-branch', 'main');
+  c.contentDir = getVal('s-content-dir', 'content');
+  c.title      = getVal('s-title', 'ActiveEdu');
   c.url        = document.getElementById('s-url').value.trim();
   c.adminUser  = document.getElementById('s-user').value.trim() || 'admin';
   const np     = document.getElementById('s-pass').value;
