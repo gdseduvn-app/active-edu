@@ -275,10 +275,6 @@ tr:hover td{background:var(--hover)}
     </div>
   </div>
 
-  <div id="gh-status-bar" class="gh-status disconnected">
-    <div class="gh-dot"></div>
-    <span id="gh-status-text">Chưa kết nối GitHub</span>
-  </div>
   <div id="noco-status-bar" class="gh-status disconnected" style="margin-top:0">
     <div class="gh-dot"></div>
     <span id="noco-status-text">Chưa kết nối NocoDB</span>
@@ -293,7 +289,7 @@ tr:hover td{background:var(--hover)}
 
   <div class="sb-footer">
     <a href="../index.html" target="_blank"><i class="fas fa-arrow-up-right-from-square"></i> Xem trang chính</a>
-    <div class="sb-copy">ActiveEdu v2.0 — GitHub Sync</div>
+    <div class="sb-copy">ActiveEdu v2.0 — NocoDB</div>
   </div>
 </aside>
 
@@ -490,39 +486,13 @@ tr:hover td{background:var(--hover)}
           <div style="margin-top:14px;padding:12px 14px;background:var(--hover);border-radius:8px;border-left:3px solid var(--primary);font-size:12.5px;color:var(--text-muted);line-height:1.7">
             <b style="color:var(--text)">💡 NocoDB lưu gì?</b><br>
             Metadata bài học: tên, mô tả, tags, trạng thái, lượt xem, ngày tạo/cập nhật.<br>
-            GitHub lưu file HTML thật. Hai hệ thống bổ sung cho nhau.
+            Nội dung HTML được lưu trực tiếp trong NocoDB.
           </div>
         </div>
       </div>
 
       <!-- GitHub -->
       <div class="settings-section">
-        <div class="settings-hd"><i class="fab fa-github"></i> Kết nối GitHub — <strong>Nguồn sự thật duy nhất</strong></div>
-        <div class="settings-body">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-            <div class="form-group">
-              <label>GitHub Personal Access Token</label>
-              <input type="password" id="s-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
-              <div class="form-hint">Tạo tại <a href="https://github.com/settings/tokens/new" target="_blank">github.com/settings/tokens</a> — cần quyền <code>repo</code></div>
-            </div>
-            <div class="form-group">
-              <label>Tên repo (username/repo-name)</label>
-              <input type="text" id="s-repo" placeholder="username/activeedu">
-            </div>
-            <div class="form-group">
-              <label>Branch</label>
-              <input type="text" id="s-branch" value="main" placeholder="main">
-            </div>
-            <div class="form-group">
-              <label>Thư mục nội dung</label>
-              <input type="text" id="s-content-dir" value="content" placeholder="content">
-            </div>
-          </div>
-          <div style="margin-top:14px;display:flex;gap:10px">
-            <button class="btn btn-primary" onclick="testGitHubConnection()"><i class="fas fa-plug"></i> Kiểm tra kết nối</button>
-            <div id="gh-test-result" style="font-size:13px;color:var(--text-muted);display:flex;align-items:center;gap:6px"></div>
-          </div>
-        </div>
       </div>
 
       <!-- Site info -->
@@ -1499,7 +1469,7 @@ function updateDashboard() {
   const c = cfg();
   document.getElementById('d-repo').textContent = c.repo || '—';
   document.getElementById('d-sync').textContent = new Date().toLocaleTimeString('vi-VN');
-  document.getElementById('top-repo').textContent = c.repo || '';
+  document.getElementById('top-repo').textContent = c.nocoUrl ? c.nocoUrl.replace('https://','').split('/')[0] : '';
 
   const tbody = document.getElementById('dash-table');
   if (!files.length) {
@@ -1537,19 +1507,7 @@ function updateFolderSelects() {
 }
 
 function updateGhStatus(connected) {
-  const bar = document.getElementById('gh-status-bar');
-  const txt = document.getElementById('gh-status-text');
-  const c = cfg();
-  if (connected) {
-    bar.className = 'gh-status connected';
-    txt.textContent = c.repo || 'Đã kết nối';
-  } else {
-    bar.className = 'gh-status disconnected';
-    txt.textContent = 'Chưa kết nối GitHub';
-  }
-  // sync panel
-  document.getElementById('sync-not-connected').style.display = connected ? 'none' : 'block';
-  document.getElementById('sync-connected').style.display = connected ? 'block' : 'none';
+  // GitHub status removed — NocoDB is source of truth
 }
 
 function setSyncBar(syncing, text, time = '', error = false) {
@@ -1610,7 +1568,7 @@ function saveSettings() {
   saveCfg(c);
   updateGhStatus(!!c.token && !!c.repo);
   updateNocoStatus(!!c.nocoToken && !!c.nocoTable, c.nocoUrl ? c.nocoUrl.replace('https://','').split('/')[0] : '');
-  document.getElementById('top-repo').textContent = c.repo || '';
+  document.getElementById('top-repo').textContent = c.nocoUrl ? c.nocoUrl.replace('https://','').split('/')[0] : '';
   showToast('✓ Đã lưu cài đặt!', 'success');
 }
 
