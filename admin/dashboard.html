@@ -1014,6 +1014,7 @@ let ghTree   = [];   // raw GitHub tree items
 let indexTree = [];  // structured tree for index.json
 let fileShaMap = {}; // path → sha (for updates)
 let selectedFilePath = null;
+let selectedFolder = ''; // Track currently selected folder
 let currentEditPath  = null;
 let isDirty = false;
 
@@ -1148,13 +1149,14 @@ function renderTree(tree) {
   renderTreeItems(tree, body);
 }
 
-function renderTreeItems(items, container) {
+function renderTreeItems(items, container, parentPath = '') {
   (items||[]).forEach(item => {
     if (item.type === 'folder') {
+      item.folderPath = parentPath ? parentPath + '/' + item.name : item.name;
       const wrap = document.createElement('div');
       wrap.className = 'tree-folder';
       wrap.innerHTML = `
-        <div class="tree-folder-hd" onclick="this.parentElement.classList.toggle('open')">
+        <div class="tree-folder-hd" onclick="this.parentElement.classList.toggle('open');selectFolder('${item.folderPath||item.name}',this)">
           <i class="fas fa-chevron-right"></i>
           <i class="fas fa-folder" style="color:#60a5fa;font-size:13px"></i>
           <span style="flex:1">${item.name}</span>
@@ -1163,7 +1165,7 @@ function renderTreeItems(items, container) {
           </div>
         </div>
         <div class="tree-folder-children"></div>`;
-      renderTreeItems(item.children||[], wrap.querySelector('.tree-folder-children'));
+      renderTreeItems(item.children||[], wrap.querySelector('.tree-folder-children'), item.folderPath||item.name);
       container.appendChild(wrap);
     } else {
       const el = document.createElement('div');
@@ -1215,14 +1217,26 @@ async function deleteSelectedFile() { if (selectedFilePath) confirmDeleteFile(se
 // ═══════════════════════════════════════════════════
 let createMode = 'file';
 
+function selectFolder(path, el) {
+  selectedFolder = path;
+  // Highlight selected folder
+  document.querySelectorAll('.tree-folder-hd').forEach(h => h.style.background = '');
+  if (el) el.style.background = 'var(--hover)';
+}
+
 function showNewFolder() {
   createMode = 'folder';
   document.getElementById('modal-title').textContent = '📁 Tạo thư mục mới';
   document.getElementById('modal-label').textContent = 'Tên thư mục';
   document.getElementById('modal-name').placeholder = 'vd: Chương 1, Đại số...';
   document.getElementById('modal-parent-group').style.display = 'block';
-  document.getElementById('modal-note').textContent = 'Thư mục sẽ được tạo trong content/ trên GitHub khi bạn lưu bài đầu tiên vào đó.';
+  document.getElementById('modal-note').textContent = 'Thư mục sẽ được tạo trong NocoDB khi bạn lưu bài đầu tiên vào đó.';
   populateParentModal(true);
+  // Auto-select current folder
+  if (selectedFolder) {
+    const sel = document.getElementById('modal-parent');
+    if (sel) sel.value = selectedFolder;
+  }
   document.getElementById('modal-name').value = '';
   document.getElementById('modal-create').classList.add('show');
   setTimeout(() => document.getElementById('modal-name').focus(), 100);
@@ -1230,12 +1244,17 @@ function showNewFolder() {
 
 function showNewFile() {
   createMode = 'file';
-  document.getElementById('modal-title').textContent = '📄 Tạo tệp bài học mới';
+  document.getElementById('modal-title').textContent = '📄 Tạo bài học mới';
   document.getElementById('modal-label').textContent = 'Tên bài học';
   document.getElementById('modal-name').placeholder = 'vd: Bài 1 - Giới thiệu...';
   document.getElementById('modal-parent-group').style.display = 'block';
-  document.getElementById('modal-note').textContent = 'Tệp HTML sẽ được tạo trực tiếp trên GitHub repo.';
+  document.getElementById('modal-note').textContent = 'Bài học sẽ được lưu vào NocoDB.';
   populateParentModal(false);
+  // Auto-select current folder
+  if (selectedFolder) {
+    const sel = document.getElementById('modal-parent');
+    if (sel) sel.value = selectedFolder;
+  }
   document.getElementById('modal-name').value = '';
   document.getElementById('modal-create').classList.add('show');
   setTimeout(() => document.getElementById('modal-name').focus(), 100);
