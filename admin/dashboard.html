@@ -1641,53 +1641,63 @@ function newArticle() {
 }
 
 async function editFile(path) {
-  showPanel('editor', document.querySelectorAll('.sb-item')[2]);
-  setTimeout(async () => {
-    currentEditPath = path;
-    showLoading('Tải nội dung từ NocoDB...');
-    try {
-      // Load bài từ NocoDB theo Path
-      const data = await NOCO.listRecords({ where: `(Path,eq,${path})`, limit: 1 });
-      const row = (data.list || [])[0];
+  if (!path) return;
+  // Chuyển sang editor panel nếu chưa ở đó
+  const editorPanel = document.getElementById('panel-editor');
+  if (!editorPanel?.classList.contains('active')) {
+    showPanel('editor', document.querySelectorAll('.sb-item')[2]);
+  }
+  currentEditPath = path;
+  showLoading('Tải nội dung từ NocoDB...');
+  try {
+    // Load bài từ NocoDB theo Path (chỉ 1 record, không sync toàn bộ)
+    const data = await NOCO.listRecords({ where: `(Path,eq,${path})`, limit: 1 });
+    const row = (data.list || [])[0];
 
-      // Điền metadata từ NocoDB (ưu tiên NocoDB hơn indexTree)
-      if (row) {
-        document.getElementById('e-title').value  = row.Title || '';
-        document.getElementById('e-folder').value = row.Folder || '';
-        document.getElementById('e-desc').value   = row.Description || '';
-        document.getElementById('e-access').value = row.Access || 'public';
-      } else {
-        // Fallback: lấy từ indexTree nếu có
-        const item = flattenFiles(indexTree).find(f => f.path === path);
-        if (item) {
-          document.getElementById('e-title').value  = item.name;
-          document.getElementById('e-folder').value = item.folder || '';
-          document.getElementById('e-desc').value   = item.description || '';
-          document.getElementById('e-access').value = item.access || 'public';
-        }
-        showToast('Bài chưa có trong NocoDB, sẽ tạo mới khi lưu.', 'warn');
-      }
+    // Ưu tiên lấy từ NocoDB, fallback về indexTree
+    let title = '', folder = '', desc = '', access = 'public';
+    if (row) {
+      title  = row.Title || '';
+      folder = row.Folder || '';
+      desc   = row.Description || '';
+      access = row.Access || 'public';
+    } else {
+      const item = flattenFiles(indexTree).find(f => f.path === path);
+      if (item) { title = item.name; folder = item.folder||''; desc = item.description||''; access = item.access||'public'; }
+      showToast('Bài chưa có trong NocoDB, sẽ tạo mới khi lưu.', 'warn');
+    }
 
-      // Cập nhật path label và folder dropdown
-      const folder = document.getElementById('e-folder').value;
-      document.getElementById('e-path-label').innerHTML = 
-        `<i class="fas fa-file-lines" style="color:var(--primary)"></i> ${folder ? folder + '/' : ''}${path.split('/').pop()}`;
+    // Điền metadata
+    document.getElementById('e-title').value  = title;
+    document.getElementById('e-desc').value   = desc;
+    document.getElementById('e-access').value = access;
 
-      // Đảm bảo updateFolderSelects đã chạy trước khi set value
-      updateFolderSelects();
-      if (folder) document.getElementById('e-folder').value = folder;
+    // Update folder dropdown rồi mới set value
+    updateFolderSelects();
+    document.getElementById('e-folder').value = folder;
 
-      // Load nội dung HTML vào editor
-      setEditorHTML(row ? (row.Content || '') : '');
-      switchTab('rich');
+    // Path label
+    document.getElementById('e-path-label').innerHTML =
+      `<i class="fas fa-file-lines" style="color:var(--primary)"></i> ${folder ? folder + '/' : ''}${path.split('/').pop()}`;
+
+    // Load nội dung vào editor
+    const html = row?.Content || '';
+    if (cmEditor) cmEditor.setValue(html);
+    else { const src = document.getElementById('html-source'); if (src) src.value = html; }
+
+    // Init visual editor với nội dung mới
+    setTimeout(() => {
+      initCodeMirror();
+      if (editorTab === 'rich') initVisualEditor(html);
       updateEditorStats();
-      isDirty = false;
-      document.getElementById('save-dot').className = 'save-dot';
-      document.getElementById('save-status').textContent = 'Đã tải từ NocoDB';
-    } catch(e) {
-      showToast('Lỗi tải: ' + e.message, 'error');
-    } finally { hideLoading(); }
-  }, 80);
+    }, 100);
+
+    isDirty = false;
+    document.getElementById('save-dot').className = 'save-dot';
+    document.getElementById('save-status').textContent = 'Đã tải từ NocoDB';
+  } catch(e) {
+    showToast('Lỗi tải: ' + e.message, 'error');
+  } finally { hideLoading(); }
 }
 
 // ── SAVE TO GITHUB ──
@@ -1966,46 +1976,31 @@ function showPanel(id, navEl) {
     loadSettings();
 
   } else if (id === 'editor') {
+    // Chỉ update folder selects từ indexTree hiện tại, KHÔNG sync NocoDB
     updateFolderSelects();
-    // Nếu chưa có data, sync từ NocoDB để có folder list
-    if (!indexTree.length && hasNoco) {
-      syncFromNoco().then(() => updateFolderSelects());
-    }
-    // Init editor sau khi folder selects đã sẵn sàng
     setTimeout(() => {
       initCodeMirror();
       if (cmEditor) cmEditor.refresh();
-      // Nếu đang có bài đang sửa, load lại từ NocoDB
-      if (currentEditPath && hasNoco) {
-        editFile(currentEditPath);
-      } else {
-        // Init visual editor với nội dung hiện tại
-        if (editorTab === 'rich') {
-          const html = cmEditor ? cmEditor.getValue() : '';
-          initVisualEditor(html);
-        }
+      if (!currentEditPath && editorTab === 'rich') {
+        initVisualEditor(cmEditor ? cmEditor.getValue() : '');
       }
     }, 80);
 
   } else if (id === 'files') {
-    // Files: luôn sync lại từ NocoDB để đảm bảo cây thư mục mới nhất
-    if (hasNoco) {
-      syncFromNoco();
-    } else {
-      renderTree(indexTree);
-    }
+    // Render từ indexTree hiện tại, KHÔNG tự sync
+    renderTree(indexTree);
+    updateFolderSelects();
 
   } else if (id === 'dashboard') {
-    // Dashboard: sync để có số liệu mới nhất
-    if (hasNoco) {
-      syncFromNoco();
-    } else {
-      updateDashboard();
-    }
+    // Render từ indexTree hiện tại, KHÔNG tự sync
+    updateDashboard();
 
   } else if (id === 'nocodb') {
     updateNocoStatus(hasNoco, c.nocoUrl ? c.nocoUrl.replace('https://','').split('/')[0] : '');
-    if (hasNoco) nocoTestConnection();
+    if (hasNoco) {
+      nocoTestConnection();
+      nocoLoadRecords();
+    }
   }
 }
 
@@ -2041,9 +2036,13 @@ function initAdmin() {
   document.getElementById('top-repo').textContent = hasNoco ? (c.nocoUrl||'').replace('https://','').split('/')[0] : (c.repo||'');
 
   if (hasNoco) {
-    // Show dashboard first, sync in background
-    showPanel('dashboard', document.querySelectorAll('.sb-item')[0]);
-    syncFromNoco();
+    // Sync 1 lần khi khởi động, sau đó user bấm "Đồng bộ ngay" khi cần
+    syncFromNoco().then(() => {
+      // Sau khi sync xong, hiện dashboard
+      updateDashboard();
+      renderTree(indexTree);
+      updateFolderSelects();
+    });
   } else {
     showPanel('settings', document.querySelectorAll('.sb-item')[4]);
     setTimeout(() => showToast('Cấu hình NocoDB để bắt đầu!', 'warn'), 500);
@@ -2114,25 +2113,29 @@ async function syncFromNoco() {
     indexTree = tree;
     localStorage.setItem(TREE_KEY, JSON.stringify(indexTree));
 
-    // Update ALL panels with fresh data
-    renderTree(indexTree);
-    updateDashboard();
-    updateFolderSelects();
+    // Cập nhật tất cả panels từ indexTree mới — nguồn dữ liệu duy nhất
+    renderTree(indexTree);       // Quản lý tệp
+    updateDashboard();            // Dashboard
+    updateFolderSelects();        // Dropdown thư mục trong Soạn thảo
 
-    // Update NocoDB panel article count
-    const countEl = document.getElementById('noco-count');
-    if (countEl) countEl.textContent = records.length;
+    // Nếu đang ở tab NocoDB → reload bảng articles
+    const nocoPanel = document.getElementById('panel-nocodb');
+    if (nocoPanel && nocoPanel.classList.contains('active')) {
+      nocoLoadRecords();
+    }
 
-    // Update top stats
-    document.getElementById('d-articles').textContent = flattenFiles(indexTree).length;
-    document.getElementById('d-folders').textContent  = flattenFolders(indexTree).length;
+    // Nếu đang ở Soạn thảo và có bài đang sửa → cập nhật folder dropdown
+    if (currentEditPath) {
+      const folderEl = document.getElementById('e-folder');
+      const item = flattenFiles(indexTree).find(f => f.path === currentEditPath);
+      if (item && folderEl) folderEl.value = item.folder || '';
+    }
 
-    const syncMsg = `✓ ${folders.length} thư mục · ${records.length} bài viết`;
+    const totalFolders = flattenFolders(indexTree).length;
+    const syncMsg = `✓ ${totalFolders} thư mục · ${records.length} bài viết`;
     setSyncBar(false, syncMsg, new Date().toLocaleTimeString('vi-VN'));
     updateNocoStatus(true, (cfg().nocoUrl||'').replace('https://','').split('/')[0]);
-    if (records.length > 0 || folders.length > 0) {
-      showToast(`✓ Tải xong! ${records.length} bài · ${folders.length} thư mục`, 'success');
-    }
+    showToast(`✓ Đồng bộ xong! ${records.length} bài · ${totalFolders} thư mục`, 'success');
   } catch(e) {
     setSyncBar(false, '✗ Lỗi NocoDB: ' + e.message, '', true);
     showToast('Lỗi tải NocoDB: ' + e.message, 'error');
