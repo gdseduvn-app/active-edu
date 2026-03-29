@@ -1,0 +1,2588 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ActiveEdu Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
+<style>
+:root {
+  --primary:      #2563eb;
+  --primary-dark: #1d4ed8;
+  --primary-light:#dbeafe;
+  --indigo:       #4338ca;
+  --teal:         #14b8a6;
+  --success:      #0d9488;
+  --danger:       #ef4444;
+  --warn:         #f59e0b;
+  --bg:           #f8fafc;
+  --sidebar-bg:   #1e293b;
+  --sidebar-w:    260px;
+  --text:         #1e293b;
+  --text-muted:   #64748b;
+  --border:       #e2e8f0;
+  --card:         #ffffff;
+  --hover:        #eff6ff;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;overflow:hidden}
+
+/* ── SIDEBAR ─────────────────────────── */
+#sidebar{
+  width:var(--sidebar-w);background:var(--sidebar-bg);color:#fff;
+  display:flex;flex-direction:column;flex-shrink:0;height:100vh;overflow-y:auto;
+}
+.sb-logo{padding:18px 16px;border-bottom:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:10px}
+.sb-logo-icon{width:32px;height:32px;background:var(--primary);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.sb-logo-name{font-size:18px;font-weight:700}
+.sb-logo-name span{color:#60a5fa}
+.sb-logo-sub{font-size:10px;color:rgba(255,255,255,.35);letter-spacing:1.5px;text-transform:uppercase;margin-top:1px}
+
+.sb-section{padding:16px 16px 4px;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,.25)}
+.sb-item{
+  display:flex;align-items:center;gap:9px;padding:9px 16px;
+  cursor:pointer;font-size:13.5px;color:rgba(255,255,255,.7);
+  border-left:3px solid transparent;transition:all .15s;
+}
+.sb-item:hover{color:#fff;background:rgba(255,255,255,.05);border-left-color:#38bdf8}
+.sb-item.active{color:#fff;background:rgba(37,99,235,.2);border-left-color:var(--primary);font-weight:600}
+.sb-item i{width:18px;text-align:center;font-size:13px}
+
+/* GitHub connection status */
+.gh-status{margin:12px 16px;padding:10px 12px;border-radius:8px;font-size:12px;display:flex;align-items:center;gap:8px}
+.gh-status.connected{background:rgba(13,148,136,.15);border:1px solid rgba(13,148,136,.3);color:#5eead4}
+.gh-status.disconnected{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);color:#fca5a5}
+.gh-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.gh-status.connected .gh-dot{background:#14b8a6}
+.gh-status.disconnected .gh-dot{background:#ef4444;animation:blink 1.2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+.sb-footer{padding:14px 16px;border-top:1px solid rgba(255,255,255,.08);margin-top:auto}
+.sb-footer a{display:block;text-align:center;padding:8px;background:rgba(37,99,235,.15);border:1px solid rgba(37,99,235,.35);border-radius:8px;color:#93c5fd;font-size:12.5px;text-decoration:none;transition:all .15s;margin-bottom:6px}
+.sb-footer a:hover{background:rgba(37,99,235,.3);color:#fff}
+.sb-copy{font-size:11px;color:rgba(255,255,255,.2);text-align:center}
+
+/* ── MAIN ───────────────────────────── */
+#main{flex:1;display:flex;flex-direction:column;height:100vh;overflow:hidden}
+.topbar{
+  background:var(--card);border-bottom:1px solid var(--border);
+  padding:0 24px;height:54px;display:flex;align-items:center;
+  justify-content:space-between;flex-shrink:0;
+  box-shadow:0 1px 3px rgba(0,0,0,.04);
+}
+.topbar-title{font-size:15px;font-weight:600;color:var(--primary)}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.admin-badge{padding:4px 12px;background:var(--primary-light);border:1px solid #93c5fd;border-radius:20px;font-size:12px;color:var(--primary);font-weight:600}
+
+#content{flex:1;overflow-y:auto;padding:24px}
+
+/* ── PANELS ─────────────────────────── */
+.panel{display:none}.panel.active{display:block}
+
+/* ── BUTTONS ────────────────────────── */
+.btn{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;font-family:inherit;display:inline-flex;align-items:center;gap:6px;transition:all .15s}
+.btn-primary{background:var(--primary);color:#fff}.btn-primary:hover{background:var(--primary-dark)}
+.btn-success{background:var(--success);color:#fff}.btn-success:hover{background:#0f766e}
+.btn-danger{background:var(--danger);color:#fff}.btn-danger:hover{background:#dc2626}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--text)}.btn-outline:hover{background:var(--hover);border-color:var(--primary);color:var(--primary)}
+.btn-warn{background:var(--warn);color:#fff}.btn-warn:hover{background:#d97706}
+.btn-teal{background:var(--teal);color:#fff}.btn-teal:hover{background:#0f766e}
+.btn-sm{padding:5px 12px;font-size:12px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+/* ── CARDS / SECTIONS ───────────────── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px}
+.sec-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.sec-hd h3{font-size:15px;font-weight:600;color:var(--text)}
+.sec-hd .actions{display:flex;gap:8px}
+
+/* ── GITHUB SETUP ───────────────────── */
+.setup-hero{text-align:center;padding:40px 20px}
+.setup-hero .icon{font-size:56px;margin-bottom:16px;color:var(--primary-light)}
+.setup-hero h2{font-size:22px;font-weight:700;margin-bottom:8px}
+.setup-hero p{color:var(--text-muted);font-size:14px;margin-bottom:24px;line-height:1.7;max-width:480px;margin-left:auto;margin-right:auto}
+.form-row{display:flex;flex-direction:column;gap:10px;max-width:480px;margin:0 auto}
+.form-group label{display:block;font-size:13px;font-weight:500;color:var(--text-muted);margin-bottom:5px}
+.form-group input,.form-group select{width:100%;border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;font-size:13.5px;font-family:inherit;outline:none;transition:all .15s}
+.form-group input:focus,.form-group select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.08)}
+.form-hint{font-size:11.5px;color:var(--text-muted);margin-top:4px}
+.form-hint a{color:var(--primary)}
+
+/* ── SYNC STATUS BAR ────────────────── */
+.sync-bar{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 16px;background:var(--hover);border:1px solid #bfdbfe;
+  border-radius:10px;margin-bottom:16px;font-size:13px;
+}
+.sync-bar .sync-icon{font-size:16px;color:var(--primary)}
+.sync-bar .sync-text{flex:1;color:var(--text)}
+.sync-bar .sync-time{font-size:12px;color:var(--text-muted)}
+.sync-bar.syncing{background:#fef9c3;border-color:#fde68a}
+.sync-bar.syncing .sync-icon{animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.sync-bar.error{background:#fef2f2;border-color:#fecaca}
+.sync-bar.error .sync-icon{color:var(--danger)}
+
+/* ── FILE TREE ──────────────────────── */
+.file-manager{display:grid;grid-template-columns:280px 1fr;gap:16px;min-height:520px}
+.tree-panel{background:var(--card);border:1px solid var(--border);border-radius:12px;display:flex;flex-direction:column;overflow:hidden}
+.tree-hd{padding:12px 14px;border-bottom:1px solid var(--border);background:#f8fafc;display:flex;align-items:center;justify-content:space-between}
+.tree-hd-title{font-size:13px;font-weight:600;color:var(--primary)}
+.tree-body{flex:1;overflow-y:auto;padding:6px 0}
+.tree-empty{text-align:center;padding:40px 16px;color:var(--text-muted);font-size:13px}
+
+.tree-folder{cursor:pointer;user-select:none}
+.tree-folder-hd{
+  display:flex;align-items:center;gap:7px;padding:7px 14px;
+  color:var(--text);font-size:13px;transition:background .1s;
+}
+.tree-folder-hd:hover{background:var(--hover)}
+.tree-folder-hd .fa-chevron-right{font-size:9px;color:var(--text-muted);transition:transform .18s;margin-right:2px}
+.tree-folder.open>.tree-folder-hd .fa-chevron-right{transform:rotate(90deg)}
+.tree-folder.open>.tree-folder-hd .fa-folder{color:#3b82f6}
+.tree-folder-children{display:none;padding-left:14px}
+.tree-folder.open>.tree-folder-children{display:block}
+
+.tree-file{
+  display:flex;align-items:center;gap:7px;padding:6px 14px;
+  cursor:pointer;font-size:13px;color:var(--text-muted);
+  transition:all .1s;border-left:2px solid transparent;
+}
+.tree-file:hover{background:var(--hover);color:var(--text)}
+.tree-file.active{background:var(--primary-light);color:var(--primary);border-left-color:var(--primary);font-weight:500}
+.tree-file .fa-file-lines{color:#94a3b8;font-size:12px}
+.tree-file.active .fa-file-lines{color:var(--primary)}
+
+.tree-actions{display:none;margin-left:auto;gap:3px}
+.tree-folder-hd:hover .tree-actions,
+.tree-file:hover .tree-actions{display:flex}
+.tree-act-btn{padding:2px 5px;border-radius:4px;border:none;background:transparent;cursor:pointer;font-size:11px;color:var(--text-muted);transition:all .1s}
+.tree-act-btn:hover{background:#fee2e2;color:var(--danger)}
+.tree-act-btn.edit-btn:hover{background:var(--primary-light);color:var(--primary)}
+
+/* ── DETAIL PANEL ───────────────────── */
+.detail-panel{background:var(--card);border:1px solid var(--border);border-radius:12px;display:flex;flex-direction:column;overflow:hidden}
+.detail-hd{padding:12px 16px;border-bottom:1px solid var(--border);background:#f8fafc;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0}
+.detail-hd-path{font-size:12.5px;color:var(--text-muted);display:flex;align-items:center;gap:6px}
+.detail-hd-path i{color:var(--primary)}
+.detail-placeholder{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;color:var(--text-muted);padding:40px}
+.detail-placeholder i{font-size:40px;color:var(--border)}
+
+/* ── EDITOR ─────────────────────────── */
+.editor-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.editor-meta{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;gap:10px;flex-wrap:wrap;background:#f8fafc;flex-shrink:0}
+.editor-meta input,.editor-meta select{border:1px solid var(--border);border-radius:7px;padding:7px 11px;font-size:13px;font-family:inherit;outline:none;transition:all .15s;background:#fff}
+.editor-meta input:focus,.editor-meta select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.08)}
+.input-title{flex:1;min-width:200px;font-weight:600}
+.input-folder{min-width:160px}
+.input-desc{flex:1.5;min-width:180px}
+
+.editor-tabs{display:flex;align-items:center;border-bottom:1px solid var(--border);background:#f8fafc;padding:0 14px;flex-shrink:0}
+.etab{padding:9px 16px;font-size:13px;font-weight:500;cursor:pointer;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s;background:none;border-top:none;border-left:none;border-right:none;font-family:inherit;display:flex;align-items:center;gap:6px}
+.etab:hover{color:var(--primary)}
+.etab.active{color:var(--primary);border-bottom-color:var(--primary);font-weight:600}
+.etab-right{margin-left:auto;display:flex;gap:6px;padding:6px 0}
+
+.ql-toolbar{border:none!important;border-bottom:1px solid var(--border)!important;background:#f8fafc;padding:7px 12px!important;flex-shrink:0}
+.ql-container{font-family:'Be Vietnam Pro',sans-serif!important;font-size:14.5px!important;border:none!important;flex:1;overflow-y:auto}
+.ql-editor{min-height:340px;line-height:1.85!important;padding:20px 22px!important;color:var(--text)}
+.ql-editor h2{font-size:19px!important;font-weight:700!important;border-bottom:2px solid var(--primary-light);padding-bottom:5px;margin:18px 0 9px}
+.ql-editor h3{font-size:15.5px!important;font-weight:600!important;margin:14px 0 7px;color:#334155}
+.ql-editor p{margin-bottom:11px}
+.ql-editor pre{background:#1e293b!important;color:#94a3b8!important;border-radius:9px!important;padding:14px!important}
+.ql-editor blockquote{border-left:4px solid var(--primary)!important;background:var(--hover);padding:11px 14px!important;border-radius:0 7px 7px 0;margin:10px 0}
+.ql-editor a{color:var(--primary)}
+.ql-editor img{max-width:100%;border-radius:7px}
+.ql-snow .ql-stroke{stroke:var(--text-muted)!important}
+.ql-snow .ql-fill{fill:var(--text-muted)!important}
+.ql-snow.ql-toolbar button:hover .ql-stroke,.ql-snow.ql-toolbar button.ql-active .ql-stroke{stroke:var(--primary)!important}
+.ql-snow.ql-toolbar button:hover .ql-fill,.ql-snow.ql-toolbar button.ql-active .ql-fill{fill:var(--primary)!important}
+
+#html-source{flex:1;width:100%;border:none;padding:18px;font-family:'Cascadia Code','Fira Code','Courier New',monospace;font-size:13px;line-height:1.85;outline:none;resize:none;background:#1e293b;color:#e2e8f0;tab-size:2;min-height:340px}
+.preview-wrap{flex:1;background:#fff;overflow:hidden}
+.preview-wrap iframe{width:100%;height:100%;border:none;min-height:340px}
+
+.editor-footer{padding:8px 14px;border-top:1px solid var(--border);background:#f8fafc;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;font-size:12px;color:var(--text-muted)}
+.save-indicator{display:flex;align-items:center;gap:6px}
+.save-dot{width:6px;height:6px;border-radius:50%;background:var(--success)}
+.save-dot.unsaved{background:var(--warn)}
+.save-dot.saving{background:var(--primary);animation:blink .8s infinite}
+
+/* ── DASHBOARD ──────────────────────── */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:11px;padding:18px}
+.stat-card .lbl{font-size:12px;color:var(--text-muted);margin-bottom:7px}
+.stat-card .val{font-size:26px;font-weight:700;color:var(--primary)}
+.stat-card .sub{font-size:11.5px;color:var(--success);margin-top:3px}
+
+/* ── TABLE ──────────────────────────── */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;padding:10px 14px;font-size:11.5px;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);background:#f8fafc;text-transform:uppercase;letter-spacing:.5px}
+td{padding:10px 14px;font-size:13.5px;border-bottom:1px solid var(--border)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--hover)}
+.badge{padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600}
+.badge-blue{background:var(--primary-light);color:var(--primary)}
+.badge-green{background:#ccfbf1;color:var(--success)}
+
+/* ── MODAL ──────────────────────────── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:none;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:#fff;border-radius:16px;padding:28px;width:420px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.modal h3{font-size:16px;font-weight:600;margin-bottom:16px;color:var(--text)}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+
+/* ── SETTINGS ───────────────────────── */
+.settings-section{background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:16px;overflow:hidden}
+.settings-hd{padding:14px 18px;border-bottom:1px solid var(--border);font-size:14px;font-weight:600;color:var(--text);background:#f8fafc}
+.settings-body{padding:18px}
+.setting-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
+.setting-row:last-child{border-bottom:none}
+.toggle{position:relative;width:40px;height:22px}
+.toggle input{display:none}
+.toggle-slider{position:absolute;inset:0;background:#cbd5e1;border-radius:22px;cursor:pointer;transition:background .2s}
+.toggle-slider::before{content:'';position:absolute;width:16px;height:16px;background:#fff;border-radius:50%;top:3px;left:3px;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.toggle input:checked+.toggle-slider{background:var(--teal)}
+.toggle input:checked+.toggle-slider::before{transform:translateX(18px)}
+
+/* ── TOAST ──────────────────────────── */
+.toast{position:fixed;bottom:22px;right:22px;padding:12px 18px;border-radius:10px;font-size:13.5px;font-weight:500;color:#fff;z-index:9999;transform:translateY(80px);opacity:0;transition:all .3s;max-width:300px;display:flex;align-items:center;gap:8px}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.success{background:var(--success)}
+.toast.error{background:var(--danger)}
+.toast.info{background:var(--primary)}
+.toast.warn{background:var(--warn)}
+
+/* ── LOADING OVERLAY ─────────────────── */
+.loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,.8);z-index:400;display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px}
+.loading-overlay.show{display:flex}
+.spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite}
+</style>
+</head>
+<body>
+
+<!-- ── SIDEBAR ─────────────────────────────── -->
+<aside id="sidebar">
+  <div class="sb-logo">
+    <div class="sb-logo-icon">⚡</div>
+    <div>
+      <div class="sb-logo-name">Active<span>Edu</span></div>
+      <div class="sb-logo-sub">Admin Panel</div>
+    </div>
+  </div>
+
+  <div id="gh-status-bar" class="gh-status disconnected">
+    <div class="gh-dot"></div>
+    <span id="gh-status-text">Chưa kết nối GitHub</span>
+  </div>
+  <div id="noco-status-bar" class="gh-status disconnected" style="margin-top:0">
+    <div class="gh-dot"></div>
+    <span id="noco-status-text">Chưa kết nối NocoDB</span>
+  </div>
+
+  <div class="sb-section">Điều hướng</div>
+  <div class="sb-item active" onclick="showPanel('dashboard',this)"><i class="fas fa-chart-bar"></i> Dashboard</div>
+  <div class="sb-item" onclick="showPanel('files',this)"><i class="fas fa-folder-tree"></i> Quản lý tệp</div>
+  <div class="sb-item" onclick="showPanel('editor',this)"><i class="fas fa-pen-fancy"></i> Soạn thảo</div>
+  <div class="sb-item" onclick="showPanel('sync',this)"><i class="fas fa-rotate"></i> Đồng bộ GitHub</div>
+  <div class="sb-item" onclick="showPanel('nocodb',this)"><i class="fas fa-database"></i> NocoDB</div>
+  <div class="sb-item" onclick="showPanel('settings',this)"><i class="fas fa-gear"></i> Cài đặt</div>
+
+  <div class="sb-footer">
+    <a href="../index.html" target="_blank"><i class="fas fa-arrow-up-right-from-square"></i> Xem trang chính</a>
+    <div class="sb-copy">ActiveEdu v2.0 — GitHub Sync</div>
+  </div>
+</aside>
+
+<!-- ── MAIN ────────────────────────────────── -->
+<div id="main">
+  <div class="topbar">
+    <div class="topbar-title" id="panel-title">Dashboard</div>
+    <div class="topbar-right">
+      <div class="admin-badge"><i class="fas fa-shield-halved"></i> Admin</div>
+      <button onclick="doLogout()" style="padding:5px 12px;border:1px solid #e2e8f0;background:transparent;border-radius:7px;font-size:12px;cursor:pointer;color:#64748b;font-family:inherit" title="Đăng xuất"><i class="fas fa-right-from-bracket"></i> Đăng xuất</button>
+      <span style="font-size:13px;color:var(--text-muted)" id="top-repo"></span>
+    </div>
+  </div>
+
+  <div id="content">
+
+    <!-- ══ DASHBOARD ═══════════════════════════ -->
+    <div class="panel active" id="panel-dashboard">
+      <div id="sync-bar-dash" class="sync-bar" style="display:none">
+        <i class="fas fa-rotate sync-icon" id="sync-icon-dash"></i>
+        <span class="sync-text" id="sync-text-dash">Đang đồng bộ...</span>
+        <span class="sync-time" id="sync-time-dash"></span>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="lbl">Bài viết</div><div class="val" id="d-articles">—</div><div class="sub">trên GitHub</div></div>
+        <div class="stat-card"><div class="lbl">Thư mục</div><div class="val" id="d-folders">—</div></div>
+        <div class="stat-card"><div class="lbl">Kết nối</div><div class="val" id="d-repo" style="font-size:14px;margin-top:4px">—</div></div>
+        <div class="stat-card"><div class="lbl">Đồng bộ cuối</div><div class="val" id="d-sync" style="font-size:13px;margin-top:4px">—</div></div>
+      </div>
+      <div class="card">
+        <div class="sec-hd">
+          <h3>📋 Bài viết gần đây (từ GitHub)</h3>
+          <div class="actions">
+            <button class="btn btn-teal btn-sm" onclick="syncFromGitHub()"><i class="fas fa-rotate"></i> Đồng bộ ngay</button>
+            <button class="btn btn-primary btn-sm" onclick="showPanel('editor',document.querySelectorAll('.sb-item')[2])"><i class="fas fa-plus"></i> Tạo bài</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table><thead><tr><th>Tên bài</th><th>Thư mục</th><th>Quyền truy cập</th><th>Đường dẫn GitHub</th><th>Thao tác</th></tr></thead>
+          <tbody id="dash-table"><tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:32px">Kết nối GitHub để xem danh sách bài viết</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ FILES ════════════════════════════════ -->
+    <div class="panel" id="panel-files">
+      <div id="sync-bar-files" class="sync-bar" style="display:none">
+        <i class="fas fa-rotate sync-icon"></i>
+        <span class="sync-text" id="sync-text-files">Đang tải cây thư mục từ GitHub...</span>
+      </div>
+      <div class="sec-hd">
+        <h3>📁 Cây thư mục — nguồn thật từ GitHub</h3>
+        <div class="actions">
+          <button class="btn btn-outline btn-sm" onclick="syncFromGitHub()"><i class="fas fa-rotate"></i> Tải lại</button>
+          <button class="btn btn-outline btn-sm" onclick="showNewFolder()"><i class="fas fa-folder-plus"></i> Thư mục</button>
+          <button class="btn btn-primary btn-sm" onclick="showNewFile()"><i class="fas fa-file-circle-plus"></i> Tệp mới</button>
+        </div>
+      </div>
+      <div class="file-manager">
+        <div class="tree-panel">
+          <div class="tree-hd">
+            <span class="tree-hd-title"><i class="fab fa-github"></i> GitHub / content/</span>
+            <span style="font-size:11px;color:var(--text-muted)" id="tree-count"></span>
+          </div>
+          <div class="tree-body" id="tree-body">
+            <div class="tree-empty"><i class="fas fa-plug" style="font-size:24px;color:var(--border);display:block;margin-bottom:8px"></i>Kết nối GitHub<br>để xem thư mục</div>
+          </div>
+        </div>
+        <div class="detail-panel" id="detail-panel">
+          <div class="detail-hd">
+            <div class="detail-hd-path" id="detail-path"><i class="fas fa-info-circle"></i> Chọn tệp để xem</div>
+            <div class="actions" id="detail-actions" style="display:none">
+              <button class="btn btn-outline btn-sm" onclick="editSelectedFile()"><i class="fas fa-pen"></i> Sửa</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteSelectedFile()"><i class="fas fa-trash"></i> Xóa</button>
+            </div>
+          </div>
+          <div id="detail-body">
+            <div class="detail-placeholder">
+              <i class="fas fa-hand-pointer"></i>
+              <span>Chọn tệp từ cây thư mục</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ EDITOR ════════════════════════════════ -->
+    <div class="panel" id="panel-editor">
+      <div class="sec-hd">
+        <h3>✏️ Soạn thảo bài học</h3>
+        <div class="actions">
+          <button class="btn btn-outline btn-sm" onclick="newArticle()"><i class="fas fa-plus"></i> Bài mới</button>
+          <button class="btn btn-success" id="btn-save" onclick="saveToGitHub()"><i class="fas fa-cloud-arrow-up"></i> Lưu lên GitHub</button>
+        </div>
+      </div>
+      <div class="detail-panel" style="min-height:580px">
+        <div class="editor-wrap">
+          <div class="editor-meta">
+            <input type="text" id="e-title" class="input-title" placeholder="✏ Tên bài học...">
+            <select id="e-folder" class="input-folder">
+              <option value="">— Chọn thư mục —</option>
+            </select>
+            <input type="text" id="e-desc" class="input-desc" placeholder="Mô tả ngắn...">
+            <select id="e-access" style="border:1px solid var(--border);border-radius:7px;padding:7px 11px;font-size:13px;font-family:inherit;outline:none;background:#fff;min-width:140px">
+              <option value="public">🌐 Public</option>
+              <option value="private">🔒 Private</option>
+            </select>
+          </div>
+          <!-- Tabs -->
+          <div class="editor-tabs">
+            <button class="etab active" id="etab-rich" onclick="switchTab('rich')"><i class="fas fa-pen-fancy"></i> Soạn thảo</button>
+            <button class="etab" id="etab-html" onclick="switchTab('html')"><i class="fas fa-code"></i> HTML</button>
+            <button class="etab" id="etab-preview" onclick="switchTab('preview')"><i class="fas fa-eye"></i> Xem trước</button>
+            <div class="etab-right">
+              <button class="btn btn-outline btn-sm" onclick="useTemplate('lesson')"><i class="fas fa-book"></i> Mẫu bài</button>
+              <button class="btn btn-outline btn-sm" onclick="useTemplate('quiz')"><i class="fas fa-circle-question"></i> Quiz</button>
+              <button class="btn btn-outline btn-sm" onclick="useTemplate('code')"><i class="fas fa-laptop-code"></i> Code</button>
+            </div>
+          </div>
+          <!-- Rich -->
+          <div id="wrap-rich" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+            <div id="quill-editor"></div>
+          </div>
+          <!-- HTML -->
+          <div id="wrap-html" style="flex:1;display:none;flex-direction:column">
+            <textarea id="html-source" spellcheck="false" placeholder="<!-- HTML tại đây -->"></textarea>
+          </div>
+          <!-- Preview -->
+          <div id="wrap-preview" class="preview-wrap" style="display:none">
+            <iframe id="preview-iframe"></iframe>
+          </div>
+          <!-- Footer -->
+          <div class="editor-footer">
+            <div style="display:flex;gap:14px">
+              <span id="e-path-label" style="color:var(--text-muted)"><i class="fas fa-file"></i> Bài mới</span>
+              <span id="e-chars">0 ký tự</span>
+              <span id="e-words">0 từ</span>
+            </div>
+            <div class="save-indicator">
+              <div class="save-dot unsaved" id="save-dot"></div>
+              <span id="save-status">Chưa lưu</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SYNC ══════════════════════════════════ -->
+    <div class="panel" id="panel-sync">
+      <div class="sec-hd"><h3><i class="fab fa-github"></i> Đồng bộ với GitHub</h3></div>
+
+      <div id="sync-not-connected" class="card" style="text-align:center;padding:40px">
+        <i class="fab fa-github" style="font-size:48px;color:var(--border);display:block;margin-bottom:12px"></i>
+        <h3 style="margin-bottom:8px">Chưa kết nối GitHub</h3>
+        <p style="color:var(--text-muted);margin-bottom:18px">Vào <b>Cài đặt</b> để nhập GitHub Token và repo</p>
+        <button class="btn btn-primary" onclick="showPanel('settings',document.querySelectorAll('.sb-item')[4])"><i class="fas fa-gear"></i> Đến Cài đặt</button>
+      </div>
+
+      <div id="sync-connected" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div class="card">
+            <div class="sec-hd"><h3><i class="fas fa-cloud-arrow-down" style="color:var(--primary)"></i> Kéo từ GitHub</h3></div>
+            <p style="font-size:13.5px;color:var(--text-muted);margin-bottom:14px;line-height:1.7">
+              Đọc toàn bộ cây thư mục <code>content/</code> từ GitHub và tái tạo <code>index.json</code>.<br>
+              <strong>Không xóa file nào.</strong>
+            </p>
+            <button class="btn btn-primary" onclick="syncFromGitHub()"><i class="fas fa-rotate"></i> Đồng bộ từ GitHub</button>
+          </div>
+          <div class="card">
+            <div class="sec-hd"><h3><i class="fas fa-cloud-arrow-up" style="color:var(--success)"></i> Đẩy Index lên GitHub</h3></div>
+            <p style="font-size:13.5px;color:var(--text-muted);margin-bottom:14px;line-height:1.7">
+              Sau khi tạo/xóa bài từ Admin, đẩy <code>content/index.json</code> mới lên GitHub để menu trang chính cập nhật.
+            </p>
+            <button class="btn btn-success" onclick="pushIndexToGitHub()"><i class="fas fa-cloud-arrow-up"></i> Đẩy index.json</button>
+          </div>
+          <div class="card">
+            <div class="sec-hd"><h3><i class="fas fa-list-check" style="color:var(--teal)"></i> Trạng thái đồng bộ</h3></div>
+            <div id="sync-diff" style="font-size:13px;color:var(--text-muted);line-height:2">
+              Nhấn <b>Đồng bộ từ GitHub</b> để kiểm tra.
+            </div>
+          </div>
+          <div class="card">
+            <div class="sec-hd"><h3><i class="fas fa-circle-info" style="color:var(--warn)"></i> Hướng dẫn</h3></div>
+            <ol style="font-size:13px;color:var(--text-muted);line-height:2.2;padding-left:18px">
+              <li>Tạo bài mới → <b>Lưu lên GitHub</b></li>
+              <li>Admin tự cập nhật cây thư mục</li>
+              <li>Nhấn <b>Đẩy index.json</b> để cập nhật menu</li>
+              <li>Trang học sinh tự động nhận menu mới</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SETTINGS ══════════════════════════════ -->
+    <div class="panel" id="panel-settings">
+      <div class="sec-hd">
+        <h3>⚙️ Cài đặt</h3>
+        <button class="btn btn-success" onclick="saveSettings()"><i class="fas fa-save"></i> Lưu tất cả</button>
+        <button class="btn btn-outline" onclick="exportConfig()" style="margin-left:8px"><i class="fas fa-download"></i> Export config</button>
+        <button class="btn btn-outline" onclick="importConfig()" style="margin-left:4px"><i class="fas fa-upload"></i> Import config</button>
+        <input type="file" id="import-config-file" accept=".json" style="display:none" onchange="handleImportConfig(this)">
+      </div>
+
+      <!-- NocoDB -->
+      <div class="settings-section">
+        <div class="settings-hd"><i class="fas fa-database" style="color:var(--teal)"></i> Kết nối NocoDB — Cơ sở dữ liệu metadata</div>
+        <div class="settings-body">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div class="form-group">
+              <label>NocoDB URL</label>
+              <input type="text" id="s-noco-url" placeholder="https://app.nocodb.com hoặc http://localhost:8080">
+              <div class="form-hint">URL instance NocoDB của bạn (cloud hoặc self-hosted)</div>
+            </div>
+            <div class="form-group">
+              <label>API Token</label>
+              <input type="password" id="s-noco-token" placeholder="Dán API Token từ NocoDB vào đây">
+              <div class="form-hint">Team menu → <b>Account Settings → Tokens → Add Token</b></div>
+            </div>
+            <div class="form-group">
+              <label>Table ID <span style="color:var(--text-muted);font-weight:400">(bắt đầu bằng <code>md_</code>)</span></label>
+              <input type="text" id="s-noco-table" placeholder="md_xxxxxxxxxxxxxxxxxx">
+              <div class="form-hint">URL khi mở bảng: <code>/nc/p_xxx/<b>md_xxx</b></code></div>
+            </div>
+            <div class="form-group">
+              <label>Base ID <span style="color:var(--text-muted);font-weight:400">(bắt đầu bằng <code>p_</code>)</span></label>
+              <input type="text" id="s-noco-base" placeholder="p_xxxxxxxxxxxxxxxxxx">
+              <div class="form-hint">URL workspace: <code>/nc/<b>p_xxx</b></code></div>
+            </div>
+            <div class="form-group">
+              <label>Table ID — Bảng Users <span style="color:var(--text-muted);font-weight:400">(bắt đầu bằng <code>md_</code>)</span></label>
+              <input type="text" id="s-noco-user-table" placeholder="md_xxxxxxxxxxxxxxxxxx">
+              <div class="form-hint">Table ID của bảng <b>Users</b> trong NocoDB</div>
+            </div>
+          </div>
+          <div style="margin-top:14px;display:flex;gap:10px;align-items:center">
+            <button class="btn btn-teal" onclick="nocoTestAndSave()"><i class="fas fa-plug"></i> Kiểm tra & Lưu</button>
+            <div id="noco-test-result" style="font-size:13px;color:var(--text-muted);display:flex;align-items:center;gap:6px"></div>
+          </div>
+          <div style="margin-top:14px;padding:12px 14px;background:var(--hover);border-radius:8px;border-left:3px solid var(--primary);font-size:12.5px;color:var(--text-muted);line-height:1.7">
+            <b style="color:var(--text)">💡 NocoDB lưu gì?</b><br>
+            Metadata bài học: tên, mô tả, tags, trạng thái, lượt xem, ngày tạo/cập nhật.<br>
+            GitHub lưu file HTML thật. Hai hệ thống bổ sung cho nhau.
+          </div>
+        </div>
+      </div>
+
+      <!-- GitHub -->
+      <div class="settings-section">
+        <div class="settings-hd"><i class="fab fa-github"></i> Kết nối GitHub — <strong>Nguồn sự thật duy nhất</strong></div>
+        <div class="settings-body">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div class="form-group">
+              <label>GitHub Personal Access Token</label>
+              <input type="password" id="s-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+              <div class="form-hint">Tạo tại <a href="https://github.com/settings/tokens/new" target="_blank">github.com/settings/tokens</a> — cần quyền <code>repo</code></div>
+            </div>
+            <div class="form-group">
+              <label>Tên repo (username/repo-name)</label>
+              <input type="text" id="s-repo" placeholder="username/activeedu">
+            </div>
+            <div class="form-group">
+              <label>Branch</label>
+              <input type="text" id="s-branch" value="main" placeholder="main">
+            </div>
+            <div class="form-group">
+              <label>Thư mục nội dung</label>
+              <input type="text" id="s-content-dir" value="content" placeholder="content">
+            </div>
+          </div>
+          <div style="margin-top:14px;display:flex;gap:10px">
+            <button class="btn btn-primary" onclick="testGitHubConnection()"><i class="fas fa-plug"></i> Kiểm tra kết nối</button>
+            <div id="gh-test-result" style="font-size:13px;color:var(--text-muted);display:flex;align-items:center;gap:6px"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Site info -->
+      <div class="settings-section">
+        <div class="settings-hd">🌐 Thông tin trang</div>
+        <div class="settings-body" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div class="form-group"><label>Tên trang</label><input type="text" id="s-title" value="ActiveEdu"></div>
+          <div class="form-group"><label>GitHub Pages URL</label><input type="text" id="s-url" placeholder="https://username.github.io/activeedu"></div>
+        </div>
+      </div>
+
+      <!-- Admin -->
+      <div class="settings-section">
+        <div class="settings-hd">🔐 Tài khoản Admin</div>
+        <div class="settings-body" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div class="form-group"><label>Tên đăng nhập</label><input type="text" id="s-user" value="admin"></div>
+          <div class="form-group"><label>Mật khẩu mới</label><input type="password" id="s-pass" placeholder="Để trống để giữ nguyên"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ NOCODB ════════════════════════════════ -->
+    <div class="panel" id="panel-nocodb">
+      <div class="sec-hd">
+        <h3><i class="fas fa-database" style="color:var(--teal)"></i> NocoDB — Cơ sở dữ liệu</h3>
+        <div class="actions">
+          <button class="btn btn-outline btn-sm" onclick="nocoTestConnection()"><i class="fas fa-plug"></i> Kiểm tra</button>
+          <button class="btn btn-teal btn-sm" onclick="nocoSyncAll()"><i class="fas fa-rotate"></i> Đồng bộ tất cả</button>
+        </div>
+      </div>
+
+      <!-- Not connected state -->
+      <div id="noco-not-connected" class="card" style="text-align:center;padding:40px">
+        <i class="fas fa-database" style="font-size:48px;color:var(--border);display:block;margin-bottom:12px"></i>
+        <h3 style="margin-bottom:8px">Chưa kết nối NocoDB</h3>
+        <p style="color:var(--text-muted);margin-bottom:18px;line-height:1.7">
+          Nhập thông tin NocoDB trong <b>Cài đặt → NocoDB</b> để quản lý<br>
+          metadata bài học (tags, lượt xem, trạng thái...) bằng cơ sở dữ liệu.
+        </p>
+        <button class="btn btn-primary" onclick="showPanel('settings',document.querySelectorAll('.sb-item')[5])">
+          <i class="fas fa-gear"></i> Đến Cài đặt
+        </button>
+      </div>
+
+      <!-- Connected state -->
+      <div id="noco-connected" style="display:none">
+
+        <!-- Status bar -->
+        <div class="sync-bar" id="noco-sync-bar" style="display:none">
+          <i class="fas fa-rotate sync-icon" id="noco-sync-icon"></i>
+          <span class="sync-text" id="noco-sync-text">Đang kết nối NocoDB...</span>
+          <span class="sync-time" id="noco-sync-time"></span>
+        </div>
+
+        <!-- Stats row -->
+        <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
+          <div class="stat-card">
+            <div class="lbl">Bài học</div>
+            <div class="val" id="noco-count">—</div>
+            <div class="sub">trong bảng Articles</div>
+          </div>
+          <div class="stat-card">
+            <div class="lbl">Người dùng</div>
+            <div class="val" id="noco-user-count">—</div>
+            <div class="sub">trong bảng Users</div>
+          </div>
+          <div class="stat-card">
+            <div class="lbl">Đồng bộ cuối</div>
+            <div class="val" id="noco-sync-last" style="font-size:13px;margin-top:6px">—</div>
+          </div>
+          <div class="stat-card" style="cursor:pointer" onclick="nocoOpenTable()">
+            <div class="lbl">Mở trong NocoDB</div>
+            <div class="val" style="font-size:13px;margin-top:6px;color:var(--teal)">
+              <i class="fas fa-arrow-up-right-from-square"></i> Mở bảng
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabs -->
+        <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:16px">
+          <button class="etab active" id="ntab-records" onclick="switchNocoTab('records')"><i class="fas fa-table-list"></i> Bài học</button>
+          <button class="etab" id="ntab-users" onclick="switchNocoTab('users')"><i class="fas fa-users"></i> Người dùng</button>
+          <button class="etab" id="ntab-fields" onclick="switchNocoTab('fields')"><i class="fas fa-columns"></i> Cột / Fields</button>
+          <button class="etab" id="ntab-query" onclick="switchNocoTab('query')"><i class="fas fa-magnifying-glass"></i> Tìm kiếm</button>
+        </div>
+
+        <!-- Records tab -->
+        <div id="noco-tab-records">
+          <div class="card" style="padding:0;overflow:hidden">
+            <div style="padding:10px 14px;border-bottom:1px solid var(--border);background:#f8fafc;display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:13px;font-weight:600;color:var(--primary)"><i class="fas fa-table"></i> Bảng Articles</span>
+              <div style="display:flex;gap:8px;align-items:center">
+                <input type="text" id="noco-search-input" placeholder="Tìm trong NocoDB..." style="border:1px solid var(--border);border-radius:7px;padding:6px 10px;font-size:12.5px;font-family:inherit;outline:none;width:200px" oninput="nocoSearchRecords(this.value)">
+                <button class="btn btn-primary btn-sm" onclick="nocoAddRecord()"><i class="fas fa-plus"></i> Thêm bản ghi</button>
+              </div>
+            </div>
+            <div class="table-wrap" id="noco-table-wrap">
+              <table id="noco-records-table">
+                <thead id="noco-thead"><tr><th>Đang tải...</th></tr></thead>
+                <tbody id="noco-tbody"><tr><td style="text-align:center;padding:32px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i> Đang tải dữ liệu từ NocoDB...</td></tr></tbody>
+              </table>
+            </div>
+            <div style="padding:10px 14px;border-top:1px solid var(--border);background:#f8fafc;display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--text-muted)">
+              <span id="noco-page-info">—</span>
+              <div style="display:flex;gap:6px">
+                <button class="btn btn-outline btn-sm" id="noco-prev" onclick="nocoChangePage(-1)"><i class="fas fa-chevron-left"></i></button>
+                <button class="btn btn-outline btn-sm" id="noco-next" onclick="nocoChangePage(1)"><i class="fas fa-chevron-right"></i></button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Users tab -->
+        <div id="noco-tab-users" style="display:none">
+          <div class="card" style="padding:0;overflow:hidden;margin-bottom:16px">
+            <div style="padding:10px 14px;border-bottom:1px solid var(--border);background:#f8fafc;display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:13px;font-weight:600;color:var(--primary)"><i class="fas fa-users"></i> Bảng Users</span>
+              <div style="display:flex;gap:8px;align-items:center">
+                <input type="text" id="user-search-input" placeholder="Tìm người dùng..." style="border:1px solid var(--border);border-radius:7px;padding:6px 10px;font-size:12.5px;font-family:inherit;outline:none;width:200px" oninput="userSearchRecords(this.value)">
+                <button class="btn btn-primary btn-sm" onclick="userAddRecord()"><i class="fas fa-user-plus"></i> Thêm user</button>
+                <button class="btn btn-outline btn-sm" onclick="userLoadRecords()"><i class="fas fa-rotate"></i> Tải lại</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead id="user-thead"><tr><th>Đang tải...</th></tr></thead>
+                <tbody id="user-tbody"><tr><td style="text-align:center;padding:32px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i> Đang tải...</td></tr></tbody>
+              </table>
+            </div>
+            <div style="padding:10px 14px;border-top:1px solid var(--border);background:#f8fafc;display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--text-muted)">
+              <span id="user-page-info">—</span>
+              <div style="display:flex;gap:6px">
+                <button class="btn btn-outline btn-sm" id="user-prev" onclick="userChangePage(-1)"><i class="fas fa-chevron-left"></i></button>
+                <button class="btn btn-outline btn-sm" id="user-next" onclick="userChangePage(1)"><i class="fas fa-chevron-right"></i></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Form thêm/sửa user nhanh -->
+          <div class="card" id="user-form-card" style="display:none">
+            <div class="sec-hd" style="margin-bottom:14px">
+              <h3 id="user-form-title">Thêm người dùng mới</h3>
+              <button class="btn btn-outline btn-sm" onclick="userCloseForm()"><i class="fas fa-xmark"></i> Đóng</button>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div class="form-group">
+                <label>Họ và tên <span style="color:var(--danger)">*</span></label>
+                <input type="text" id="uf-name" placeholder="Nguyễn Văn A" style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13.5px;font-family:inherit;outline:none">
+              </div>
+              <div class="form-group">
+                <label>Email <span style="color:var(--danger)">*</span></label>
+                <input type="email" id="uf-email" placeholder="user@example.com" style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13.5px;font-family:inherit;outline:none">
+              </div>
+              <div class="form-group">
+                <label>Vai trò</label>
+                <select id="uf-role" style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13.5px;font-family:inherit;outline:none;background:#fff">
+                  <option value="student">Học sinh</option>
+                  <option value="teacher">Giáo viên</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Trạng thái</label>
+                <select id="uf-status" style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13.5px;font-family:inherit;outline:none;background:#fff">
+                  <option value="active">Hoạt động</option>
+                  <option value="inactive">Tạm khóa</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Số điện thoại</label>
+                <input type="text" id="uf-phone" placeholder="0912345678" style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13.5px;font-family:inherit;outline:none">
+              </div>
+              <div class="form-group">
+                <label>Ghi chú</label>
+                <input type="text" id="uf-note" placeholder="Ghi chú thêm..." style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13.5px;font-family:inherit;outline:none">
+              </div>
+            </div>
+            <div style="margin-top:14px;display:flex;gap:10px">
+              <button class="btn btn-success" onclick="userSaveForm()"><i class="fas fa-save"></i> Lưu</button>
+              <button class="btn btn-outline" onclick="userCloseForm()">Hủy</button>
+              <div id="user-form-msg" style="font-size:13px;color:var(--text-muted);display:flex;align-items:center;gap:6px;margin-left:auto"></div>
+            </div>
+          </div>
+
+          <!-- Thống kê nhanh -->
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+            <div class="card" style="padding:14px">
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Học sinh</div>
+              <div style="font-size:24px;font-weight:700;color:var(--primary)" id="us-student">—</div>
+            </div>
+            <div class="card" style="padding:14px">
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Giáo viên</div>
+              <div style="font-size:24px;font-weight:700;color:var(--teal)" id="us-teacher">—</div>
+            </div>
+            <div class="card" style="padding:14px">
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Đang khóa</div>
+              <div style="font-size:24px;font-weight:700;color:var(--danger)" id="us-inactive">—</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Fields tab -->
+        <div id="noco-tab-fields" style="display:none">
+          <div class="card" style="padding:0;overflow:hidden">
+            <div style="padding:10px 14px;border-bottom:1px solid var(--border);background:#f8fafc">
+              <span style="font-size:13px;font-weight:600;color:var(--primary)"><i class="fas fa-columns"></i> Danh sách Fields</span>
+            </div>
+            <div id="noco-fields-list" style="padding:16px">
+              <div style="text-align:center;color:var(--text-muted);padding:32px"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Query tab -->
+        <div id="noco-tab-query" style="display:none">
+          <div class="card">
+            <div style="font-size:13px;font-weight:600;color:var(--primary);margin-bottom:12px"><i class="fas fa-magnifying-glass"></i> Truy vấn nâng cao</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
+              <div class="form-group">
+                <label>Lọc theo field</label>
+                <select id="noco-filter-field" style="width:100%;border:1px solid var(--border);border-radius:7px;padding:7px 10px;font-size:13px;font-family:inherit;background:#fff;outline:none">
+                  <option value="">— Chọn field —</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Điều kiện</label>
+                <select id="noco-filter-op" style="width:100%;border:1px solid var(--border);border-radius:7px;padding:7px 10px;font-size:13px;font-family:inherit;background:#fff;outline:none">
+                  <option value="eq">= Bằng</option>
+                  <option value="neq">≠ Khác</option>
+                  <option value="like">~ Chứa</option>
+                  <option value="nlike">!~ Không chứa</option>
+                  <option value="gt">&gt; Lớn hơn</option>
+                  <option value="lt">&lt; Nhỏ hơn</option>
+                  <option value="empty">Trống</option>
+                  <option value="notempty">Không trống</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Giá trị</label>
+                <input type="text" id="noco-filter-val" placeholder="Giá trị..." style="width:100%;border:1px solid var(--border);border-radius:7px;padding:7px 10px;font-size:13px;font-family:inherit;outline:none">
+              </div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-primary" onclick="nocoRunFilter()"><i class="fas fa-filter"></i> Lọc</button>
+              <button class="btn btn-outline" onclick="nocoLoadRecords()"><i class="fas fa-xmark"></i> Xóa lọc</button>
+              <button class="btn btn-teal" onclick="nocoExportCSV()"><i class="fas fa-file-csv"></i> Xuất CSV</button>
+            </div>
+            <div id="noco-query-result" style="margin-top:14px"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<!-- ── MODALS ───────────────────────────────── -->
+<div class="modal-overlay" id="modal-create">
+  <div class="modal">
+    <h3 id="modal-title">Tạo mới</h3>
+    <div class="form-group" style="margin-bottom:12px">
+      <label id="modal-label">Tên</label>
+      <input type="text" id="modal-name" placeholder="">
+    </div>
+    <div class="form-group" id="modal-parent-group">
+      <label>Trong thư mục</label>
+      <select id="modal-parent"><option value="">/ (gốc content/)</option></select>
+    </div>
+    <div id="modal-note" style="font-size:12px;color:var(--text-muted);margin-top:10px"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">Hủy</button>
+      <button class="btn btn-primary" id="modal-confirm" onclick="confirmCreate()">Tạo</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── LOGIN ────────────────────────────────── -->
+<div id="login-screen" style="position:fixed;inset:0;background:linear-gradient(135deg,#2563eb,#4338ca);display:flex;align-items:center;justify-content:center;z-index:1000">
+  <div style="background:#fff;border-radius:20px;padding:44px;width:380px;box-shadow:0 24px 80px rgba(0,0,0,.3)">
+    <div style="text-align:center;margin-bottom:28px">
+      <div style="width:48px;height:48px;background:#2563eb;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;margin:0 auto 12px">⚡</div>
+      <div style="font-size:22px;font-weight:700;color:#1e293b">Active<span style="color:#2563eb">Edu</span></div>
+      <div style="font-size:11px;color:#64748b;letter-spacing:2px;text-transform:uppercase;margin-top:2px">Admin Dashboard</div>
+    </div>
+    <div class="form-group" style="margin-bottom:12px"><label>Tài khoản</label><input type="text" id="login-user" placeholder="admin" autocomplete="username"></div>
+    <div class="form-group" style="margin-bottom:18px"><label>Mật khẩu</label><input type="password" id="login-pass" placeholder="••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <button onclick="doLogin()" style="width:100%;padding:12px;background:#2563eb;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;transition:background .15s" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">Đăng nhập →</button>
+    <div id="login-err" style="color:#ef4444;font-size:13px;text-align:center;margin-top:10px;display:none">Sai tài khoản hoặc mật khẩu!</div>
+    <div style="text-align:center;font-size:12px;color:#94a3b8;margin-top:14px">Mặc định: <code style="background:#f1f5f9;padding:1px 5px;border-radius:3px">admin</code> / <code style="background:#f1f5f9;padding:1px 5px;border-radius:3px">activeedu2024</code></div>
+  </div>
+</div>
+
+<div class="loading-overlay" id="loading"><div class="spinner"></div><span id="loading-text" style="font-size:14px;color:var(--text-muted)">Đang xử lý...</span></div>
+<div class="toast" id="toast"></div>
+
+<script>
+
+// Kiểm tra auth - nếu chưa đăng nhập thì về trang login
+(function() {
+  if (sessionStorage.getItem('ae_auth') !== '1') {
+    window.location.href = 'index.html';
+  }
+})();
+
+// ═══════════════════════════════════════════════════
+// SETTINGS & AUTH
+// ═══════════════════════════════════════════════════
+const CFG_KEY     = 'ae_config';
+const TREE_KEY    = 'ae_tree';
+const SESSION_KEY = 'ae_session';
+
+function getCfg() {
+  try { return JSON.parse(localStorage.getItem(CFG_KEY) || '{}'); }
+  catch { return {}; }
+}
+function saveCfg(c) { localStorage.setItem(CFG_KEY, JSON.stringify(c)); }
+
+function getDefaultCfg() {
+  return { token:'', repo:'', branch:'main', contentDir:'content', title:'ActiveEdu', url:'', adminUser:'admin', adminPass:'activeedu2024' };
+}
+function cfg() { return { ...getDefaultCfg(), ...getCfg() }; }
+
+// ── Auth ──
+const ADMIN_USER = 'admin';
+const ADMIN_PASS = 'activeedu2024';
+
+function doLogin() {
+  var u = document.getElementById('login-user').value.trim();
+  var p = document.getElementById('login-pass').value.trim();
+  if (u === ADMIN_USER && p === ADMIN_PASS) {
+    sessionStorage.setItem('ae_auth', '1');
+    document.getElementById('login-screen').style.display = 'none';
+    initAdmin();
+  } else {
+    document.getElementById('login-err').style.display = 'block';
+    document.getElementById('login-pass').value = '';
+    document.getElementById('login-pass').focus();
+    setTimeout(function(){ document.getElementById('login-err').style.display = 'none'; }, 3000);
+  }
+}
+
+function checkSession() {
+  if (sessionStorage.getItem('ae_auth') === '1') {
+    document.getElementById('login-screen').style.display = 'none';
+    initAdmin();
+    return true;
+  }
+  return false;
+}
+
+function doLogout() {
+  sessionStorage.removeItem('ae_auth');
+  location.reload();
+}
+
+// ═══════════════════════════════════════════════════
+// GITHUB API — Single Source of Truth
+// ═══════════════════════════════════════════════════
+const GH = {
+  base: 'https://api.github.com',
+
+  headers() {
+    const c = cfg();
+    return { 'Authorization': `Bearer ${c.token}`, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' };
+  },
+
+  // Get file (returns {content, sha})
+  async getFile(path) {
+    const c = cfg();
+    const url = `${this.base}/repos/${c.repo}/contents/${path}?ref=${c.branch}&t=${Date.now()}`;
+    const r = await fetch(url, { headers: this.headers() });
+    if (r.status === 404) return null;
+    if (!r.ok) throw new Error(`GitHub ${r.status}: ${await r.text()}`);
+    const d = await r.json();
+    return { content: atob(d.content.replace(/\n/g,'')), sha: d.sha, path: d.path };
+  },
+
+  // Put file (create or update)
+  async putFile(path, content, message, sha = null) {
+    const c = cfg();
+    const url = `${this.base}/repos/${c.repo}/contents/${path}`;
+    const body = { message, content: btoa(unescape(encodeURIComponent(content))), branch: c.branch };
+    if (sha) body.sha = sha;
+    const r = await fetch(url, { method: 'PUT', headers: this.headers(), body: JSON.stringify(body) });
+    if (!r.ok) throw new Error(`GitHub ${r.status}: ${await r.text()}`);
+    return await r.json();
+  },
+
+  // Delete file
+  async deleteFile(path, sha, message) {
+    const c = cfg();
+    const url = `${this.base}/repos/${c.repo}/contents/${path}`;
+    const body = { message, sha, branch: c.branch };
+    const r = await fetch(url, { method: 'DELETE', headers: this.headers(), body: JSON.stringify(body) });
+    if (!r.ok) throw new Error(`GitHub ${r.status}: ${await r.text()}`);
+    return true;
+  },
+
+  // List directory (returns array of {name, path, type, sha})
+  async listDir(path) {
+    const c = cfg();
+    const url = `${this.base}/repos/${c.repo}/contents/${path}?ref=${c.branch}&t=${Date.now()}`;
+    const r = await fetch(url, { headers: this.headers() });
+    if (r.status === 404) return [];
+    if (!r.ok) throw new Error(`GitHub ${r.status}`);
+    return await r.json();
+  },
+
+  // Recursively get full tree under content/
+  async getTree() {
+    const c = cfg();
+    const url = `${this.base}/repos/${c.repo}/git/trees/${c.branch}?recursive=1&t=${Date.now()}`;
+    const r = await fetch(url, { headers: this.headers() });
+    if (!r.ok) throw new Error(`GitHub tree ${r.status}`);
+    const d = await r.json();
+    // Filter only content/ files
+    const dir = c.contentDir || 'content';
+    return d.tree.filter(i => i.path.startsWith(dir + '/') && i.path !== dir + '/index.json');
+  },
+
+  // Test connection
+  async test() {
+    const c = cfg();
+    const url = `${this.base}/repos/${c.repo}`;
+    const r = await fetch(url, { headers: this.headers() });
+    if (!r.ok) throw new Error(`${r.status}`);
+    return await r.json();
+  }
+};
+
+// ═══════════════════════════════════════════════════
+// TREE STATE — rebuilt from GitHub on every sync
+// ═══════════════════════════════════════════════════
+let ghTree   = [];   // raw GitHub tree items
+let indexTree = [];  // structured tree for index.json
+let fileShaMap = {}; // path → sha (for updates)
+let selectedFilePath = null;
+let currentEditPath  = null;
+let isDirty = false;
+
+// Convert flat GitHub tree → nested tree for index.json
+function buildIndexTree(ghItems) {
+  const c = cfg();
+  const dir = (c.contentDir || 'content') + '/';
+  const folders = {};
+  const root = [];
+
+  // First pass: collect folders
+  ghItems.filter(i => i.type === 'tree').forEach(i => {
+    const rel = i.path.slice(dir.length);
+    if (!rel.includes('/')) {
+      folders[rel] = { type:'folder', name: rel, children: [] };
+    }
+  });
+
+  // Second pass: collect files
+  ghItems.filter(i => i.type === 'blob' && i.path.endsWith('.html')).forEach(i => {
+    const rel     = i.path.slice(dir.length);
+    const parts   = rel.split('/');
+    const fileName = parts[parts.length - 1];
+    const folderName = parts.length > 1 ? parts[0] : '';
+    const name = fileNameToTitle(fileName);
+
+    // Giữ access từ cached indexTree nếu có
+    const cached = fileShaMap['_access_' + (dir + rel)];
+    const item = {
+      type: 'file',
+      name,
+      path: rel,
+      folder: folderName,
+      description: '',
+      access: cached || 'public',
+      updated: new Date().toLocaleDateString('vi-VN'),
+      sha: i.sha
+    };
+    fileShaMap[dir + rel] = i.sha;
+    // Giữ access từ indexTree cũ
+    const prevItem = (indexTree||[]).flatMap(x => x.type==='file'?[x]:(x.children||[])).find(x => x.path === rel);
+    if (prevItem && prevItem.access) fileShaMap['_access_' + (dir + rel)] = prevItem.access;
+
+    if (folderName && folders[folderName]) {
+      folders[folderName].children.push(item);
+    } else {
+      root.push(item);
+    }
+  });
+
+  // Build final tree: folders first, then root files
+  const folderItems = ghItems
+    .filter(i => i.type === 'tree')
+    .map(i => {
+      const rel = i.path.slice(dir.length);
+      if (!rel.includes('/') && folders[rel]) return folders[rel];
+      return null;
+    })
+    .filter(Boolean);
+
+  return [...folderItems, ...root];
+}
+
+function fileNameToTitle(fileName) {
+  return fileName.replace('.html','').replace(/-/g,' ').replace(/(^|\s)\S/g, t => t.toUpperCase());
+}
+
+// Sync: read GitHub tree → update local state → re-render
+async function syncFromGitHub() {
+  if (!cfg().token || !cfg().repo) {
+    showToast('Chưa cấu hình GitHub!', 'warn');
+    showPanel('settings', document.querySelectorAll('.sb-item')[4]);
+    return;
+  }
+  setSyncBar(true, 'Đang đọc cây thư mục từ GitHub...');
+  showLoading('Đồng bộ từ GitHub...');
+  try {
+    ghTree = await GH.getTree();
+    indexTree = buildIndexTree(ghTree);
+    localStorage.setItem(TREE_KEY, JSON.stringify(indexTree));
+    renderTree(indexTree);
+    updateDashboard();
+    updateFolderSelects();
+    setSyncBar(false, `✓ Đồng bộ xong — ${flattenFiles(indexTree).length} bài viết`, new Date().toLocaleTimeString('vi-VN'));
+    updateGhStatus(true);
+    showToast(`✓ Đồng bộ xong! ${flattenFiles(indexTree).length} bài`, 'success');
+
+    // Also update index.json on GitHub
+    await rebuildAndPushIndex();
+  } catch(e) {
+    setSyncBar(false, '✗ Lỗi: ' + e.message, '', true);
+    showToast('Lỗi GitHub: ' + e.message, 'error');
+    updateGhStatus(false);
+  } finally { hideLoading(); }
+}
+
+// Push index.json to GitHub
+async function pushIndexToGitHub() {
+  if (!indexTree.length) { showToast('Chưa có dữ liệu để đẩy!', 'warn'); return; }
+  showLoading('Đẩy index.json lên GitHub...');
+  try {
+    await rebuildAndPushIndex();
+    showToast('✓ Đã đẩy index.json lên GitHub!', 'success');
+  } catch(e) {
+    showToast('Lỗi: ' + e.message, 'error');
+  } finally { hideLoading(); }
+}
+
+async function rebuildAndPushIndex() {
+  const c = cfg();
+  const dir = c.contentDir || 'content';
+  // Build clean tree (no sha in published index)
+  const clean = JSON.parse(JSON.stringify(indexTree));
+  const stripSha = arr => arr.forEach(i => { delete i.sha; if (i.children) stripSha(i.children); });
+  stripSha(clean);
+  const json = JSON.stringify(clean, null, 2);
+  const indexPath = dir + '/index.json';
+  // Get current sha if exists
+  let sha = null;
+  try { const f = await GH.getFile(indexPath); if (f) sha = f.sha; } catch {}
+  await GH.putFile(indexPath, json, 'chore: rebuild index.json [ActiveEdu Admin]', sha);
+}
+
+// ═══════════════════════════════════════════════════
+// RENDER TREE
+// ═══════════════════════════════════════════════════
+function renderTree(tree) {
+  const body = document.getElementById('tree-body');
+  const all = flattenFiles(tree);
+  document.getElementById('tree-count').textContent = `${all.length} bài`;
+  if (!tree || !tree.length) {
+    body.innerHTML = '<div class="tree-empty">Chưa có tệp nào</div>';
+    return;
+  }
+  body.innerHTML = '';
+  renderTreeItems(tree, body);
+}
+
+function renderTreeItems(items, container) {
+  (items||[]).forEach(item => {
+    if (item.type === 'folder') {
+      const wrap = document.createElement('div');
+      wrap.className = 'tree-folder';
+      wrap.innerHTML = `
+        <div class="tree-folder-hd" onclick="this.parentElement.classList.toggle('open')">
+          <i class="fas fa-chevron-right"></i>
+          <i class="fas fa-folder" style="color:#60a5fa;font-size:13px"></i>
+          <span style="flex:1">${item.name}</span>
+          <div class="tree-actions">
+            <button class="tree-act-btn" title="Xóa thư mục" onclick="event.stopPropagation();confirmDeleteFolder('${item.name}')"><i class="fas fa-trash"></i></button>
+          </div>
+        </div>
+        <div class="tree-folder-children"></div>`;
+      renderTreeItems(item.children||[], wrap.querySelector('.tree-folder-children'));
+      container.appendChild(wrap);
+    } else {
+      const el = document.createElement('div');
+      el.className = 'tree-file';
+      el.dataset.path = item.path;
+      el.innerHTML = `
+        <i class="fas fa-file-lines"></i>
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.name}</span>
+        ${item.access === 'private' ? '<span style="font-size:10px;background:#fee2e2;color:#b91c1c;padding:1px 5px;border-radius:4px;margin-right:4px">🔒</span>' : '<span style="font-size:10px;background:#ccfbf1;color:#0f766e;padding:1px 5px;border-radius:4px;margin-right:4px">🌐</span>'}
+        <div class="tree-actions">
+          <button class="tree-act-btn edit-btn" title="Sửa" onclick="event.stopPropagation();editFile('${item.path}')"><i class="fas fa-pen"></i></button>
+          <button class="tree-act-btn" title="Xóa" onclick="event.stopPropagation();confirmDeleteFile('${item.path}')"><i class="fas fa-trash"></i></button>
+        </div>`;
+      el.onclick = () => selectFile(item);
+      container.appendChild(el);
+    }
+  });
+}
+
+async function selectFile(item) {
+  selectedFilePath = item.path;
+  document.querySelectorAll('.tree-file').forEach(el => el.classList.toggle('active', el.dataset.path === item.path));
+  document.getElementById('detail-path').innerHTML = `<i class="fas fa-file-lines" style="color:var(--primary)"></i> content/${item.path}`;
+  document.getElementById('detail-actions').style.display = 'flex';
+
+  const body = document.getElementById('detail-body');
+  body.innerHTML = '<div style="padding:20px;color:var(--text-muted);font-size:13px"><i class="fas fa-spinner fa-spin"></i> Đang tải từ GitHub...</div>';
+
+  try {
+    const c = cfg();
+    const dir = c.contentDir || 'content';
+    const f = await GH.getFile(dir + '/' + item.path);
+    const html = f ? f.content : '(trống)';
+    body.innerHTML = `
+      <div style="padding:14px 16px;border-bottom:1px solid var(--border);font-size:12.5px;color:var(--text-muted);background:#f8fafc">
+        <b style="color:var(--text)">${item.name}</b> &nbsp;·&nbsp; 📁 ${item.folder||'Gốc'} &nbsp;·&nbsp; ${(html.length/1024).toFixed(1)} KB
+      </div>
+      <div style="padding:16px;font-size:13px;line-height:1.8;max-height:380px;overflow-y:auto">${html}</div>`;
+  } catch(e) {
+    body.innerHTML = `<div style="padding:20px;color:var(--danger)">Lỗi tải file: ${e.message}</div>`;
+  }
+}
+
+function editSelectedFile() { if (selectedFilePath) editFile(selectedFilePath); }
+async function deleteSelectedFile() { if (selectedFilePath) confirmDeleteFile(selectedFilePath); }
+
+// ═══════════════════════════════════════════════════
+// CREATE FOLDER / FILE
+// ═══════════════════════════════════════════════════
+let createMode = 'file';
+
+function showNewFolder() {
+  createMode = 'folder';
+  document.getElementById('modal-title').textContent = '📁 Tạo thư mục mới';
+  document.getElementById('modal-label').textContent = 'Tên thư mục';
+  document.getElementById('modal-name').placeholder = 'vd: Chương 1, Đại số...';
+  document.getElementById('modal-parent-group').style.display = 'block';
+  document.getElementById('modal-note').textContent = 'Thư mục sẽ được tạo trong content/ trên GitHub khi bạn lưu bài đầu tiên vào đó.';
+  populateParentModal(true);
+  document.getElementById('modal-name').value = '';
+  document.getElementById('modal-create').classList.add('show');
+  setTimeout(() => document.getElementById('modal-name').focus(), 100);
+}
+
+function showNewFile() {
+  createMode = 'file';
+  document.getElementById('modal-title').textContent = '📄 Tạo tệp bài học mới';
+  document.getElementById('modal-label').textContent = 'Tên bài học';
+  document.getElementById('modal-name').placeholder = 'vd: Bài 1 - Giới thiệu...';
+  document.getElementById('modal-parent-group').style.display = 'block';
+  document.getElementById('modal-note').textContent = 'Tệp HTML sẽ được tạo trực tiếp trên GitHub repo.';
+  populateParentModal(false);
+  document.getElementById('modal-name').value = '';
+  document.getElementById('modal-create').classList.add('show');
+  setTimeout(() => document.getElementById('modal-name').focus(), 100);
+}
+
+function populateParentModal(forFolder = false) {
+  const sel = document.getElementById('modal-parent');
+  const label = document.getElementById('modal-parent').previousElementSibling;
+  if (label) label.textContent = forFolder ? 'Thư mục cha (tuỳ chọn)' : 'Thư mục chứa bài';
+  // Collect all folders recursively
+  function collectFolders(items, prefix = '') {
+    let opts = [];
+    for (const i of items) {
+      if (i.type === 'folder') {
+        const path = prefix ? prefix + '/' + i.name : i.name;
+        opts.push(`<option value="${path}">${'— '.repeat(prefix.split('/').filter(Boolean).length)}${i.name}</option>`);
+        if (i.children) opts = opts.concat(collectFolders(i.children, path));
+      }
+    }
+    return opts;
+  }
+  sel.innerHTML = '<option value="">/ (gốc content/)</option>' + collectFolders(indexTree).join('');
+}
+
+function closeModal() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('show')); }
+
+async function confirmCreate() {
+  const name = document.getElementById('modal-name').value.trim();
+  if (!name) { showToast('Nhập tên!', 'warn'); return; }
+
+  if (createMode === 'folder') {
+    const parentPath = document.getElementById('modal-parent').value;
+    // Find parent node or use root
+    function findFolder(items, path) {
+      if (!path) return items;
+      const parts = path.split('/');
+      let node = items;
+      for (const part of parts) {
+        const found = node.find(i => i.type === 'folder' && i.name === part);
+        if (!found) return null;
+        node = found.children || (found.children = []);
+      }
+      return node;
+    }
+    const target = findFolder(indexTree, parentPath);
+    if (!target) { showToast('Không tìm thấy thư mục cha!', 'warn'); return; }
+    if (target.find && target.find(i => i.type === 'folder' && i.name === name)) {
+      showToast('Thư mục đã tồn tại!', 'warn'); return;
+    }
+    target.push({ type:'folder', name, children:[] });
+    localStorage.setItem(TREE_KEY, JSON.stringify(indexTree));
+    renderTree(indexTree);
+    updateFolderSelects();
+    closeModal();
+    showToast(`✓ Đã thêm thư mục "${name}"${parentPath ? ' trong ' + parentPath : ''}`, 'success');
+  } else {
+    const folder = document.getElementById('modal-parent').value;
+    // Mở editor với tên và folder đã điền sẵn
+    closeModal();
+    showPanel('editor', document.querySelectorAll('.sb-item')[2]);
+    setTimeout(() => {
+      document.getElementById('e-title').value = name;
+      document.getElementById('e-folder').value = folder;
+      currentEditPath = null;
+      if (quill) quill.root.innerHTML = `<h2>${name}</h2><p>Nội dung bài học...</p>`;
+      markDirty();
+    }, 100);
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// DELETE
+// ═══════════════════════════════════════════════════
+async function confirmDeleteFile(path) {
+  if (!confirm(`Xóa file "${path}" khỏi GitHub?`)) return;
+  showLoading('Đang xóa trên GitHub...');
+  try {
+    const c = cfg();
+    const dir = c.contentDir || 'content';
+    const fullPath = dir + '/' + path;
+    const f = await GH.getFile(fullPath);
+    if (!f) { showToast('File không tồn tại trên GitHub', 'warn'); return; }
+    await GH.deleteFile(fullPath, f.sha, `remove: ${path} [ActiveEdu Admin]`);
+    // Remove from local tree
+    removeFromTree(indexTree, path);
+    localStorage.setItem(TREE_KEY, JSON.stringify(indexTree));
+    renderTree(indexTree);
+    updateDashboard();
+    updateFolderSelects();
+    await rebuildAndPushIndex();
+    showToast('✓ Đã xóa file trên GitHub!', 'success');
+  } catch(e) {
+    showToast('Lỗi xóa: ' + e.message, 'error');
+  } finally { hideLoading(); }
+}
+
+async function confirmDeleteFolder(name) {
+  const folder = indexTree.find(i => i.type === 'folder' && i.name === name);
+  const files = folder ? flattenFiles(folder.children||[]) : [];
+  if (!confirm(`Xóa thư mục "${name}" và ${files.length} bài viết khỏi GitHub?`)) return;
+  showLoading(`Đang xóa thư mục "${name}" trên GitHub...`);
+  try {
+    const c = cfg();
+    const dir = c.contentDir || 'content';
+    for (const file of files) {
+      const fullPath = dir + '/' + file.path;
+      const f = await GH.getFile(fullPath);
+      if (f) await GH.deleteFile(fullPath, f.sha, `remove: ${file.path} [ActiveEdu Admin]`);
+    }
+    // Remove from local tree
+    indexTree = indexTree.filter(i => !(i.type === 'folder' && i.name === name));
+    localStorage.setItem(TREE_KEY, JSON.stringify(indexTree));
+    renderTree(indexTree);
+    updateDashboard();
+    updateFolderSelects();
+    await rebuildAndPushIndex();
+    showToast(`✓ Đã xóa thư mục "${name}"!`, 'success');
+  } catch(e) {
+    showToast('Lỗi: ' + e.message, 'error');
+  } finally { hideLoading(); }
+}
+
+function removeFromTree(tree, path) {
+  for (let i = tree.length-1; i >= 0; i--) {
+    if (tree[i].type === 'file' && tree[i].path === path) { tree.splice(i,1); return true; }
+    if (tree[i].type === 'folder' && removeFromTree(tree[i].children||[], path)) return true;
+  }
+  return false;
+}
+
+// ═══════════════════════════════════════════════════
+// EDITOR
+// ═══════════════════════════════════════════════════
+let quill = null;
+let editorTab = 'rich';
+
+function initQuill() {
+  if (quill) return;
+  quill = new Quill('#quill-editor', {
+    theme: 'snow',
+    placeholder: 'Bắt đầu soạn thảo...',
+    modules: {
+      toolbar: [
+        [{ header:[2,3,4,false] }],
+        [{ font:[] }, { size:[] }],
+        ['bold','italic','underline','strike'],
+        [{ color:[] }, { background:[] }],
+        [{ list:'ordered' }, { list:'bullet' }],
+        [{ indent:'-1' }, { indent:'+1' }, { align:[] }],
+        ['blockquote','code-block'],
+        ['link','image'],
+        ['clean']
+      ]
+    }
+  });
+  quill.on('text-change', () => { markDirty(); updateEditorStats(); });
+}
+
+function switchTab(tab) {
+  if (editorTab === 'rich' && quill) {
+    const src = document.getElementById('html-source');
+    if (src) src.value = quill.root.innerHTML;
+  } else if (editorTab === 'html' && quill) {
+    const src = document.getElementById('html-source');
+    if (src) quill.root.innerHTML = src.value;
+  }
+  editorTab = tab;
+  document.getElementById('wrap-rich').style.display    = tab==='rich'    ? 'flex' : 'none';
+  document.getElementById('wrap-html').style.display    = tab==='html'    ? 'flex' : 'none';
+  document.getElementById('wrap-preview').style.display = tab==='preview' ? 'flex' : 'none';
+  document.querySelectorAll('.etab').forEach(b => b.classList.remove('active'));
+  document.getElementById('etab-' + tab)?.classList.add('active');
+
+  if (tab === 'preview') {
+    const html = getEditorHTML();
+    const iframe = document.getElementById('preview-iframe');
+    if (iframe) iframe.srcdoc = `<!DOCTYPE html><html><head>
+      <meta charset="UTF-8">
+      <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+      <style>body{font-family:'Be Vietnam Pro',sans-serif;padding:28px;max-width:800px;line-height:1.85;color:#1e293b}
+      h2{font-size:19px;font-weight:700;border-bottom:2px solid #dbeafe;padding-bottom:5px;margin:18px 0 9px}
+      h3{font-size:15px;font-weight:600;margin:14px 0 7px;color:#334155}
+      p{margin-bottom:11px}code{background:#f1f5f9;padding:2px 6px;border-radius:4px;font-size:13px;color:#1e40af;border:1px solid #e2e8f0}
+      pre{background:#1e293b;color:#94a3b8;padding:14px;border-radius:9px;overflow-x:auto}
+      blockquote{border-left:4px solid #2563eb;background:#eff6ff;padding:11px 14px;border-radius:0 7px 7px 0;margin:10px 0}
+      details{border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin:10px 0}
+      summary{padding:10px 14px;background:#f8fafc;cursor:pointer;font-weight:600;color:#2563eb}
+      ul,ol{padding-left:22px;margin-bottom:11px}img{max-width:100%;border-radius:7px}</style>
+    </head><body>${html}</body></html>`;
+  }
+}
+
+function getEditorHTML() {
+  if (editorTab === 'rich') return quill ? quill.root.innerHTML : '';
+  return document.getElementById('html-source')?.value || '';
+}
+function setEditorHTML(html) {
+  if (quill) quill.root.innerHTML = html || '';
+  const src = document.getElementById('html-source');
+  if (src) src.value = html || '';
+}
+
+function updateEditorStats() {
+  const text = quill ? quill.getText() : '';
+  const chars = text.replace(/\n/g,'').length;
+  const words = text.trim().split(/\s+/).filter(Boolean).length;
+  const ec = document.getElementById('e-chars');
+  const ew = document.getElementById('e-words');
+  if (ec) ec.textContent = chars.toLocaleString() + ' ký tự';
+  if (ew) ew.textContent = words.toLocaleString() + ' từ';
+}
+
+function markDirty() {
+  isDirty = true;
+  const dot = document.getElementById('save-dot');
+  if (dot) dot.className = 'save-dot unsaved';
+  const s = document.getElementById('save-status');
+  if (s) s.textContent = 'Chưa lưu';
+}
+function markSaved(t) {
+  isDirty = false;
+  const dot = document.getElementById('save-dot');
+  if (dot) dot.className = 'save-dot';
+  document.getElementById('save-status').textContent = '✓ ' + t;
+}
+function markSaving() {
+  const dot = document.getElementById('save-dot');
+  if (dot) dot.className = 'save-dot saving';
+  document.getElementById('save-status').textContent = 'Đang lưu lên GitHub...';
+}
+
+function newArticle() {
+  if (isDirty && !confirm('Bài chưa lưu, tiếp tục?')) return;
+  currentEditPath = null;
+  document.getElementById('e-title').value = '';
+  document.getElementById('e-folder').value = '';
+  document.getElementById('e-desc').value = '';
+  document.getElementById('e-access').value = 'public';
+  setEditorHTML('');
+  switchTab('rich');
+  isDirty = false;
+  document.getElementById('save-dot').className = 'save-dot unsaved';
+  document.getElementById('save-status').textContent = 'Bài mới';
+  document.getElementById('e-path-label').innerHTML = '<i class="fas fa-file"></i> Bài mới';
+}
+
+async function editFile(path) {
+  showPanel('editor', document.querySelectorAll('.sb-item')[2]);
+  setTimeout(async () => {
+    const item = flattenFiles(indexTree).find(f => f.path === path);
+    if (item) {
+      document.getElementById('e-title').value = item.name;
+      document.getElementById('e-folder').value = item.folder || '';
+      document.getElementById('e-desc').value = item.description || '';
+      document.getElementById('e-access').value = item.access || 'public';
+    }
+    currentEditPath = path;
+    document.getElementById('e-path-label').innerHTML = `<i class="fas fa-file-lines" style="color:var(--primary)"></i> content/${path}`;
+
+    showLoading('Tải nội dung từ GitHub...');
+    try {
+      const c = cfg();
+      const dir = c.contentDir || 'content';
+      const f = await GH.getFile(dir + '/' + path);
+      setEditorHTML(f ? f.content : '');
+      switchTab('rich');
+      updateEditorStats();
+      isDirty = false;
+      document.getElementById('save-dot').className = 'save-dot';
+      document.getElementById('save-status').textContent = 'Đã tải từ GitHub';
+    } catch(e) {
+      showToast('Lỗi tải: ' + e.message, 'error');
+    } finally { hideLoading(); }
+  }, 80);
+}
+
+// ── SAVE TO GITHUB ──
+async function saveToGitHub() {
+  const title  = document.getElementById('e-title').value.trim();
+  const folder = document.getElementById('e-folder').value.trim();
+  const desc   = document.getElementById('e-desc').value.trim();
+  const access = document.getElementById('e-access').value || 'public';
+  if (!title) { showToast('Nhập tên bài học!', 'warn'); return; }
+  if (!cfg().token || !cfg().repo) { showToast('Chưa cấu hình GitHub!', 'warn'); showPanel('settings', document.querySelectorAll('.sb-item')[4]); return; }
+
+  // Sync editor → html-source
+  if (editorTab === 'rich' && quill) {
+    document.getElementById('html-source').value = quill.root.innerHTML;
+  } else if (editorTab === 'html' && quill) {
+    quill.root.innerHTML = document.getElementById('html-source').value;
+  }
+  const content = document.getElementById('html-source').value;
+
+  markSaving();
+  showLoading('Đang lưu lên GitHub...');
+  try {
+    const c = cfg();
+    const dir = c.contentDir || 'content';
+
+    // Determine path
+    let filePath;
+    if (currentEditPath) {
+      filePath = currentEditPath;
+    } else {
+      const slug = title.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/gi,'d').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') + '.html';
+      filePath = folder ? folder + '/' + slug : slug;
+    }
+    const fullPath = dir + '/' + filePath;
+
+    // Get sha if updating
+    let sha = null;
+    try { const f = await GH.getFile(fullPath); if (f) sha = f.sha; } catch {}
+
+    await GH.putFile(fullPath, content, `${sha ? 'update' : 'add'}: ${filePath} [ActiveEdu Admin]`, sha);
+
+    // Update local tree
+    currentEditPath = filePath;
+    document.getElementById('e-path-label').innerHTML = `<i class="fas fa-file-lines" style="color:var(--primary)"></i> content/${filePath}`;
+
+    const existingItem = flattenFiles(indexTree).find(f => f.path === filePath);
+    if (existingItem) {
+      existingItem.name = title; existingItem.description = desc;
+      existingItem.access = access;
+      existingItem.updated = new Date().toLocaleDateString('vi-VN');
+    } else {
+      const newItem = { type:'file', name:title, path:filePath, folder, description:desc, access, updated:new Date().toLocaleDateString('vi-VN') };
+      if (folder) {
+        let folderNode = indexTree.find(i => i.type==='folder' && i.name===folder);
+        if (!folderNode) { folderNode = {type:'folder', name:folder, children:[]}; indexTree.push(folderNode); }
+        folderNode.children.push(newItem);
+      } else {
+        indexTree.push(newItem);
+      }
+    }
+    localStorage.setItem(TREE_KEY, JSON.stringify(indexTree));
+    renderTree(indexTree);
+    updateDashboard();
+    updateFolderSelects();
+
+    // Push index.json
+    await rebuildAndPushIndex();
+
+    markSaved(new Date().toLocaleTimeString('vi-VN'));
+    showToast('✓ Đã lưu lên GitHub!', 'success');
+
+    // Auto-sync metadata to NocoDB if connected
+    const c2 = cfg();
+    if (c2.nocoToken && c2.nocoTable) {
+      try {
+        const item = flattenFiles(indexTree).find(f => f.path === currentEditPath);
+        if (item) {
+          const data = await NOCO.listRecords({ where:`(Path,eq,${currentEditPath})`, limit:1 });
+          const existing = (data.list||[])[0];
+          const payload = { Title:item.name, Path:item.path, Folder:item.folder||'', Description:item.description||'', Access:item.access||'public', Updated:item.updated||'', Status:'Published' };
+          if (existing) await NOCO.updateRecord(existing.Id, payload);
+          else await NOCO.createRecord(payload);
+        }
+      } catch(e) { console.warn('NocoDB auto-sync:', e.message); }
+    }
+  } catch(e) {
+    showToast('Lỗi GitHub: ' + e.message, 'error');
+    markDirty();
+  } finally { hideLoading(); }
+}
+
+function useTemplate(type) {
+  const tpl = {
+    lesson: `<h2>Giới thiệu</h2><p>Nội dung giới thiệu bài học...</p><h2>Nội dung chính</h2><p>Chi tiết bài học...</p><ul><li>Điểm quan trọng 1</li><li>Điểm quan trọng 2</li></ul><h2>Ví dụ</h2><pre><code>// Ví dụ\nconsole.log("Hello!");</code></pre><blockquote>💡 <strong>Mẹo:</strong> Ghi chú quan trọng.</blockquote>`,
+    quiz:   `<h2>Câu hỏi ôn tập</h2><div style="background:#eff6ff;border-left:4px solid #2563eb;padding:14px;border-radius:0 8px 8px 0;margin:14px 0"><strong>Câu 1:</strong> Câu hỏi?</div><details style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin:10px 0"><summary style="padding:10px 14px;background:#f8fafc;cursor:pointer;font-weight:600;color:#2563eb">👁 Xem đáp án</summary><div style="padding:14px">Đáp án: ...</div></details>`,
+    code:   `<h2>Bài tập lập trình</h2><p>Mô tả bài tập...</p><h3>Đề bài</h3><div style="background:#f8fafc;border:1px solid #e2e8f0;padding:14px;border-radius:8px;margin:10px 0">Viết chương trình...</div><h3>Code mẫu</h3><pre><code>function solution(input) {\n  // code\n  return result;\n}</code></pre>`
+  };
+  if (quill && editorTab === 'rich') { quill.root.innerHTML = tpl[type]||''; markDirty(); updateEditorStats(); }
+  else { const s = document.getElementById('html-source'); if(s){s.value=tpl[type]||'';markDirty();} }
+}
+
+// ═══════════════════════════════════════════════════
+// DASHBOARD & UTILS
+// ═══════════════════════════════════════════════════
+function updateDashboard() {
+  const files = flattenFiles(indexTree);
+  const folders = indexTree.filter(i => i.type==='folder');
+  document.getElementById('d-articles').textContent = files.length;
+  document.getElementById('d-folders').textContent  = folders.length;
+  const c = cfg();
+  document.getElementById('d-repo').textContent = c.repo || '—';
+  document.getElementById('d-sync').textContent = new Date().toLocaleTimeString('vi-VN');
+  document.getElementById('top-repo').textContent = c.repo || '';
+
+  const tbody = document.getElementById('dash-table');
+  if (!files.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:28px">Chưa có bài viết. Đồng bộ từ GitHub hoặc tạo bài mới.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = files.slice(-12).reverse().map(f => `
+    <tr>
+      <td><i class="fas fa-file-lines" style="color:var(--text-muted)"></i> <b>${f.name}</b></td>
+      <td>${f.folder ? `<span class="badge badge-blue">${f.folder}</span>` : '<span style="color:var(--text-muted)">Gốc</span>'}</td>
+      <td>${f.access === 'private' ? '<span class="badge" style="background:#fee2e2;color:#b91c1c">🔒 Private</span>' : '<span class="badge badge-green">🌐 Public</span>'}</td>
+      <td style="font-size:12px;color:var(--text-muted);font-family:monospace">content/${f.path}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-outline btn-sm" onclick="editFile('${f.path}')"><i class="fas fa-pen"></i></button>
+        <button class="btn btn-danger btn-sm" onclick="confirmDeleteFile('${f.path}')"><i class="fas fa-trash"></i></button>
+      </td>
+    </tr>`).join('');
+}
+
+function updateFolderSelects() {
+  const folders = indexTree.filter(i => i.type === 'folder');
+  const opts = '<option value="">— Chọn thư mục —</option>' + folders.map(f => `<option value="${f.name}">${f.name}</option>`).join('');
+  const ef = document.getElementById('e-folder');
+  if (ef) ef.innerHTML = opts;
+}
+
+function updateGhStatus(connected) {
+  const bar = document.getElementById('gh-status-bar');
+  const txt = document.getElementById('gh-status-text');
+  const c = cfg();
+  if (connected) {
+    bar.className = 'gh-status connected';
+    txt.textContent = c.repo || 'Đã kết nối';
+  } else {
+    bar.className = 'gh-status disconnected';
+    txt.textContent = 'Chưa kết nối GitHub';
+  }
+  // sync panel
+  document.getElementById('sync-not-connected').style.display = connected ? 'none' : 'block';
+  document.getElementById('sync-connected').style.display = connected ? 'block' : 'none';
+}
+
+function setSyncBar(syncing, text, time = '', error = false) {
+  ['dash'].forEach(k => {
+    const bar = document.getElementById(`sync-bar-${k}`);
+    if (!bar) return;
+    bar.style.display = 'flex';
+    bar.className = 'sync-bar' + (syncing?' syncing':'') + (error?' error':'');
+    const t = document.getElementById(`sync-text-${k}`);
+    const tm = document.getElementById(`sync-time-${k}`);
+    if (t) t.textContent = text;
+    if (tm) tm.textContent = time;
+  });
+}
+
+function flattenFiles(tree) {
+  return (tree||[]).flatMap(i => i.type==='file' ? [i] : flattenFiles(i.children||[]));
+}
+
+// ═══════════════════════════════════════════════════
+// SETTINGS
+// ═══════════════════════════════════════════════════
+function loadSettings() {
+  const c = cfg();
+  document.getElementById('s-token').value = c.token || '';
+  document.getElementById('s-repo').value = c.repo || '';
+  document.getElementById('s-branch').value = c.branch || 'main';
+  document.getElementById('s-content-dir').value = c.contentDir || 'content';
+  document.getElementById('s-title').value = c.title || 'ActiveEdu';
+  document.getElementById('s-url').value = c.url || '';
+  document.getElementById('s-user').value = c.adminUser || 'admin';
+  document.getElementById('s-pass').value = '';
+  // NocoDB
+  document.getElementById('s-noco-url').value   = c.nocoUrl   || '';
+  document.getElementById('s-noco-token').value = c.nocoToken || '';
+  document.getElementById('s-noco-table').value = c.nocoTable || '';
+  document.getElementById('s-noco-base').value  = c.nocoBase  || '';
+  document.getElementById('s-noco-user-table').value = c.nocoUserTable || '';
+}
+
+function saveSettings() {
+  const c = cfg();
+  c.token      = document.getElementById('s-token').value.trim();
+  c.repo       = document.getElementById('s-repo').value.trim();
+  c.branch     = document.getElementById('s-branch').value.trim() || 'main';
+  c.contentDir = document.getElementById('s-content-dir').value.trim() || 'content';
+  c.title      = document.getElementById('s-title').value.trim();
+  c.url        = document.getElementById('s-url').value.trim();
+  c.adminUser  = document.getElementById('s-user').value.trim() || 'admin';
+  const np     = document.getElementById('s-pass').value;
+  if (np) c.adminPass = np;
+  // NocoDB
+  c.nocoUrl   = document.getElementById('s-noco-url').value.trim();
+  c.nocoToken = document.getElementById('s-noco-token').value.trim();
+  c.nocoTable = document.getElementById('s-noco-table').value.trim();
+  c.nocoBase  = document.getElementById('s-noco-base').value.trim();
+  c.nocoUserTable = document.getElementById('s-noco-user-table').value.trim();
+  saveCfg(c);
+  updateGhStatus(!!c.token && !!c.repo);
+  updateNocoStatus(!!c.nocoToken && !!c.nocoTable, c.nocoUrl ? c.nocoUrl.replace('https://','').split('/')[0] : '');
+  document.getElementById('top-repo').textContent = c.repo || '';
+  showToast('✓ Đã lưu cài đặt!', 'success');
+}
+
+async function testGitHubConnection() {
+  const token = document.getElementById('s-token').value.trim();
+  const repo  = document.getElementById('s-repo').value.trim();
+  const result = document.getElementById('gh-test-result');
+  if (!token || !repo) { result.innerHTML = '<i class="fas fa-triangle-exclamation" style="color:var(--warn)"></i> Nhập token và repo trước'; return; }
+  result.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang kiểm tra...';
+  try {
+    // Temporarily use input values
+    const tmpCfg = { ...cfg(), token, repo };
+    const url = `https://api.github.com/repos/${repo}`;
+    const r = await fetch(url, { headers: { Authorization:`Bearer ${token}`, Accept:'application/vnd.github.v3+json' } });
+    const d = await r.json();
+    if (r.ok) {
+      result.innerHTML = `<i class="fas fa-circle-check" style="color:var(--success)"></i> Kết nối thành công — <b>${d.full_name}</b> (${d.private?'private':'public'})`;
+      updateGhStatus(true);
+    } else {
+      result.innerHTML = `<i class="fas fa-circle-xmark" style="color:var(--danger)"></i> Lỗi ${r.status}: ${d.message}`;
+    }
+  } catch(e) {
+    result.innerHTML = `<i class="fas fa-circle-xmark" style="color:var(--danger)"></i> ${e.message}`;
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// PANELS
+// ═══════════════════════════════════════════════════
+function showPanel(id, navEl) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + id)?.classList.add('active');
+  document.querySelectorAll('.sb-item').forEach(n => n.classList.remove('active'));
+  if (navEl) navEl.classList.add('active');
+  const titles = { dashboard:'Dashboard', files:'Quản lý tệp', editor:'Soạn thảo', sync:'Đồng bộ GitHub', nocodb:'NocoDB — Cơ sở dữ liệu', settings:'Cài đặt' };
+  document.getElementById('panel-title').textContent = titles[id] || id;
+  if (id === 'settings') loadSettings();
+  if (id === 'editor')  { setTimeout(() => initQuill(), 60); updateFolderSelects(); }
+  if (id === 'files')   renderTree(indexTree);
+  if (id === 'nocodb')  {
+    const c = cfg();
+    const hasNoco = !!c.nocoToken && !!c.nocoTable;
+    updateNocoStatus(hasNoco, c.nocoUrl ? c.nocoUrl.replace('https://','').split('/')[0] : '');
+    if (hasNoco) nocoTestConnection();
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// LOADING & TOAST
+// ═══════════════════════════════════════════════════
+function showLoading(txt='Đang xử lý...') {
+  document.getElementById('loading-text').textContent = txt;
+  document.getElementById('loading').classList.add('show');
+}
+function hideLoading() { document.getElementById('loading').classList.remove('show'); }
+function showToast(msg, type='info') {
+  const t = document.getElementById('toast');
+  const icons = { success:'fa-circle-check', error:'fa-circle-xmark', warn:'fa-triangle-exclamation', info:'fa-circle-info' };
+  t.innerHTML = `<i class="fas ${icons[type]||icons.info}"></i> ${msg}`;
+  t.className = `toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ═══════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════
+function initAdmin() {
+  // Load cached tree from localStorage while GitHub syncs
+  const cached = localStorage.getItem(TREE_KEY);
+  if (cached) {
+    try {
+      indexTree = JSON.parse(cached);
+      renderTree(indexTree);
+      updateDashboard();
+      updateFolderSelects();
+    } catch {}
+  }
+  const c = cfg();
+  const hasGH   = !!c.token && !!c.repo;
+  const hasNoco = !!c.nocoToken && !!c.nocoTable;
+  updateGhStatus(hasGH);
+  updateNocoStatus(hasNoco, hasNoco ? (c.nocoUrl||'').replace('https://','').split('/')[0] : '');
+  document.getElementById('top-repo').textContent = c.repo || '';
+
+  // Auto-sync if configured
+  if (hasGH) {
+    syncFromGitHub();
+  } else {
+    showPanel('settings', document.querySelectorAll('.sb-item')[5]);
+    setTimeout(() => showToast('Cấu hình GitHub & NocoDB để bắt đầu!', 'warn'), 500);
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// NOCODB API
+// ═══════════════════════════════════════════════════
+const NOCO = {
+  // Build base API URL — NocoDB cloud v2: /api/v2/tables/{tableId}/records
+  base() {
+    const c = cfg();
+    const url = (c.nocoUrl || '').replace(/\/$/, '');
+    return `${url}/api/v2`;
+  },
+  tableBase() {
+    return `${this.base()}/tables/${this.tableId()}`;
+  },
+  userBase() {
+    return `${this.base()}/tables/${this.userTableId()}`;
+  },
+  headers() {
+    const c = cfg();
+    return { 'xc-token': c.nocoToken, 'Content-Type': 'application/json' };
+  },
+  tableId() { return cfg().nocoTable || ''; },
+  baseId()  { return cfg().nocoBase  || ''; },
+
+  // List records with optional params
+  async listRecords({ limit=25, offset=0, where='', sort='' } = {}) {
+    let url = `${this.tableBase()}/records?limit=${limit}&offset=${offset}`;
+    if (where) url += `&where=${encodeURIComponent(where)}`;
+    if (sort)  url += `&sort=${encodeURIComponent(sort)}`;
+    const r = await fetch(url, { headers: this.headers() });
+    if (!r.ok) throw new Error(`NocoDB ${r.status}: ${await r.text()}`);
+    return await r.json(); // { list: [...], pageInfo: {...} }
+  },
+
+  // Get single record
+  async getRecord(rowId) {
+    const r = await fetch(`${this.tableBase()}/records/${rowId}`, { headers: this.headers() });
+    if (!r.ok) throw new Error(`NocoDB ${r.status}`);
+    return await r.json();
+  },
+
+  // Create record — NocoDB cloud v2 requires array
+  async createRecord(data) {
+    const r = await fetch(`${this.tableBase()}/records`, {
+      method: 'POST', headers: this.headers(), body: JSON.stringify([data])
+    });
+    if (!r.ok) throw new Error(`NocoDB ${r.status}: ${await r.text()}`);
+    return await r.json();
+  },
+
+  // Update record — NocoDB cloud v2 requires array with Id
+  async updateRecord(rowId, data) {
+    const r = await fetch(`${this.tableBase()}/records`, {
+      method: 'PATCH', headers: this.headers(),
+      body: JSON.stringify([{ ...data, Id: rowId }])
+    });
+    if (!r.ok) throw new Error(`NocoDB ${r.status}: ${await r.text()}`);
+    return await r.json();
+  },
+
+  // Delete record — NocoDB cloud v2 requires array with Id
+  async deleteRecord(rowId) {
+    const r = await fetch(`${this.tableBase()}/records`, {
+      method: 'DELETE', headers: this.headers(),
+      body: JSON.stringify([{ Id: rowId }])
+    });
+    if (!r.ok) throw new Error(`NocoDB ${r.status}: ${await r.text()}`);
+    return true;
+  },
+
+  // Get table fields — derived from first record keys (NocoDB cloud has no /fields endpoint)
+  async getFields() {
+    const r = await fetch(`${this.tableBase()}/records?limit=1`, { headers: this.headers() });
+    if (!r.ok) throw new Error(`NocoDB ${r.status}`);
+    const data = await r.json();
+    const rows = data.list || data.records || [];
+    const keys = rows.length > 0
+      ? Object.keys(rows[0]).filter(k => k !== 'Id' && k !== 'nc_order')
+      : [];
+    return { list: keys.map(k => ({ title: k, id: k })) };
+  },
+
+  // Test: get records (limit 1) to verify connection
+  async testConnection() {
+    const r = await fetch(`${this.tableBase()}/records?limit=1`, { headers: this.headers() });
+    if (!r.ok) throw new Error(`${r.status}: ${await r.text()}`);
+    const data = await r.json();
+    return { title: 'Articles', table_name: this.tableId() };
+  },
+
+  // ── USER TABLE ──
+  userTableId() { return cfg().nocoUserTable || ''; },
+
+  async listUsers({ limit=25, offset=0, where='', sort='-NgayTao' } = {}) {
+    if (!this.userTableId()) throw new Error('Chưa cấu hình User Table ID!');
+    let url = `${this.userBase()}/records?limit=${limit}&offset=${offset}`;
+    if (where) url += `&where=${encodeURIComponent(where)}`;
+    if (sort)  url += `&sort=${encodeURIComponent(sort)}`;
+    const r = await fetch(url, { headers: this.headers() });
+    if (!r.ok) throw new Error(`NocoDB ${r.status}: ${await r.text()}`);
+    return await r.json();
+  },
+
+  async getUser(rowId) {
+    const r = await fetch(`${this.userBase()}/records/${rowId}`, { headers: this.headers() });
+    if (!r.ok) throw new Error(`NocoDB ${r.status}`);
+    return await r.json();
+  },
+
+  async createUser(data) {
+    const r = await fetch(`${this.userBase()}/records`, {
+      method: 'POST', headers: this.headers(), body: JSON.stringify([data])
+    });
+    if (!r.ok) throw new Error(`NocoDB ${r.status}: ${await r.text()}`);
+    return await r.json();
+  },
+
+  async updateUser(rowId, data) {
+    const r = await fetch(`${this.userBase()}/records`, {
+      method: 'PATCH', headers: this.headers(),
+      body: JSON.stringify([{ ...data, Id: rowId }])
+    });
+    if (!r.ok) throw new Error(`NocoDB ${r.status}: ${await r.text()}`);
+    return await r.json();
+  },
+
+  async deleteUser(rowId) {
+    const r = await fetch(`${this.userBase()}/records`, {
+      method: 'DELETE', headers: this.headers(),
+      body: JSON.stringify([{ Id: rowId }])
+    });
+    if (!r.ok) throw new Error(`NocoDB ${r.status}: ${await r.text()}`);
+    return true;
+  }
+};
+
+// ── State ──
+let nocoPageIndex = 0;
+const NOCO_LIMIT = 25;
+let nocoTotalRows = 0;
+let nocoFields = [];
+let nocoWhereClause = '';
+let nocoCurrentTab = 'records';
+let nocoEditRowId = null;
+
+function updateNocoStatus(connected, label = '') {
+  const bar = document.getElementById('noco-status-bar');
+  const txt = document.getElementById('noco-status-text');
+  bar.className = `gh-status ${connected ? 'connected' : 'disconnected'}`;
+  txt.textContent = connected ? (label || 'NocoDB đã kết nối') : 'Chưa kết nối NocoDB';
+  document.getElementById('noco-not-connected').style.display = connected ? 'none' : 'block';
+  document.getElementById('noco-connected').style.display     = connected ? 'block' : 'none';
+}
+
+function setNocoSyncBar(show, text='', time='', err=false) {
+  const bar = document.getElementById('noco-sync-bar');
+  bar.style.display = show ? 'flex' : 'none';
+  bar.className = 'sync-bar' + (err ? ' error' : show ? ' syncing' : '');
+  document.getElementById('noco-sync-text').textContent = text;
+  document.getElementById('noco-sync-time').textContent = time;
+}
+
+// ── Test connection button in settings ──
+async function nocoTestAndSave() {
+  const url   = document.getElementById('s-noco-url').value.trim();
+  const token = document.getElementById('s-noco-token').value.trim();
+  const table = document.getElementById('s-noco-table').value.trim();
+  const base  = document.getElementById('s-noco-base').value.trim();
+  const res   = document.getElementById('noco-test-result');
+
+  if (!url || !token || !table) {
+    res.innerHTML = '<i class="fas fa-triangle-exclamation" style="color:var(--warn)"></i> Nhập đủ URL, Token, Table ID';
+    return;
+  }
+  res.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang kiểm tra...';
+  // Save first so NOCO object uses the new values
+  const c = cfg();
+  c.nocoUrl = url; c.nocoToken = token; c.nocoTable = table; c.nocoBase = base;
+  saveCfg(c);
+  try {
+    const info = await NOCO.testConnection();
+    const name = info.title || info.table_name || table;
+    res.innerHTML = `<i class="fas fa-circle-check" style="color:var(--success)"></i> Kết nối thành công — bảng <b>${name}</b>`;
+    updateNocoStatus(true, url.replace('https://','').split('/')[0]);
+    showToast('✓ NocoDB kết nối thành công!', 'success');
+  } catch(e) {
+    res.innerHTML = `<i class="fas fa-circle-xmark" style="color:var(--danger)"></i> Lỗi: ${e.message}`;
+    updateNocoStatus(false);
+    showToast('Lỗi NocoDB: ' + e.message, 'error');
+  }
+}
+
+async function nocoTestConnection() {
+  if (!cfg().nocoToken || !cfg().nocoTable) {
+    showToast('Chưa cấu hình NocoDB!', 'warn');
+    showPanel('settings', document.querySelectorAll('.sb-item')[5]);
+    return;
+  }
+  setNocoSyncBar(true, 'Đang kiểm tra kết nối NocoDB...');
+  try {
+    const info = await NOCO.testConnection();
+    const fields = await NOCO.getFields();
+    nocoFields = fields.list || fields;
+    await nocoLoadRecords();
+    // Load user count nếu đã cấu hình
+    if (cfg().nocoUserTable) {
+      try {
+        const ud = await NOCO.listUsers({ limit:1 });
+        document.getElementById('noco-user-count').textContent = ud.pageInfo?.totalRows ?? 0;
+      } catch(e) {}
+    }
+    setNocoSyncBar(false, `✓ Kết nối OK — ${nocoTotalRows} bản ghi`, new Date().toLocaleTimeString('vi-VN'));
+    updateNocoStatus(true, (cfg().nocoUrl||'').replace('https://','').split('/')[0]);
+  } catch(e) {
+    setNocoSyncBar(true, '✗ Lỗi: ' + e.message, '', true);
+    updateNocoStatus(false);
+    showToast('Lỗi NocoDB: ' + e.message, 'error');
+  }
+}
+
+// ── Load records ──
+async function nocoLoadRecords(where = '') {
+  nocoWhereClause = where;
+  const tbody = document.getElementById('noco-tbody');
+  tbody.innerHTML = '<tr><td colspan="99" style="text-align:center;padding:28px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i> Đang tải...</td></tr>';
+
+  try {
+    const data = await NOCO.listRecords({ limit: NOCO_LIMIT, offset: nocoPageIndex * NOCO_LIMIT, where });
+    const records = data.list || [];
+    nocoTotalRows = data.pageInfo?.totalRows || records.length;
+
+    // Build table header from first record keys or fields
+    const keys = nocoFields.length
+      ? nocoFields.map(f => f.title || f.name).filter(k => k !== 'Id' && !k.startsWith('nc_'))
+      : records.length ? Object.keys(records[0]).filter(k => k !== 'Id' && !k.startsWith('nc_')) : [];
+
+    // Render header
+    const thead = document.getElementById('noco-thead');
+    thead.innerHTML = `<tr>
+      <th style="width:40px">#</th>
+      ${keys.slice(0,7).map(k => `<th>${k}</th>`).join('')}
+      <th style="width:100px">Thao tác</th>
+    </tr>`;
+
+    // Render rows
+    if (!records.length) {
+      tbody.innerHTML = `<tr><td colspan="${keys.length+2}" style="text-align:center;padding:32px;color:var(--text-muted)">Không có bản ghi nào</td></tr>`;
+    } else {
+      tbody.innerHTML = records.map((row, i) => `
+        <tr>
+          <td style="color:var(--text-muted);font-size:12px">${nocoPageIndex*NOCO_LIMIT + i + 1}</td>
+          ${keys.slice(0,7).map(k => `<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${String(row[k]||'')}">
+            ${renderNocoCell(row[k], k)}
+          </td>`).join('')}
+          <td style="white-space:nowrap">
+            <button class="btn btn-outline btn-sm" onclick="nocoEditRecord(${row.Id})" title="Sửa"><i class="fas fa-pen"></i></button>
+            <button class="btn btn-danger btn-sm" onclick="nocoDeleteRecord(${row.Id})" title="Xóa"><i class="fas fa-trash"></i></button>
+          </td>
+        </tr>`).join('');
+    }
+
+    // Update pagination
+    const total = Math.ceil(nocoTotalRows / NOCO_LIMIT);
+    document.getElementById('noco-page-info').textContent = `Trang ${nocoPageIndex+1}/${total||1} — ${nocoTotalRows} bản ghi`;
+    document.getElementById('noco-prev').disabled = nocoPageIndex === 0;
+    document.getElementById('noco-next').disabled = (nocoPageIndex+1) >= total;
+    document.getElementById('noco-count').textContent = nocoTotalRows;
+    document.getElementById('noco-sync-last').textContent = new Date().toLocaleTimeString('vi-VN');
+
+    // Populate filter field select
+    const fsel = document.getElementById('noco-filter-field');
+    if (fsel && keys.length) {
+      fsel.innerHTML = '<option value="">— Chọn field —</option>' + keys.map(k => `<option value="${k}">${k}</option>`).join('');
+    }
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="99" style="text-align:center;padding:28px;color:var(--danger)"><i class="fas fa-circle-xmark"></i> Lỗi: ${e.message}</td></tr>`;
+    showToast('Lỗi tải NocoDB: ' + e.message, 'error');
+  }
+}
+
+function renderNocoCell(val, key) {
+  if (val === null || val === undefined) return '<span style="color:var(--text-muted);font-style:italic">—</span>';
+  if (typeof val === 'boolean') return val ? '<span class="badge badge-green">✓ Có</span>' : '<span class="badge" style="background:#fee2e2;color:var(--danger)">✗ Không</span>';
+  if (typeof val === 'object') return `<span style="font-size:12px;color:var(--text-muted)">${JSON.stringify(val).slice(0,40)}</span>`;
+  const str = String(val);
+  if (str.startsWith('http')) return `<a href="${str}" target="_blank" style="color:var(--primary)">${str.slice(0,30)}...</a>`;
+  return str.slice(0, 60) + (str.length > 60 ? '…' : '');
+}
+
+function nocoChangePage(dir) {
+  const total = Math.ceil(nocoTotalRows / NOCO_LIMIT);
+  const next = nocoPageIndex + dir;
+  if (next < 0 || next >= total) return;
+  nocoPageIndex = next;
+  nocoLoadRecords(nocoWhereClause);
+}
+
+async function nocoSearchRecords(q) {
+  nocoPageIndex = 0;
+  if (!q) { nocoLoadRecords(); return; }
+  // Search across all text fields
+  const textFields = nocoFields.filter(f => f.title || typeof f === 'string');
+  if (!textFields.length) { nocoLoadRecords(`(Title,like,%${q}%)`); return; }
+  const where = textFields.slice(0,3).map(f => `(${f.title||f},like,%${q}%)`).join('~or');
+  nocoLoadRecords(where);
+}
+
+// ── Load fields ──
+async function nocoLoadFields() {
+  const container = document.getElementById('noco-fields-list');
+  try {
+    const data = await NOCO.getFields();
+    const fields = data.list || data;
+    nocoFields = fields;
+    if (!fields.length) { container.innerHTML = '<p style="color:var(--text-muted)">Không có fields</p>'; return; }
+    container.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">
+        ${fields.map(f => `
+          <div style="background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:12px">
+            <div style="font-weight:600;font-size:13px;margin-bottom:4px"><i class="fas fa-tag" style="color:var(--primary);width:16px"></i> ${f.title||f.name||f}</div>
+            <div style="font-size:11.5px;color:var(--text-muted)">${f.uidt||f.type||'Text'}</div>
+          </div>`).join('')}
+      </div>`;
+  } catch(e) {
+    container.innerHTML = `<p style="color:var(--danger)">Lỗi: ${e.message}</p>`;
+  }
+}
+
+function fieldIcon(type) {
+  const map = { SingleLineText:'font', LongText:'align-left', Number:'hashtag', Decimal:'hashtag', Checkbox:'check-square', Date:'calendar', DateTime:'clock', Email:'envelope', URL:'link', PhoneNumber:'phone', Attachment:'paperclip', MultiSelect:'tags', SingleSelect:'tag', Rating:'star', Currency:'dollar-sign', Percent:'percent', Formula:'calculator', Lookup:'magnifying-glass', Rollup:'layer-group', LinkToAnotherRecord:'table-columns' };
+  return map[type] || 'circle';
+}
+
+// ── Edit record (modal) ──
+async function nocoEditRecord(rowId) {
+  try {
+    const rec = await NOCO.getRecord(rowId);
+    nocoEditRowId = rowId;
+    const keys = Object.keys(rec).filter(k => k !== 'Id' && !k.startsWith('nc_'));
+    const form = keys.map(k => `
+      <div class="form-group" style="margin-bottom:10px">
+        <label style="font-size:12px">${k}</label>
+        <input type="text" id="noco-edit-${k}" value="${String(rec[k]||'').replace(/"/g,'&quot;')}"
+          style="width:100%;border:1px solid var(--border);border-radius:7px;padding:7px 10px;font-size:13px;font-family:inherit;outline:none">
+      </div>`).join('');
+
+    // Use modal-create as edit modal
+    document.getElementById('modal-title').textContent = `Sửa bản ghi #${rowId}`;
+    document.getElementById('modal-label').textContent = '';
+    document.getElementById('modal-name').style.display = 'none';
+    document.getElementById('modal-parent-group').style.display = 'none';
+    document.getElementById('modal-note').innerHTML = form;
+    document.getElementById('modal-confirm').textContent = 'Lưu';
+    document.getElementById('modal-confirm').onclick = () => nocoSaveEdit(rowId, keys);
+    document.getElementById('modal-create').classList.add('show');
+  } catch(e) {
+    showToast('Lỗi tải bản ghi: ' + e.message, 'error');
+  }
+}
+
+async function nocoSaveEdit(rowId, keys) {
+  const data = {};
+  keys.forEach(k => {
+    const el = document.getElementById('noco-edit-' + k);
+    if (el) data[k] = el.value;
+  });
+  try {
+    await NOCO.updateRecord(rowId, data);
+    closeModal();
+    // Reset modal
+    document.getElementById('modal-name').style.display = '';
+    document.getElementById('modal-confirm').textContent = 'Tạo';
+    document.getElementById('modal-confirm').onclick = () => confirmCreate();
+    nocoLoadRecords(nocoWhereClause);
+    showToast('✓ Đã cập nhật bản ghi!', 'success');
+  } catch(e) {
+    showToast('Lỗi cập nhật: ' + e.message, 'error');
+  }
+}
+
+// ── Add record ──
+async function nocoAddRecord() {
+  const keys = nocoFields.filter(f => !f.pk && f.title !== 'Id' && !f.title?.startsWith('nc_')).map(f => f.title||f.name);
+  if (!keys.length) { showToast('Không tìm thấy fields!', 'warn'); return; }
+  nocoEditRowId = null;
+  const form = keys.slice(0,8).map(k => `
+    <div class="form-group" style="margin-bottom:10px">
+      <label style="font-size:12px">${k}</label>
+      <input type="text" id="noco-edit-${k}" placeholder="${k}"
+        style="width:100%;border:1px solid var(--border);border-radius:7px;padding:7px 10px;font-size:13px;font-family:inherit;outline:none">
+    </div>`).join('');
+
+  document.getElementById('modal-title').textContent = 'Thêm bản ghi mới';
+  document.getElementById('modal-label').textContent = '';
+  document.getElementById('modal-name').style.display = 'none';
+  document.getElementById('modal-parent-group').style.display = 'none';
+  document.getElementById('modal-note').innerHTML = form;
+  document.getElementById('modal-confirm').textContent = 'Thêm';
+  document.getElementById('modal-confirm').onclick = async () => {
+    const data = {};
+    keys.slice(0,8).forEach(k => {
+      const el = document.getElementById('noco-edit-' + k);
+      if (el && el.value) data[k] = el.value;
+    });
+    try {
+      await NOCO.createRecord(data);
+      closeModal();
+      document.getElementById('modal-name').style.display = '';
+      document.getElementById('modal-confirm').textContent = 'Tạo';
+      document.getElementById('modal-confirm').onclick = () => confirmCreate();
+      nocoLoadRecords(nocoWhereClause);
+      showToast('✓ Đã thêm bản ghi!', 'success');
+    } catch(e) { showToast('Lỗi: ' + e.message, 'error'); }
+  };
+  document.getElementById('modal-create').classList.add('show');
+}
+
+// ── Delete record ──
+async function nocoDeleteRecord(rowId) {
+  if (!confirm(`Xóa bản ghi #${rowId} khỏi NocoDB?`)) return;
+  try {
+    await NOCO.deleteRecord(rowId);
+    nocoLoadRecords(nocoWhereClause);
+    showToast('✓ Đã xóa bản ghi!', 'success');
+  } catch(e) { showToast('Lỗi xóa: ' + e.message, 'error'); }
+}
+
+// ── Filter / query ──
+function nocoRunFilter() {
+  const field = document.getElementById('noco-filter-field').value;
+  const op    = document.getElementById('noco-filter-op').value;
+  const val   = document.getElementById('noco-filter-val').value;
+  if (!field) { showToast('Chọn field để lọc!', 'warn'); return; }
+  const ops = { empty:'is null', notempty:'is not null' };
+  const where = ['empty','notempty'].includes(op)
+    ? `(${field},${op})`
+    : `(${field},${op},${val})`;
+  nocoPage = 0;
+  nocoLoadRecords(where);
+  switchNocoTab('records');
+}
+
+// ── Export CSV ──
+async function nocoExportCSV() {
+  try {
+    showLoading('Xuất dữ liệu từ NocoDB...');
+    const data = await NOCO.listRecords({ limit: 1000, where: nocoWhereClause });
+    const records = data.list || [];
+    if (!records.length) { showToast('Không có dữ liệu!', 'warn'); return; }
+    const keys = Object.keys(records[0]).filter(k => !k.startsWith('nc_'));
+    const csv  = [keys.join(','), ...records.map(r => keys.map(k => `"${String(r[k]||'').replace(/"/g,'""')}"`).join(','))].join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type:'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `nocodb-export-${Date.now()}.csv`;
+    a.click();
+    showToast('✓ Đã xuất CSV!', 'success');
+  } catch(e) { showToast('Lỗi xuất: ' + e.message, 'error'); }
+  finally { hideLoading(); }
+}
+
+// ── Sync all articles to NocoDB ──
+async function nocoSyncAll() {
+  if (!cfg().nocoToken || !cfg().nocoTable) { showToast('Chưa cấu hình NocoDB!', 'warn'); return; }
+  if (!indexTree.length) { showToast('Chưa có dữ liệu từ GitHub! Đồng bộ GitHub trước.', 'warn'); return; }
+  const files = flattenFiles(indexTree);
+  if (!confirm(`Đồng bộ ${files.length} bài viết từ GitHub lên NocoDB?`)) return;
+
+  showLoading(`Đang đồng bộ ${files.length} bài lên NocoDB...`);
+  setNocoSyncBar(true, `Đang đồng bộ ${files.length} bài...`);
+  let ok = 0, err = 0;
+
+  // Get existing records to avoid duplicates
+  let existing = {};
+  try {
+    const data = await NOCO.listRecords({ limit: 1000 });
+    (data.list||[]).forEach(r => { if (r.Path) existing[r.Path] = r.Id; });
+  } catch {}
+
+  for (const file of files) {
+    try {
+      const payload = {
+        Title:       file.name,
+        Path:        file.path,
+        Folder:      file.folder || '',
+        Description: file.description || '',
+        Access:      file.access || 'public',
+        Updated:     file.updated || '',
+        Status:      'Published'
+      };
+      if (existing[file.path]) {
+        await NOCO.updateRecord(existing[file.path], payload);
+      } else {
+        await NOCO.createRecord(payload);
+      }
+      ok++;
+    } catch(e) { err++; console.error('Sync error for', file.path, e.message); }
+  }
+
+  setNocoSyncBar(false, `✓ Đồng bộ xong: ${ok} thành công${err?' · '+err+' lỗi':''}`, new Date().toLocaleTimeString('vi-VN'), err > 0);
+  await nocoLoadRecords();
+  hideLoading();
+  showToast(`✓ Đồng bộ xong! ${ok} bài`, 'success');
+}
+
+function nocoOpenTable() {
+  const c = cfg();
+  if (c.nocoUrl && c.nocoBase && c.nocoTable) {
+    window.open(`${c.nocoUrl}/nc/${c.nocoBase}/${c.nocoTable}`, '_blank');
+  } else if (c.nocoUrl) {
+    window.open(c.nocoUrl, '_blank');
+  }
+}
+
+// ── Tab switcher ──
+// ═══════════════════════════════════════════════════
+// USERS TABLE
+// ═══════════════════════════════════════════════════
+let userPageIndex = 0;
+const USER_LIMIT = 25;
+let userTotalRows = 0;
+let userWhereClause = '';
+let userEditRowId = null;
+
+async function userLoadRecords(where = '') {
+  userWhereClause = where;
+  const tbody = document.getElementById('user-tbody');
+  if (!tbody) return;
+  if (!cfg().nocoUserTable) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--warn)">
+      <i class="fas fa-triangle-exclamation"></i> Chưa cấu hình User Table ID trong Cài đặt
+    </td></tr>`;
+    return;
+  }
+  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:28px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i> Đang tải...</td></tr>';
+  try {
+    const data = await NOCO.listUsers({ limit: USER_LIMIT, offset: userPageIndex * USER_LIMIT, where });
+    const users = data.list || [];
+    userTotalRows = data.pageInfo?.totalRows || users.length;
+
+    // Header
+    document.getElementById('user-thead').innerHTML = `<tr>
+      <th style="width:40px">#</th>
+      <th>Họ và tên</th><th>Email</th><th>Vai trò</th>
+      <th>Trạng thái</th><th>SĐT</th><th>Ghi chú</th>
+      <th style="width:110px">Thao tác</th>
+    </tr>`;
+
+    if (!users.length) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted)">Chưa có người dùng nào</td></tr>';
+    } else {
+      tbody.innerHTML = users.map((u, i) => `
+        <tr>
+          <td style="color:var(--text-muted);font-size:12px">${userPageIndex*USER_LIMIT+i+1}</td>
+          <td><b>${u.Name||u.FullName||u.HoTen||'—'}</b></td>
+          <td style="font-size:12.5px;color:var(--text-muted)">${u.Email||'—'}</td>
+          <td>${userRoleBadge(u.Role||u.VaiTro||'')}</td>
+          <td>${userStatusBadge(u.Status||u.TrangThai||'')}</td>
+          <td style="font-size:12.5px">${u.Phone||u.SDT||'—'}</td>
+          <td style="font-size:12px;color:var(--text-muted);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${u.Note||u.GhiChu||''}</td>
+          <td style="white-space:nowrap">
+            <button class="btn btn-outline btn-sm" onclick="userEdit(${u.Id})" title="Sửa"><i class="fas fa-pen"></i></button>
+            <button class="btn btn-danger btn-sm" onclick="userDelete(${u.Id},'${(u.Name||u.FullName||u.HoTen||'?').replace(/'/g,"\\'")}'))" title="Xóa"><i class="fas fa-trash"></i></button>
+          </td>
+        </tr>`).join('');
+    }
+
+    // Pagination
+    const total = Math.ceil(userTotalRows / USER_LIMIT);
+    document.getElementById('user-page-info').textContent = `Trang ${userPageIndex+1}/${total||1} — ${userTotalRows} người dùng`;
+    document.getElementById('user-prev').disabled = userPageIndex === 0;
+    document.getElementById('user-next').disabled = (userPageIndex+1) >= total;
+    document.getElementById('noco-user-count').textContent = userTotalRows;
+
+    // Thống kê
+    userLoadStats();
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:28px;color:var(--danger)"><i class="fas fa-circle-xmark"></i> Lỗi: ${e.message}</td></tr>`;
+    showToast('Lỗi tải Users: ' + e.message, 'error');
+  }
+}
+
+async function userLoadStats() {
+  try {
+    const [students, teachers, inactive] = await Promise.all([
+      NOCO.listUsers({ limit:1, where:'(Role,eq,student)' }),
+      NOCO.listUsers({ limit:1, where:'(Role,eq,teacher)' }),
+      NOCO.listUsers({ limit:1, where:'(Status,eq,inactive)' }),
+    ]);
+    document.getElementById('us-student').textContent  = students.pageInfo?.totalRows ?? '—';
+    document.getElementById('us-teacher').textContent  = teachers.pageInfo?.totalRows ?? '—';
+    document.getElementById('us-inactive').textContent = inactive.pageInfo?.totalRows ?? '—';
+  } catch(e) { /* stats optional */ }
+}
+
+function userRoleBadge(role) {
+  const map = {
+    admin:   '<span class="badge" style="background:#fee2e2;color:#b91c1c">Admin</span>',
+    teacher: '<span class="badge badge-green">Giáo viên</span>',
+    student: '<span class="badge badge-blue">Học sinh</span>',
+  };
+  return map[role?.toLowerCase()] || `<span class="badge" style="background:#f1f5f9;color:var(--text-muted)">${role||'—'}</span>`;
+}
+
+function userStatusBadge(status) {
+  if (!status) return '—';
+  const s = status.toLowerCase();
+  if (s === 'active')   return '<span class="badge badge-green">✓ Hoạt động</span>';
+  if (s === 'inactive') return '<span class="badge" style="background:#fee2e2;color:var(--danger)">✗ Tạm khóa</span>';
+  return `<span class="badge" style="background:#f1f5f9;color:var(--text-muted)">${status}</span>`;
+}
+
+function userChangePage(dir) {
+  const total = Math.ceil(userTotalRows / USER_LIMIT);
+  const next = userPageIndex + dir;
+  if (next < 0 || next >= total) return;
+  userPageIndex = next;
+  userLoadRecords(userWhereClause);
+}
+
+function userSearchRecords(q) {
+  userPageIndex = 0;
+  if (!q) { userLoadRecords(); return; }
+  const where = `(Name,like,%${q}%)~or(Email,like,%${q}%)~or(FullName,like,%${q}%)`;
+  userLoadRecords(where);
+}
+
+function userAddRecord() {
+  userEditRowId = null;
+  document.getElementById('user-form-title').textContent = '👤 Thêm người dùng mới';
+  document.getElementById('uf-name').value  = '';
+  document.getElementById('uf-email').value = '';
+  document.getElementById('uf-role').value  = 'student';
+  document.getElementById('uf-status').value = 'active';
+  document.getElementById('uf-phone').value = '';
+  document.getElementById('uf-note').value  = '';
+  document.getElementById('user-form-msg').innerHTML = '';
+  document.getElementById('user-form-card').style.display = 'block';
+  setTimeout(() => document.getElementById('uf-name').focus(), 100);
+}
+
+async function userEdit(rowId) {
+  try {
+    const u = await NOCO.getUser(rowId);
+    userEditRowId = rowId;
+    document.getElementById('user-form-title').textContent = `✏️ Sửa người dùng #${rowId}`;
+    document.getElementById('uf-name').value   = u.Name || u.FullName || u.HoTen || '';
+    document.getElementById('uf-email').value  = u.Email || '';
+    document.getElementById('uf-role').value   = (u.Role || u.VaiTro || 'student').toLowerCase();
+    document.getElementById('uf-status').value = (u.Status || u.TrangThai || 'active').toLowerCase();
+    document.getElementById('uf-phone').value  = u.Phone || u.SDT || '';
+    document.getElementById('uf-note').value   = u.Note || u.GhiChu || '';
+    document.getElementById('user-form-msg').innerHTML = '';
+    document.getElementById('user-form-card').style.display = 'block';
+    setTimeout(() => document.getElementById('uf-name').focus(), 100);
+  } catch(e) {
+    showToast('Lỗi tải user: ' + e.message, 'error');
+  }
+}
+
+async function userSaveForm() {
+  const name  = document.getElementById('uf-name').value.trim();
+  const email = document.getElementById('uf-email').value.trim();
+  if (!name)  { showToast('Nhập họ và tên!', 'warn'); return; }
+  if (!email) { showToast('Nhập email!', 'warn'); return; }
+
+  const msg = document.getElementById('user-form-msg');
+  msg.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang lưu...';
+
+  const payload = {
+    Name: name, FullName: name, HoTen: name,
+    Email: email,
+    Role: document.getElementById('uf-role').value,
+    VaiTro: document.getElementById('uf-role').value,
+    Status: document.getElementById('uf-status').value,
+    TrangThai: document.getElementById('uf-status').value,
+    Phone: document.getElementById('uf-phone').value.trim(),
+    SDT: document.getElementById('uf-phone').value.trim(),
+    Note: document.getElementById('uf-note').value.trim(),
+    GhiChu: document.getElementById('uf-note').value.trim(),
+    NgayCapNhat: new Date().toLocaleDateString('vi-VN'),
+  };
+
+  try {
+    if (userEditRowId) {
+      await NOCO.updateUser(userEditRowId, payload);
+      showToast('✓ Đã cập nhật người dùng!', 'success');
+    } else {
+      payload.NgayTao = new Date().toLocaleDateString('vi-VN');
+      await NOCO.createUser(payload);
+      showToast('✓ Đã thêm người dùng!', 'success');
+    }
+    userCloseForm();
+    userPageIndex = 0;
+    userLoadRecords();
+  } catch(e) {
+    msg.innerHTML = `<i class="fas fa-circle-xmark" style="color:var(--danger)"></i> Lỗi: ${e.message}`;
+    showToast('Lỗi lưu: ' + e.message, 'error');
+  }
+}
+
+async function userDelete(rowId, name) {
+  if (!confirm(`Xóa người dùng "${name}" khỏi NocoDB?`)) return;
+  try {
+    await NOCO.deleteUser(rowId);
+    userLoadRecords(userWhereClause);
+    showToast('✓ Đã xóa người dùng!', 'success');
+  } catch(e) {
+    showToast('Lỗi xóa: ' + e.message, 'error');
+  }
+}
+
+function userCloseForm() {
+  document.getElementById('user-form-card').style.display = 'none';
+  userEditRowId = null;
+}
+
+function switchNocoTab(tab) {
+  nocoCurrentTab = tab;
+  ['records','users','fields','query'].forEach(t => {
+    document.getElementById(`noco-tab-${t}`).style.display = t === tab ? 'block' : 'none';
+    document.getElementById(`ntab-${t}`)?.classList.toggle('active', t === tab);
+  });
+  if (tab === 'fields') nocoLoadFields();
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey||e.metaKey) && e.key==='s') { e.preventDefault(); saveToGitHub(); }
+  if (e.key === 'Escape') closeModal();
+});
+
+window.addEventListener('DOMContentLoaded', () => { checkSession(); });
+
+// ── CONFIG EXPORT / IMPORT ──────────────────────────────
+function exportConfig() {
+  const c = cfg();
+  // Mask nothing — user knows what they're saving
+  const blob = new Blob([JSON.stringify(c, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'activeedu-config.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast('✓ Đã xuất config!', 'success');
+}
+
+function importConfig() {
+  document.getElementById('import-config-file').click();
+}
+
+function handleImportConfig(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const c = JSON.parse(e.target.result);
+      saveCfg(c);
+      loadSettings();
+      showToast('✓ Đã import config! Kiểm tra lại các trường.', 'success');
+    } catch {
+      showToast('Lỗi: File không hợp lệ!', 'error');
+    }
+    input.value = '';
+  };
+  reader.readAsText(file);
+}
+// ── END CONFIG EXPORT / IMPORT ──────────────────────────
+</script>
+</body>
+</html>
