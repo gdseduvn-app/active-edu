@@ -1864,7 +1864,7 @@ const NOCO = {
   // ── USER TABLE ──
   userTableId() { return cfg().nocoUserTable || ''; },
 
-  async listUsers({ limit=25, offset=0, where='', sort='-CreatedAt' } = {}) {
+  async listUsers({ limit=25, offset=0, where='', sort='-NgayTao' } = {}) {
     if (!this.userTableId()) throw new Error('Chưa cấu hình User Table ID!');
     let url = `${this.base()}/tables/${this.userTableId()}/records?limit=${limit}&offset=${offset}`;
     if (where) url += `&where=${encodeURIComponent(where)}`;
@@ -2451,7 +2451,7 @@ async function userSaveForm() {
     SDT: document.getElementById('uf-phone').value.trim(),
     Note: document.getElementById('uf-note').value.trim(),
     GhiChu: document.getElementById('uf-note').value.trim(),
-    UpdatedAt: new Date().toLocaleDateString('vi-VN'),
+    NgayCapNhat: new Date().toLocaleDateString('vi-VN'),
   };
 
   try {
@@ -2459,7 +2459,7 @@ async function userSaveForm() {
       await NOCO.updateUser(userEditRowId, payload);
       showToast('✓ Đã cập nhật người dùng!', 'success');
     } else {
-      payload.CreatedAt = new Date().toLocaleDateString('vi-VN');
+      payload.NgayTao = new Date().toLocaleDateString('vi-VN');
       await NOCO.createUser(payload);
       showToast('✓ Đã thêm người dùng!', 'success');
     }
