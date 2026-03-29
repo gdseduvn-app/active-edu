@@ -534,6 +534,11 @@ tr:hover td{background:var(--hover)}
               <input type="text" id="s-noco-folder-table" placeholder="md_xxxxxxxxxxxxxxxxxx">
               <div class="form-hint">Table ID của bảng <b>Folders</b> trong NocoDB — quản lý cây thư mục</div>
             </div>
+            <div class="form-group">
+              <label>Table ID — Bảng Permissions <span style="color:var(--text-muted);font-weight:400">(bắt đầu bằng <code>md_</code>)</span></label>
+              <input type="text" id="s-noco-perm-table" placeholder="md_xxxxxxxxxxxxxxxxxx">
+              <div class="form-hint">Table ID của bảng <b>Permissions</b> — phân quyền user</div>
+            </div>
           </div>
           <div style="margin-top:14px;display:flex;gap:10px;align-items:center">
             <button class="btn btn-teal" onclick="nocoTestAndSave()"><i class="fas fa-plug"></i> Kiểm tra & Lưu</button>
@@ -718,6 +723,10 @@ tr:hover td{background:var(--hover)}
                 </select>
               </div>
               <div class="form-group">
+                <label>Mật khẩu <span style="color:var(--text-muted);font-weight:400;font-size:12px">(để trống = giữ nguyên)</span></label>
+                <input type="text" id="uf-pass" placeholder="Nhập mật khẩu mới..." style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13.5px;font-family:inherit;outline:none">
+              </div>
+              <div class="form-group">
                 <label>Số điện thoại</label>
                 <input type="text" id="uf-phone" placeholder="0912345678" style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13.5px;font-family:inherit;outline:none">
               </div>
@@ -726,8 +735,24 @@ tr:hover td{background:var(--hover)}
                 <input type="text" id="uf-note" placeholder="Ghi chú thêm..." style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13.5px;font-family:inherit;outline:none">
               </div>
             </div>
+            <!-- Phân quyền nội dung -->
+            <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:14px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+                <div style="font-size:13px;font-weight:600;color:var(--text)"><i class="fas fa-shield-halved" style="color:var(--primary);margin-right:6px"></i>Phân quyền nội dung</div>
+                <div style="display:flex;gap:6px">
+                  <button class="btn btn-outline btn-sm" onclick="permSelectAll()">Chọn tất cả</button>
+                  <button class="btn btn-outline btn-sm" onclick="permClearAll()">Bỏ chọn</button>
+                </div>
+              </div>
+              <div id="perm-tree" style="max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:10px;background:#f8fafc;font-size:13px">
+                <div style="color:var(--text-muted);text-align:center;padding:20px"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>
+              </div>
+              <div style="margin-top:8px;font-size:12px;color:var(--text-muted)">
+                <i class="fas fa-info-circle"></i> Tích chọn thư mục sẽ tự động cho phép xem tất cả bài trong đó. Có thể tích từng bài riêng lẻ.
+              </div>
+            </div>
             <div style="margin-top:14px;display:flex;gap:10px">
-              <button class="btn btn-success" onclick="userSaveForm()"><i class="fas fa-save"></i> Lưu</button>
+              <button class="btn btn-success" onclick="userSaveForm()"><i class="fas fa-save"></i> Lưu & Phân quyền</button>
               <button class="btn btn-outline" onclick="userCloseForm()">Hủy</button>
               <div id="user-form-msg" style="font-size:13px;color:var(--text-muted);display:flex;align-items:center;gap:6px;margin-left:auto"></div>
             </div>
@@ -927,12 +952,19 @@ function renderTreeItems(items, container, parentPath = '') {
       item.folderPath = parentPath ? parentPath + '/' + item.name : item.name;
       const wrap = document.createElement('div');
       wrap.className = 'tree-folder';
+      const fAccess = item.access || 'public';
+      const fAccessIcon = fAccess === 'private'
+        ? '<span style="font-size:10px;background:#fee2e2;color:#b91c1c;padding:1px 5px;border-radius:4px;margin-right:4px">🔒</span>'
+        : '<span style="font-size:10px;background:#ccfbf1;color:#0f766e;padding:1px 5px;border-radius:4px;margin-right:4px">🌐</span>';
       wrap.innerHTML = `
         <div class="tree-folder-hd" onclick="this.parentElement.classList.toggle('open');selectFolder('${item.folderPath}',this)">
           <i class="fas fa-chevron-right"></i>
           <i class="fas fa-folder" style="color:#60a5fa;font-size:13px"></i>
           <span style="flex:1">${item.name}</span>
+          ${fAccessIcon}
           <div class="tree-actions">
+            <button class="tree-act-btn" title="Đổi tên" onclick="event.stopPropagation();renameFolder('${item.folderPath}','${item.name}')"><i class="fas fa-pen"></i></button>
+            <button class="tree-act-btn" title="Đổi quyền" onclick="event.stopPropagation();toggleFolderAccess('${item.folderPath}','${fAccess}')"><i class="fas fa-${fAccess==='private'?'lock':'unlock'}"></i></button>
             <button class="tree-act-btn" title="Xóa thư mục" onclick="event.stopPropagation();confirmDeleteFolder('${item.name}')"><i class="fas fa-trash"></i></button>
           </div>
         </div>
@@ -1282,7 +1314,7 @@ async function confirmCreate() {
     showToast(`✓ Đã thêm thư mục "${name}"`, 'success');
     // Lưu vào NocoDB Folders table
     if (cfg().nocoFolderTable) {
-      NOCO.createFolder({ Name: name, Path: folderPath, Parent: parentPath || '' })
+      NOCO.createFolder({ Name: name, Path: folderPath, Parent: parentPath || '', Access: 'public' })
         .catch(e => console.warn('Folder save:', e.message));
     }
   } else {
@@ -1311,12 +1343,29 @@ async function confirmDeleteFile(path) {
     const row = (data.list || [])[0];
     if (!row) { showToast('Bài không tồn tại trong NocoDB', 'warn'); return; }
     await NOCO.deleteRecord(row.Id);
+    // CASCADE: xóa permissions liên quan đến bài này
+    if (cfg().nocoPermTable) {
+      try {
+        const permData = await fetch(
+          `${NOCO.permBase()}/records?where=(TargetPath,eq,${encodeURIComponent(path)})&limit=100`,
+          { headers: NOCO.headers() }
+        );
+        if (permData.ok) {
+          const perms = await permData.json();
+          for (const p of (perms.list||[])) {
+            await fetch(`${NOCO.permBase()}/records`, {
+              method:'DELETE', headers: NOCO.headers(), body: JSON.stringify([{Id:p.Id}])
+            });
+          }
+        }
+      } catch(e) { console.warn('Permission cascade on article delete:', e.message); }
+    }
     removeFromTree(indexTree, path);
     localStorage.setItem(TREE_KEY, JSON.stringify(indexTree));
     renderTree(indexTree);
     updateDashboard();
     updateFolderSelects();
-    showToast('✓ Đã xóa bài trong NocoDB!', 'success');
+    showToast('✓ Đã xóa bài và quyền liên quan!', 'success');
   } catch(e) {
     showToast('Lỗi xóa: ' + e.message, 'error');
   } finally { hideLoading(); }
@@ -1346,7 +1395,25 @@ async function confirmDeleteFolder(name) {
     renderTree(indexTree);
     updateDashboard();
     updateFolderSelects();
-    showToast(`✓ Đã xóa thư mục "${name}"!`, 'success');
+    // CASCADE: xóa permissions liên quan đến thư mục này
+    if (cfg().nocoPermTable) {
+      try {
+        const folderPath = files.length > 0 ? files[0].folder : name;
+        const permData = await fetch(
+          `${NOCO.permBase()}/records?where=(TargetPath,like,${encodeURIComponent(folderPath)}%)&limit=1000`,
+          { headers: NOCO.headers() }
+        );
+        if (permData.ok) {
+          const perms = await permData.json();
+          for (const p of (perms.list||[])) {
+            await fetch(`${NOCO.permBase()}/records`, {
+              method:'DELETE', headers: NOCO.headers(), body: JSON.stringify([{Id:p.Id}])
+            });
+          }
+        }
+      } catch(e) { console.warn('Permission cascade on folder delete:', e.message); }
+    }
+    showToast(`✓ Đã xóa thư mục "${name}" và toàn bộ dữ liệu liên quan!`, 'success');
   } catch(e) {
     showToast('Lỗi: ' + e.message, 'error');
   } finally { hideLoading(); }
@@ -1781,6 +1848,7 @@ function loadSettings() {
   document.getElementById('s-noco-base').value  = c.nocoBase  || '';
   document.getElementById('s-noco-user-table').value   = c.nocoUserTable   || '';
   if (document.getElementById('s-noco-folder-table')) document.getElementById('s-noco-folder-table').value = c.nocoFolderTable || '';
+  if (document.getElementById('s-noco-perm-table')) document.getElementById('s-noco-perm-table').value = c.nocoPermTable || '';
 }
 
 function saveSettings() {
@@ -1802,6 +1870,8 @@ function saveSettings() {
   c.nocoUserTable   = document.getElementById('s-noco-user-table').value.trim();
   const ftEl = document.getElementById('s-noco-folder-table');
   if (ftEl) c.nocoFolderTable = ftEl.value.trim();
+  const ptEl = document.getElementById('s-noco-perm-table');
+  if (ptEl) c.nocoPermTable = ptEl.value.trim();
   saveCfg(c);
   updateGhStatus(!!c.token && !!c.repo);
   updateNocoStatus(!!c.nocoToken && !!c.nocoTable, c.nocoUrl ? c.nocoUrl.replace('https://','').split('/')[0] : '');
@@ -2039,7 +2109,199 @@ const NOCO = {
   },
 
 
-  // ── FOLDER TABLE ──
+  // ── PERMISSIONS TABLE ──
+  async listPermissions(userId) {
+    if (!this.permTableId()) return { list: [] };
+    const url = `${this.permBase()}/records?where=(UserId,eq,${userId})&limit=1000`;
+    const r = await fetch(url, { headers: this.headers() });
+    if (!r.ok) return { list: [] };
+    return await r.json();
+  },
+  async setPermissions(userId, perms) {
+    // perms: [{ type:'folder'|'article', targetId, targetPath }]
+    if (!this.permTableId()) throw new Error('Chưa cấu hình Permissions Table!');
+    // Delete existing permissions for user first
+    const existing = await this.listPermissions(userId);
+    for (const row of (existing.list || [])) {
+      await fetch(`${this.permBase()}/records`, {
+        method: 'DELETE', headers: this.headers(), body: JSON.stringify([{ Id: row.Id }])
+      });
+    }
+    // Insert new permissions
+    if (perms.length === 0) return;
+    const records = perms.map(p => ({
+      UserId: userId, Type: p.type, TargetId: p.targetId, TargetPath: p.targetPath
+    }));
+    const r = await fetch(`${this.permBase()}/records`, {
+      method: 'POST', headers: this.headers(), body: JSON.stringify(records)
+    });
+    if (!r.ok) throw new Error(`NocoDB ${r.status}: ${await r.text()}`);
+    return await r.json();
+  },
+  async getUserPermissions(userId) {
+    const data = await this.listPermissions(userId);
+    return (data.list || []);
+  },
+
+  
+// ── RENAME FOLDER: cascade update Articles + Folders + Permissions ──
+async function renameFolder(folderPath, oldName) {
+  const newName = prompt(`Đổi tên thư mục "${oldName}" thành:`, oldName);
+  if (!newName || newName.trim() === oldName) return;
+  const trimmed = newName.trim();
+
+  // Calculate new path
+  const parentPath = folderPath.includes('/')
+    ? folderPath.substring(0, folderPath.lastIndexOf('/'))
+    : '';
+  const newPath = parentPath ? parentPath + '/' + trimmed : trimmed;
+
+  showLoading(`Đang đổi tên "${oldName}" → "${trimmed}"...`);
+  let ok = 0, err = 0;
+
+  try {
+    // 1. Update all Articles with Folder starting with oldPath
+    const artData = await NOCO.listRecords({ limit: 1000 });
+    for (const art of (artData.list || [])) {
+      const artFolder = art.Folder || '';
+      if (artFolder === folderPath || artFolder.startsWith(folderPath + '/')) {
+        const newFolder = artFolder.replace(folderPath, newPath);
+        const newArtPath = (art.Path || '').replace(folderPath, newPath);
+        try {
+          await NOCO.updateRecord(art.Id, { Folder: newFolder, Path: newArtPath });
+          ok++;
+        } catch(e) { err++; }
+      }
+    }
+
+    // 2. Update Folders table
+    if (cfg().nocoFolderTable) {
+      const fData = await NOCO.listFolders();
+      for (const f of (fData.list || [])) {
+        const fPath = f.Path || '';
+        if (fPath === folderPath || fPath.startsWith(folderPath + '/')) {
+          const newFPath = fPath.replace(folderPath, newPath);
+          const newFName = fPath === folderPath ? trimmed : f.Name;
+          try {
+            await fetch(`${NOCO.folderBase()}/records`, {
+              method: 'PATCH', headers: NOCO.headers(),
+              body: JSON.stringify([{ Id: f.Id, Name: newFName, Path: newFPath,
+                Parent: (f.Parent||'').replace(folderPath, newPath) }])
+            });
+          } catch(e) {}
+        }
+      }
+    }
+
+    // 3. Cascade update Permissions (TargetPath)
+    if (cfg().nocoPermTable) {
+      const permData = await fetch(
+        `${NOCO.permBase()}/records?limit=1000`, { headers: NOCO.headers() }
+      );
+      if (permData.ok) {
+        const perms = await permData.json();
+        for (const p of (perms.list || [])) {
+          const tp = p.TargetPath || '';
+          if (tp === folderPath || tp.startsWith(folderPath + '/')) {
+            const newTp = tp.replace(folderPath, newPath);
+            try {
+              await fetch(`${NOCO.permBase()}/records`, {
+                method: 'PATCH', headers: NOCO.headers(),
+                body: JSON.stringify([{ Id: p.Id, TargetPath: newTp }])
+              });
+            } catch(e) {}
+          }
+        }
+      }
+    }
+
+    // 4. Update local indexTree
+    function renameFolderInTree(items) {
+      for (const i of items) {
+        if (i.type === 'folder') {
+          if (i.path === folderPath || i.folderPath === folderPath) {
+            i.name = trimmed;
+            i.path = newPath;
+            i.folderPath = newPath;
+          } else if ((i.path||'').startsWith(folderPath + '/')) {
+            i.path = (i.path||'').replace(folderPath, newPath);
+          }
+          if (i.children) renameFolderInTree(i.children);
+        } else {
+          if ((i.folder||'') === folderPath || (i.folder||'').startsWith(folderPath + '/')) {
+            i.folder = (i.folder||'').replace(folderPath, newPath);
+            i.path = (i.path||'').replace(folderPath, newPath);
+          }
+        }
+      }
+    }
+    renameFolderInTree(indexTree);
+    localStorage.setItem(TREE_KEY, JSON.stringify(indexTree));
+    renderTree(indexTree);
+    updateFolderSelects();
+    updateDashboard();
+    showToast(`✓ Đổi tên xong! Cập nhật ${ok} bài${err?' · '+err+' lỗi':''}`, 'success');
+  } catch(e) {
+    showToast('Lỗi đổi tên: ' + e.message, 'error');
+  } finally { hideLoading(); }
+}
+
+
+// Toggle folder access public/private
+async function toggleFolderAccess(folderPath, currentAccess) {
+  const newAccess = currentAccess === 'private' ? 'public' : 'private';
+
+  // Update in local tree
+  function updateAccess(items) {
+    for (const i of items) {
+      if (i.type === 'folder' && (i.path === folderPath || i.name === folderPath)) {
+        i.access = newAccess;
+        // Also update all child articles
+        function setChildAccess(children) {
+          (children||[]).forEach(c => {
+            if (c.type === 'file') c.access = newAccess;
+            if (c.type === 'folder') { c.access = newAccess; setChildAccess(c.children); }
+          });
+        }
+        setChildAccess(i.children);
+        return true;
+      }
+      if (i.children && updateAccess(i.children)) return true;
+    }
+    return false;
+  }
+  updateAccess(indexTree);
+  localStorage.setItem(TREE_KEY, JSON.stringify(indexTree));
+  renderTree(indexTree);
+
+  // Update in NocoDB Folders table
+  if (cfg().nocoFolderTable) {
+    try {
+      const data = await NOCO.listFolders();
+      const row = (data.list||[]).find(f => f.Path === folderPath);
+      if (row) {
+        await fetch(`${NOCO.folderBase()}/records`, {
+          method: 'PATCH', headers: NOCO.headers(),
+          body: JSON.stringify([{ Id: row.Id, Access: newAccess }])
+        });
+      }
+    } catch(e) { console.warn('Folder access update:', e); }
+  }
+
+  // Update all articles in this folder in NocoDB
+  const articles = flattenFiles(indexTree).filter(f => f.folder === folderPath || f.folder?.startsWith(folderPath + '/'));
+  for (const art of articles) {
+    try {
+      const d = await NOCO.listRecords({ where: `(Path,eq,${art.path})`, limit:1 });
+      const row = (d.list||[])[0];
+      if (row) await NOCO.updateRecord(row.Id, { Access: newAccess });
+    } catch(e) {}
+  }
+
+  showToast(`✓ Thư mục "${folderPath.split('/').pop()}" → ${newAccess === 'private' ? '🔒 Private' : '🌐 Public'}`, 'success');
+}
+
+// ── FOLDER TABLE ──
   async listFolders() {
     if (!this.folderTableId()) return { list: [] };
     const r = await fetch(`${this.folderBase()}/records?limit=500&sort=Path`, { headers: this.headers() });
@@ -2066,6 +2328,8 @@ const NOCO = {
   userTableId()   { return cfg().nocoUserTable   || ''; },
   folderTableId() { return cfg().nocoFolderTable || ''; },
   folderBase()    { return `${this.base()}/tables/${this.folderTableId()}`; },
+  permTableId()   { return cfg().nocoPermTable   || ''; },
+  permBase()      { return `${this.base()}/tables/${this.permTableId()}`; },
 
   async listUsers({ limit=25, offset=0, where='', sort='-NgayTao' } = {}) {
     if (!this.userTableId()) throw new Error('Chưa cấu hình User Table ID!');
@@ -2516,29 +2780,34 @@ async function userLoadRecords(where = '') {
 
     // Header
     document.getElementById('user-thead').innerHTML = `<tr>
-      <th style="width:40px">#</th>
-      <th>Họ và tên</th><th>Email</th><th>Vai trò</th>
-      <th>Trạng thái</th><th>SĐT</th><th>Ghi chú</th>
-      <th style="width:110px">Thao tác</th>
+      <th style="width:36px">#</th>
+      <th>Họ và tên</th><th>Email</th><th>Mật khẩu</th>
+      <th>Vai trò</th><th>Trạng thái</th><th>SĐT</th>
+      <th style="width:130px">Thao tác</th>
     </tr>`;
 
     if (!users.length) {
       tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted)">Chưa có người dùng nào</td></tr>';
     } else {
-      tbody.innerHTML = users.map((u, i) => `
+      tbody.innerHTML = users.map((u, i) => {
+        const pass = u.Password || u.MatKhau || '';
+        const maskedPass = pass ? '••••••' : '<span style="color:var(--text-muted)">—</span>';
+        return `
         <tr>
           <td style="color:var(--text-muted);font-size:12px">${userPageIndex*USER_LIMIT+i+1}</td>
-          <td><b>${u.Name||u.FullName||u.HoTen||'—'}</b></td>
+          <td><b>${u.Name||u.FullName||u.HoTen||'—'}</b><div style="font-size:11px;color:var(--text-muted)">${u.Note||u.GhiChu||''}</div></td>
           <td style="font-size:12.5px;color:var(--text-muted)">${u.Email||'—'}</td>
+          <td style="font-size:12px;font-family:monospace">${maskedPass}</td>
           <td>${userRoleBadge(u.Role||u.VaiTro||'')}</td>
           <td>${userStatusBadge(u.Status||u.TrangThai||'')}</td>
           <td style="font-size:12.5px">${u.Phone||u.SDT||'—'}</td>
-          <td style="font-size:12px;color:var(--text-muted);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${u.Note||u.GhiChu||''}</td>
           <td style="white-space:nowrap">
             <button class="btn btn-outline btn-sm" onclick="userEdit(${u.Id})" title="Sửa"><i class="fas fa-pen"></i></button>
-            <button class="btn btn-danger btn-sm" onclick="userDelete(${u.Id},'${(u.Name||u.FullName||u.HoTen||'?').replace(/'/g,"\\'")}'))" title="Xóa"><i class="fas fa-trash"></i></button>
+            <button class="btn btn-primary btn-sm" onclick="userManagePerm(${u.Id},'${(u.Name||u.FullName||'?').replace(/'/g,"\'")}')" title="Phân quyền"><i class="fas fa-shield-halved"></i></button>
+            <button class="btn btn-danger btn-sm" onclick="userDelete(${u.Id},'${(u.Name||u.FullName||u.HoTen||'?').replace(/'/g,"\'")}')" title="Xóa"><i class="fas fa-trash"></i></button>
           </td>
-        </tr>`).join('');
+        </tr>`;
+      }).join('');
     }
 
     // Pagination
@@ -2608,11 +2877,13 @@ function userAddRecord() {
   document.getElementById('uf-email').value = '';
   document.getElementById('uf-role').value  = 'student';
   document.getElementById('uf-status').value = 'active';
+  document.getElementById('uf-pass').value  = '';
   document.getElementById('uf-phone').value = '';
   document.getElementById('uf-note').value  = '';
   document.getElementById('user-form-msg').innerHTML = '';
   document.getElementById('user-form-card').style.display = 'block';
   setTimeout(() => document.getElementById('uf-name').focus(), 100);
+  loadPermTree(null);
 }
 
 async function userEdit(rowId) {
@@ -2624,11 +2895,14 @@ async function userEdit(rowId) {
     document.getElementById('uf-email').value  = u.Email || '';
     document.getElementById('uf-role').value   = (u.Role || u.VaiTro || 'student').toLowerCase();
     document.getElementById('uf-status').value = (u.Status || u.TrangThai || 'active').toLowerCase();
+    document.getElementById('uf-pass').value   = '';
     document.getElementById('uf-phone').value  = u.Phone || u.SDT || '';
     document.getElementById('uf-note').value   = u.Note || u.GhiChu || '';
     document.getElementById('user-form-msg').innerHTML = '';
     document.getElementById('user-form-card').style.display = 'block';
     setTimeout(() => document.getElementById('uf-name').focus(), 100);
+    // Load permission tree for this user
+    loadPermTree(rowId);
   } catch(e) {
     showToast('Lỗi tải user: ' + e.message, 'error');
   }
@@ -2643,6 +2917,7 @@ async function userSaveForm() {
   const msg = document.getElementById('user-form-msg');
   msg.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang lưu...';
 
+  const pass = document.getElementById('uf-pass')?.value.trim() || '';
   const payload = {
     Name: name, FullName: name, HoTen: name,
     Email: email,
@@ -2656,15 +2931,20 @@ async function userSaveForm() {
     GhiChu: document.getElementById('uf-note').value.trim(),
     NgayCapNhat: new Date().toLocaleDateString('vi-VN'),
   };
+  // Only update password if provided
+  if (pass) { payload.Password = pass; payload.MatKhau = pass; }
 
   try {
     if (userEditRowId) {
       await NOCO.updateUser(userEditRowId, payload);
-      showToast('✓ Đã cập nhật người dùng!', 'success');
+      await savePermissions(userEditRowId);
+      showToast('✓ Đã cập nhật người dùng & phân quyền!', 'success');
     } else {
       payload.NgayTao = new Date().toLocaleDateString('vi-VN');
-      await NOCO.createUser(payload);
-      showToast('✓ Đã thêm người dùng!', 'success');
+      const newUser = await NOCO.createUser(payload);
+      const newId = (newUser?.[0]?.Id || newUser?.Id || '').toString();
+      if (newId) await savePermissions(newId);
+      showToast('✓ Đã thêm người dùng & phân quyền!', 'success');
     }
     userCloseForm();
     userPageIndex = 0;
@@ -2676,14 +2956,30 @@ async function userSaveForm() {
 }
 
 async function userDelete(rowId, name) {
-  if (!confirm(`Xóa người dùng "${name}" khỏi NocoDB?`)) return;
+  if (!confirm(`Xóa người dùng "${name}" khỏi NocoDB?\n\nCác quyền truy cập của user này cũng sẽ bị xóa.`)) return;
+  showLoading(`Đang xóa user "${name}"...`);
   try {
+    // CASCADE: xóa tất cả permissions của user này trước
+    if (cfg().nocoPermTable) {
+      try {
+        const permData = await NOCO.listPermissions(rowId.toString());
+        const perms = permData.list || [];
+        for (const p of perms) {
+          await fetch(`${NOCO.permBase()}/records`, {
+            method: 'DELETE', headers: NOCO.headers(),
+            body: JSON.stringify([{ Id: p.Id }])
+          });
+        }
+        console.log(`Deleted ${perms.length} permissions for user ${rowId}`);
+      } catch(e) { console.warn('Permission cascade delete:', e.message); }
+    }
+    // Xóa user
     await NOCO.deleteUser(rowId);
     userLoadRecords(userWhereClause);
-    showToast('✓ Đã xóa người dùng!', 'success');
+    showToast('✓ Đã xóa người dùng và toàn bộ quyền truy cập!', 'success');
   } catch(e) {
     showToast('Lỗi xóa: ' + e.message, 'error');
-  }
+  } finally { hideLoading(); }
 }
 
 function userCloseForm() {
@@ -2719,6 +3015,7 @@ function exportConfig() {
     nocoBase:        c.nocoBase        || '',
     nocoUserTable:   c.nocoUserTable   || '',
     nocoFolderTable: c.nocoFolderTable || '',
+    nocoPermTable:   c.nocoPermTable   || '',
     // GitHub (dùng cho migration)
     token:           c.token           || '',
     repo:            c.repo            || '',
@@ -2762,7 +3059,7 @@ function handleImportConfig(input) {
       // Merge vào config hiện tại (không ghi đè field trống)
       const current = getCfg();
       const merged = { ...current };
-      const fields = ['nocoUrl','nocoToken','nocoTable','nocoBase','nocoUserTable','nocoFolderTable',
+      const fields = ['nocoUrl','nocoToken','nocoTable','nocoBase','nocoUserTable','nocoFolderTable','nocoPermTable',
                       'token','repo','branch','contentDir','url','adminUser','adminPass','title'];
       fields.forEach(k => { if (data[k]) merged[k] = data[k]; });
       saveCfg(merged);
@@ -2779,6 +3076,187 @@ function handleImportConfig(input) {
   };
   reader.readAsText(file);
 }
+
+// ═══════════════════════════════════════════════════
+// PERMISSION SYSTEM
+// ═══════════════════════════════════════════════════
+
+// Quick permission modal (from user table)
+async function userManagePerm(userId, userName) {
+  // Create modal if not exists
+  let modal = document.getElementById('perm-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'perm-modal';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.6);display:flex;align-items:center;justify-content:center';
+    modal.innerHTML = `
+      <div style="background:#fff;border-radius:16px;padding:24px;width:560px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(0,0,0,.25)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div>
+            <div style="font-size:16px;font-weight:700;color:var(--text)" id="perm-modal-title">Phân quyền</div>
+            <div style="font-size:12px;color:var(--text-muted)" id="perm-modal-sub">Chọn nội dung user được phép xem</div>
+          </div>
+          <button onclick="document.getElementById('perm-modal').remove()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--text-muted)">✕</button>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:12px">
+          <button class="btn btn-outline btn-sm" onclick="permSelectAll()">✓ Tất cả</button>
+          <button class="btn btn-outline btn-sm" onclick="permClearAll()">✗ Bỏ chọn</button>
+          <span style="flex:1"></span>
+          <span style="font-size:12px;color:var(--text-muted);align-self:center" id="perm-count-label"></span>
+        </div>
+        <div id="perm-tree" style="flex:1;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:10px;background:#f8fafc;font-size:13px;max-height:420px">
+          <div style="text-align:center;padding:30px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i></div>
+        </div>
+        <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end">
+          <button class="btn btn-outline" onclick="document.getElementById('perm-modal').remove()">Hủy</button>
+          <button class="btn btn-success" id="perm-save-btn"><i class="fas fa-shield-halved"></i> Lưu phân quyền</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+  }
+  document.getElementById('perm-modal-title').textContent = `Phân quyền: ${userName}`;
+  document.getElementById('perm-modal-sub').textContent = `ID: ${userId} · Chọn thư mục/bài user được phép xem`;
+  document.getElementById('perm-save-btn').onclick = async () => {
+    await savePermissions(userId);
+    document.getElementById('perm-modal').remove();
+  };
+  // Load perm tree
+  await loadPermTree(userId);
+}
+let currentPermUserId = null;
+let currentPermissions = []; // { type, targetId, targetPath }
+
+// Load permission tree when opening user edit form
+async function loadPermTree(userId) {
+  currentPermUserId = userId;
+  currentPermissions = [];
+  const container = document.getElementById('perm-tree');
+  if (!container) return;
+  container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i> Đang tải quyền...</div>';
+
+  // Load existing permissions for this user
+  let existingPerms = [];
+  try {
+    if (cfg().nocoPermTable && userId) {
+      const data = await NOCO.listPermissions(userId);
+      existingPerms = data.list || [];
+    }
+  } catch(e) { console.warn('Load perm error:', e); }
+
+  const grantedPaths = new Set(existingPerms.map(p => p.TargetPath));
+  const grantedIds = new Set(existingPerms.map(p => p.TargetId));
+
+  // Build tree UI from indexTree
+  if (!indexTree.length) {
+    container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted)">Chưa có dữ liệu. Tải lại từ NocoDB trước.</div>';
+    return;
+  }
+
+  function buildPermNode(items, level = 0) {
+    let html = '';
+    for (const item of items) {
+      const pad = level * 18;
+      if (item.type === 'folder') {
+        const checked = grantedPaths.has(item.path || item.name) ? 'checked' : '';
+        const fPath = item.path || item.name;
+        html += `<div style="padding:5px 0 5px ${pad}px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #f1f5f9">
+          <input type="checkbox" id="perm-f-${fPath.replace(/\//g,'_')}" data-type="folder" data-path="${fPath}" data-name="${item.name}"
+            ${checked} onchange="permToggleFolder(this)"
+            style="width:15px;height:15px;cursor:pointer;accent-color:var(--primary)">
+          <label for="perm-f-${fPath.replace(/\//g,'_')}" style="cursor:pointer;display:flex;align-items:center;gap:6px;flex:1">
+            <i class="fas fa-folder" style="color:#60a5fa;font-size:12px"></i>
+            <strong>${item.name}</strong>
+            <span style="font-size:11px;color:var(--text-muted)">(${(item.children||[]).filter(c=>c.type==='file').length} bài)</span>
+          </label>
+        </div>`;
+        if (item.children?.length) html += buildPermNode(item.children, level + 1);
+      } else {
+        const checked = grantedPaths.has(item.path) || grantedIds.has(item.nocoId?.toString()) ? 'checked' : '';
+        html += `<div style="padding:4px 0 4px ${pad + 8}px;display:flex;align-items:center;gap:8px">
+          <input type="checkbox" id="perm-a-${item.path?.replace(/\//g,'_')}" data-type="article" data-path="${item.path}" data-id="${item.nocoId||''}" data-name="${item.name}"
+            ${checked} onchange="permToggleArticle(this)"
+            style="width:14px;height:14px;cursor:pointer;accent-color:var(--teal)">
+          <label for="perm-a-${item.path?.replace(/\//g,'_')}" style="cursor:pointer;display:flex;align-items:center;gap:6px;color:var(--text-muted)">
+            <i class="fas fa-file-lines" style="font-size:11px"></i>
+            ${item.name}
+          </label>
+        </div>`;
+      }
+    }
+    return html;
+  }
+
+  container.innerHTML = buildPermNode(indexTree);
+  syncPermFromUI();
+  updatePermCountLabel();
+}
+
+
+function updatePermCountLabel() {
+  syncPermFromUI();
+  const label = document.getElementById('perm-count-label');
+  if (label) label.textContent = `${currentPermissions.length} mục được chọn`;
+}
+function syncPermFromUI() {
+  currentPermissions = [];
+  document.querySelectorAll('#perm-tree input[type=checkbox]:checked').forEach(cb => {
+    currentPermissions.push({
+      type: cb.dataset.type,
+      targetId: cb.dataset.id || '',
+      targetPath: cb.dataset.path || ''
+    });
+  });
+}
+
+function permToggleFolder(cb) {
+  // Auto check/uncheck all articles inside folder
+  const folderPath = cb.dataset.path;
+  const checked = cb.checked;
+  document.querySelectorAll(`#perm-tree input[data-type="article"]`).forEach(artCb => {
+    if (artCb.dataset.path?.startsWith(folderPath + '/') || artCb.dataset.path?.startsWith(folderPath)) {
+      artCb.checked = checked;
+    }
+  });
+  updatePermCountLabel();
+}
+
+function permToggleArticle(cb) {
+  updatePermCountLabel();
+  // If all articles in folder are checked → auto check folder
+  const artPath = cb.dataset.path;
+  const folderPath = artPath?.split('/').slice(0,-1).join('/');
+  if (folderPath) {
+    const folderCb = document.querySelector(`#perm-tree input[data-type="folder"][data-path="${folderPath}"]`);
+    if (folderCb) {
+      const allArts = document.querySelectorAll(`#perm-tree input[data-type="article"][data-path^="${folderPath}/"]`);
+      const allChecked = [...allArts].every(a => a.checked);
+      folderCb.checked = allChecked;
+    }
+  }
+}
+
+function permSelectAll() {
+  document.querySelectorAll('#perm-tree input[type=checkbox]').forEach(cb => cb.checked = true);
+  updatePermCountLabel();
+}
+
+function permClearAll() {
+  document.querySelectorAll('#perm-tree input[type=checkbox]').forEach(cb => cb.checked = false);
+  updatePermCountLabel();
+}
+
+// Save permissions after saving user
+async function savePermissions(userId) {
+  if (!cfg().nocoPermTable || !userId) return;
+  syncPermFromUI();
+  try {
+    await NOCO.setPermissions(userId.toString(), currentPermissions);
+    showToast(`✓ Đã lưu ${currentPermissions.length} quyền truy cập!`, 'success');
+  } catch(e) {
+    showToast('Lỗi lưu quyền: ' + e.message, 'error');
+  }
+}
+
 // ── END CONFIG EXPORT / IMPORT ──────────────────────────
 
 </script>
