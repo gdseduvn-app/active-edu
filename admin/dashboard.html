@@ -1534,16 +1534,18 @@ function vInsertImage() {
 }
 
 function switchTab(tab) {
-  // Sync content OUT of current tab
-  if (editorTab === 'rich') {
+  const prevTab = editorTab; // Save BEFORE changing
+
+  // ── Step 1: Sync content OUT of current tab ──
+  if (prevTab === 'rich') {
+    // Leaving rich: save visual HTML to CodeMirror
     const html = getVisualHTML();
     if (cmEditor) cmEditor.setValue(html);
     else { const src = document.getElementById('html-source'); if (src) src.value = html; }
-  } else if (editorTab === 'html') {
-    const html = cmEditor ? cmEditor.getValue() : (document.getElementById('html-source')?.value || '');
-    if (tab === 'rich') initVisualEditor(html);
   }
+  // html tab: content already in cmEditor, no need to sync out
 
+  // ── Step 2: Switch tab ──
   editorTab = tab;
   document.getElementById('wrap-rich').style.display    = tab==='rich'    ? 'flex' : 'none';
   document.getElementById('wrap-html').style.display    = tab==='html'    ? 'flex' : 'none';
@@ -1551,10 +1553,13 @@ function switchTab(tab) {
   document.querySelectorAll('.etab').forEach(b => b.classList.remove('active'));
   document.getElementById('etab-' + tab)?.classList.add('active');
 
-  if (tab === 'html') {
+  // ── Step 3: Init destination tab ──
+  if (tab === 'rich') {
+    // Load latest HTML from CodeMirror into visual editor
+    const html = cmEditor ? cmEditor.getValue() : (document.getElementById('html-source')?.value || '');
+    initVisualEditor(html);
+  } else if (tab === 'html') {
     setTimeout(() => { initCodeMirror(); if (cmEditor) cmEditor.refresh(); }, 50);
-  } else if (tab === 'rich' && editorTab === 'rich') {
-    // Already switched, visual editor loading
   } else if (tab === 'preview') {
     const html = getEditorHTML();
     const iframe = document.getElementById('preview-iframe');
