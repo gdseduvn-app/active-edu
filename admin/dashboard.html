@@ -357,7 +357,7 @@ tr:hover td{background:var(--hover)}
       <div class="file-manager">
         <div class="tree-panel">
           <div class="tree-hd">
-            <span class="tree-hd-title"><i class="fas fa-database"></i> NocoDB / bài học</span>
+            <span class="tree-hd-title" id="tree-hd-title"><i class="fas fa-database"></i> NocoDB / bài học</span>
             <span style="font-size:11px;color:var(--text-muted)" id="tree-count"></span>
           </div>
           <div class="tree-body" id="tree-body">
@@ -1222,6 +1222,14 @@ function selectFolder(path, el) {
   // Highlight selected folder
   document.querySelectorAll('.tree-folder-hd').forEach(h => h.style.background = '');
   if (el) el.style.background = 'var(--hover)';
+  // Update breadcrumb header
+  const titleEl = document.getElementById('tree-hd-title');
+  if (titleEl) {
+    const fullPath = 'NocoDB / Bài học' + (path ? ' / ' + path.replace(/\//g, ' / ') : '');
+    const display = fullPath.length > 40 ? '...' + fullPath.slice(-37) : fullPath;
+    titleEl.innerHTML = `<i class="fas fa-database"></i> ${display}`;
+    titleEl.title = fullPath;
+  }
 }
 
 function showNewFolder() {
@@ -1264,19 +1272,24 @@ function populateParentModal(forFolder = false) {
   const sel = document.getElementById('modal-parent');
   const label = document.getElementById('modal-parent').previousElementSibling;
   if (label) label.textContent = forFolder ? 'Thư mục cha (tuỳ chọn)' : 'Thư mục chứa bài';
-  // Collect all folders recursively
+
+  // Collect ONLY folders recursively (no files)
   function collectFolders(items, prefix = '') {
     let opts = [];
     for (const i of items) {
       if (i.type === 'folder') {
         const path = prefix ? prefix + '/' + i.name : i.name;
-        opts.push(`<option value="${path}">${'— '.repeat(prefix.split('/').filter(Boolean).length)}${i.name}</option>`);
+        // Full path label: "NocoDB / Bài học / Toán 9 / ..."
+        const fullLabel = 'NocoDB / Bài học / ' + path.replace(/\//g, ' / ');
+        // Truncate if too long
+        const display = fullLabel.length > 45 ? '...' + fullLabel.slice(-42) : fullLabel;
+        opts.push(`<option value="${path}" title="${fullLabel}">${display}</option>`);
         if (i.children) opts = opts.concat(collectFolders(i.children, path));
       }
     }
     return opts;
   }
-  sel.innerHTML = '<option value="">/ (gốc content/)</option>' + collectFolders(indexTree).join('');
+  sel.innerHTML = '<option value="">NocoDB / Bài học / (gốc)</option>' + collectFolders(indexTree).join('');
 }
 
 function closeModal() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('show')); }
