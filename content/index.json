@@ -37,14 +37,5 @@
         "updated": "29/3/2026"
       }
     ]
-  },
-  {
-    "type": "file",
-    "name": "Huong Dan Su Dung",
-    "path": "huong-dan-su-dung.html",
-    "folder": "",
-    "description": "",
-    "access": "public",
-    "updated": "29/3/2026"
   }
 ]
