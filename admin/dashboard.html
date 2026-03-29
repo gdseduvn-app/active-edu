@@ -1796,7 +1796,7 @@ const NOCO = {
   },
   headers() {
     const c = cfg();
-    return { 'xc-token': c.nocoToken, 'Content-Type': 'application/json' };
+    return { 'xc-token': c.nocoToken, 'xc-auth': c.nocoToken, 'Content-Type': 'application/json' };
   },
   tableId() { return cfg().nocoTable || ''; },
   baseId()  { return cfg().nocoBase  || ''; },
