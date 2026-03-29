@@ -1520,6 +1520,56 @@ function initCodeMirror() {
   cmEditor.setSize('100%', '100%');
 }
 
+
+// ── Detect full-page HTML (có <!DOCTYPE hoặc <html) ──
+function isFullPageHTML(html) {
+  const trimmed = (html || '').trim().toLowerCase();
+  return trimmed.startsWith('<!doctype') || trimmed.startsWith('<html');
+}
+
+// ── Sync CodeMirror <-> TinyMCE thông minh ──
+// Nếu full-page HTML: chỉ dùng CodeMirror, ẩn TinyMCE, thông báo
+function applyHTMLToEditor(html) {
+  // Luôn sync vào CodeMirror
+  if (cmEditor) cmEditor.setValue(html || '');
+  else { const src = document.getElementById('html-source'); if (src) src.value = html || ''; }
+
+  if (isFullPageHTML(html)) {
+    // Full page: disable tab Soạn thảo, chỉ dùng HTML + Preview
+    const richTab = document.getElementById('etab-rich');
+    if (richTab) {
+      richTab.style.opacity = '0.4';
+      richTab.style.cursor = 'not-allowed';
+      richTab.title = 'Bài này là trang HTML đầy đủ — chỉ chỉnh sửa ở tab HTML';
+      richTab.onclick = (e) => {
+        e.preventDefault();
+        showToast('Bài này là trang HTML đầy đủ (có <head>/<body>). Chỉnh sửa trực tiếp ở tab HTML.', 'warn');
+      };
+    }
+    // Auto switch sang HTML tab
+    if (editorTab === 'rich') {
+      editorTab = 'html';
+      document.querySelectorAll('.etab').forEach(b => b.classList.remove('active'));
+      document.getElementById('etab-html')?.classList.add('active');
+      document.getElementById('wrap-rich').style.display = 'none';
+      document.getElementById('wrap-html').style.display = 'flex';
+      document.getElementById('wrap-preview').style.display = 'none';
+      setTimeout(() => { initCodeMirror(); if (cmEditor) cmEditor.refresh(); }, 50);
+    }
+    showToast('📄 Trang HTML đầy đủ — dùng tab HTML hoặc Xem trước', 'info');
+  } else {
+    // Fragment: enable tab Soạn thảo, load vào TinyMCE
+    const richTab = document.getElementById('etab-rich');
+    if (richTab) {
+      richTab.style.opacity = '';
+      richTab.style.cursor = '';
+      richTab.title = '';
+      richTab.onclick = () => switchTab('rich');
+    }
+    if (editorTab === 'rich') initTinyMCE(html || '');
+  }
+}
+
 // ── TinyMCE Init ──
 function initTinyMCE(html, callback) {
   if (typeof tinymce === 'undefined') {
@@ -1583,8 +1633,12 @@ function initTinyMCE(html, callback) {
 }
 
 function getTinyHTML() {
+  // Nếu là full-page HTML (có <head>/<body>), lấy từ CodeMirror để giữ nguyên
+  const cmVal = cmEditor ? cmEditor.getValue() : (document.getElementById('html-source')?.value || '');
+  if (isFullPageHTML(cmVal)) return cmVal;
+  // Còn lại lấy từ TinyMCE
   if (tinyEditor && tinyReady) return tinyEditor.getContent();
-  return '';
+  return cmVal;
 }
 
 function getVisualHTML() { return getTinyHTML(); }
@@ -1615,21 +1669,27 @@ function switchTab(tab) {
     const html = getEditorHTML();
     const iframe = document.getElementById('preview-iframe');
     if (iframe) {
-      iframe.srcdoc = `<!DOCTYPE html><html><head>
-        <meta charset="UTF-8">
-        <style>
-          body{font-family:'Segoe UI',sans-serif;padding:28px;max-width:860px;line-height:1.85;color:#1e293b}
-          h1{font-size:22px;font-weight:700;color:#0f172a}
-          h2{font-size:18px;font-weight:700;border-bottom:2px solid #dbeafe;padding-bottom:5px;margin:18px 0 9px}
-          h3{font-size:15px;font-weight:600;margin:14px 0 7px;color:#334155}
-          p{margin-bottom:11px}
-          code{background:#f1f5f9;padding:2px 6px;border-radius:4px;font-size:13px;color:#1e40af}
-          pre{background:#1e293b;color:#e2e8f0;padding:14px;border-radius:9px;overflow-x:auto}
-          blockquote{border-left:4px solid #2563eb;background:#eff6ff;padding:11px 14px;border-radius:0 7px 7px 0;margin:10px 0}
-          table{border-collapse:collapse;width:100%} td,th{border:1px solid #e2e8f0;padding:8px 12px} th{background:#f8fafc}
-          ul,ol{padding-left:22px;margin-bottom:11px} img{max-width:100%;border-radius:7px}
-        </style>
-      </head><body>${html}</body></html>`;
+      if (isFullPageHTML(html)) {
+        // Full page HTML: render trực tiếp, giữ nguyên tất cả CSS/JS
+        iframe.srcdoc = html;
+      } else {
+        // Fragment: wrap với style mặc định
+        iframe.srcdoc = `<!DOCTYPE html><html><head>
+          <meta charset="UTF-8">
+          <style>
+            body{font-family:'Segoe UI',sans-serif;padding:28px;max-width:860px;line-height:1.85;color:#1e293b}
+            h1{font-size:22px;font-weight:700;color:#0f172a}
+            h2{font-size:18px;font-weight:700;border-bottom:2px solid #dbeafe;padding-bottom:5px;margin:18px 0 9px}
+            h3{font-size:15px;font-weight:600;margin:14px 0 7px;color:#334155}
+            p{margin-bottom:11px}
+            code{background:#f1f5f9;padding:2px 6px;border-radius:4px;font-size:13px;color:#1e40af}
+            pre{background:#1e293b;color:#e2e8f0;padding:14px;border-radius:9px;overflow-x:auto}
+            blockquote{border-left:4px solid #2563eb;background:#eff6ff;padding:11px 14px;border-radius:0 7px 7px 0;margin:10px 0}
+            table{border-collapse:collapse;width:100%} td,th{border:1px solid #e2e8f0;padding:8px 12px} th{background:#f8fafc}
+            ul,ol{padding-left:22px;margin-bottom:11px} img{max-width:100%;border-radius:7px}
+          </style>
+        </head><body>${html}</body></html>`;
+      }
     }
   }
 }
@@ -1640,9 +1700,7 @@ function getEditorHTML() {
 }
 
 function setEditorHTML(html) {
-  if (cmEditor) cmEditor.setValue(html || '');
-  else { const src = document.getElementById('html-source'); if (src) src.value = html || ''; }
-  if (editorTab === 'rich') initTinyMCE(html || '');
+  applyHTMLToEditor(html);
 }
 
 function initVisualEditor(html) {
@@ -1764,27 +1822,11 @@ async function editFile(path) {
     document.getElementById('e-path-label').innerHTML =
       `<i class="fas fa-file-lines" style="color:var(--primary)"></i> ${folder ? folder+'/' : ''}${path.split('/').pop()}`;
 
-    // Load HTML vào CodeMirror
-    if (cmEditor) {
-      cmEditor.setValue(html);
-      cmEditor.refresh();
-    } else {
-      const src = document.getElementById('html-source');
-      if (src) src.value = html;
-    }
-
-    // Load vào TinyMCE
+    // Load HTML vào editor (tự detect full-page vs fragment)
     setTimeout(() => {
-      initTinyMCE(html, () => {
-        editorTab = 'rich';
-        updateEditorStats();
-        // Sync tabs active state
-        document.querySelectorAll('.etab').forEach(b => b.classList.remove('active'));
-        document.getElementById('etab-rich')?.classList.add('active');
-        document.getElementById('wrap-rich').style.display = 'flex';
-        document.getElementById('wrap-html').style.display = 'none';
-        document.getElementById('wrap-preview').style.display = 'none';
-      });
+      initCodeMirror();
+      applyHTMLToEditor(html);
+      updateEditorStats();
     }, 100);
 
     isDirty = false;
