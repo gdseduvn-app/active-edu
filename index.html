@@ -726,117 +726,41 @@ function buildCards(tree) {
   const grid = document.getElementById('home-cards');
   grid.innerHTML = '';
 
-  // Lấy TẤT CẢ bài từ mọi cấp thư mục
-  const allFiles = flatA(tree);
-  const allFolders = tree.filter(i => i.type === 'folder');
+  // Lấy TẤT CẢ bài từ mọi cấp, lọc theo quyền
+  const allFiles = flatA(tree).filter(f => canViewArticle(f));
 
-  // Lọc bài user có thể xem
-  const visibleFiles = allFiles.filter(f => canViewArticle(f));
-  const visibleFolders = allFolders.filter(f => canViewFolder(f));
-
-  if (!visibleFiles.length && !visibleFolders.length) {
-    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="emoji">📂</div><h3>Chưa có nội dung</h3></div>`;
+  if (!allFiles.length) {
+    const c = getNocoCfg();
+    const hasConfig = !!c.nocoToken && !!c.nocoTable;
+    grid.innerHTML = hasConfig
+      ? `<div class="empty-state" style="grid-column:1/-1"><div class="emoji">📂</div><h3>Chưa có nội dung</h3><p style="color:#94a3b8;font-size:13px;margin-top:8px">Vào Admin để thêm bài học</p></div>`
+      : `<div class="empty-state" style="grid-column:1/-1"><div class="emoji">⚙️</div><h3>Chưa cấu hình NocoDB</h3><p style="color:#94a3b8;font-size:13px;margin-top:8px">Vào <a href='admin/' style='color:#2563eb'>Admin</a> → Cài đặt để kết nối</p></div>`;
     return;
   }
 
-  // Hiển thị thư mục cấp 1 — click mở rộng show bài bên trong
-  visibleFolders.forEach((folderItem, idx) => {
-    const clr = COLORS[idx % COLORS.length];
-    const allArticles = flatA(folderItem.children || []).filter(a => canViewArticle(a));
-    const n = allArticles.length;
-    const lockIcon = folderItem.access === 'private'
-      ? ' <i class="fas fa-lock" style="font-size:10px;color:#fca5a5"></i>' : '';
-
-    // Card thư mục — có thể expand
-    const wrapper = document.createElement('div');
-    wrapper.style.cssText = 'grid-column: 1 / -1;';
-
-    const folderCard = document.createElement('div');
-    folderCard.className = 'content-card';
-    folderCard.style.cssText = 'cursor:pointer;';
-    folderCard.innerHTML = `
-      <div class="card-banner ${clr}"><i class="fas fa-folder-open"></i></div>
-      <div class="card-body">
-        <div class="card-tags"><span class="card-tag">Chủ đề${lockIcon}</span></div>
-        <div class="card-title">${folderItem.name}</div>
-        <div class="card-desc">${n} bài học trong chủ đề này</div>
-        <div class="card-footer">
-          <span><i class="far fa-folder"></i> ${n} bài</span>
-          <span class="card-cta" id="folder-cta-${idx}">Xem bài <i class="fas fa-chevron-down"></i></span>
-        </div>
-      </div>`;
-
-    // Sub-grid chứa các bài trong folder (ẩn mặc định)
-    const subGrid = document.createElement('div');
-    subGrid.id = `folder-articles-${idx}`;
-    subGrid.style.cssText = 'display:none;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:20px;padding:16px 0 8px 0;';
-
-    allArticles.forEach((art, aidx) => {
-      const ac = COLORS[(idx + aidx + 1) % COLORS.length];
-      const aico = ICONS[aidx % ICONS.length];
-      const isPrivate = art.access === 'private' || art.folderAccess === 'private';
-      const canView = canViewArticle(art);
-      const badge = isPrivate
-        ? '<span class="access-badge badge-private"><i class="fas fa-lock" style="font-size:9px"></i> Private</span>'
-        : '<span class="access-badge badge-public"><i class="fas fa-globe" style="font-size:9px"></i> Public</span>';
-      const breadcrumb = art.folder
-        ? `<span class="card-tag" style="font-size:11px">${art.folder.replace(/\//g,' › ')}</span>` : '';
-      const artCard = document.createElement('div');
-      artCard.className = 'content-card';
-      artCard.innerHTML = `
-        <div class="card-banner ${ac}"><i class="${aico}"></i></div>
-        <div class="card-body">
-          <div class="card-tags">${breadcrumb}${badge}</div>
-          <div class="card-title">${art.name}</div>
-          <div class="card-desc">${isPrivate && !canView
-            ? '<i class="fas fa-lock" style="color:#94a3b8"></i> Đăng nhập để xem'
-            : (art.description || 'Nhấn để xem bài học')}</div>
-          <div class="card-footer">
-            <span><i class="far fa-calendar-alt"></i> ${art.updated || ''}</span>
-            <span class="card-cta">${isPrivate && !canView
-              ? 'Đăng nhập <i class="fas fa-arrow-right"></i>'
-              : 'Học ngay <i class="fas fa-arrow-right"></i>'}</span>
-          </div>
-        </div>`;
-      artCard.onclick = () => loadArticle(art);
-      subGrid.appendChild(artCard);
-    });
-
-    let isOpen = false;
-    folderCard.onclick = () => {
-      isOpen = !isOpen;
-      subGrid.style.display = isOpen ? 'grid' : 'none';
-      const cta = document.getElementById(`folder-cta-${idx}`);
-      if (cta) cta.innerHTML = isOpen
-        ? 'Thu gọn <i class="fas fa-chevron-up"></i>'
-        : 'Xem bài <i class="fas fa-chevron-down"></i>';
-      // Scroll to subgrid when opening
-      if (isOpen) setTimeout(() => subGrid.scrollIntoView({behavior:'smooth', block:'nearest'}), 50);
-    };
-
-    wrapper.appendChild(folderCard);
-    wrapper.appendChild(subGrid);
-    grid.appendChild(wrapper);
-  });
-
-  // Bài không có thư mục (ở gốc)
-  visibleFiles.filter(f => !f.folder).forEach((item, idx) => {
-    const c = COLORS[(visibleFolders.length + idx) % COLORS.length];
+  allFiles.forEach((item, idx) => {
+    const c = COLORS[idx % COLORS.length];
     const ico = ICONS[idx % ICONS.length];
-    const isPrivate = item.access === 'private';
+    const isPrivate = item.access === 'private' || item.folderAccess === 'private';
     const canView = canViewArticle(item);
+
     const badge = isPrivate
       ? '<span class="access-badge badge-private"><i class="fas fa-lock" style="font-size:9px"></i> Private</span>'
       : '<span class="access-badge badge-public"><i class="fas fa-globe" style="font-size:9px"></i> Public</span>';
+
+    // Breadcrumb thư mục: Toán 9 › Ôn tập giữa HKII
+    const breadcrumb = item.folder
+      ? `<span class="card-tag">${item.folder.replace(/\//g,' › ')}</span>` : '';
+
     const card = document.createElement('div');
     card.className = 'content-card';
     card.innerHTML = `
       <div class="card-banner ${c}"><i class="${ico}"></i></div>
       <div class="card-body">
-        <div class="card-tags">${badge}</div>
+        <div class="card-tags">${breadcrumb}${badge}</div>
         <div class="card-title">${item.name}</div>
         <div class="card-desc">${isPrivate && !canView
-          ? '<i class="fas fa-lock" style="color:#94a3b8"></i> Đăng nhập để xem'
+          ? '<i class="fas fa-lock" style="color:#94a3b8"></i> Đăng nhập để xem bài học này'
           : (item.description || 'Nhấn để xem bài học')}</div>
         <div class="card-footer">
           <span><i class="far fa-calendar-alt"></i> ${item.updated || ''}</span>
@@ -845,10 +769,11 @@ function buildCards(tree) {
             : 'Học ngay <i class="fas fa-arrow-right"></i>'}</span>
         </div>
       </div>`;
-    card.onclick = () => loadArticle(item);
+    card.onclick = () => isPrivate && !canView ? showLoginModal() : loadArticle(item);
     grid.appendChild(card);
   });
 }
+
 
 async function loadArticle(item) {
   // Kiểm tra quyền truy cập
