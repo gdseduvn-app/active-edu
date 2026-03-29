@@ -1702,9 +1702,23 @@ async function saveToNoco() {
     showPanel('settings', document.querySelectorAll('.sb-item')[4]);
     return;
   }
-  if (editorTab === 'rich' && quill) document.getElementById('html-source').value = quill.root.innerHTML;
-  else if (editorTab === 'html' && quill) quill.root.innerHTML = document.getElementById('html-source').value;
-  const htmlContent = document.getElementById('html-source').value;
+
+  // Lấy HTML từ đúng tab đang active
+  let htmlContent = '';
+  if (editorTab === 'rich') {
+    htmlContent = getVisualHTML();
+    // Sync vào CodeMirror để đồng bộ
+    if (cmEditor) cmEditor.setValue(htmlContent);
+  } else if (editorTab === 'html') {
+    htmlContent = cmEditor ? cmEditor.getValue() : (document.getElementById('html-source')?.value || '');
+  } else {
+    htmlContent = cmEditor ? cmEditor.getValue() : (document.getElementById('html-source')?.value || '');
+  }
+
+  // Cảnh báo nội dung rỗng nhưng KHÔNG chặn lưu, KHÔNG xóa cây thư mục
+  if (!htmlContent || htmlContent.trim() === '' || htmlContent.trim() === '<p><br></p>') {
+    if (!confirm('Nội dung bài đang trống. Bạn có chắc muốn lưu không?')) return;
+  }
   markSaving();
   showLoading('Đang lưu vào NocoDB...');
   try {
@@ -1728,16 +1742,30 @@ async function saveToNoco() {
       existingItem.name = title; existingItem.description = desc; existingItem.access = access; existingItem.updated = now;
     } else {
       const newItem = { type:'file', name:title, path:filePath, folder, description:desc, access, updated:now };
+      // insertIntoTree: chỉ tạo folder mới nếu chưa tồn tại, không reset children
       function insertIntoTree(tree, folderPath, item) {
-        if (!folderPath) { tree.push(item); return; }
+        if (!folderPath) {
+          // Kiểm tra bài đã có trong gốc chưa
+          if (!tree.find(i => i.type==='file' && i.path === item.path)) {
+            tree.push(item);
+          }
+          return;
+        }
         const parts = folderPath.split('/');
         let node = tree;
         for (const part of parts) {
           let found = node.find(i => i.type==='folder' && i.name===part);
-          if (!found) { found = {type:'folder', name:part, children:[]}; node.push(found); }
+          if (!found) {
+            // Chỉ tạo folder mới nếu chưa có
+            found = { type:'folder', name:part, path:parts.slice(0, parts.indexOf(part)+1).join('/'), children:[] };
+            node.push(found);
+          }
           node = found.children;
         }
-        node.push(item);
+        // Kiểm tra bài đã có trong folder chưa
+        if (!node.find(i => i.type==='file' && i.path === item.path)) {
+          node.push(item);
+        }
       }
       insertIntoTree(indexTree, folder, newItem);
     }
