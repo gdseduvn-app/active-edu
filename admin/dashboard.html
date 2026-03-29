@@ -1261,9 +1261,11 @@ function showNewFolder() {
   document.getElementById('modal-label').textContent = 'Tên thư mục';
   document.getElementById('modal-name').placeholder = 'vd: Chương 1, Đại số...';
   document.getElementById('modal-parent-group').style.display = 'block';
-  document.getElementById('modal-note').textContent = 'Thư mục sẽ được tạo trong NocoDB khi bạn lưu bài đầu tiên vào đó.';
+  document.getElementById('modal-note').textContent = 'Thư mục sẽ được lưu vào NocoDB Folders table.';
   populateParentModal(true);
-  if (selectedFolder) { const sel = document.getElementById('modal-parent'); if (sel) sel.value = selectedFolder; }
+  // Auto-chọn thư mục đang chọn trong cây
+  const sel = document.getElementById('modal-parent');
+  if (sel && selectedFolder) sel.value = selectedFolder;
   document.getElementById('modal-name').value = '';
   document.getElementById('modal-create').classList.add('show');
   setTimeout(() => document.getElementById('modal-name').focus(), 100);
@@ -1275,8 +1277,11 @@ function showNewFile() {
   document.getElementById('modal-label').textContent = 'Tên bài học';
   document.getElementById('modal-name').placeholder = 'vd: Bài 1 - Giới thiệu...';
   document.getElementById('modal-parent-group').style.display = 'block';
-  document.getElementById('modal-note').textContent = 'Tệp HTML sẽ được tạo trực tiếp trên GitHub repo.';
+  document.getElementById('modal-note').textContent = 'Bài sẽ được lưu vào NocoDB khi bạn nhấn Lưu trong Soạn thảo.';
   populateParentModal(false);
+  // Auto-chọn thư mục đang chọn trong cây bên trái
+  const sel = document.getElementById('modal-parent');
+  if (sel && selectedFolder) sel.value = selectedFolder;
   document.getElementById('modal-name').value = '';
   document.getElementById('modal-create').classList.add('show');
   setTimeout(() => document.getElementById('modal-name').focus(), 100);
@@ -1337,16 +1342,31 @@ async function confirmCreate() {
     }
   } else {
     const folder = document.getElementById('modal-parent').value;
-    // Mở editor với tên và folder đã điền sẵn
     closeModal();
-    showPanel('editor', document.querySelectorAll('.sb-item')[2]);
+    // Chuyển sang editor, điền sẵn tên + thư mục
+    _activatePanel('editor');
     setTimeout(() => {
-      document.getElementById('e-title').value = name;
-      document.getElementById('e-folder').value = folder;
+      initCodeMirror();
+      if (cmEditor) cmEditor.refresh();
       currentEditPath = null;
-      setEditorHTML(`<h2>${name}</h2><p>Nội dung bài học...</p>`);
+      document.getElementById('e-title').value  = name;
+      document.getElementById('e-folder').value = folder;
+      document.getElementById('e-desc').value   = '';
+      document.getElementById('e-access').value = 'public';
+      document.getElementById('e-path-label').innerHTML =
+        `<i class="fas fa-file-plus" style="color:var(--primary)"></i> Bài mới — chưa lưu`;
+      // Nội dung mẫu ban đầu
+      const initHtml = `<h2>${name}</h2><p>Nội dung bài học...</p>`;
+      if (cmEditor) cmEditor.setValue(initHtml);
+      wysiwygReady = false;
+      if (editorTab === 'rich') initVisualEditor(initHtml);
+      else editorTab = 'rich';
+      isDirty = true;
       markDirty();
-    }, 100);
+      document.getElementById('save-status').textContent = 'Bài mới — chưa lưu';
+      // Focus vào title để user nhập ngay
+      setTimeout(() => document.getElementById('e-title').select(), 50);
+    }, 80);
   }
 }
 
