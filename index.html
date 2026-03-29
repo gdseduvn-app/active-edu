@@ -543,27 +543,7 @@ async function init() {
   renderUserArea();
   const c = getNocoCfg();
 
-  // Debug: log full config keys
-  console.log('[ActiveEdu] Config:', c);
-  console.log('[ActiveEdu] Keys found:', Object.keys(c));
-  console.log('[ActiveEdu] nocoToken:', c.nocoToken ? c.nocoToken.slice(0,8)+'...' : 'MISSING');
-  console.log('[ActiveEdu] nocoTable:', c.nocoTable || 'MISSING');
-
   if (!c.nocoToken || !c.nocoTable) {
-    // Thử tất cả các key localStorage có thể có
-    const allKeys = Object.keys(localStorage);
-    console.log('[ActiveEdu] All localStorage keys:', allKeys);
-    // Thử key cũ ae_cfg
-    try {
-      const oldCfg = JSON.parse(localStorage.getItem('ae_cfg') || '{}');
-      if (oldCfg.nocoToken) {
-        console.log('[ActiveEdu] Found config in ae_cfg! Migrating...');
-        localStorage.setItem('ae_config', JSON.stringify(oldCfg));
-        location.reload();
-        return;
-      }
-    } catch(e) {}
-    console.warn('[ActiveEdu] NocoDB chưa cấu hình. Vào /admin để cài đặt.');
     // Fallback: try loading from content/index.json
     try {
       const res = await fetch('content/index.json');
