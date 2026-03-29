@@ -521,7 +521,11 @@ const ICONS  = ['fas fa-book','fas fa-shapes','fas fa-calculator','fas fa-code',
 
 // ── Lấy config NocoDB từ localStorage (do admin đã cấu hình)
 function getNocoCfg() {
-  try { return JSON.parse(localStorage.getItem('ae_cfg') || '{}'); } catch { return {}; }
+  // Đọc config từ key 'ae_config' (giống dashboard admin)
+  try {
+    const c = JSON.parse(localStorage.getItem('ae_config') || '{}');
+    return c;
+  } catch { return {}; }
 }
 
 async function nocoFetch(path, opts = {}) {
