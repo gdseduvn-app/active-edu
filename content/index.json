@@ -26,15 +26,6 @@
         "description": "",
         "access": "public",
         "updated": "29/3/2026"
-      },
-      {
-        "type": "file",
-        "name": "Bai 2 Css Can Ban",
-        "path": "Lập trình cơ bản/bai-2-css-can-ban.html",
-        "folder": "Lập trình cơ bản",
-        "description": "",
-        "access": "public",
-        "updated": "29/3/2026"
       }
     ]
   }
