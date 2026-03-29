@@ -2,16 +2,6 @@
   {
     "type": "folder",
     "name": "Toán 9",
-    "children": [
-      {
-        "type": "file",
-        "name": "Active Learning Chinh Phuc Bai 4",
-        "path": "Toán 9/active-learning-chinh-phuc-bai-4.html",
-        "folder": "Toán 9",
-        "description": "",
-        "access": "public",
-        "updated": "29/3/2026"
-      }
-    ]
+    "children": []
   }
 ]
