@@ -2143,60 +2143,6 @@ const NOCO = {
     return (data.list || []);
   },
 
-// Toggle folder access public/private
-async function toggleFolderAccess(folderPath, currentAccess) {
-  const newAccess = currentAccess === 'private' ? 'public' : 'private';
-
-  // Update in local tree
-  function updateAccess(items) {
-    for (const i of items) {
-      if (i.type === 'folder' && (i.path === folderPath || i.name === folderPath)) {
-        i.access = newAccess;
-        // Also update all child articles
-        function setChildAccess(children) {
-          (children||[]).forEach(c => {
-            if (c.type === 'file') c.access = newAccess;
-            if (c.type === 'folder') { c.access = newAccess; setChildAccess(c.children); }
-          });
-        }
-        setChildAccess(i.children);
-        return true;
-      }
-      if (i.children && updateAccess(i.children)) return true;
-    }
-    return false;
-  }
-  updateAccess(indexTree);
-  localStorage.setItem(TREE_KEY, JSON.stringify(indexTree));
-  renderTree(indexTree);
-
-  // Update in NocoDB Folders table
-  if (cfg().nocoFolderTable) {
-    try {
-      const data = await NOCO.listFolders();
-      const row = (data.list||[]).find(f => f.Path === folderPath);
-      if (row) {
-        await fetch(`${NOCO.folderBase()}/records`, {
-          method: 'PATCH', headers: NOCO.headers(),
-          body: JSON.stringify([{ Id: row.Id, Access: newAccess }])
-        });
-      }
-    } catch(e) { console.warn('Folder access update:', e); }
-  }
-
-  // Update all articles in this folder in NocoDB
-  const articles = flattenFiles(indexTree).filter(f => f.folder === folderPath || f.folder?.startsWith(folderPath + '/'));
-  for (const art of articles) {
-    try {
-      const d = await NOCO.listRecords({ where: `(Path,eq,${art.path})`, limit:1 });
-      const row = (d.list||[])[0];
-      if (row) await NOCO.updateRecord(row.Id, { Access: newAccess });
-    } catch(e) {}
-  }
-
-  showToast(`✓ Thư mục "${folderPath.split('/').pop()}" → ${newAccess === 'private' ? '🔒 Private' : '🌐 Public'}`, 'success');
-}
-
 // ── FOLDER TABLE ──
   async listFolders() {
     if (!this.folderTableId()) return { list: [] };
@@ -2271,6 +2217,62 @@ async function toggleFolderAccess(folderPath, currentAccess) {
 
 
 };
+
+
+
+// Toggle folder access public/private
+async function toggleFolderAccess(folderPath, currentAccess) {
+  const newAccess = currentAccess === 'private' ? 'public' : 'private';
+
+  // Update in local tree
+  function updateAccess(items) {
+    for (const i of items) {
+      if (i.type === 'folder' && (i.path === folderPath || i.name === folderPath)) {
+        i.access = newAccess;
+        // Also update all child articles
+        function setChildAccess(children) {
+          (children||[]).forEach(c => {
+            if (c.type === 'file') c.access = newAccess;
+            if (c.type === 'folder') { c.access = newAccess; setChildAccess(c.children); }
+          });
+        }
+        setChildAccess(i.children);
+        return true;
+      }
+      if (i.children && updateAccess(i.children)) return true;
+    }
+    return false;
+  }
+  updateAccess(indexTree);
+  localStorage.setItem(TREE_KEY, JSON.stringify(indexTree));
+  renderTree(indexTree);
+
+  // Update in NocoDB Folders table
+  if (cfg().nocoFolderTable) {
+    try {
+      const data = await NOCO.listFolders();
+      const row = (data.list||[]).find(f => f.Path === folderPath);
+      if (row) {
+        await fetch(`${NOCO.folderBase()}/records`, {
+          method: 'PATCH', headers: NOCO.headers(),
+          body: JSON.stringify([{ Id: row.Id, Access: newAccess }])
+        });
+      }
+    } catch(e) { console.warn('Folder access update:', e); }
+  }
+
+  // Update all articles in this folder in NocoDB
+  const articles = flattenFiles(indexTree).filter(f => f.folder === folderPath || f.folder?.startsWith(folderPath + '/'));
+  for (const art of articles) {
+    try {
+      const d = await NOCO.listRecords({ where: `(Path,eq,${art.path})`, limit:1 });
+      const row = (d.list||[])[0];
+      if (row) await NOCO.updateRecord(row.Id, { Access: newAccess });
+    } catch(e) {}
+  }
+
+  showToast(`✓ Thư mục "${folderPath.split('/').pop()}" → ${newAccess === 'private' ? '🔒 Private' : '🌐 Public'}`, 'success');
+}
 
 // ── RENAME FOLDER: cascade update Articles + Folders + Permissions ──
 async function renameFolder(folderPath, oldName) {
