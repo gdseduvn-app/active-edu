@@ -82,6 +82,31 @@
     cursor:pointer; font-family:inherit; transition:all .15s;
   }
   .login-btn:hover { background:var(--primary-dark); }
+  /* Profile */
+  #profile-modal { display:none;position:fixed;inset:0;z-index:998;background:rgba(15,23,42,.6);align-items:center;justify-content:center; }
+  #profile-modal.show { display:flex; }
+  .profile-box { background:#fff;border-radius:20px;width:420px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.25); }
+  .profile-header { background:linear-gradient(135deg,var(--primary),var(--indigo));padding:28px;text-align:center;border-radius:20px 20px 0 0; }
+  .profile-avatar-wrap { position:relative;display:inline-block;margin-bottom:12px; }
+  .profile-avatar { width:80px;height:80px;border-radius:50%;border:3px solid rgba(255,255,255,.5);object-fit:cover;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:32px;color:#fff;font-weight:700;margin:0 auto; }
+  .profile-avatar-edit { position:absolute;bottom:0;right:0;width:26px;height:26px;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2); }
+  .profile-name { font-size:20px;font-weight:700;color:#fff;margin-bottom:4px; }
+  .profile-role { font-size:12px;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:1px; }
+  .profile-body { padding:24px; }
+  .profile-section { margin-bottom:20px; }
+  .profile-section-title { font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border); }
+  .profile-field { margin-bottom:12px; }
+  .profile-field label { display:block;font-size:13px;font-weight:500;color:var(--text-muted);margin-bottom:5px; }
+  .profile-field input { width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;font-family:inherit;outline:none;transition:border .15s;box-sizing:border-box; }
+  .profile-field input:focus { border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.08); }
+  .profile-field input:disabled { background:#f8fafc;color:var(--text-muted); }
+  .profile-actions { display:flex;gap:10px;margin-top:20px; }
+  .profile-btn { flex:1;padding:11px;border-radius:10px;border:none;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s; }
+  .profile-btn-primary { background:var(--primary);color:#fff; }
+  .profile-btn-primary:hover { background:var(--primary-dark); }
+  .profile-btn-outline { background:transparent;border:1.5px solid var(--border);color:var(--text); }
+  .profile-btn-outline:hover { border-color:var(--primary);color:var(--primary); }
+  .profile-msg { font-size:13px;text-align:center;margin-top:10px;min-height:20px; }
 
   /* ── PRIVATE LOCK OVERLAY ── */
   .lock-overlay {
@@ -422,8 +447,11 @@ async function doUserLogin() {
         const status = row.Status || row.TrangThai || 'active';
         if (status === 'inactive' || status === 'banned') { showErr(); return; }
         setUser({ username: u, displayName: row.FullName || row.HoTen || row.Name || u, role: row.Role || row.VaiTro || 'student' });
+        await loadUserPerms();
         closeLoginModal();
         renderUserArea();
+        buildNav(contentTree);
+        buildCards(contentTree);
         if (pendingPrivateItem) { loadArticle(pendingPrivateItem); pendingPrivateItem = null; }
         if (btn) btn.disabled = false;
         return;
@@ -454,11 +482,15 @@ function renderUserArea() {
   const area = document.getElementById('user-area');
   const user = getUser();
   if (user) {
+    const avatarSrc = user.avatar || '';
+    const avatarHtml = avatarSrc
+      ? `<img src="${avatarSrc}" style="width:28px;height:28px;border-radius:50%;object-fit:cover">`
+      : `<div class="user-avatar">${user.displayName.charAt(0).toUpperCase()}</div>`;
     area.innerHTML = `
-      <div class="user-badge" onclick="doLogout()" title="Nhấn để đăng xuất">
-        <div class="user-avatar">${user.displayName.charAt(0).toUpperCase()}</div>
+      <div class="user-badge" onclick="openProfile()" title="Hồ sơ cá nhân" style="position:relative">
+        ${avatarHtml}
         <span>${user.displayName}</span>
-        <i class="fas fa-sign-out-alt" style="font-size:11px;opacity:.7"></i>
+        <i class="fas fa-chevron-down" style="font-size:10px;opacity:.6"></i>
       </div>`;
   } else {
     area.innerHTML = `<button class="login-btn" onclick="showLoginModal(true)"><i class="fas fa-sign-in-alt"></i> Đăng nhập</button>`;
@@ -562,6 +594,8 @@ async function init() {
     }
 
     contentTree = tree;
+    propagateFolderAccess(contentTree);
+    await loadUserPerms();
     buildNav(contentTree);
     buildCards(contentTree);
     updateStats();
@@ -571,9 +605,65 @@ async function init() {
   }
 }
 
+// Cache permissions per session
+let _userPerms = null;
+
+async function loadUserPerms() {
+  const user = getUser();
+  if (!user) { _userPerms = null; return; }
+  const c = getNocoCfg();
+  if (!c.nocoToken || !c.nocoPermTable || !c.nocoTable) { _userPerms = null; return; }
+  try {
+    // Find user ID from Users table by email/username
+    const userData = await nocoFetch(`/tables/${c.nocoUserTable}/records?where=(Email,eq,${encodeURIComponent(user.username)})&limit=1`);
+    const userRow = (userData.list || [])[0];
+    if (!userRow) { _userPerms = null; return; }
+    // Load permissions for this user
+    const permData = await nocoFetch(`/tables/${c.nocoPermTable}/records?where=(UserId,eq,${userRow.Id})&limit=1000`);
+    _userPerms = permData.list || [];
+  } catch(e) {
+    console.warn('Permission load error:', e);
+    _userPerms = null;
+  }
+}
+
 function canViewArticle(item) {
-  if (!item || item.access !== 'private') return true;
-  return isLoggedIn();
+  if (!item) return false;
+  const user = getUser();
+  // Admin sees everything
+  if (user?.role === 'admin') return true;
+
+  const isPrivate = item.access === 'private';
+  const folderPrivate = item.folderAccess === 'private'; // set during tree build
+
+  // If both article and folder are public → everyone can view
+  if (!isPrivate && !folderPrivate) return true;
+
+  // Private content → must be logged in
+  if (!isLoggedIn()) return false;
+
+  // If no permissions table configured → any logged-in user can see private
+  if (_userPerms === null) return true;
+
+  // Check permissions
+  const path = item.path;
+  const folder = item.folder;
+  return _userPerms.some(p =>
+    p.TargetPath === path ||
+    (folder && p.TargetPath === folder) ||
+    (folder && folder.startsWith(p.TargetPath + '/'))
+  );
+}
+
+// Check if a folder is accessible
+function canViewFolder(folderItem) {
+  const user = getUser();
+  if (user?.role === 'admin') return true;
+  if (!folderItem.access || folderItem.access === 'public') return true;
+  if (!isLoggedIn()) return false;
+  if (_userPerms === null) return true;
+  const path = folderItem.path || folderItem.name;
+  return _userPerms.some(p => p.TargetPath === path || path.startsWith(p.TargetPath + '/'));
 }
 
 function buildNav(tree) {
@@ -586,15 +676,29 @@ function buildNav(tree) {
   renderNavItems(tree, el);
 }
 
+function propagateFolderAccess(items, parentAccess = 'public') {
+  for (const item of items||[]) {
+    if (item.type === 'folder') {
+      item.access = item.access || parentAccess;
+      propagateFolderAccess(item.children, item.access);
+    } else {
+      item.folderAccess = parentAccess;
+    }
+  }
+}
+
 function renderNavItems(items, container) {
   items.forEach(item => {
     if (item.type === 'folder') {
+      // Hide private folders from non-permitted users
+      if (!canViewFolder(item)) return;
       const div = document.createElement('div');
       div.className = 'nav-folder';
+      const lockIcon = item.access === 'private' ? ' <i class="fas fa-lock" style="font-size:9px;color:#fca5a5;margin-left:2px"></i>' : '';
       div.innerHTML = `
         <div class="nav-folder-header" onclick="this.parentElement.classList.toggle('open')">
-          <i class="fas fa-folder icon" style="color:#60a5fa"></i>
-          <span>${item.name}</span>
+          <i class="fas fa-folder icon" style="color:${item.access==='private'?'#f87171':'#60a5fa'}"></i>
+          <span>${item.name}${lockIcon}</span>
           <i class="fas fa-chevron-right arrow"></i>
         </div>
         <div class="nav-folder-children"></div>`;
@@ -791,6 +895,199 @@ function showEmptyState() {
 }
 
 init();
+
+// ═══════════════════════════════════════════════════
+// PROFILE
+// ═══════════════════════════════════════════════════
+let profileUserRow = null;
+
+async function openProfile() {
+  const user = getUser();
+  if (!user) return;
+  document.getElementById('profile-modal').classList.add('show');
+  document.getElementById('pf-name').value    = user.displayName || '';
+  document.getElementById('pf-email').value   = user.email || user.username || '';
+  document.getElementById('pf-phone').value   = user.phone || '';
+  document.getElementById('pf-bio').value     = user.bio || '';
+  document.getElementById('pf-pass-old').value    = '';
+  document.getElementById('pf-pass-new').value    = '';
+  document.getElementById('pf-pass-confirm').value = '';
+  document.getElementById('profile-msg').innerHTML = '';
+  updateProfileHeader(user);
+  const c = getNocoCfg();
+  if (c.nocoToken && c.nocoUserTable) {
+    try {
+      const data = await nocoFetch(`/tables/${c.nocoUserTable}/records?where=(Email,eq,${encodeURIComponent(user.email||user.username)})&limit=1`);
+      profileUserRow = (data.list||[])[0]||null;
+      if (profileUserRow) {
+        document.getElementById('pf-name').value  = profileUserRow.Name||profileUserRow.FullName||profileUserRow.HoTen||user.displayName;
+        document.getElementById('pf-email').value = profileUserRow.Email||user.username;
+        document.getElementById('pf-phone').value = profileUserRow.Phone||profileUserRow.SDT||'';
+        document.getElementById('pf-bio').value   = profileUserRow.Bio||profileUserRow.GioiThieu||profileUserRow.Note||'';
+      }
+    } catch(e) {}
+  }
+}
+
+function updateProfileHeader(user) {
+  const name = user.displayName || 'User';
+  const roleMap = {admin:'Quản trị viên', teacher:'Giáo viên', student:'Học sinh'};
+  document.getElementById('profile-header-name').textContent = name;
+  document.getElementById('profile-header-role').textContent = roleMap[user.role] || 'Học sinh';
+  const el = document.getElementById('profile-avatar-display');
+  if (user.avatar) {
+    el.innerHTML = `<img src="${user.avatar}" style="width:80px;height:80px;border-radius:50%;object-fit:cover">`;
+    el.style = '';
+  } else {
+    el.textContent = name.charAt(0).toUpperCase();
+    el.style.cssText = 'width:80px;height:80px;border-radius:50%;border:3px solid rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center;font-size:32px;color:#fff;font-weight:700;margin:0 auto;background:rgba(255,255,255,.2)';
+  }
+}
+
+function closeProfile() {
+  document.getElementById('profile-modal').classList.remove('show');
+  profileUserRow = null;
+}
+
+function handleAvatarChange(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 2*1024*1024) { showProfileMsg('Ảnh quá lớn! Tối đa 2MB.','error'); return; }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const dataUrl = e.target.result;
+    document.getElementById('profile-avatar-display').innerHTML =
+      `<img src="${dataUrl}" style="width:80px;height:80px;border-radius:50%;object-fit:cover">`;
+    const user = getUser(); user.avatar = dataUrl; setUser(user);
+    renderUserArea();
+    showProfileMsg('✓ Ảnh đại diện đã cập nhật!','success');
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+async function saveProfile() {
+  const user = getUser(); if (!user) return;
+  const name     = document.getElementById('pf-name').value.trim();
+  const email    = document.getElementById('pf-email').value.trim();
+  const phone    = document.getElementById('pf-phone').value.trim();
+  const bio      = document.getElementById('pf-bio').value.trim();
+  const passOld  = document.getElementById('pf-pass-old').value;
+  const passNew  = document.getElementById('pf-pass-new').value;
+  const passConf = document.getElementById('pf-pass-confirm').value;
+  if (!name) { showProfileMsg('Vui lòng nhập họ tên!','error'); return; }
+  let changePass = false;
+  if (passNew) {
+    if (passNew.length < 6) { showProfileMsg('Mật khẩu mới tối thiểu 6 ký tự!','error'); return; }
+    if (passNew !== passConf) { showProfileMsg('Mật khẩu xác nhận không khớp!','error'); return; }
+    if (!passOld) { showProfileMsg('Nhập mật khẩu hiện tại để đổi!','error'); return; }
+    changePass = true;
+  }
+  showProfileMsg('<i class="fas fa-spinner fa-spin"></i> Đang lưu...','');
+  user.displayName = name; user.email = email; user.phone = phone; user.bio = bio;
+  setUser(user); renderUserArea();
+  const c = getNocoCfg();
+  if (c.nocoToken && c.nocoUserTable && profileUserRow) {
+    try {
+      if (changePass) {
+        const oldPass = profileUserRow.Password||profileUserRow.MatKhau||'';
+        if (oldPass && oldPass !== passOld) { showProfileMsg('Mật khẩu hiện tại không đúng!','error'); return; }
+      }
+      const payload = {
+        Name:name, FullName:name, HoTen:name, Email:email,
+        Phone:phone, SDT:phone, Bio:bio, GioiThieu:bio, Note:bio,
+        NgayCapNhat: new Date().toLocaleDateString('vi-VN'),
+      };
+      if (changePass) { payload.Password = passNew; payload.MatKhau = passNew; }
+      await nocoFetch(`/tables/${c.nocoUserTable}/records`, {
+        method:'PATCH', body: JSON.stringify([{...payload, Id:profileUserRow.Id}])
+      });
+      showProfileMsg('✓ Đã lưu thông tin thành công!','success');
+      if (changePass) {
+        ['pf-pass-old','pf-pass-new','pf-pass-confirm'].forEach(id => document.getElementById(id).value='');
+      }
+    } catch(e) { showProfileMsg('Lỗi: '+e.message,'error'); }
+  } else {
+    showProfileMsg('✓ Đã cập nhật thông tin cục bộ!','success');
+  }
+}
+
+function showProfileMsg(msg, type) {
+  const el = document.getElementById('profile-msg');
+  const colors = {success:'#16a34a',error:'#dc2626',warn:'#d97706','':`var(--text-muted)`};
+  el.innerHTML = `<span style="color:${colors[type]||colors['']}">${msg}</span>`;
+}
+
+document.addEventListener('click', (e) => {
+  if (e.target === document.getElementById('profile-modal')) closeProfile();
+});
+
 </script>
+
+<!-- ── PROFILE MODAL ── -->
+<div id="profile-modal">
+  <div class="profile-box">
+    <div class="profile-header">
+      <div class="profile-avatar-wrap">
+        <div class="profile-avatar" id="profile-avatar-display">?</div>
+        <div class="profile-avatar-edit" onclick="document.getElementById('profile-avatar-input').click()" title="Đổi ảnh đại diện">
+          <i class="fas fa-camera" style="font-size:11px;color:var(--primary)"></i>
+        </div>
+        <input type="file" id="profile-avatar-input" accept="image/*" style="display:none" onchange="handleAvatarChange(this)">
+      </div>
+      <div class="profile-name" id="profile-header-name">—</div>
+      <div class="profile-role" id="profile-header-role">—</div>
+    </div>
+    <div class="profile-body">
+      <!-- Thông tin cá nhân -->
+      <div class="profile-section">
+        <div class="profile-section-title"><i class="fas fa-user"></i> Thông tin cá nhân</div>
+        <div class="profile-field">
+          <label>Họ và tên</label>
+          <input type="text" id="pf-name" placeholder="Nguyễn Văn A">
+        </div>
+        <div class="profile-field">
+          <label>Email</label>
+          <input type="email" id="pf-email" placeholder="email@example.com">
+        </div>
+        <div class="profile-field">
+          <label>Số điện thoại</label>
+          <input type="text" id="pf-phone" placeholder="0912345678">
+        </div>
+        <div class="profile-field">
+          <label>Giới thiệu bản thân</label>
+          <input type="text" id="pf-bio" placeholder="Mô tả ngắn về bạn...">
+        </div>
+      </div>
+
+      <!-- Đổi mật khẩu -->
+      <div class="profile-section">
+        <div class="profile-section-title"><i class="fas fa-lock"></i> Đổi mật khẩu</div>
+        <div class="profile-field">
+          <label>Mật khẩu hiện tại</label>
+          <input type="password" id="pf-pass-old" placeholder="Nhập mật khẩu hiện tại">
+        </div>
+        <div class="profile-field">
+          <label>Mật khẩu mới</label>
+          <input type="password" id="pf-pass-new" placeholder="Tối thiểu 6 ký tự">
+        </div>
+        <div class="profile-field">
+          <label>Xác nhận mật khẩu mới</label>
+          <input type="password" id="pf-pass-confirm" placeholder="Nhập lại mật khẩu mới">
+        </div>
+      </div>
+
+      <div class="profile-msg" id="profile-msg"></div>
+      <div class="profile-actions">
+        <button class="profile-btn profile-btn-outline" onclick="closeProfile();doLogout()" style="color:#dc2626;border-color:#fca5a5">
+          <i class="fas fa-sign-out-alt"></i> Đăng xuất
+        </button>
+        <button class="profile-btn profile-btn-primary" onclick="saveProfile()">
+          <i class="fas fa-save"></i> Lưu thay đổi
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 </body>
 </html>

@@ -1,82 +1,175 @@
-# 🎓 ActiveEdu
+# 🎓 ActiveEdu v2.0
 
-> Nền tảng học tập trực tuyến — Tự host trên GitHub Pages + NocoDB
+> Nền tảng học tập trực tuyến — GitHub Pages + NocoDB
+
+---
 
 ## ✨ Tính năng
 
 | Tính năng | Mô tả |
 |-----------|-------|
-| 📚 **Trang học tập** | Giao diện đọc bài sạch đẹp, menu tự động từ NocoDB |
-| 🗂 **Quản lý tệp** | Tạo thư mục, tạo bài viết từ giao diện Admin |
-| ✏️ **Visual Editor** | Soạn thảo WYSIWYG render đầy đủ HTML/CSS/JS (như Canvas LMS) |
-| 👁 **Xem trước** | Preview bài viết ngay trong Admin |
-| 🔐 **Bảo mật** | Đăng nhập Admin + học sinh qua NocoDB Users |
-| 🗄️ **NocoDB** | Lưu toàn bộ nội dung bài học vào database |
-| 🚀 **Deploy dễ dàng** | Không cần server backend, chạy trên GitHub Pages |
+| 📚 **Trang học tập** | Menu tự động từ NocoDB, load bài học đầy đủ HTML/CSS/JS |
+| 🔐 **Phân quyền** | Public/Private theo Thư mục và Bài học, gán quyền từng user |
+| 👤 **Quản lý User** | Thêm/sửa/xóa, đổi mật khẩu, phân quyền nội dung |
+| 🙍 **Hồ sơ cá nhân** | Đổi thông tin, avatar, mật khẩu từ trang học |
+| ✏️ **Visual Editor** | Soạn thảo WYSIWYG + CodeMirror HTML editor có số dòng |
+| 🗄️ **NocoDB** | Lưu toàn bộ nội dung, thư mục, user, phân quyền |
 | 📱 **Responsive** | Tương thích mobile |
+| ⚙️ **Export/Import Config** | Backup và khôi phục cấu hình JSON |
 
-## 🚀 Deploy lên GitHub Pages
+---
 
-1. **Fork hoặc tạo repo mới** trên GitHub
-2. **Upload toàn bộ file** dự án lên repo
+## 🚀 Cài đặt
+
+### Bước 1 — Deploy GitHub Pages
+1. Tạo repo GitHub mới
+2. Upload toàn bộ file dự án lên repo
 3. Vào **Settings → Pages** → Source: `main` branch, folder `/`
 4. Nhấn **Save** → Site live sau ~1 phút
 
-URL: `https://[username].github.io/[repo-name]`
+### Bước 2 — Tạo tài khoản NocoDB
+1. Đăng ký tại [app.nocodb.com](https://app.nocodb.com)
+2. Tạo Workspace mới (vd: `ActiveEdu`)
+3. Tạo một **Base** mới bên trong Workspace
+
+### Bước 3 — Tạo các bảng NocoDB
+
+#### 📋 Bảng `Articles` (bài học)
+| Cột | Kiểu | Bắt buộc |
+|-----|------|----------|
+| `Title` | Single line text | ✓ |
+| `Path` | Single line text | ✓ |
+| `Folder` | Single line text | |
+| `Description` | Long text | |
+| `Content` | Long text | ✓ |
+| `Access` | Single line text | (`public`/`private`) |
+| `Updated` | Single line text | |
+| `NgayTao` | Single line text | |
+| `NgayCapNhat` | Single line text | |
+
+#### 👥 Bảng `Users` (học sinh)
+| Cột | Kiểu | Bắt buộc |
+|-----|------|----------|
+| `Name` | Single line text | ✓ |
+| `Email` | Email | ✓ |
+| `Password` | Single line text | ✓ |
+| `Role` | Single line text | (`student`/`teacher`/`admin`) |
+| `Status` | Single line text | (`active`/`inactive`) |
+| `Phone` | Single line text | |
+| `Bio` | Long text | |
+| `NgayTao` | Single line text | |
+| `NgayCapNhat` | Single line text | |
+
+#### 📁 Bảng `Folders` (thư mục)
+| Cột | Kiểu | Bắt buộc |
+|-----|------|----------|
+| `Name` | Single line text | ✓ |
+| `Path` | Single line text | ✓ (vd: `Toán 9/Ôn tập`) |
+| `Parent` | Single line text | |
+| `Access` | Single line text | (`public`/`private`) |
+
+#### 🔒 Bảng `Permissions` (phân quyền)
+| Cột | Kiểu | Mô tả |
+|-----|------|-------|
+| `UserId` | Single line text | ID của user trong bảng Users |
+| `Type` | Single line text | `folder` hoặc `article` |
+| `TargetId` | Single line text | ID của bài/thư mục |
+| `TargetPath` | Single line text | Path của bài/thư mục |
+
+### Bước 4 — Lấy thông tin kết nối NocoDB
+- **NocoDB URL**: `https://app.nocodb.com`
+- **API Token**: NocoDB → **Team & Settings → API Tokens → Add Token**
+- **Base ID**: URL khi mở Base → phần `pwwk6ld3...` sau workspace ID
+- **Table ID**: URL khi mở bảng → phần `mmd5n4it...`
+
+### Bước 5 — Cấu hình Admin
+1. Mở `https://[your-site]/admin/`
+2. Đăng nhập: `admin` / `activeedu2024`
+3. Vào **Cài đặt** → điền thông tin NocoDB
+4. Nhấn **Kiểm tra & Lưu**
+5. Đổi mật khẩu Admin trong **Cài đặt → Bảo mật**
+
+---
 
 ## 📁 Cấu trúc dự án
 
 ```
-ActiveEdu/
-├── index.html          # Trang học tập chính (load từ NocoDB)
+active-edu/
+├── index.html          # Trang học tập (học sinh)
+├── README.md
 ├── admin/
 │   ├── index.html      # Trang đăng nhập Admin
-│   └── dashboard.html  # Bảng quản trị toàn diện
-├── assets/             # Tài nguyên tĩnh
-└── README.md
+│   └── dashboard.html  # Bảng quản trị
+└── content/
+    └── index.json      # [] — bài học lưu trong NocoDB
 ```
 
-> **Lưu ý:** Nội dung bài học được lưu trong **NocoDB**, không lưu file HTML trên GitHub nữa.
+---
 
-## 🗄️ Cấu hình NocoDB
+## 🔐 Phân quyền
 
-### Bảng Articles (bài học)
-| Cột | Kiểu | Mô tả |
-|-----|------|-------|
-| Title | Single line text | Tên bài học |
-| Path | Single line text | Đường dẫn duy nhất |
-| Folder | Single line text | Thư mục chứa bài |
-| Description | Long text | Mô tả ngắn |
-| Content | Long text | Nội dung HTML đầy đủ |
-| Updated | Single line text | Ngày cập nhật |
-| NgayTao | Single line text | Ngày tạo |
-| NgayCapNhat | Single line text | Ngày cập nhật |
+### Mô hình phân quyền
+```
+Thư mục [Public/Private]
+  └── Bài học [Public/Private]
+```
 
-### Bảng Users (học sinh)
-| Cột | Kiểu | Mô tả |
-|-----|------|-------|
-| Name / HoTen | Single line text | Họ tên |
-| Email | Email | Tài khoản đăng nhập |
-| Password / MatKhau | Single line text | Mật khẩu |
-| Role / VaiTro | Single line text | student / admin |
-| Status / TrangThai | Single line text | active / inactive |
+- **Public**: mọi người đều xem được
+- **Private**: chỉ user được phân quyền mới xem
+- Quyền thư mục = quyền mặc định cho tất cả bài bên trong
 
-## 🔐 Đăng nhập Admin
+### Phân quyền cho User
+1. Vào **NocoDB → tab Người dùng**
+2. Nhấn nút 🛡️ bên cạnh user cần phân quyền
+3. Tích chọn thư mục/bài được phép xem
+4. Nhấn **Lưu phân quyền**
 
-- URL: `/admin/index.html`
-- Mặc định: `admin` / `activeedu2024`
-- Đổi mật khẩu trong **Admin → Cài đặt**
+---
 
 ## 📝 Thêm bài học
 
-1. Truy cập `/admin/index.html` → Đăng nhập
-2. Vào **Soạn thảo** → nhập tiêu đề, chọn thư mục
-3. Chọn chế độ **Visual** (WYSIWYG) hoặc **HTML** để soạn nội dung
-4. Nhấn **Lưu vào NocoDB**
+1. Vào **Soạn thảo** trong Admin
+2. Nhập tiêu đề, chọn thư mục
+3. Soạn nội dung bằng **Visual Editor** hoặc **HTML Editor**
+4. Nhấn **Lưu vào NocoDB** (`Ctrl+S`)
 
-## 🛠 Phát triển
+---
 
-Dự án sử dụng 100% HTML/CSS/JS thuần — không cần build tools, không cần npm.
+## 👤 Hồ sơ cá nhân (Học sinh)
+
+Click vào **tên/avatar** góc trên phải để:
+- Đổi thông tin (tên, email, SĐT, giới thiệu)
+- Upload ảnh đại diện
+- Đổi mật khẩu (cần nhập mật khẩu cũ)
+- Đăng xuất
+
+---
+
+## ⚙️ Backup & Restore Config
+
+- **Export**: Cài đặt → **Export config** → lưu file JSON
+- **Import**: Cài đặt → **Import config** → chọn file JSON đã lưu
+
+> ⚠️ File config chứa token nhạy cảm — giữ kỹ, không chia sẻ!
+
+---
+
+## 🗄️ Cấu trúc Config (localStorage key: `ae_cfg`)
+
+```json
+{
+  "nocoUrl":         "https://app.nocodb.com",
+  "nocoToken":       "your-api-token",
+  "nocoTable":       "table-id-articles",
+  "nocoBase":        "base-id",
+  "nocoUserTable":   "table-id-users",
+  "nocoFolderTable": "table-id-folders",
+  "nocoPermTable":   "table-id-permissions",
+  "adminUser":       "admin",
+  "adminPass":       "your-password",
+  "title":           "ActiveEdu"
+}
+```
 
 ---
 
