@@ -17,16 +17,6 @@
   {
     "type": "folder",
     "name": "Lập trình cơ bản",
-    "children": [
-      {
-        "type": "file",
-        "name": "Bai 1 Gioi Thieu Html",
-        "path": "Lập trình cơ bản/bai-1-gioi-thieu-html.html",
-        "folder": "Lập trình cơ bản",
-        "description": "",
-        "access": "public",
-        "updated": "29/3/2026"
-      }
-    ]
+    "children": []
   }
 ]
