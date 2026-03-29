@@ -2709,18 +2709,72 @@ document.addEventListener('keydown', e => {
 window.addEventListener('DOMContentLoaded', () => { checkSession(); });
 // ── CONFIG EXPORT / IMPORT ──────────────────────────────
 function exportConfig() {
-  const blob = new Blob([JSON.stringify(cfg(), null, 2)], { type: 'application/json' });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-  a.download = 'activeedu-config.json'; a.click(); URL.revokeObjectURL(a.href);
+  const c = cfg();
+  // Cấu hình đầy đủ gồm tất cả các field kể cả mới thêm
+  const exportData = {
+    // NocoDB
+    nocoUrl:         c.nocoUrl         || '',
+    nocoToken:       c.nocoToken       || '',
+    nocoTable:       c.nocoTable       || '',
+    nocoBase:        c.nocoBase        || '',
+    nocoUserTable:   c.nocoUserTable   || '',
+    nocoFolderTable: c.nocoFolderTable || '',
+    // GitHub (dùng cho migration)
+    token:           c.token           || '',
+    repo:            c.repo            || '',
+    branch:          c.branch          || 'main',
+    contentDir:      c.contentDir      || 'content',
+    url:             c.url             || '',
+    // Admin
+    adminUser:       c.adminUser       || 'admin',
+    adminPass:       c.adminPass       || '',
+    title:           c.title           || 'ActiveEdu',
+    // Meta
+    _exported:       new Date().toLocaleString('vi-VN'),
+    _version:        'ActiveEdu v2.0',
+  };
+  const json = JSON.stringify(exportData, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `activeedu-config-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
   showToast('✓ Đã xuất config!', 'success');
 }
-function importConfig() { document.getElementById('import-config-file').click(); }
+
+function importConfig() {
+  document.getElementById('import-config-file').click();
+}
+
 function handleImportConfig(input) {
-  const file = input.files[0]; if (!file) return;
+  const file = input.files[0];
+  if (!file) return;
   const reader = new FileReader();
   reader.onload = (e) => {
-    try { saveCfg(JSON.parse(e.target.result)); loadSettings(); showToast('✓ Đã import config!', 'success'); }
-    catch { showToast('File không hợp lệ!', 'error'); }
+    try {
+      const data = JSON.parse(e.target.result);
+      // Validate — phải có ít nhất nocoToken hoặc token
+      if (!data.nocoToken && !data.token) {
+        showToast('File config không hợp lệ — thiếu token!', 'error');
+        return;
+      }
+      // Merge vào config hiện tại (không ghi đè field trống)
+      const current = getCfg();
+      const merged = { ...current };
+      const fields = ['nocoUrl','nocoToken','nocoTable','nocoBase','nocoUserTable','nocoFolderTable',
+                      'token','repo','branch','contentDir','url','adminUser','adminPass','title'];
+      fields.forEach(k => { if (data[k]) merged[k] = data[k]; });
+      saveCfg(merged);
+      loadSettings();
+      // Re-init với config mới
+      const hasNoco = !!merged.nocoToken && !!merged.nocoTable;
+      updateNocoStatus(hasNoco, hasNoco ? (merged.nocoUrl||'').replace('https://','').split('/')[0] : '');
+      if (hasNoco) syncFromNoco();
+      showToast(`✓ Đã import config từ "${file.name}"!`, 'success');
+    } catch(err) {
+      showToast('Lỗi đọc file: ' + err.message, 'error');
+    }
     input.value = '';
   };
   reader.readAsText(file);
