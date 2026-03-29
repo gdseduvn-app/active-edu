@@ -1,11 +1,6 @@
 [
   {
     "type": "folder",
-    "name": "JavaScript",
-    "children": []
-  },
-  {
-    "type": "folder",
     "name": "Lập trình cơ bản",
     "children": []
   }
