@@ -538,7 +538,17 @@ async function nocoFetch(path, opts = {}) {
 async function init() {
   renderUserArea();
   const c = getNocoCfg();
+
+  // Debug: log config status (remove in production)
+  console.log('[ActiveEdu] Config:', {
+    hasToken: !!c.nocoToken,
+    hasTable: !!c.nocoTable,
+    url: c.nocoUrl || '(default)'
+  });
+
   if (!c.nocoToken || !c.nocoTable) {
+    // Thử đọc config từ các key khác có thể dùng
+    console.warn('[ActiveEdu] NocoDB chưa cấu hình. Vào /admin để cài đặt.');
     // Fallback: try loading from content/index.json
     try {
       const res = await fetch('content/index.json');
@@ -920,8 +930,15 @@ function closeSidebar() {
   document.getElementById('overlay').classList.remove('show');
 }
 function showEmptyState() {
-  document.getElementById('nav-menu').innerHTML = '<div style="padding:20px;text-align:center;color:rgba(255,255,255,.35);font-size:13px">Chưa có nội dung</div>';
-  document.getElementById('home-cards').innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="emoji">🚀</div><h3>Bắt đầu xây dựng nội dung</h3></div>`;
+  const c = getNocoCfg();
+  const hasConfig = !!c.nocoToken && !!c.nocoTable;
+  document.getElementById('nav-menu').innerHTML = hasConfig
+    ? '<div style="padding:20px;text-align:center;color:rgba(255,255,255,.35);font-size:13px">Chưa có bài học nào</div>'
+    : '<div style="padding:20px;text-align:center;color:rgba(255,255,255,.35);font-size:12px">Chưa kết nối NocoDB</div>';
+  document.getElementById('home-cards').innerHTML = hasConfig
+    ? `<div class="empty-state" style="grid-column:1/-1"><div class="emoji">📂</div><h3>Chưa có nội dung</h3><p style="color:#94a3b8;font-size:13px;margin-top:8px">Vào Admin để thêm bài học</p></div>`
+    : `<div class="empty-state" style="grid-column:1/-1"><div class="emoji">⚙️</div><h3>Chưa cấu hình NocoDB</h3><p style="color:#94a3b8;font-size:13px;margin-top:8px">Vào <a href='admin/' style='color:#2563eb'>Admin</a> → Cài đặt để kết nối</p></div>`;
+  updateStats();
 }
 
 init();
