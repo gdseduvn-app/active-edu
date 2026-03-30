@@ -2,11 +2,26 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%232563eb'/><text y='75' x='50' text-anchor='middle' font-size='65' font-family='sans-serif'>⚡</text></svg>">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+<meta http-equiv="X-Frame-Options" content="SAMEORIGIN">
+<meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+<meta name="robots" content="noindex, nofollow">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' https://api.gds.edu.vn; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: https:; frame-src 'self'; connect-src 'self' https://api.gds.edu.vn;">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%232563eb'/><text y='75' x='50' text-anchor='middle' font-size='65' font-family='sans-serif'>⚡</text></svg>">
 <title>ActiveEdu — Nền tảng học tập</title>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+<script>
+// Bỏ index.html khỏi URL và xử lý clean URL
+(function() {
+  const loc = window.location;
+  if (loc.pathname.endsWith('/index.html')) {
+    const clean = loc.pathname.replace('/index.html', '/') + loc.search + loc.hash;
+    window.history.replaceState(null, '', clean);
+  }
+})();
+</script>
 <style>
   :root {
     --primary:       #2563eb;
@@ -415,6 +430,11 @@
 // Đăng nhập học sinh lưu vào localStorage (khác với admin sessionStorage)
 const USER_KEY = 'ae_user';
 
+// Sanitize text để tránh XSS khi render vào HTML
+function esc(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
 function getUser() {
   try { return JSON.parse(localStorage.getItem(USER_KEY)); } catch { return null; }
 }
@@ -638,11 +658,11 @@ async function init() {
     buildCards(contentTree);
     updateStats();
 
-    // Xử lý deep link: nếu URL có #/bai/... thì tự mở bài đó
-    const hash = window.location.hash;
-    if (hash.startsWith('#/bai/')) {
-      const slug = decodeURIComponent(hash.replace('#/bai/', ''));
-      // Tìm theo slug (tên file) hoặc full path
+    // Xử lý deep link: /bai/slug hoặc ?bai=slug
+    const pathMatch = window.location.pathname.match(/\/bai\/([^/]+)/);
+    const paramSlug = new URLSearchParams(window.location.search).get('bai');
+    const slug = pathMatch ? decodeURIComponent(pathMatch[1]) : (paramSlug ? decodeURIComponent(paramSlug) : null);
+    if (slug) {
       const item = findItemBySlug(contentTree, slug);
       if (item) loadArticle(item);
     }
@@ -797,12 +817,12 @@ function buildCards(tree) {
       <div class="card-banner ${c}"><i class="${ico}"></i></div>
       <div class="card-body">
         <div class="card-tags">${breadcrumb}${badge}</div>
-        <div class="card-title">${item.name}</div>
+        <div class="card-title">${esc(item.name)}</div>
         <div class="card-desc">${isPrivate && !canView
           ? '<i class="fas fa-lock" style="color:#94a3b8"></i> Đăng nhập để xem bài học này'
-          : (item.description || 'Nhấn để xem bài học')}</div>
+          : esc(item.description || 'Nhấn để xem bài học')}</div>
         <div class="card-footer">
-          <span><i class="far fa-calendar-alt"></i> ${item.updated || ''}</span>
+          <span><i class="far fa-calendar-alt"></i> ${esc(item.updated || '')}</span>
           <span class="card-cta">${isPrivate && !canView
             ? 'Đăng nhập <i class="fas fa-arrow-right"></i>'
             : 'Học ngay <i class="fas fa-arrow-right"></i>'}</span>
@@ -817,9 +837,8 @@ function buildCards(tree) {
 async function loadArticle(item) {
   // Cập nhật hash URL (không reload, không lộ đường dẫn thật)
   currentArticlePath = item.path;
-  // Lấy slug từ tên file (phần cuối của path, bỏ .html)
   const slug = item.path.split('/').pop().replace(/\.html?$/i, '');
-  history.pushState(null, '', `#/bai/${encodeURIComponent(slug)}`);
+  history.pushState({slug}, '', `/bai/${encodeURIComponent(slug)}`);
   document.title = `${item.name} — ActiveEdu`;
 
   // Kiểm tra quyền truy cập
@@ -845,8 +864,8 @@ async function loadArticle(item) {
   const accessTag = item.access === 'private'
     ? '<span class="article-hd-tag" style="background:#fef2f2;border-color:#fca5a5;color:#b91c1c"><i class="fas fa-lock"></i> Private</span>'
     : '<span class="article-hd-tag" style="background:#f0fdf4;border-color:#86efac;color:#15803d"><i class="fas fa-globe"></i> Public</span>';
-  document.getElementById('article-meta').innerHTML = `<i class="fas fa-folder" style="color:var(--primary)"></i> ${item.folder||'Gốc'} &nbsp;•&nbsp; <i class="fas fa-calendar-alt"></i> ${item.updated||''}`;
-  document.getElementById('article-tags').innerHTML = (item.folder ? `<span class="article-hd-tag">${item.folder}</span>` : '') + accessTag;
+  document.getElementById('article-meta').innerHTML = `<i class="fas fa-folder" style="color:var(--primary)"></i> ${esc(item.folder||'Gốc')} &nbsp;•&nbsp; <i class="fas fa-calendar-alt"></i> ${esc(item.updated||'')}`;
+  document.getElementById('article-tags').innerHTML = (item.folder ? `<span class="article-hd-tag">${esc(item.folder)}</span>` : '') + accessTag;
   setBreadcrumb(item.name);
   setActiveNav(item.path);
   try {
@@ -908,7 +927,8 @@ function showHome() {
   setBreadcrumb(null);
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
   pendingPrivateItem = null;
-  // Rebuild cards để cập nhật trạng thái login
+  history.pushState(null, '', '/');
+  document.title = 'ActiveEdu — Nền tảng học tập';
   buildCards(contentTree);
 }
 
@@ -967,6 +987,17 @@ function showEmptyState() {
 }
 
 init();
+
+// Xử lý nút Back/Forward của trình duyệt
+window.addEventListener('popstate', () => {
+  const pathMatch = window.location.pathname.match(/\/bai\/([^/]+)/);
+  if (pathMatch) {
+    const slug = decodeURIComponent(pathMatch[1]);
+    const item = findItemBySlug(contentTree, slug);
+    if (item) { loadArticle(item); return; }
+  }
+  showHome();
+});
 
 // ═══════════════════════════════════════════════════
 // PROFILE
