@@ -465,7 +465,7 @@ tr:hover td{background:var(--hover)}
     </div>
 
     <!-- ══ EDITOR ════════════════════════════════ -->
-    <div class="panel panel-fullh" id="panel-editor" style="padding:20px 24px;gap:12px">
+    <div class="panel panel-fullh" id="panel-editor" style="padding:20px 24px;gap:0">
       <div class="sec-hd" style="flex-shrink:0">
         <h3>✏️ Soạn thảo bài học</h3>
         <div class="actions">
@@ -473,7 +473,7 @@ tr:hover td{background:var(--hover)}
           <button class="btn btn-success" id="btn-save" onclick="saveToNoco()"><i class="fas fa-database"></i> Lưu vào NocoDB</button>
         </div>
       </div>
-      <div class="detail-panel" style="flex:1;min-height:0">
+      <div class="detail-panel" style="flex:1;min-height:0;margin-left:16px">
         <div class="editor-wrap">
           <!-- Top bar: Tên bài | Public/Private | Lưu -->
           <div class="editor-meta">
@@ -488,7 +488,7 @@ tr:hover td{background:var(--hover)}
           <!-- Body: Sidebar trái + Editor phải -->
           <div style="display:flex;flex:1;overflow:hidden;min-height:0">
             <!-- Sidebar: Tab Thư mục / Tab Bài viết -->
-            <div id="editor-sidebar" style="width:260px;flex-shrink:0;display:flex;flex-direction:column;overflow:hidden;position:relative;background:var(--card);border-right:1px solid var(--border);border-radius:0">
+            <div id="editor-sidebar" style="width:260px;flex-shrink:0;display:flex;flex-direction:column;overflow:hidden;position:relative;background:var(--card);border:1px solid var(--border);border-radius:12px">
               <div id="sidebar-resize-handle" style="position:absolute;right:-3px;top:0;bottom:0;width:6px;cursor:col-resize;z-index:10" onmousedown="startSidebarResize(event)"></div>
               <!-- Header — clone style từ .tree-hd của panel quản lý tệp -->
               <div class="tree-hd" style="flex-shrink:0">
@@ -2676,17 +2676,21 @@ function newArticle() {
 // ── openArticleEditor: entry point khi bấm nút ✏️ từ bất kỳ panel nào ──
 async function openArticleEditor(path) {
   if (!path) return;
-  // 1. Chuyển panel trực tiếp (không qua showPanel để tránh loop)
-  _activatePanel('editor');
+  // 1. Chuyển panel nếu chưa ở editor
+  if (!document.getElementById('panel-editor').classList.contains('active')) {
+    _activatePanel('editor');
+  }
   // 2. Init CodeMirror nếu chưa có
   setTimeout(() => { initCodeMirror(); if (cmEditor) cmEditor.refresh(); }, 30);
-  // 3. Load data bài từ NocoDB
+  // 3. Load data bài từ NocoDB (sidebar KHÔNG bị ẩn, giữ nguyên trạng thái)
   await editFile(path);
 }
 
 // ── _activatePanel: chuyển panel không trigger showPanel logic ──
 function _activatePanel(id) {
-  if (id === 'editor') setTimeout(() => loadSidebarFolders(), 100);
+  const alreadyActive = document.getElementById('panel-editor')?.classList.contains('active');
+  // Chỉ reload sidebar khi chuyển VÀO editor lần đầu (không reload nếu đã active)
+  if (id === 'editor' && !alreadyActive) setTimeout(() => loadSidebarFolders(), 100);
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.getElementById('panel-' + id)?.classList.add('active');
   document.querySelectorAll('.sb-item').forEach(n => n.classList.remove('active'));
