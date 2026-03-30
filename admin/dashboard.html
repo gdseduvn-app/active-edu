@@ -1741,6 +1741,50 @@ async function confirmDeleteFile(path) {
   } finally { hideLoading(); }
 }
 
+async function renameFolder(folderPath, currentName) {
+  const newName = prompt('Đổi tên thư mục:', currentName);
+  if (!newName || newName.trim() === '' || newName.trim() === currentName) return;
+  const name = newName.trim();
+
+  // Tìm folder trong indexTree và đổi tên
+  function findAndRename(items, path) {
+    for (const item of items) {
+      if (item.type === 'folder') {
+        if (item.folderPath === path || item.path === path) {
+          const oldPath = item.folderPath || item.path;
+          const parentPath = oldPath.split('/').slice(0,-1).join('/');
+          const newPath = parentPath ? parentPath + '/' + name : name;
+          item.name = name;
+          item.folderPath = newPath;
+          item.path = newPath;
+          return { oldPath, newPath };
+        }
+        const found = findAndRename(item.children || [], path);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+
+  const result = findAndRename(indexTree, folderPath);
+  if (!result) { showToast('Không tìm thấy thư mục!', 'warn'); return; }
+
+  showLoading('Đang đổi tên thư mục...');
+  try {
+    // Cập nhật NocoDB Folders table
+    const fData = await NOCO.listFolders();
+    const folder = (fData.list||[]).find(f => (f.Path||f.Name) === result.oldPath);
+    if (folder) {
+      await NOCO.call('folders', '/' + folder.Id, 'PATCH',
+        [{ Id: folder.Id, Name: name, Path: result.newPath }]);
+    }
+    commitIndexTree();
+    showToast(`✓ Đã đổi tên thành "${name}"`, 'success');
+  } catch(e) {
+    showToast('Lỗi đổi tên: ' + e.message, 'error');
+  } finally { hideLoading(); }
+}
+
 async function confirmDeleteFolder(folderPath) {
   // Tìm folder node trong indexTree theo path
   function findFolderByPath(items, path) {
