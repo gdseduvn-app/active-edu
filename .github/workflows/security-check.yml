@@ -1,1 +1,41 @@
+name: Security Check
 
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    name: Kiem tra bao mat code
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Kiem tra khong co token hardcode
+        run: |
+          FOUND=0
+          for pattern in "xc-token" "activeedu2024" "hocsinh123"; do
+            if grep -rni "$pattern" --include="*.html" --include="*.js" --exclude-dir=".git" . ; then
+              echo "CANH BAO: Phat hien pattern nguy hiem: $pattern"
+              FOUND=1
+            fi
+          done
+          if [ $FOUND -eq 0 ]; then
+            echo "OK: Khong phat hien secrets hardcode"
+          else
+            echo "LOI: Co secrets trong code!"
+            exit 1
+          fi
+
+      - name: Kiem tra Worker JS syntax
+        run: |
+          if [ -f "cloudflare-worker.js" ]; then
+            node --check cloudflare-worker.js && echo "OK: Worker syntax hop le"
+          fi
+
+      - name: Hoan tat
+        run: echo "Security check hoan tat!"
