@@ -278,6 +278,7 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
   background:#fff;
   min-height:0;
   display:block;
+  overflow-x:hidden;
 }
 /* Khi chưa có nội dung: đặt aspect-ratio vàng làm min-height */
 #wrap-rich{
@@ -466,7 +467,7 @@ tr:hover td{background:var(--hover)}
     </div>
 
     <!-- ══ EDITOR ════════════════════════════════ -->
-    <div class="panel panel-fullh" id="panel-editor" style="padding:20px 24px;gap:0">
+    <div class="panel panel-fullh" id="panel-editor" style="padding:20px 24px;gap:0;box-sizing:border-box;overflow:hidden">
       <div class="sec-hd" style="flex-shrink:0">
         <h3>✏️ Soạn thảo bài học</h3>
         <div class="actions">
@@ -475,7 +476,7 @@ tr:hover td{background:var(--hover)}
         </div>
       </div>
       <!-- Layout giống hệt file-manager: grid sidebar | editor -->
-      <div class="file-manager" style="grid-template-columns:260px 1fr;flex:1;min-height:0;align-content:start">
+      <div class="file-manager" style="grid-template-columns:260px minmax(0,1fr);gap:16px;flex:1;min-height:0">
         <!-- Sidebar trái: dùng .tree-panel -->
         <div id="editor-sidebar" class="tree-panel" style="position:relative;height:100%">
           <div id="sidebar-resize-handle" style="position:absolute;right:-3px;top:0;bottom:0;width:6px;cursor:col-resize;z-index:10" onmousedown="startSidebarResize(event)"></div>
@@ -491,7 +492,7 @@ tr:hover td{background:var(--hover)}
           <div id="sb-tab-articles" style="display:none"></div>
         </div>
         <!-- Editor phải: dùng .detail-panel -->
-        <div class="detail-panel" style="min-height:0;height:100%">
+        <div class="detail-panel" style="min-height:0;min-width:0;height:100%;overflow:hidden">
           <div class="editor-wrap">
             <!-- Top bar: Tên bài | Public/Private -->
             <div class="editor-meta">
