@@ -625,58 +625,58 @@ tr:hover td{background:var(--hover)}
     </div>
 
     <!-- User Modal -->
-    <div id="user-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:999;align-items:center;justify-content:center;backdrop-filter:blur(2px)">
-      <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;width:500px;max-width:95vw;max-height:92vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.25)">
+    <div id="user-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.65);z-index:999;align-items:center;justify-content:center">
+      <div style="background:#fff;border-radius:16px;width:500px;max-width:95vw;max-height:92vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.3);border:1px solid #e2e8f0">
         <!-- Header -->
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:20px 24px;border-bottom:1px solid var(--border);background:var(--hover);border-radius:16px 16px 0 0">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 22px;border-bottom:1px solid #e2e8f0;background:#eff6ff;border-radius:16px 16px 0 0">
           <div style="display:flex;align-items:center;gap:10px">
-            <div style="width:32px;height:32px;background:var(--primary);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px"><i class="fas fa-user-plus"></i></div>
-            <h3 id="user-modal-title" style="font-size:15px;font-weight:700;color:var(--text);margin:0">Thêm người dùng</h3>
+            <div style="width:32px;height:32px;background:#2563eb;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px"><i class="fas fa-user-plus"></i></div>
+            <h3 id="user-modal-title" style="font-size:15px;font-weight:700;color:#1e293b;margin:0">Thêm người dùng</h3>
           </div>
-          <button onclick="closeUserModal()" style="width:28px;height:28px;border-radius:6px;background:transparent;border:1px solid var(--border);color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s" onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background='transparent'"><i class="fas fa-times" style="font-size:12px"></i></button>
+          <button onclick="closeUserModal()" style="width:28px;height:28px;border-radius:6px;background:transparent;border:1px solid #e2e8f0;color:#64748b;cursor:pointer;display:flex;align-items:center;justify-content:center" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'"><i class="fas fa-times" style="font-size:12px"></i></button>
         </div>
         <!-- Body -->
-        <div style="padding:20px 24px;display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div style="padding:20px 22px;display:grid;grid-template-columns:1fr 1fr;gap:14px;background:#fff">
           <div class="form-group" style="grid-column:1/-1">
-            <label>Họ tên <span style="color:var(--danger)">*</span></label>
-            <input type="text" id="um-name" placeholder="Nguyễn Văn A">
+            <label style="color:#475569">Họ tên <span style="color:#ef4444">*</span></label>
+            <input type="text" id="um-name" placeholder="Nguyễn Văn A" style="background:#fff;color:#1e293b;border-color:#e2e8f0">
           </div>
           <div class="form-group">
-            <label>Email <span style="color:var(--danger)">*</span></label>
-            <input type="email" id="um-email" placeholder="example@gmail.com">
+            <label style="color:#475569">Email <span style="color:#ef4444">*</span></label>
+            <input type="email" id="um-email" placeholder="example@gmail.com" style="background:#fff;color:#1e293b;border-color:#e2e8f0">
           </div>
           <div class="form-group">
-            <label>Mật khẩu <span id="um-pass-hint" style="color:var(--text-muted);font-weight:400;font-size:11px">(bắt buộc khi tạo mới)</span></label>
-            <input type="password" id="um-pass" placeholder="Tối thiểu 6 ký tự">
+            <label style="color:#475569">Mật khẩu <span id="um-pass-hint" style="color:#94a3b8;font-weight:400;font-size:11px">(bắt buộc khi tạo mới)</span></label>
+            <input type="password" id="um-pass" placeholder="Tối thiểu 6 ký tự" style="background:#fff;color:#1e293b;border-color:#e2e8f0">
           </div>
           <div class="form-group">
-            <label>Vai trò</label>
-            <select id="um-role" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font-size:13px;font-family:inherit;outline:none;transition:border .15s" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+            <label style="color:#475569">Vai trò</label>
+            <select id="um-role" style="width:100%;padding:9px 10px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#1e293b;font-size:13px;font-family:inherit;outline:none">
               <option value="student">🎓 Học sinh</option>
               <option value="teacher">👨‍🏫 Giáo viên</option>
               <option value="admin">⚡ Admin</option>
             </select>
           </div>
           <div class="form-group">
-            <label>Trạng thái</label>
-            <select id="um-status" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font-size:13px;font-family:inherit;outline:none;transition:border .15s" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+            <label style="color:#475569">Trạng thái</label>
+            <select id="um-status" style="width:100%;padding:9px 10px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#1e293b;font-size:13px;font-family:inherit;outline:none">
               <option value="active">✅ Hoạt động</option>
               <option value="inactive">⏸ Vô hiệu hóa</option>
             </select>
           </div>
           <div class="form-group" style="grid-column:1/-1">
-            <label>Số điện thoại</label>
-            <input type="text" id="um-phone" placeholder="0912 345 678">
+            <label style="color:#475569">Số điện thoại</label>
+            <input type="text" id="um-phone" placeholder="0912 345 678" style="background:#fff;color:#1e293b;border-color:#e2e8f0">
           </div>
           <div class="form-group" style="grid-column:1/-1">
-            <label>Ghi chú</label>
-            <textarea id="um-note" rows="2" placeholder="Ghi chú thêm..." style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font-size:13px;resize:vertical;font-family:inherit;outline:none;transition:border .15s" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'"></textarea>
+            <label style="color:#475569">Ghi chú</label>
+            <textarea id="um-note" rows="2" placeholder="Ghi chú thêm..." style="width:100%;padding:9px 10px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#1e293b;font-size:13px;resize:vertical;font-family:inherit;outline:none"></textarea>
           </div>
         </div>
         <!-- Message -->
-        <div id="um-msg" style="margin:0 24px;font-size:13px;min-height:18px"></div>
+        <div id="um-msg" style="margin:0 22px;font-size:13px;min-height:18px;background:#fff"></div>
         <!-- Footer -->
-        <div style="display:flex;gap:10px;padding:16px 24px;border-top:1px solid var(--border);justify-content:flex-end;margin-top:8px">
+        <div style="display:flex;gap:10px;padding:16px 22px;border-top:1px solid #e2e8f0;justify-content:flex-end;background:#f8fafc;border-radius:0 0 16px 16px">
           <button onclick="closeUserModal()" class="btn btn-outline">Hủy</button>
           <button onclick="saveUser()" class="btn btn-primary" id="um-save-btn"><i class="fas fa-save"></i> Lưu</button>
         </div>
