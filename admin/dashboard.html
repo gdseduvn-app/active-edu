@@ -625,13 +625,18 @@ tr:hover td{background:var(--hover)}
     </div>
 
     <!-- User Modal -->
-    <div id="user-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;align-items:center;justify-content:center">
-      <div style="background:var(--card-bg);border-radius:16px;padding:28px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
-          <h3 id="user-modal-title" style="font-size:16px;font-weight:700;color:var(--text)">Thêm người dùng</h3>
-          <button onclick="closeUserModal()" style="background:none;border:none;color:var(--text-muted);font-size:18px;cursor:pointer"><i class="fas fa-times"></i></button>
+    <div id="user-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:999;align-items:center;justify-content:center;backdrop-filter:blur(2px)">
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;width:500px;max-width:95vw;max-height:92vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.25)">
+        <!-- Header -->
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:20px 24px;border-bottom:1px solid var(--border);background:var(--hover);border-radius:16px 16px 0 0">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:32px;height:32px;background:var(--primary);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px"><i class="fas fa-user-plus"></i></div>
+            <h3 id="user-modal-title" style="font-size:15px;font-weight:700;color:var(--text);margin:0">Thêm người dùng</h3>
+          </div>
+          <button onclick="closeUserModal()" style="width:28px;height:28px;border-radius:6px;background:transparent;border:1px solid var(--border);color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s" onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background='transparent'"><i class="fas fa-times" style="font-size:12px"></i></button>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <!-- Body -->
+        <div style="padding:20px 24px;display:grid;grid-template-columns:1fr 1fr;gap:14px">
           <div class="form-group" style="grid-column:1/-1">
             <label>Họ tên <span style="color:var(--danger)">*</span></label>
             <input type="text" id="um-name" placeholder="Nguyễn Văn A">
@@ -646,30 +651,32 @@ tr:hover td{background:var(--hover)}
           </div>
           <div class="form-group">
             <label>Vai trò</label>
-            <select id="um-role" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);color:var(--text);font-size:13px">
-              <option value="student">Học sinh</option>
-              <option value="teacher">Giáo viên</option>
-              <option value="admin">Admin</option>
+            <select id="um-role" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font-size:13px;font-family:inherit;outline:none;transition:border .15s" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+              <option value="student">🎓 Học sinh</option>
+              <option value="teacher">👨‍🏫 Giáo viên</option>
+              <option value="admin">⚡ Admin</option>
             </select>
           </div>
           <div class="form-group">
             <label>Trạng thái</label>
-            <select id="um-status" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);color:var(--text);font-size:13px">
-              <option value="active">Hoạt động</option>
-              <option value="inactive">Vô hiệu hóa</option>
+            <select id="um-status" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font-size:13px;font-family:inherit;outline:none;transition:border .15s" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+              <option value="active">✅ Hoạt động</option>
+              <option value="inactive">⏸ Vô hiệu hóa</option>
             </select>
           </div>
           <div class="form-group" style="grid-column:1/-1">
             <label>Số điện thoại</label>
-            <input type="text" id="um-phone" placeholder="0912345678">
+            <input type="text" id="um-phone" placeholder="0912 345 678">
           </div>
           <div class="form-group" style="grid-column:1/-1">
             <label>Ghi chú</label>
-            <textarea id="um-note" rows="2" placeholder="Ghi chú thêm..." style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);color:var(--text);font-size:13px;resize:vertical;font-family:inherit"></textarea>
+            <textarea id="um-note" rows="2" placeholder="Ghi chú thêm..." style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font-size:13px;resize:vertical;font-family:inherit;outline:none;transition:border .15s" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'"></textarea>
           </div>
         </div>
-        <div id="um-msg" style="margin-top:10px;font-size:13px;min-height:20px"></div>
-        <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end">
+        <!-- Message -->
+        <div id="um-msg" style="margin:0 24px;font-size:13px;min-height:18px"></div>
+        <!-- Footer -->
+        <div style="display:flex;gap:10px;padding:16px 24px;border-top:1px solid var(--border);justify-content:flex-end;margin-top:8px">
           <button onclick="closeUserModal()" class="btn btn-outline">Hủy</button>
           <button onclick="saveUser()" class="btn btn-primary" id="um-save-btn"><i class="fas fa-save"></i> Lưu</button>
         </div>
@@ -1308,7 +1315,7 @@ function buildIndexTree(ghItems) {
       folder: folderName,
       description: '',
       access: cached || 'public',
-      updated: new Date().toLocaleDateString('vi-VN'),
+      updated: new Date().toISOString().split('T')[0],
       sha: i.sha
     };
     fileShaMap[dir + rel] = i.sha;
@@ -2605,7 +2612,7 @@ async function saveToNoco() {
   markSaving();
   showLoading('Đang lưu vào NocoDB...');
   try {
-    const now = new Date().toLocaleDateString('vi-VN');
+    const now = new Date().toISOString().split('T')[0];
     let filePath;
     if (currentEditPath) {
       filePath = currentEditPath;
@@ -3215,7 +3222,7 @@ async function saveUser() {
       Status: status, TrangThai: status,
       Phone: phone, SDT: phone,
       Note: note, GhiChu: note,
-      NgayCapNhat: new Date().toLocaleDateString('vi-VN'),
+      NgayCapNhat: new Date().toISOString().split('T')[0],
     };
     if (pass) { payload.Password = pass; payload.MatKhau = pass; }
 
@@ -3223,7 +3230,7 @@ async function saveUser() {
       await NOCO.updateUser(editingUserId, payload);
       showToast('✓ Đã cập nhật người dùng!', 'success');
     } else {
-      payload.NgayTao = new Date().toLocaleDateString('vi-VN');
+      payload.NgayTao = new Date().toISOString().split('T')[0];
       await NOCO.createUser(payload);
       showToast('✓ Đã thêm người dùng!', 'success');
     }
