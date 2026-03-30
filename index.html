@@ -422,12 +422,8 @@ function setUser(u) { localStorage.setItem(USER_KEY, JSON.stringify(u)); }
 function clearUser() { localStorage.removeItem(USER_KEY); }
 function isLoggedIn() { return !!getUser(); }
 
-// Tài khoản học sinh — cùng hardcode như admin nhưng tách riêng
-// Trong thực tế có thể dùng NocoDB Users để xác thực
-const USERS = [
-  { username:'admin',    password:'activeedu2024', displayName:'Admin',    role:'admin' },
-  { username:'student',  password:'hocsinh123',    displayName:'Học sinh', role:'student' },
-];
+// Tài khoản được quản lý qua NocoDB - không hardcode
+const USERS = [];
 
 async function doUserLogin() {
   const u = (document.getElementById('lm-user').value || '').trim();
