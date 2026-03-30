@@ -459,116 +459,96 @@ tr:hover td{background:var(--hover)}
           </div>
           <!-- Tabs -->
           <div class="editor-tabs">
-            <button class="etab active" id="etab-rich" onclick="switchTab('rich')"><i class="fas fa-pen-fancy"></i> Soạn thảo</button>
-            <button class="etab" id="etab-html" onclick="switchTab('html')"><i class="fas fa-code"></i> HTML</button>
-            <button class="etab" id="etab-preview" onclick="switchTab('preview')"><i class="fas fa-eye"></i> Xem trước</button>
+            <button class="etab active" id="etab-rich" onclick="switchTab('rich')"><i class="fas fa-eye"></i> Soạn thảo</button>
+            <button class="etab" id="etab-html" onclick="switchTab('html')"><i class="fas fa-code"></i> HTML / CSS / JS</button>
             <div class="etab-right">
               <button class="btn btn-outline btn-sm" onclick="useTemplate('lesson')"><i class="fas fa-book"></i> Mẫu bài</button>
               <button class="btn btn-outline btn-sm" onclick="useTemplate('quiz')"><i class="fas fa-circle-question"></i> Quiz</button>
               <button class="btn btn-outline btn-sm" onclick="useTemplate('code')"><i class="fas fa-laptop-code"></i> Code</button>
             </div>
           </div>
-          <!-- Rich: Custom Visual Editor -->
+          <!-- Rich: Soạn thảo = Live Preview iframe + Toolbar -->
+          <!-- Toolbar tác động lên HTML source, iframe tự refresh (Notion/Canvas style) -->
           <div id="wrap-rich" style="flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0">
-            <!-- Toolbar -->
-            <div id="rich-toolbar" style="background:#f8fafc;border-bottom:1px solid var(--border);padding:6px 10px;display:flex;flex-wrap:wrap;gap:3px;flex-shrink:0;align-items:center">
-              <!-- Undo/Redo -->
-              <button class="tb-btn" onclick="rExec('undo')" title="Hoàn tác (Ctrl+Z)"><i class="fas fa-rotate-left"></i></button>
-              <button class="tb-btn" onclick="rExec('redo')" title="Làm lại (Ctrl+Y)"><i class="fas fa-rotate-right"></i></button>
+            <div id="rich-toolbar" style="background:#f8fafc;border-bottom:1px solid var(--border);padding:5px 10px;display:flex;flex-wrap:wrap;gap:2px;flex-shrink:0;align-items:center">
+
+              <!-- Undo / Redo -->
+              <button class="tb-btn" onclick="richUndo()" title="Hoàn tác Ctrl+Z"><i class="fas fa-rotate-left"></i></button>
+              <button class="tb-btn" onclick="richRedo()" title="Làm lại Ctrl+Y"><i class="fas fa-rotate-right"></i></button>
               <span class="tb-sep"></span>
-              <!-- Heading -->
-              <select onchange="rExecVal('formatBlock',this.value);this.value=''" style="height:28px;border:1px solid var(--border);border-radius:5px;font-size:12px;padding:0 6px;background:#fff;cursor:pointer" title="Kiểu đoạn văn">
+
+              <!-- Block type -->
+              <select onchange="richWrap(this.value);this.value=''" title="Kiểu đoạn văn"
+                style="height:27px;border:1px solid var(--border);border-radius:5px;font-size:12px;padding:0 5px;background:#fff;cursor:pointer;max-width:100px">
                 <option value="">Đoạn văn</option>
                 <option value="h1">Tiêu đề 1</option>
                 <option value="h2">Tiêu đề 2</option>
                 <option value="h3">Tiêu đề 3</option>
                 <option value="h4">Tiêu đề 4</option>
-                <option value="p">Đoạn thường</option>
-                <option value="pre">Code block</option>
                 <option value="blockquote">Trích dẫn</option>
-              </select>
-              <!-- Font family -->
-              <select onchange="rExecVal('fontName',this.value)" style="height:28px;border:1px solid var(--border);border-radius:5px;font-size:12px;padding:0 6px;background:#fff;cursor:pointer" title="Font chữ">
-                <option value="'Segoe UI',sans-serif">Segoe UI</option>
-                <option value="Arial,sans-serif">Arial</option>
-                <option value="'Times New Roman',serif">Times New Roman</option>
-                <option value="'Courier New',monospace">Courier New</option>
-                <option value="Georgia,serif">Georgia</option>
-                <option value="Verdana,sans-serif">Verdana</option>
-                <option value="'Be Vietnam Pro',sans-serif">Be Vietnam Pro</option>
-              </select>
-              <!-- Font size -->
-              <select onchange="rExecVal('fontSize',this.value)" style="height:28px;border:1px solid var(--border);border-radius:5px;font-size:12px;padding:0 6px;background:#fff;cursor:pointer;width:60px" title="Cỡ chữ">
-                <option value="1">8px</option>
-                <option value="2">10px</option>
-                <option value="3" selected>12px</option>
-                <option value="4">14px</option>
-                <option value="5">18px</option>
-                <option value="6">24px</option>
-                <option value="7">36px</option>
+                <option value="pre">Code block</option>
+                <option value="p">Đoạn thường</option>
               </select>
               <span class="tb-sep"></span>
+
               <!-- Text format -->
-              <button class="tb-btn" onclick="rExec('bold')" title="Đậm (Ctrl+B)"><b>B</b></button>
-              <button class="tb-btn" onclick="rExec('italic')" title="Nghiêng (Ctrl+I)"><i>I</i></button>
-              <button class="tb-btn" onclick="rExec('underline')" title="Gạch dưới (Ctrl+U)"><u>U</u></button>
-              <button class="tb-btn" onclick="rExec('strikeThrough')" title="Gạch ngang"><s>S</s></button>
-              <button class="tb-btn" onclick="rExec('subscript')" title="Chỉ số dưới">x<sub>2</sub></button>
-              <button class="tb-btn" onclick="rExec('superscript')" title="Chỉ số trên">x<sup>2</sup></button>
+              <button class="tb-btn" onclick="richToggle('bold')" title="Đậm Ctrl+B"><b>B</b></button>
+              <button class="tb-btn" onclick="richToggle('italic')" title="Nghiêng Ctrl+I"><i style="font-style:italic">I</i></button>
+              <button class="tb-btn" onclick="richToggle('underline')" title="Gạch dưới Ctrl+U"><u>U</u></button>
+              <button class="tb-btn" onclick="richToggle('strikeThrough')" title="Gạch ngang"><s>S</s></button>
               <span class="tb-sep"></span>
+
               <!-- Colors -->
-              <label class="tb-btn" title="Màu chữ" style="position:relative;overflow:hidden">
-                <i class="fas fa-font"></i>
-                <input type="color" onchange="rExecVal('foreColor',this.value)" style="position:absolute;opacity:0;width:100%;height:100%;top:0;left:0;cursor:pointer">
+              <label class="tb-btn" title="Màu chữ" style="position:relative;overflow:hidden;gap:2px">
+                <span style="font-size:11px;font-weight:700;border-bottom:3px solid #e74c3c">A</span>
+                <input type="color" value="#e74c3c" oninput="richFontColor(this.value)" style="position:absolute;opacity:0;inset:0;cursor:pointer">
               </label>
-              <label class="tb-btn" title="Màu nền chữ" style="position:relative;overflow:hidden">
-                <i class="fas fa-highlighter"></i>
-                <input type="color" onchange="rExecVal('hiliteColor',this.value)" style="position:absolute;opacity:0;width:100%;height:100%;top:0;left:0;cursor:pointer">
+              <label class="tb-btn" title="Nền chữ" style="position:relative;overflow:hidden">
+                <i class="fas fa-highlighter" style="font-size:11px;color:#f39c12"></i>
+                <input type="color" value="#fff176" oninput="richBgColor(this.value)" style="position:absolute;opacity:0;inset:0;cursor:pointer">
               </label>
               <span class="tb-sep"></span>
+
               <!-- Align -->
-              <button class="tb-btn" onclick="rExec('justifyLeft')" title="Căn trái"><i class="fas fa-align-left"></i></button>
-              <button class="tb-btn" onclick="rExec('justifyCenter')" title="Căn giữa"><i class="fas fa-align-center"></i></button>
-              <button class="tb-btn" onclick="rExec('justifyRight')" title="Căn phải"><i class="fas fa-align-right"></i></button>
-              <button class="tb-btn" onclick="rExec('justifyFull')" title="Căn đều"><i class="fas fa-align-justify"></i></button>
+              <button class="tb-btn" onclick="richAlign('left')" title="Căn trái"><i class="fas fa-align-left"></i></button>
+              <button class="tb-btn" onclick="richAlign('center')" title="Căn giữa"><i class="fas fa-align-center"></i></button>
+              <button class="tb-btn" onclick="richAlign('right')" title="Căn phải"><i class="fas fa-align-right"></i></button>
               <span class="tb-sep"></span>
+
               <!-- Lists -->
-              <button class="tb-btn" onclick="rExec('insertUnorderedList')" title="Danh sách dấu chấm"><i class="fas fa-list-ul"></i></button>
-              <button class="tb-btn" onclick="rExec('insertOrderedList')" title="Danh sách số"><i class="fas fa-list-ol"></i></button>
-              <button class="tb-btn" onclick="rExec('outdent')" title="Giảm thụt lề"><i class="fas fa-outdent"></i></button>
-              <button class="tb-btn" onclick="rExec('indent')" title="Tăng thụt lề"><i class="fas fa-indent"></i></button>
+              <button class="tb-btn" onclick="richList('ul')" title="Danh sách chấm"><i class="fas fa-list-ul"></i></button>
+              <button class="tb-btn" onclick="richList('ol')" title="Danh sách số"><i class="fas fa-list-ol"></i></button>
               <span class="tb-sep"></span>
-              <!-- Insert -->
-              <button class="tb-btn" onclick="rInsertLink()" title="Chèn liên kết"><i class="fas fa-link"></i></button>
-              <button class="tb-btn" onclick="rInsertImage()" title="Chèn hình ảnh"><i class="fas fa-image"></i></button>
-              <button class="tb-btn" onclick="rInsertTable()" title="Chèn bảng"><i class="fas fa-table"></i></button>
-              <button class="tb-btn" onclick="rInsertHR()" title="Chèn đường kẻ"><i class="fas fa-minus"></i></button>
-              <button class="tb-btn" onclick="rInsertMath()" title="Công thức toán"><i class="fas fa-square-root-variable"></i></button>
-              <button class="tb-btn" onclick="rInsertEmbed()" title="Nhúng YouTube/Google Docs/Slides/iframe"><i class="fas fa-film"></i></button>
+
+              <!-- Insert objects -->
+              <button class="tb-btn" onclick="richInsertLink()" title="Chèn link"><i class="fas fa-link"></i></button>
+              <button class="tb-btn" onclick="richInsertImage()" title="Chèn hình"><i class="fas fa-image"></i></button>
+              <button class="tb-btn" onclick="richInsertTable()" title="Chèn bảng"><i class="fas fa-table"></i></button>
+              <button class="tb-btn" onclick="richInsertEmbed()" title="Nhúng YouTube / GDocs / Slides / iframe"><i class="fas fa-film"></i> <span style="font-size:10px">Nhúng</span></button>
+              <button class="tb-btn" onclick="richInsertMath()" title="Công thức toán"><i class="fas fa-square-root-variable"></i></button>
+              <button class="tb-btn" onclick="richInsertHR()" title="Đường kẻ ngang"><i class="fas fa-minus"></i></button>
               <span class="tb-sep"></span>
-              <!-- Clear -->
-              <button class="tb-btn" onclick="rExec('removeFormat')" title="Xóa định dạng"><i class="fas fa-eraser"></i></button>
-              <button class="tb-btn" onclick="rExec('selectAll')" title="Chọn tất cả"><i class="fas fa-object-group"></i></button>
-              <!-- Background color of editor -->
-              <span class="tb-sep"></span>
-              <label style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:4px;cursor:pointer" title="Màu nền trang">
-                <i class="fas fa-fill-drip"></i>
-                <input type="color" id="editor-bg-color" value="#ffffff" onchange="document.getElementById('rich-editor').style.background=this.value" style="width:20px;height:20px;border:none;border-radius:3px;cursor:pointer;padding:0">
+
+              <!-- Page appearance -->
+              <label class="tb-btn" title="Màu nền trang" style="position:relative;overflow:hidden;gap:2px;font-size:10px">
+                <i class="fas fa-fill-drip"></i>Nền
+                <input type="color" value="#ffffff" oninput="richPageColor('bg',this.value)" style="position:absolute;opacity:0;inset:0;cursor:pointer">
               </label>
-              <label style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:4px;cursor:pointer;margin-left:4px" title="Màu chữ trang">
-                <i class="fas fa-font"></i>
-                <input type="color" id="editor-text-color" value="#1e293b" onchange="document.getElementById('rich-editor').style.color=this.value" style="width:20px;height:20px;border:none;border-radius:3px;cursor:pointer;padding:0">
+              <label class="tb-btn" title="Màu chữ trang" style="position:relative;overflow:hidden;gap:2px;font-size:10px">
+                <i class="fas fa-font"></i>Chữ
+                <input type="color" value="#1e293b" oninput="richPageColor('text',this.value)" style="position:absolute;opacity:0;inset:0;cursor:pointer">
               </label>
+              <span class="tb-sep"></span>
+              <button class="tb-btn" onclick="richClearFormat()" title="Xóa định dạng"><i class="fas fa-eraser"></i></button>
             </div>
-            <!-- Editable area -->
-            <div id="rich-editor"
-              contenteditable="true"
-              spellcheck="false"
-              style="flex:1;overflow-y:auto;padding:24px 32px;outline:none;line-height:1.85;font-size:14px;font-family:'Segoe UI',system-ui,sans-serif;color:#1e293b;background:#fff;min-height:400px"
-              oninput="onRichInput()"
-              onkeydown="onRichKeydown(event)"
-            ></div>
+
+            <!-- Live Preview iframe — body is contenteditable, changes sync to HTML source -->
+            <iframe id="rich-iframe"
+              style="flex:1;border:none;background:#fff;width:100%;min-height:400px"
+              sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals"
+            ></iframe>
           </div>
+
           <!-- HTML: CodeMirror -->
           <div id="wrap-html" style="flex:1;display:none;flex-direction:column;overflow:hidden">
             <textarea id="html-source" spellcheck="false" placeholder="<!-- HTML tại đây -->"></textarea>
@@ -1756,104 +1736,561 @@ function applyHTMLToEditor(html) {
 
 // ── TinyMCE Init ──
 // ═══════════════════════════════════════════════════
-// CUSTOM RICH EDITOR
+// RICH EDITOR — Notion/Canvas style
+// Source of truth: HTML source (CodeMirror)
+// Tab Soạn thảo = iframe live preview (body contenteditable)
+// Toolbar → edits DOM in iframe → syncs back to HTML source
+// HTML source change → iframe refreshes
 // ═══════════════════════════════════════════════════
 let richEditor = null;
-// tinyEditor (compat shim for getRichHTML)
-let tinyReady = false;
+let tinyEditor = null;
+let tinyReady  = false;
+let _richHistory = [];
+let _richFuture  = [];
+let _syncing     = false;
+let _refreshTimer = null;
 
+// ── Init ──────────────────────────────────────────
 function initTinyMCE(html, callback) {
-  richEditor = document.getElementById('rich-editor');
-  tinyEditor = { // compat shim
-    getContent: getRichHTML,
-    setContent: (h) => setRichHTML(h),
-  };
+  tinyEditor = { getContent: getRichHTML, setContent: setRichHTML };
   tinyReady = true;
-  setRichHTML(html || '');
+  _richHistory = [];
+  _richFuture  = [];
+  _renderIframe(html || '');
   if (callback) callback();
 }
 
-function rExec(cmd) {
-  document.getElementById('rich-editor').focus();
-  document.execCommand(cmd, false, null);
-  onRichInput();
+// ── Core: render HTML into iframe ─────────────────
+function _renderIframe(html) {
+  const iframe = document.getElementById('rich-iframe');
+  if (!iframe) return;
+
+  const isFullPage = isFullPageHTML(html);
+  let fullHTML;
+
+  if (isFullPage) {
+    // Inject editor helpers into existing full page
+    fullHTML = html.replace('</head>', `<style>
+body{outline:none;min-height:100px;cursor:text}
+</style></head>`);
+  } else {
+    fullHTML = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{font-family:'Be Vietnam Pro',sans-serif;font-size:14px;line-height:1.85;color:#1e293b;margin:24px 32px;outline:none;min-height:300px;cursor:text}
+h1{font-size:22px;font-weight:700;color:#0f172a;margin:16px 0 8px;border-bottom:2px solid #dbeafe;padding-bottom:6px}
+h2{font-size:18px;font-weight:700;color:#1e293b;margin:14px 0 6px}
+h3{font-size:15px;font-weight:600;color:#334155;margin:12px 0 5px}
+h4{font-size:13px;font-weight:600;color:#475569;margin:10px 0 4px}
+blockquote{border-left:4px solid #2563eb;background:#eff6ff;padding:10px 14px;margin:10px 0;border-radius:0 6px 6px 0;color:#1e40af}
+pre{background:#1e293b;color:#e2e8f0;padding:14px;border-radius:8px;font-size:13px;font-family:'Courier New',monospace;white-space:pre-wrap;overflow-x:auto}
+code{background:#f1f5f9;padding:2px 6px;border-radius:4px;font-size:12px;color:#1e40af;font-family:'Courier New',monospace}
+table{border-collapse:collapse;width:100%;margin:10px 0}
+td,th{border:1px solid #e2e8f0;padding:8px 12px}
+th{background:#f8fafc;font-weight:600}
+a{color:#2563eb;text-decoration:underline}
+img{max-width:100%;border-radius:6px}
+ul,ol{padding-left:24px;margin:8px 0}li{margin-bottom:4px}
+hr{border:none;border-top:2px solid #e2e8f0;margin:16px 0}
+p{margin-bottom:10px}
+iframe{max-width:100%;border-radius:8px;display:block;margin:12px 0}
+[data-math]{background:#fef9c3;padding:2px 8px;border-radius:4px;font-family:'Courier New',monospace;font-size:13px;color:#854d0e}
+</style></head><body>${html || '<p><br></p>'}</body></html>`;
+  }
+
+  iframe.srcdoc = fullHTML;
+
+  iframe.onload = () => {
+    const doc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!doc || !doc.body) return;
+
+    doc.body.contentEditable = 'true';
+    doc.body.spellcheck = false;
+    doc.body.style.outline = 'none';
+
+    // Save initial state
+    _richHistory = [_getBodyHTML(doc)];
+    _richFuture = [];
+
+    // Input → sync to CodeMirror (debounced)
+    doc.body.addEventListener('input', () => {
+      clearTimeout(_refreshTimer);
+      _refreshTimer = setTimeout(() => _syncIframeToSource(), 400);
+      markDirty();
+      updateEditorStats();
+    });
+
+    // Keyboard shortcuts
+    doc.addEventListener('keydown', e => {
+      if ((e.ctrlKey||e.metaKey) && !e.shiftKey && e.key==='z') { e.preventDefault(); richUndo(); }
+      if ((e.ctrlKey||e.metaKey) && (e.key==='y' || (e.shiftKey&&e.key==='z'))) { e.preventDefault(); richRedo(); }
+      if ((e.ctrlKey||e.metaKey) && e.key==='s') { e.preventDefault(); saveToNoco(); }
+    });
+  };
 }
 
-function rExecVal(cmd, val) {
-  if (!val) return;
-  document.getElementById('rich-editor').focus();
-  document.execCommand(cmd, false, val);
-  onRichInput();
+// ── Get/Set HTML ──────────────────────────────────
+function _getIframeDoc() {
+  const f = document.getElementById('rich-iframe');
+  return f ? (f.contentDocument || f.contentWindow?.document) : null;
+}
+
+function _getBodyHTML(doc) {
+  doc = doc || _getIframeDoc();
+  return doc?.body?.innerHTML || '';
+}
+
+function getRichHTML() { return _getBodyHTML(); }
+
+function setRichHTML(html) {
+  if (_syncing) return;
+  _renderIframe(html);
+}
+
+// ── Sync iframe DOM → CodeMirror source ──────────
+function _syncIframeToSource() {
+  if (_syncing) return;
+  _syncing = true;
+  const doc = _getIframeDoc();
+  if (!doc) { _syncing = false; return; }
+
+  // Save undo state
+  const bodyHTML = _getBodyHTML(doc);
+  const last = _richHistory[_richHistory.length-1];
+  if (bodyHTML !== last) {
+    _richHistory.push(bodyHTML);
+    if (_richHistory.length > 100) _richHistory.shift();
+    _richFuture = [];
+  }
+
+  // Build full HTML and sync to CodeMirror
+  const fullHTML = '<!DOCTYPE html>' + doc.documentElement.outerHTML;
+  if (cmEditor && cmEditor.getValue() !== fullHTML) {
+    const cur = cmEditor.getCursor();
+    cmEditor.setValue(fullHTML);
+    try { cmEditor.setCursor(cur); } catch {}
+  }
+  _syncing = false;
+}
+
+// ── Sync CodeMirror → iframe (when HTML tab edited) ──
+function _syncSourceToIframe() {
+  if (_syncing) return;
+  const html = cmEditor ? cmEditor.getValue() : '';
+  _syncing = true;
+  _renderIframe(html);
+  _syncing = false;
+}
+
+// ── getFinalHTML: always use iframe doc ───────────
+function getFinalHTML() {
+  const doc = _getIframeDoc();
+  if (doc) {
+    _syncIframeToSource();
+    return '<!DOCTYPE html>' + doc.documentElement.outerHTML;
+  }
+  return cmEditor ? cmEditor.getValue() : '';
+}
+function getVisualHTML() { return getFinalHTML(); }
+function getTinyHTML()   { return getFinalHTML(); }
+
+// ── Undo / Redo ───────────────────────────────────
+function richUndo() {
+  if (_richHistory.length <= 1) return;
+  _richFuture.push(_richHistory.pop());
+  const prev = _richHistory[_richHistory.length-1];
+  const doc = _getIframeDoc();
+  if (doc?.body) { doc.body.innerHTML = prev; _syncIframeToSource(); }
+}
+function richRedo() {
+  if (!_richFuture.length) return;
+  const next = _richFuture.pop();
+  _richHistory.push(next);
+  const doc = _getIframeDoc();
+  if (doc?.body) { doc.body.innerHTML = next; _syncIframeToSource(); }
+}
+
+// ── Toolbar commands (act on iframe doc) ──────────
+function _cmd(fn) {
+  const doc = _getIframeDoc();
+  if (!doc) return;
+  doc.body.focus();
+  fn(doc);
+  clearTimeout(_refreshTimer);
+  _refreshTimer = setTimeout(() => _syncIframeToSource(), 200);
+  markDirty();
+}
+
+function richToggle(cmd) {
+  _cmd(doc => doc.execCommand(cmd, false, null));
+}
+
+function richWrap(tag) {
+  if (!tag) return;
+  _cmd(doc => doc.execCommand('formatBlock', false, tag));
+}
+
+function richAlign(dir) {
+  const map = {left:'justifyLeft',center:'justifyCenter',right:'justifyRight'};
+  _cmd(doc => doc.execCommand(map[dir], false, null));
+}
+
+function richList(type) {
+  _cmd(doc => doc.execCommand(type==='ul' ? 'insertUnorderedList' : 'insertOrderedList', false, null));
+}
+
+function richFontColor(val) {
+  _cmd(doc => doc.execCommand('foreColor', false, val));
+}
+
+function richBgColor(val) {
+  _cmd(doc => doc.execCommand('hiliteColor', false, val));
+}
+
+function richClearFormat() {
+  _cmd(doc => doc.execCommand('removeFormat', false, null));
+}
+
+function richPageColor(what, val) {
+  const doc = _getIframeDoc();
+  if (!doc?.body) return;
+  if (what==='bg') doc.body.style.backgroundColor = val;
+  else doc.body.style.color = val;
+  _syncIframeToSource();
+}
+
+function _insertHTML(html) {
+  _cmd(doc => doc.execCommand('insertHTML', false, html));
+}
+
+// ── Insert helpers ────────────────────────────────
+function richInsertLink() {
+  const doc = _getIframeDoc();
+  const sel = doc?.getSelection();
+  const text = sel?.toString() || '';
+  const url = prompt('Nhập URL:', 'https://');
+  if (!url) return;
+  _insertHTML(`<a href="${url}" target="_blank">${text||url}</a>`);
+}
+
+function richInsertImage() {
+  const url = prompt('URL hình ảnh:');
+  if (!url) return;
+  const alt = prompt('Mô tả (alt):', '') || '';
+  const w = prompt('Chiều rộng (vd: 100%, 400px):', '100%') || '100%';
+  _insertHTML(`<img src="${url}" alt="${alt}" style="max-width:${w};border-radius:6px;display:block;margin:8px auto">`);
+}
+
+function richInsertTable() {
+  const rows = parseInt(prompt('Số hàng:', '3')) || 3;
+  const cols = parseInt(prompt('Số cột:', '3')) || 3;
+  let h = '<table style="border-collapse:collapse;width:100%;margin:10px 0"><thead><tr>';
+  for (let c=0;c<cols;c++) h+=`<th style="border:1px solid #e2e8f0;padding:8px 12px;background:#f8fafc">Cột ${c+1}</th>`;
+  h+='</tr></thead><tbody>';
+  for (let r=0;r<rows;r++){h+='<tr>';for(let c=0;c<cols;c++)h+='<td style="border:1px solid #e2e8f0;padding:8px 12px">&nbsp;</td>';h+='</tr>';}
+  h+='</tbody></table><p></p>';
+  _insertHTML(h);
+}
+
+function richInsertHR() {
+  _insertHTML('<hr style="border:none;border-top:2px solid #e2e8f0;margin:16px 0"><p></p>');
+}
+
+function richInsertMath() {
+  const f = prompt('Công thức (LaTeX hoặc text):', 'S = 5t^2');
+  if (!f) return;
+  _insertHTML(`<span data-math="1" style="background:#fef9c3;padding:2px 8px;border-radius:4px;font-family:'Courier New',monospace;font-size:13px;color:#854d0e">${f}</span>`);
+}
+
+function richInsertEmbed() {
+  const input = prompt('🎬 Nhúng học liệu\n\nDán vào:\n• Link YouTube\n• Link Google Docs / Slides / Forms / Sheets\n• Link Google Drive\n• Canva, Padlet, hoặc bất kỳ URL\n• Mã <iframe> embed đầy đủ\n', '');
+  if (!input) return;
+  const t = input.trim();
+  let html = '';
+
+  if (/^<iframe/i.test(t)) {
+    html = t;
+  } else if (t.match(/youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)/)) {
+    const id = t.match(/v=([a-zA-Z0-9_-]+)/)[1];
+    html = `<iframe width="100%" height="450" src="https://www.youtube.com/embed/${id}" frameborder="0" allowfullscreen style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
+  } else if (t.match(/youtu\.be\/([a-zA-Z0-9_-]+)/)) {
+    const id = t.match(/youtu\.be\/([a-zA-Z0-9_-]+)/)[1];
+    html = `<iframe width="100%" height="450" src="https://www.youtube.com/embed/${id}" frameborder="0" allowfullscreen style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
+  } else if (t.includes('docs.google.com/document')) {
+    const url = t.split('?')[0].replace(/\/edit$/,'') + '/preview';
+    html = `<iframe src="${url}" width="100%" height="600" frameborder="0" style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
+  } else if (t.includes('docs.google.com/presentation')) {
+    const url = t.split('?')[0].replace(/\/edit$/,'') + '/embed?start=false&loop=false';
+    html = `<iframe src="${url}" width="100%" height="480" frameborder="0" allowfullscreen style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
+  } else if (t.includes('docs.google.com/forms')) {
+    const url = t.split('?')[0].replace(/\/edit$/,'') + '/viewform?embedded=true';
+    html = `<iframe src="${url}" width="100%" height="600" frameborder="0" style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
+  } else if (t.includes('docs.google.com/spreadsheets')) {
+    const url = t.split('?')[0].replace(/\/edit$/,'') + '/pubhtml';
+    html = `<iframe src="${url}" width="100%" height="500" frameborder="0" style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
+  } else if (t.includes('drive.google.com/file')) {
+    const m = t.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    if (m) html = `<iframe src="https://drive.google.com/file/d/${m[1]}/preview" width="100%" height="480" frameborder="0" style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
+  } else if (t.includes('canva.com') || t.includes('padlet.com') || t.includes('figma.com') || t.includes('prezi.com')) {
+    html = `<iframe src="${t}" width="100%" height="480" frameborder="0" allowfullscreen style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
+  } else if (t.startsWith('http')) {
+    const h = parseInt(prompt('Chiều cao iframe (px):', '500')) || 500;
+    html = `<iframe src="${t}" width="100%" height="${h}" frameborder="0" style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
+  } else {
+    showToast('Không nhận dạng được. Hãy dán mã <iframe> đầy đủ.', 'warn'); return;
+  }
+
+  _insertHTML(html + '<p></p>');
+  showToast('✅ Đã nhúng!', 'success');
+}
+
+// ── Backward compat aliases ───────────────────────
+function rExec(cmd)       { richToggle(cmd); }
+function rExecVal(c,v)    { _cmd(doc => doc.execCommand(c,false,v)); }
+function rInsertLink()    { richInsertLink(); }
+function rInsertImage()   { richInsertImage(); }
+function rInsertTable()   { richInsertTable(); }
+function rInsertHR()      { richInsertHR(); }
+function rInsertMath()    { richInsertMath(); }
+function rInsertEmbed()   { richInsertEmbed(); }
+function onRichInput()    { _syncIframeToSource(); }
+
+
+// ── Detect full-page HTML ──
+function isFullPageHTML(html) {
+  const trimmed = (html || '').trim().toLowerCase();
+  return trimmed.startsWith('<!doctype') || trimmed.startsWith('<html');
+}
+
+// ── Apply HTML to editor — KHÔNG khóa tab Soạn thảo ──
+function applyHTMLToEditor(html) {
+  // Sync vào CodeMirror
+  if (cmEditor) cmEditor.setValue(html || '');
+  else { const src = document.getElementById('html-source'); if (src) src.value = html || ''; }
+
+  // Luôn enable tab Soạn thảo
+  const richTab = document.getElementById('etab-rich');
+  if (richTab) {
+    richTab.style.opacity = '';
+    richTab.style.cursor = '';
+    richTab.title = '';
+    richTab.onclick = () => switchTab('rich');
+  }
+
+  // Load vào rich editor nếu đang ở tab rich
+  if (editorTab === 'rich') initTinyMCE(html || '');
+}
+
+// ── TinyMCE Init ──
+// Old duplicate block removed
+
+function _getRichIframeDoc() {
+  const f = document.getElementById('rich-iframe');
+  return f ? (f.contentDocument || f.contentWindow?.document) : null;
 }
 
 function setRichHTML(html) {
-  const ed = document.getElementById('rich-editor');
-  if (!ed) return;
-  if (isFullPageHTML(html)) {
-    // Extract body content để hiển thị trong editor
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
-    ed.innerHTML = doc.body.innerHTML || '';
+  const iframe = document.getElementById('rich-iframe');
+  if (!iframe) return;
+
+  const isFullPage = isFullPageHTML(html);
+  let fullHTML;
+
+  if (isFullPage) {
+    // Inject designMode into existing full page
+    fullHTML = html.replace('</head>', `
+<style>
+  body { outline: none; min-height: 200px; }
+  [contenteditable]:focus { outline: none; }
+  iframe { pointer-events: none; } /* iframes inside content - non-interactive in editor */
+</style>
+</head>`);
   } else {
-    ed.innerHTML = html || '';
+    // Wrap fragment in full page with nice defaults
+    fullHTML = `<!DOCTYPE html><html><head>
+<meta charset="UTF-8">
+<style>
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 14px; line-height: 1.85; color: #1e293b;
+    margin: 24px 32px; outline: none; min-height: 300px;
   }
-}
-
-// Khi lưu: nếu CodeMirror có full HTML → dùng đó, còn lại lấy rich editor
-function getFinalHTML() {
-  const cmVal = cmEditor ? cmEditor.getValue() : '';
-  if (isFullPageHTML(cmVal)) {
-    // Cập nhật body content từ rich editor vào full HTML
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(cmVal, 'text/html');
-    doc.body.innerHTML = getRichHTML();
-    return '<!DOCTYPE html>' + doc.documentElement.outerHTML;
+  h1{font-size:22px;font-weight:700;color:#0f172a;margin:16px 0 8px;border-bottom:2px solid #dbeafe;padding-bottom:6px}
+  h2{font-size:18px;font-weight:700;color:#1e293b;margin:14px 0 6px}
+  h3{font-size:15px;font-weight:600;color:#334155;margin:12px 0 5px}
+  h4{font-size:13px;font-weight:600;color:#475569;margin:10px 0 4px}
+  blockquote{border-left:4px solid #2563eb;background:#eff6ff;padding:10px 14px;margin:10px 0;border-radius:0 6px 6px 0;color:#1e40af}
+  pre{background:#1e293b;color:#e2e8f0;padding:14px;border-radius:8px;overflow-x:auto;font-size:13px;font-family:'Courier New',monospace;white-space:pre-wrap}
+  code{background:#f1f5f9;padding:2px 6px;border-radius:4px;font-size:12px;color:#1e40af;font-family:'Courier New',monospace}
+  table{border-collapse:collapse;width:100%;margin:10px 0}
+  td,th{border:1px solid #e2e8f0;padding:8px 12px}
+  th{background:#f8fafc;font-weight:600}
+  a{color:#2563eb;text-decoration:underline}
+  img{max-width:100%;border-radius:6px}
+  ul,ol{padding-left:24px;margin:8px 0}
+  li{margin-bottom:4px}
+  hr{border:none;border-top:2px solid #e2e8f0;margin:16px 0}
+  p{margin-bottom:10px}
+  [data-math]{background:#fef9c3;padding:2px 8px;border-radius:4px;font-family:'Courier New',monospace;font-size:13px;color:#854d0e}
+</style>
+</head><body>${html || '<p></p>'}</body></html>`;
   }
-  return getRichHTML();
+
+  iframe.srcdoc = fullHTML;
+
+  // Wait for iframe to load then make body editable
+  iframe.onload = () => {
+    richDoc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!richDoc) return;
+    const body = richDoc.body;
+    if (!body) return;
+    body.contentEditable = 'true';
+    body.spellcheck = false;
+    body.style.outline = 'none';
+
+    // Sync changes back to CodeMirror
+    body.addEventListener('input', () => {
+      _onRichChange();
+    });
+
+    // Keyboard shortcuts
+    richDoc.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey||e.metaKey) && e.key === 'z') { e.preventDefault(); richUndo(); }
+      if ((e.ctrlKey||e.metaKey) && (e.key === 'y' || (e.shiftKey && e.key==='z'))) { e.preventDefault(); richRedo(); }
+    });
+
+    _richLastHTML = getRichHTML();
+    _richHistory = [_richLastHTML];
+    markDirty();
+    updateEditorStats();
+  };
 }
 
-function getRichHTML() {
-  const ed = document.getElementById('rich-editor');
-  if (!ed) return '';
-  return ed.innerHTML;
-}
-
-function onRichInput() {
+function _onRichChange() {
+  const html = getRichHTML();
+  if (html === _richLastHTML) return;
+  _richHistory.push(html);
+  if (_richHistory.length > 100) _richHistory.shift();
+  _richFuture = [];
+  _richLastHTML = html;
+  // Sync to CodeMirror (tab HTML)
+  _syncRichToCodeMirror();
   markDirty();
   updateEditorStats();
 }
 
-function onRichKeydown(e) {
-  // Tab → indent
-  if (e.key === 'Tab') {
-    e.preventDefault();
-    document.execCommand('insertHTML', false, '&nbsp;&nbsp;&nbsp;&nbsp;');
+function _syncRichToCodeMirror() {
+  const html = getFinalHTML();
+  if (cmEditor && cmEditor.getValue() !== html) {
+    const cursor = cmEditor.getCursor();
+    cmEditor.setValue(html);
+    try { cmEditor.setCursor(cursor); } catch {}
   }
-  // Ctrl+B/I/U handled by browser
 }
 
-function rInsertLink() {
-  const sel = window.getSelection();
+function getRichHTML() {
+  const d = _getRichIframeDoc();
+  if (!d || !d.body) return '';
+  return d.body.innerHTML;
+}
+
+function getFinalHTML() {
+  const d = _getRichIframeDoc();
+  if (!d) return '';
+  // Return full page HTML preserving head + body edits
+  return '<!DOCTYPE html>' + d.documentElement.outerHTML;
+}
+
+function getVisualHTML() { return getFinalHTML(); }
+
+function richUndo() {
+  if (_richHistory.length <= 1) return;
+  _richFuture.push(_richHistory.pop());
+  const prev = _richHistory[_richHistory.length - 1];
+  const d = _getRichIframeDoc();
+  if (d && d.body) { d.body.innerHTML = prev; _richLastHTML = prev; }
+}
+
+function richRedo() {
+  if (!_richFuture.length) return;
+  const next = _richFuture.pop();
+  const d = _getRichIframeDoc();
+  if (d && d.body) { d.body.innerHTML = next; _richLastHTML = next; _richHistory.push(next); }
+}
+
+// Execute command in iframe document
+function _rCmd(cmd, val) {
+  const d = _getRichIframeDoc();
+  if (!d) return;
+  d.execCommand(cmd, false, val || null);
+  _onRichChange();
+}
+
+function richToggle(cmd) { _rCmd(cmd); }
+
+function richColor(prop, val) {
+  const d = _getRichIframeDoc();
+  if (!d) return;
+  const sel = d.getSelection();
+  if (!sel || sel.isCollapsed) return;
+  const range = sel.getRangeAt(0);
+  const span = d.createElement('span');
+  span.style[prop] = val;
+  range.surroundContents(span);
+  _onRichChange();
+}
+
+function richAlign(dir) {
+  const d = _getRichIframeDoc();
+  if (!d) return;
+  const cmds = {left:'justifyLeft',center:'justifyCenter',right:'justifyRight'};
+  d.execCommand(cmds[dir] || 'justifyLeft', false, null);
+  _onRichChange();
+}
+
+function richList(type) {
+  _rCmd(type === 'ul' ? 'insertUnorderedList' : 'insertOrderedList');
+}
+
+function richWrap(tag) {
+  if (!tag) return;
+  _rCmd('formatBlock', tag);
+}
+
+function richClearFormat() { _rCmd('removeFormat'); }
+
+function richPageColor(what, val) {
+  const d = _getRichIframeDoc();
+  if (!d || !d.body) return;
+  if (what === 'bg') d.body.style.backgroundColor = val;
+  else d.body.style.color = val;
+  _onRichChange();
+}
+
+function richInsertLink() {
+  const d = _getRichIframeDoc();
+  if (!d) return;
+  const sel = d.getSelection();
   const text = sel ? sel.toString() : '';
   const url = prompt('Nhập URL:', 'https://');
   if (!url) return;
-  const label = text || prompt('Nhập tên liên kết:', url) || url;
-  document.getElementById('rich-editor').focus();
-  document.execCommand('insertHTML', false, `<a href="${url}" target="_blank">${label}</a>`);
-  onRichInput();
+  const label = text || url;
+  d.execCommand('insertHTML', false, `<a href="${url}" target="_blank">${label}</a>`);
+  _onRichChange();
 }
 
-function rInsertImage() {
+function richInsertImage() {
   const url = prompt('Nhập URL hình ảnh:');
   if (!url) return;
-  const alt = prompt('Mô tả hình ảnh (alt text):', '') || '';
+  const alt = prompt('Mô tả (alt text):', '') || '';
   const w = prompt('Chiều rộng (px hoặc %, để trống = 100%):', '100%') || '100%';
-  document.getElementById('rich-editor').focus();
-  document.execCommand('insertHTML', false, `<img src="${url}" alt="${alt}" style="max-width:${w};border-radius:6px;display:block;margin:8px 0">`);
-  onRichInput();
+  const d = _getRichIframeDoc();
+  if (!d) return;
+  d.execCommand('insertHTML', false, `<img src="${url}" alt="${alt}" style="max-width:${w};border-radius:6px;display:block;margin:8px 0">`);
+  _onRichChange();
 }
 
-function rInsertTable() {
+function richInsertTable() {
   const rows = parseInt(prompt('Số hàng:', '3')) || 3;
   const cols = parseInt(prompt('Số cột:', '3')) || 3;
   let html = '<table style="border-collapse:collapse;width:100%;margin:10px 0"><thead><tr>';
@@ -1861,103 +2298,89 @@ function rInsertTable() {
   html += '</tr></thead><tbody>';
   for (let r = 0; r < rows; r++) {
     html += '<tr>';
-    for (let c = 0; c < cols; c++) html += '<td style="border:1px solid #e2e8f0;padding:8px 12px"> </td>';
+    for (let c = 0; c < cols; c++) html += '<td style="border:1px solid #e2e8f0;padding:8px 12px">&nbsp;</td>';
     html += '</tr>';
   }
   html += '</tbody></table><p></p>';
-  document.getElementById('rich-editor').focus();
-  document.execCommand('insertHTML', false, html);
-  onRichInput();
+  const d = _getRichIframeDoc();
+  if (!d) return;
+  d.execCommand('insertHTML', false, html);
+  _onRichChange();
 }
 
-function rInsertHR() {
-  document.getElementById('rich-editor').focus();
-  document.execCommand('insertHTML', false, '<hr style="border:none;border-top:2px solid #e2e8f0;margin:16px 0"><p></p>');
-  onRichInput();
-}
-
-function rInsertMath() {
-  const formula = prompt('Nhập công thức (LaTeX hoặc text):', 'x^2 + y^2 = r^2');
+function richInsertMath() {
+  const formula = prompt('Nhập công thức:', 'x^2 + y^2 = r^2');
   if (!formula) return;
-  document.getElementById('rich-editor').focus();
-  document.execCommand('insertHTML', false, `<span data-math="1" style="background:#fef9c3;padding:2px 8px;border-radius:4px;font-family:'Courier New',monospace;font-size:13px;color:#854d0e">${formula}</span>`);
-  onRichInput();
+  const d = _getRichIframeDoc();
+  if (!d) return;
+  d.execCommand('insertHTML', false, `<span data-math="1" style="background:#fef9c3;padding:2px 8px;border-radius:4px;font-family:'Courier New',monospace;font-size:13px;color:#854d0e">${formula}</span>`);
+  _onRichChange();
 }
 
-function rInsertEmbed() {
-  // Hỗ trợ: YouTube, Google Docs, Google Slides, Google Forms, hoặc iframe bất kỳ
+function richInsertEmbed() {
   const input = prompt(
-    '🎬 Nhúng nội dung học liệu\n\nDán vào:\n• Link YouTube (youtube.com/watch?v=...)\n• Link Google Docs/Slides/Forms\n• Hoặc mã <iframe> embed đầy đủ\n• Hoặc bất kỳ URL nào muốn nhúng:',
-    ''
+    '🎬 Nhúng học liệu\n\nDán vào:\n• Link YouTube\n• Link Google Docs/Slides/Forms/Sheets\n• Link Google Drive\n• Link Canva, Padlet...\n• Mã <iframe> đầy đủ\n• Bất kỳ URL nào:', ''
   );
   if (!input) return;
-
   const trimmed = input.trim();
   let embedHTML = '';
 
-  // Nếu đã là thẻ <iframe> đầy đủ
   if (trimmed.toLowerCase().startsWith('<iframe')) {
     embedHTML = trimmed;
-  }
-  // YouTube
-  else if (trimmed.match(/youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)/)) {
+  } else if (trimmed.match(/youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)/)) {
     const id = trimmed.match(/v=([a-zA-Z0-9_-]+)/)[1];
     embedHTML = `<iframe width="100%" height="450" src="https://www.youtube.com/embed/${id}" frameborder="0" allowfullscreen style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
-  }
-  else if (trimmed.match(/youtu\.be\/([a-zA-Z0-9_-]+)/)) {
+  } else if (trimmed.match(/youtu\.be\/([a-zA-Z0-9_-]+)/)) {
     const id = trimmed.match(/youtu\.be\/([a-zA-Z0-9_-]+)/)[1];
     embedHTML = `<iframe width="100%" height="450" src="https://www.youtube.com/embed/${id}" frameborder="0" allowfullscreen style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
-  }
-  // Google Docs
-  else if (trimmed.includes('docs.google.com/document')) {
-    const url = trimmed.replace('/edit', '/preview').replace('/pub', '/preview');
+  } else if (trimmed.includes('docs.google.com/document')) {
+    const url = trimmed.split('?')[0].replace('/edit','') + '/preview';
     embedHTML = `<iframe src="${url}" width="100%" height="600" frameborder="0" style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
-  }
-  // Google Slides
-  else if (trimmed.includes('docs.google.com/presentation')) {
-    const url = trimmed.replace('/edit', '/embed').replace('/pub', '/embed');
+  } else if (trimmed.includes('docs.google.com/presentation')) {
+    const url = trimmed.split('?')[0].replace('/edit','') + '/embed?start=false&loop=false';
     embedHTML = `<iframe src="${url}" width="100%" height="480" frameborder="0" allowfullscreen style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
-  }
-  // Google Forms
-  else if (trimmed.includes('docs.google.com/forms')) {
-    const url = trimmed.replace('/edit', '/viewform');
+  } else if (trimmed.includes('docs.google.com/forms')) {
+    const url = trimmed.split('?')[0].replace('/edit','') + '/viewform?embedded=true';
     embedHTML = `<iframe src="${url}" width="100%" height="600" frameborder="0" style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
-  }
-  // Google Sheets
-  else if (trimmed.includes('docs.google.com/spreadsheets')) {
-    const url = trimmed.replace('/edit', '/pubhtml');
+  } else if (trimmed.includes('docs.google.com/spreadsheets')) {
+    const url = trimmed.split('?')[0].replace('/edit','') + '/pubhtml';
     embedHTML = `<iframe src="${url}" width="100%" height="500" frameborder="0" style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
-  }
-  // Google Drive file
-  else if (trimmed.includes('drive.google.com/file')) {
-    const idMatch = trimmed.match(/\/d\/([a-zA-Z0-9_-]+)/);
-    if (idMatch) {
-      embedHTML = `<iframe src="https://drive.google.com/file/d/${idMatch[1]}/preview" width="100%" height="480" frameborder="0" style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
-    }
-  }
-  // Canva
-  else if (trimmed.includes('canva.com')) {
+  } else if (trimmed.includes('drive.google.com/file')) {
+    const idM = trimmed.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    if (idM) embedHTML = `<iframe src="https://drive.google.com/file/d/${idM[1]}/preview" width="100%" height="480" frameborder="0" style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
+  } else if (trimmed.includes('canva.com') || trimmed.includes('padlet.com')) {
     embedHTML = `<iframe src="${trimmed}" width="100%" height="480" frameborder="0" allowfullscreen style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
-  }
-  // Padlet
-  else if (trimmed.includes('padlet.com')) {
-    embedHTML = `<iframe src="${trimmed}" width="100%" height="500" frameborder="0" style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
-  }
-  // Bất kỳ URL nào khác → nhúng trực tiếp
-  else if (trimmed.startsWith('http')) {
+  } else if (trimmed.startsWith('http')) {
     const h = parseInt(prompt('Chiều cao iframe (px):', '500')) || 500;
     embedHTML = `<iframe src="${trimmed}" width="100%" height="${h}" frameborder="0" style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
-  }
-  else {
-    showToast('Không nhận dạng được link. Vui lòng dán mã <iframe> đầy đủ.', 'warn');
+  } else {
+    showToast('Không nhận dạng được. Vui lòng dán mã <iframe> đầy đủ.', 'warn');
     return;
   }
 
-  document.getElementById('rich-editor').focus();
-  document.execCommand('insertHTML', false, embedHTML + '<p></p>');
-  onRichInput();
+  const d = _getRichIframeDoc();
+  if (!d) return;
+  d.execCommand('insertHTML', false, embedHTML + '<p></p>');
+  _onRichChange();
   showToast('✅ Đã nhúng nội dung!', 'success');
 }
+
+// Backward compat
+function rExec(cmd) { _rCmd(cmd); }
+function rExecVal(cmd, val) { _rCmd(cmd, val); }
+function rInsertLink() { richInsertLink(); }
+function rInsertImage() { richInsertImage(); }
+function rInsertTable() { richInsertTable(); }
+function rInsertHR() {
+  const d = _getRichIframeDoc();
+  if (!d) return;
+  d.execCommand('insertHTML', false, '<hr style="border:none;border-top:2px solid #e2e8f0;margin:16px 0"><p></p>');
+  _onRichChange();
+}
+function rInsertMath() { richInsertMath(); }
+function rInsertEmbed() { richInsertEmbed(); }
+function onRichInput() { _onRichChange(); }
+
 
 function getTinyHTML() {
   const cmVal = cmEditor ? cmEditor.getValue() : '';
@@ -1970,51 +2393,27 @@ function getVisualHTML() { return getTinyHTML(); }
 function switchTab(tab) {
   const prevTab = editorTab;
 
-  // Sync OUT khỏi tab hiện tại
-  if (prevTab === 'rich') {
-    const html = getTinyHTML();
-    if (cmEditor) cmEditor.setValue(html);
-    else { const src = document.getElementById('html-source'); if (src) src.value = html; }
+  // Sync OUT: khi rời tab Soạn thảo → sync iframe → CodeMirror
+  if (prevTab === 'rich' && tab === 'html') {
+    _syncIframeToSource();
   }
 
   editorTab = tab;
-  document.getElementById('wrap-rich').style.display    = tab==='rich'    ? 'flex' : 'none';
-  document.getElementById('wrap-html').style.display    = tab==='html'    ? 'flex' : 'none';
-  document.getElementById('wrap-preview').style.display = tab==='preview' ? 'flex' : 'none';
+
+  // Show/hide panels
+  document.getElementById('wrap-rich').style.display = tab==='rich' ? 'flex' : 'none';
+  document.getElementById('wrap-html').style.display = tab==='html' ? 'flex' : 'none';
+  // wrap-preview không còn dùng nữa
+
   document.querySelectorAll('.etab').forEach(b => b.classList.remove('active'));
   document.getElementById('etab-' + tab)?.classList.add('active');
 
   if (tab === 'rich') {
+    // Sync IN: CodeMirror → iframe
     const html = cmEditor ? cmEditor.getValue() : (document.getElementById('html-source')?.value || '');
     initTinyMCE(html);
   } else if (tab === 'html') {
     setTimeout(() => { initCodeMirror(); if (cmEditor) cmEditor.refresh(); }, 50);
-  } else if (tab === 'preview') {
-    const html = getEditorHTML();
-    const iframe = document.getElementById('preview-iframe');
-    if (iframe) {
-      if (isFullPageHTML(html)) {
-        // Full page HTML: render trực tiếp, giữ nguyên tất cả CSS/JS
-        iframe.srcdoc = html;
-      } else {
-        // Fragment: wrap với style mặc định
-        iframe.srcdoc = `<!DOCTYPE html><html><head>
-          <meta charset="UTF-8">
-          <style>
-            body{font-family:'Segoe UI',sans-serif;padding:28px;max-width:860px;line-height:1.85;color:#1e293b}
-            h1{font-size:22px;font-weight:700;color:#0f172a}
-            h2{font-size:18px;font-weight:700;border-bottom:2px solid #dbeafe;padding-bottom:5px;margin:18px 0 9px}
-            h3{font-size:15px;font-weight:600;margin:14px 0 7px;color:#334155}
-            p{margin-bottom:11px}
-            code{background:#f1f5f9;padding:2px 6px;border-radius:4px;font-size:13px;color:#1e40af}
-            pre{background:#1e293b;color:#e2e8f0;padding:14px;border-radius:9px;overflow-x:auto}
-            blockquote{border-left:4px solid #2563eb;background:#eff6ff;padding:11px 14px;border-radius:0 7px 7px 0;margin:10px 0}
-            table{border-collapse:collapse;width:100%} td,th{border:1px solid #e2e8f0;padding:8px 12px} th{background:#f8fafc}
-            ul,ol{padding-left:22px;margin-bottom:11px} img{max-width:100%;border-radius:7px}
-          </style>
-        </head><body>${html}</body></html>`;
-      }
-    }
   }
 }
 
