@@ -40,38 +40,66 @@ code{background:#f1f5f9;padding:1px 5px;border-radius:3px}
          onkeydown="if(event.key==='Enter')login()">
   <button class="btn" id="btn" onclick="login()">Đăng nhập →</button>
   <div class="err" id="err">❌ Sai tài khoản hoặc mật khẩu!</div>
-  <div class="hint">Đổi mật khẩu trong <code>Admin → Cài đặt</code></div>
+  <div class="hint">Mật khẩu quản lý trong <code>Cloudflare Worker</code></div>
 </div>
 
 <script>
-function getCfg() {
-  try { return JSON.parse(localStorage.getItem('ae_cfg') || '{}'); } catch { return {}; }
-}
+const PROXY = 'https://api.gds.edu.vn';
 
-function login() {
+async function login() {
   var u = document.getElementById('u').value.trim();
   var p = document.getElementById('p').value.trim();
   var btn = document.getElementById('btn');
+  var err = document.getElementById('err');
   btn.disabled = true;
+  btn.textContent = 'Đang xác thực...';
+  err.style.display = 'none';
 
-  var cfg = getCfg();
-  var adminUser = cfg.adminUser || 'admin';
-  var adminPass = cfg.adminPass || 'activeedu2024';
-
-  if (u === adminUser && p === adminPass) {
-    sessionStorage.setItem('ae_auth', '1');
-    window.location.href = 'dashboard.html';
-  } else {
-    var err = document.getElementById('err');
+  if (!u || !p) {
+    err.textContent = 'Vui lòng nhập đầy đủ!';
     err.style.display = 'block';
-    document.getElementById('p').value = '';
-    document.getElementById('p').focus();
-    setTimeout(function(){ err.style.display = 'none'; btn.disabled = false; }, 3000);
+    btn.disabled = false;
+    btn.textContent = 'Đăng nhập →';
+    return;
+  }
+
+  try {
+    // Xác thực qua Cloudflare Worker — không dùng localStorage
+    var r = await fetch(PROXY + '/admin/articles?limit=1', {
+      headers: { 'Content-Type': 'application/json', 'Admin-Password': p }
+    });
+
+    if (r.status === 401) {
+      err.textContent = 'Sai tài khoản hoặc mật khẩu!';
+      err.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Đăng nhập →';
+      return;
+    }
+
+    if (r.status === 429) {
+      err.textContent = 'Quá nhiều lần thử. Vui lòng đợi 15 phút.';
+      err.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Đăng nhập →';
+      return;
+    }
+
+    // Thành công — lưu vào sessionStorage
+    sessionStorage.setItem('ae_auth', '1');
+    sessionStorage.setItem('ae_admin_pass', p);
+    window.location.href = 'dashboard.html';
+
+  } catch(e) {
+    err.textContent = 'Lỗi kết nối. Thử lại sau!';
+    err.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Đăng nhập →';
   }
 }
 
 // Nếu đã login rồi thì redirect luôn
-if (sessionStorage.getItem('ae_auth') === '1') {
+if (sessionStorage.getItem('ae_auth') === '1' && sessionStorage.getItem('ae_admin_pass')) {
   window.location.href = 'dashboard.html';
 }
 </script>
