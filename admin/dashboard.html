@@ -1611,18 +1611,44 @@ function renderModalTree(items, container, parentPath) {
   (items||[]).forEach(item => {
     if (item.type !== 'folder') return;
     const folderPath = parentPath ? parentPath + '/' + item.name : item.name;
+    const hasChildren = (item.children||[]).some(c => c.type === 'folder');
+
     const wrap = document.createElement('div');
     wrap.className = 'modal-tree-folder';
-    const hasChildren = (item.children||[]).some(c => c.type === 'folder');
-    wrap.innerHTML = `
-      <div class="modal-tree-folder-hd" onclick="modalSelectFolder('${folderPath}', this.parentElement)">
-        ${hasChildren ? '<i class="fas fa-chevron-right" onclick="event.stopPropagation();this.closest('.modal-tree-folder').classList.toggle('open')"></i>' : '<span style="width:13px;display:inline-block"></span>'}
-        <i class="fas fa-folder" style="color:#60a5fa;font-size:13px"></i>
-        <span style="flex:1">${item.name}</span>
-      </div>
-      <div class="modal-tree-folder-children"></div>`;
+
+    const hd = document.createElement('div');
+    hd.className = 'modal-tree-folder-hd';
+    hd.onclick = () => modalSelectFolder(folderPath, wrap);
+
     if (hasChildren) {
-      renderModalTree(item.children||[], wrap.querySelector('.modal-tree-folder-children'), folderPath);
+      const arrow = document.createElement('i');
+      arrow.className = 'fas fa-chevron-right';
+      arrow.onclick = (e) => { e.stopPropagation(); wrap.classList.toggle('open'); };
+      hd.appendChild(arrow);
+    } else {
+      const spacer = document.createElement('span');
+      spacer.style.cssText = 'width:13px;display:inline-block';
+      hd.appendChild(spacer);
+    }
+
+    const icon = document.createElement('i');
+    icon.className = 'fas fa-folder';
+    icon.style.cssText = 'color:#60a5fa;font-size:13px';
+    hd.appendChild(icon);
+
+    const label = document.createElement('span');
+    label.style.flex = '1';
+    label.textContent = item.name;
+    hd.appendChild(label);
+
+    const children = document.createElement('div');
+    children.className = 'modal-tree-folder-children';
+
+    wrap.appendChild(hd);
+    wrap.appendChild(children);
+
+    if (hasChildren) {
+      renderModalTree(item.children||[], children, folderPath);
     }
     container.appendChild(wrap);
   });
