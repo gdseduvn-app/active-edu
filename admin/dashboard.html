@@ -181,6 +181,10 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
 .detail-placeholder{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;color:var(--text-muted);padding:40px}
 .detail-placeholder i{font-size:40px;color:var(--border)}
 #detail-body{display:flex;flex-direction:column;flex:1;overflow:hidden}
+.sb-folder-row:hover{background:var(--hover)!important}
+.sb-article-item:hover{background:var(--hover)!important}
+#sb-resize-handle:hover .sb-resize-bar,
+#sidebar-resize-handle:hover{background:var(--primary)!important}
 
 /* ── EDITOR ─────────────────────────── */
 .editor-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden}
@@ -460,33 +464,22 @@ tr:hover td{background:var(--hover)}
           <!-- Body: Sidebar trái + Editor phải -->
           <div style="display:flex;flex:1;overflow:hidden;min-height:0">
             <!-- Sidebar: Tab Thư mục / Tab Bài viết -->
-            <div id="editor-sidebar" style="width:200px;flex-shrink:0;border-right:1px solid var(--border);display:flex;flex-direction:column;background:var(--card);overflow:hidden">
-              <!-- Tab headers -->
-              <div style="display:flex;border-bottom:1px solid var(--border);flex-shrink:0">
-                <button id="sb-tab-folder" onclick="switchSidebarTab('folder')"
-                  style="flex:1;padding:8px 4px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:var(--primary);color:#fff;border-radius:0">
-                  <i class="fas fa-folder"></i> Thư mục
-                </button>
-                <button id="sb-tab-articles" onclick="switchSidebarTab('articles')"
-                  style="flex:1;padding:8px 4px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:var(--hover);color:var(--text-muted);border-radius:0">
-                  <i class="fas fa-file-lines"></i> Bài viết
-                </button>
+            <div id="editor-sidebar" style="width:220px;flex-shrink:0;border-right:1px solid var(--border);display:flex;flex-direction:column;background:var(--card);overflow:hidden;position:relative">
+              <div id="sidebar-resize-handle" style="position:absolute;right:-3px;top:0;bottom:0;width:6px;cursor:col-resize;z-index:10" onmousedown="startSidebarResize(event)"></div>
+              <!-- Header -->
+              <div style="padding:8px 10px;font-size:11px;font-weight:600;color:var(--text-muted);background:var(--hover);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+                <span><i class="fas fa-folder-tree"></i> Thư mục &amp; Bài viết</span>
+                <button onclick="loadSidebarFolders()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);padding:2px 4px" title="Tải lại"><i class="fas fa-rotate" style="font-size:11px"></i></button>
               </div>
-              <!-- Tab Thư mục -->
-              <div id="sb-panel-folder" style="flex:1;overflow-y:auto;padding:6px 0">
+              <!-- Cây thư mục -->
+              <div id="sb-panel-folder" style="flex:1;overflow-y:auto;padding:4px 0">
                 <div style="padding:20px;text-align:center;color:var(--text-muted);font-size:12px">
                   <i class="fas fa-spinner fa-spin"></i><br>Đang tải...
                 </div>
               </div>
-              <!-- Tab Bài viết -->
-              <div id="sb-panel-articles" style="flex:1;overflow-y:auto;display:none;padding:4px 0">
-                <div id="sb-articles-title" style="padding:6px 10px;font-size:11px;font-weight:600;color:var(--text-muted);background:var(--hover);border-bottom:1px solid var(--border)">
-                  Chọn thư mục
-                </div>
-                <div id="sb-articles-list">
-                  <div style="padding:16px;text-align:center;color:var(--text-muted);font-size:12px">Bấm thư mục để xem bài</div>
-                </div>
-              </div>
+              <div id="sb-panel-articles" style="display:none"></div>
+              <div id="sb-tab-folder" style="display:none"></div>
+              <div id="sb-tab-articles" style="display:none"></div>
             </div>
             <!-- Editor chính -->
             <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0">
@@ -2546,8 +2539,9 @@ function markSaving() {
   document.getElementById('save-status').textContent = 'Đang lưu lên GitHub...';
 }
 
+
 // ═══════════════════════════════════════════════════
-// EDITOR SIDEBAR — Tab Thư mục / Tab Bài viết
+// EDITOR SIDEBAR — Cây thư mục giống panel Quản lý tệp
 // ═══════════════════════════════════════════════════
 let _sbActiveFolderPath = '';
 
@@ -2559,125 +2553,60 @@ function switchSidebarTab(tab) {
   document.getElementById('sb-tab-folder').style.color        = isFolder ? '#fff' : 'var(--text-muted)';
   document.getElementById('sb-tab-articles').style.background = isFolder ? 'var(--hover)' : 'var(--primary)';
   document.getElementById('sb-tab-articles').style.color      = isFolder ? 'var(--text-muted)' : '#fff';
-  // Nếu chuyển sang tab bài viết mà chưa có thư mục được chọn → chuyển lại
-  if (!isFolder && !_sbActiveFolderPath) {
-    switchSidebarTab('folder');
-    showToast('Bấm vào thư mục trước để xem bài viết', 'warn');
-  }
 }
 
-// Load danh sách thư mục vào sidebar
-async function loadSidebarFolders() {
+// Render cây thư mục vào sidebar editor (tái sử dụng indexTree)
+function loadSidebarFolders() {
   const panel = document.getElementById('sb-panel-folder');
   if (!panel) return;
-  panel.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:12px"><i class="fas fa-spinner fa-spin"></i></div>';
-
-  try {
-    // Lấy từ indexTree (đã có từ sync NocoDB)
-    let folders = [];
-    function collectFolders(items, prefix='') {
-      for (const item of items) {
-        if (item.type === 'folder') {
-          const path = prefix ? prefix + '/' + item.name : item.name;
-          folders.push({ name: item.name, path, children: item.children||[] });
-          collectFolders(item.children||[], path);
-        }
-      }
-    }
-    collectFolders(indexTree);
-
-    // Fallback: lấy từ NocoDB nếu indexTree rỗng
-    if (folders.length === 0) {
-      const data = await NOCO.listFolders();
-      folders = (data.list||[]).map(f => ({ name: f.Name||f.Path||'', path: f.Path||f.Name||'' }));
-    }
-
-    if (folders.length === 0) {
-      panel.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:12px">Chưa có thư mục</div>';
-      return;
-    }
-
-    panel.innerHTML = folders.map(f => `
-      <div class="sb-folder-item" onclick="selectSidebarFolder('${f.path}', '${f.name}', this)"
-        style="padding:8px 12px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px;border-left:3px solid transparent;transition:all .15s">
-        <i class="fas fa-folder" style="color:#f59e0b;font-size:12px;flex-shrink:0"></i>
-        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${f.path}">${f.path.replace(/\//g,' › ')}</span>
-      </div>`).join('');
-  } catch(e) {
-    panel.innerHTML = `<div style="padding:16px;color:var(--danger);font-size:12px">Lỗi: ${e.message}</div>`;
+  if (!indexTree || !indexTree.length) {
+    panel.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:12px"><i class="fas fa-plug" style="display:block;font-size:20px;margin-bottom:6px"></i>Kết nối NocoDB để tải</div>';
+    return;
   }
+  panel.innerHTML = '';
+  renderEditorTreeItems(indexTree, panel, '');
 }
 
-// Khi bấm thư mục → load bài viết + chuyển sang tab bài viết
-async function selectSidebarFolder(folderPath, folderName, el) {
-  _sbActiveFolderPath = folderPath;
-
-  // Highlight folder
-  document.querySelectorAll('.sb-folder-item').forEach(item => {
-    item.style.background = '';
-    item.style.borderLeftColor = 'transparent';
-    item.style.color = '';
+// Render tree cho editor sidebar — click file → openArticleEditor
+function renderEditorTreeItems(items, container, parentPath) {
+  (items||[]).forEach(item => {
+    if (item.type === 'folder') {
+      const folderPath = parentPath ? parentPath + '/' + item.name : item.name;
+      item.folderPath = folderPath;
+      const wrap = document.createElement('div');
+      wrap.className = 'tree-folder';
+      wrap.innerHTML = `
+        <div class="tree-folder-hd" onclick="this.parentElement.classList.toggle('open');document.getElementById('e-folder').value='${folderPath}'">
+          <i class="fas fa-chevron-right"></i>
+          <i class="fas fa-folder" style="color:#60a5fa;font-size:13px"></i>
+          <span style="flex:1">${item.name}</span>
+        </div>
+        <div class="tree-folder-children"></div>`;
+      renderEditorTreeItems(item.children||[], wrap.querySelector('.tree-folder-children'), folderPath);
+      container.appendChild(wrap);
+    } else {
+      const el = document.createElement('div');
+      el.className = 'tree-file';
+      el.dataset.path = item.path;
+      const accessBadge = item.access === 'private'
+        ? '<span style="font-size:10px;background:#fee2e2;color:#b91c1c;padding:1px 5px;border-radius:4px">🔒</span>'
+        : '<span style="font-size:10px;background:#ccfbf1;color:#0f766e;padding:1px 5px;border-radius:4px">🌐</span>';
+      el.innerHTML = `
+        <i class="fas fa-file-lines"></i>
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${item.name}">${item.name}</span>
+        ${accessBadge}`;
+      el.onclick = () => {
+        document.querySelectorAll('#sb-panel-folder .tree-file').forEach(f => f.classList.remove('active'));
+        el.classList.add('active');
+        openArticleEditor(item.path);
+      };
+      container.appendChild(el);
+    }
   });
-  if (el) {
-    el.style.background = 'var(--primary-light)';
-    el.style.borderLeftColor = 'var(--primary)';
-    el.style.color = 'var(--primary)';
-  }
-
-  // Update folder hidden input
-  const folderEl = document.getElementById('e-folder');
-  if (folderEl) folderEl.value = folderPath;
-
-  // Chuyển sang tab bài viết
-  switchSidebarTab('articles');
-  document.getElementById('sb-articles-title').textContent = folderPath.replace(/\//g,' › ');
-
-  // Load bài viết
-  const list = document.getElementById('sb-articles-list');
-  list.innerHTML = '<div style="padding:12px;text-align:center;color:var(--text-muted);font-size:12px"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>';
-
-  try {
-    const data = await NOCO.listRecords({ limit:200, where:`(Folder,eq,${folderPath})`, sort:'Title' });
-    const articles = data.list || [];
-
-    if (articles.length === 0) {
-      list.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:12px">Thư mục trống</div>';
-      return;
-    }
-
-    list.innerHTML = articles.map(a => `
-      <div class="sb-article-item" onclick="selectSidebarArticle('${a.Path||''}', this)"
-        data-path="${a.Path||''}"
-        style="padding:7px 12px;cursor:pointer;font-size:12.5px;display:flex;align-items:center;gap:7px;border-left:3px solid transparent;transition:all .15s">
-        <i class="fas fa-file-lines" style="color:#64748b;font-size:11px;flex-shrink:0"></i>
-        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${a.Title||a.Path||''}">${a.Title||a.Path||'(chưa đặt tên)'}</span>
-        <span style="font-size:10px;padding:1px 5px;background:${(a.Access||a.Quyen||'public')==='public'?'#dbeafe':'#f1f5f9'};color:${(a.Access||a.Quyen||'public')==='public'?'#2563eb':'#64748b'};border-radius:4px">${(a.Access||a.Quyen||'public')==='public'?'Pub':'Prv'}</span>
-      </div>`).join('');
-  } catch(e) {
-    list.innerHTML = `<div style="padding:12px;color:var(--danger);font-size:12px">Lỗi: ${e.message}</div>`;
-  }
 }
 
-// Khi bấm bài viết → mở edit
-async function selectSidebarArticle(path, el) {
-  if (!path) return;
-  // Highlight article
-  document.querySelectorAll('.sb-article-item').forEach(item => {
-    item.style.background = '';
-    item.style.borderLeftColor = 'transparent';
-    item.style.fontWeight = '';
-  });
-  if (el) {
-    el.style.background = 'var(--primary-light)';
-    el.style.borderLeftColor = 'var(--primary)';
-    el.style.fontWeight = '600';
-  }
-  await openArticleEditor(path);
-}
-
-// Backward compat
-async function onFolderChange(folder) { await selectSidebarFolder(folder, folder, null); }
-async function onArticleSelect(path)  { await selectSidebarArticle(path, null); }
+async function onFolderChange(folder) {}
+async function onArticleSelect(path)  { if (path) await openArticleEditor(path); }
 
 function newArticle() {
   if (isDirty && !confirm('Bài chưa lưu, tiếp tục?')) return;
