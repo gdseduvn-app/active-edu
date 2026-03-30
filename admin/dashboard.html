@@ -316,6 +316,7 @@ tr:hover td{background:var(--hover)}
   <div class="sb-item active" onclick="showPanel('dashboard',this)"><i class="fas fa-chart-bar"></i> Dashboard</div>
   <div class="sb-item" onclick="showPanel('files',this)"><i class="fas fa-folder-tree"></i> Quản lý tệp</div>
   <div class="sb-item" onclick="showPanel('editor',this)"><i class="fas fa-pen-fancy"></i> Soạn thảo</div>
+  <div class="sb-item" onclick="showPanel('users',this)"><i class="fas fa-users"></i> Người dùng</div>
   <div class="sb-item" onclick="showPanel('nocodb',this)"><i class="fas fa-database"></i> NocoDB</div>
   <div class="sb-item" onclick="showPanel('settings',this)"><i class="fas fa-gear"></i> Cài đặt</div>
 
@@ -473,6 +474,108 @@ tr:hover td{background:var(--hover)}
     </div>
 
     <!-- ══ SETTINGS ══════════════════════════════ -->
+    <div class="panel" id="panel-users">
+      <div class="panel-hd">
+        <div>
+          <div class="panel-title"><i class="fas fa-users"></i> Quản lý người dùng</div>
+          <div class="panel-sub">Thêm, sửa, xóa tài khoản học sinh</div>
+        </div>
+        <button class="btn btn-primary" onclick="openUserModal()"><i class="fas fa-user-plus"></i> Thêm người dùng</button>
+      </div>
+
+      <!-- Search + Filter -->
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+        <input type="text" id="user-search" placeholder="🔍 Tìm theo tên, email..." style="flex:1;min-width:200px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);color:var(--text);font-size:13px" oninput="filterUsers()">
+        <select id="user-role-filter" onchange="filterUsers()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);color:var(--text);font-size:13px">
+          <option value="">Tất cả vai trò</option>
+          <option value="student">Học sinh</option>
+          <option value="teacher">Giáo viên</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+
+      <!-- Users Table -->
+      <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead>
+            <tr style="background:var(--hover);border-bottom:1px solid var(--border)">
+              <th style="padding:12px 16px;text-align:left;font-weight:600;color:var(--text-muted)">Họ tên</th>
+              <th style="padding:12px 16px;text-align:left;font-weight:600;color:var(--text-muted)">Email</th>
+              <th style="padding:12px 16px;text-align:left;font-weight:600;color:var(--text-muted)">Vai trò</th>
+              <th style="padding:12px 16px;text-align:left;font-weight:600;color:var(--text-muted)">Trạng thái</th>
+              <th style="padding:12px 16px;text-align:left;font-weight:600;color:var(--text-muted)">Ngày tạo</th>
+              <th style="padding:12px 16px;text-align:center;font-weight:600;color:var(--text-muted)">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody id="users-tbody">
+            <tr><td colspan="6" style="padding:40px;text-align:center;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i> Đang tải...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div id="user-pagination" style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;font-size:13px;color:var(--text-muted)">
+        <span id="user-count-label"></span>
+        <div style="display:flex;gap:8px">
+          <button id="user-prev-btn" class="btn btn-outline btn-sm" onclick="userPagePrev()" disabled><i class="fas fa-chevron-left"></i> Trước</button>
+          <span id="user-page-label" style="padding:6px 12px;background:var(--hover);border-radius:6px"></span>
+          <button id="user-next-btn" class="btn btn-outline btn-sm" onclick="userPageNext()">Sau <i class="fas fa-chevron-right"></i></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- User Modal -->
+    <div id="user-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;align-items:center;justify-content:center">
+      <div style="background:var(--card-bg);border-radius:16px;padding:28px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+          <h3 id="user-modal-title" style="font-size:16px;font-weight:700;color:var(--text)">Thêm người dùng</h3>
+          <button onclick="closeUserModal()" style="background:none;border:none;color:var(--text-muted);font-size:18px;cursor:pointer"><i class="fas fa-times"></i></button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div class="form-group" style="grid-column:1/-1">
+            <label>Họ tên <span style="color:var(--danger)">*</span></label>
+            <input type="text" id="um-name" placeholder="Nguyễn Văn A">
+          </div>
+          <div class="form-group">
+            <label>Email <span style="color:var(--danger)">*</span></label>
+            <input type="email" id="um-email" placeholder="example@gmail.com">
+          </div>
+          <div class="form-group">
+            <label>Mật khẩu <span id="um-pass-hint" style="color:var(--text-muted);font-weight:400;font-size:11px">(bắt buộc khi tạo mới)</span></label>
+            <input type="password" id="um-pass" placeholder="Tối thiểu 6 ký tự">
+          </div>
+          <div class="form-group">
+            <label>Vai trò</label>
+            <select id="um-role" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);color:var(--text);font-size:13px">
+              <option value="student">Học sinh</option>
+              <option value="teacher">Giáo viên</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Trạng thái</label>
+            <select id="um-status" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);color:var(--text);font-size:13px">
+              <option value="active">Hoạt động</option>
+              <option value="inactive">Vô hiệu hóa</option>
+            </select>
+          </div>
+          <div class="form-group" style="grid-column:1/-1">
+            <label>Số điện thoại</label>
+            <input type="text" id="um-phone" placeholder="0912345678">
+          </div>
+          <div class="form-group" style="grid-column:1/-1">
+            <label>Ghi chú</label>
+            <textarea id="um-note" rows="2" placeholder="Ghi chú thêm..." style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);color:var(--text);font-size:13px;resize:vertical;font-family:inherit"></textarea>
+          </div>
+        </div>
+        <div id="um-msg" style="margin-top:10px;font-size:13px;min-height:20px"></div>
+        <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end">
+          <button onclick="closeUserModal()" class="btn btn-outline">Hủy</button>
+          <button onclick="saveUser()" class="btn btn-primary" id="um-save-btn"><i class="fas fa-save"></i> Lưu</button>
+        </div>
+      </div>
+    </div>
+
     <div class="panel" id="panel-settings">
       <div class="sec-hd">
         <h3>⚙️ Cài đặt</h3>
@@ -514,9 +617,18 @@ tr:hover td{background:var(--hover)}
       <!-- Admin -->
       <div class="settings-section">
         <div class="settings-hd">🔐 Tài khoản Admin</div>
-        <div class="settings-body" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-          <div class="form-group"><label>Tên đăng nhập</label><input type="text" id="s-user" value="admin"></div>
-          <div class="form-group"><label>Mật khẩu mới</label><input type="password" id="s-pass" placeholder="Để trống để giữ nguyên"></div>
+        <div class="settings-body">
+          <div style="padding:14px 16px;background:var(--hover);border-radius:10px;border-left:3px solid var(--primary);font-size:13px;line-height:1.8;color:var(--text)">
+            <b>Mật khẩu admin được quản lý qua Cloudflare Worker</b><br>
+            <span style="color:var(--text-muted)">Để đổi mật khẩu, vào:</span><br>
+            <code style="background:var(--card-bg);padding:2px 8px;border-radius:6px;font-size:12px">Cloudflare Dashboard → Workers & Pages → activeedu-proxy → Settings → Variables → ADMIN_PASSWORD</code><br><br>
+            <span style="color:var(--text-muted)">Sau khi đổi, đăng xuất và đăng nhập lại với mật khẩu mới.</span>
+          </div>
+          <div style="margin-top:12px">
+            <button onclick="doLogout()" class="btn btn-outline" style="color:var(--danger);border-color:var(--danger)">
+              <i class="fas fa-right-from-bracket"></i> Đăng xuất
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -845,35 +957,50 @@ function cfg() { return { ...getDefaultCfg(), ...getCfg() }; }
 // ── Auth ──
 const ADMIN_USER = 'admin';
 
-function doLogin() {
-  var u = document.getElementById('login-user').value.trim();
-  var p = document.getElementById('login-pass').value.trim();
-  const c = cfg();
-  const savedPass = c.adminPass || '';
-  // Nếu chưa đặt mật khẩu → cho phép đặt lần đầu với user = admin
-  if (!savedPass) {
-    if (u === (c.adminUser || ADMIN_USER) && p.length >= 6) {
-      c.adminPass = p;
-      saveCfg(c);
-      sessionStorage.setItem('ae_auth', '1');
-      document.getElementById('login-screen').style.display = 'none';
-      initAdmin();
-      return;
-    }
-    document.getElementById('login-err').textContent = 'Lần đầu: nhập "admin" và mật khẩu mới (tối thiểu 6 ký tự) để đặt mật khẩu.';
-    document.getElementById('login-err').style.display = 'block';
+async function doLogin() {
+  const u = document.getElementById('login-user').value.trim();
+  const p = document.getElementById('login-pass').value.trim();
+  const btn = document.querySelector('#login-screen button');
+  const errEl = document.getElementById('login-err');
+  errEl.style.display = 'none';
+
+  if (!u || !p) {
+    errEl.textContent = 'Vui lòng nhập đầy đủ!';
+    errEl.style.display = 'block';
     return;
   }
-  if (u === (c.adminUser || ADMIN_USER) && p === savedPass) {
+
+  if (btn) { btn.disabled = true; btn.textContent = 'Đang xác thực...'; }
+
+  try {
+    // Xác thực bằng cách gọi thử Worker với password này
+    const r = await fetch('https://api.gds.edu.vn/admin/articles?limit=1', {
+      headers: { 'Content-Type': 'application/json', 'Admin-Password': p }
+    });
+
+    if (r.status === 401) {
+      errEl.textContent = 'Sai tên đăng nhập hoặc mật khẩu!';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    if (!r.ok && r.status !== 404) {
+      errEl.textContent = 'Lỗi kết nối Worker. Thử lại sau!';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    // Lưu pass vào sessionStorage (mất khi đóng tab)
     sessionStorage.setItem('ae_auth', '1');
+    sessionStorage.setItem('ae_admin_pass', p);
     document.getElementById('login-screen').style.display = 'none';
     initAdmin();
-  } else {
-    document.getElementById('login-err').textContent = 'Sai tên đăng nhập hoặc mật khẩu!';
-    document.getElementById('login-err').style.display = 'block';
-    document.getElementById('login-pass').value = '';
-    document.getElementById('login-pass').focus();
-    setTimeout(function(){ document.getElementById('login-err').style.display = 'none'; }, 3000);
+
+  } catch(e) {
+    errEl.textContent = 'Lỗi kết nối: ' + e.message;
+    errEl.style.display = 'block';
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Đăng nhập →'; }
   }
 }
 
@@ -888,6 +1015,7 @@ function checkSession() {
 
 function doLogout() {
   sessionStorage.removeItem('ae_auth');
+  sessionStorage.removeItem('ae_admin_pass');
   location.reload();
 }
 
@@ -2014,8 +2142,6 @@ function loadSettings() {
   // General
   setVal('s-title', c.title || 'ActiveEdu');
   setVal('s-url', c.url || '');
-  setVal('s-user', c.adminUser || 'admin');
-  setVal('s-pass', '');
 
   // NocoDB
   setVal('s-proxy-url',        c.proxyUrl        || '');
@@ -2032,9 +2158,6 @@ function saveSettings() {
   c.contentDir = getVal('s-content-dir', 'content');
   c.title      = getVal('s-title', 'ActiveEdu');
   c.url        = document.getElementById('s-url').value.trim();
-  c.adminUser  = document.getElementById('s-user').value.trim() || 'admin';
-  const np     = document.getElementById('s-pass').value;
-  if (np) c.adminPass = np;
   // NocoDB
   // NocoDB config handled by Cloudflare Worker
   saveCfg(c);
@@ -2102,6 +2225,9 @@ function showPanel(id, navEl) {
   } else if (id === 'dashboard') {
     // Render từ indexTree hiện tại, KHÔNG tự sync
     updateDashboard();
+
+  } else if (id === 'users') {
+    loadUsers();
 
   } else if (id === 'nocodb') {
     updateNocoStatus(hasNoco, c.nocoUrl ? c.nocoUrl.replace('https://','').split('/')[0] : '');
@@ -2244,8 +2370,8 @@ async function syncFromNoco() {
 const PROXY = 'https://api.gds.edu.vn';
 
 function adminHeaders() {
-  const c = cfg();
-  return { 'Content-Type': 'application/json', 'Admin-Password': c.adminPass || '' };
+  const pass = sessionStorage.getItem('ae_admin_pass') || '';
+  return { 'Content-Type': 'application/json', 'Admin-Password': pass };
 }
 
 const NOCO = {
@@ -2325,6 +2451,170 @@ const NOCO = {
   folderBase() { return PROXY + '/admin/folders'; },
   permBase()   { return PROXY + '/admin/permissions'; },
 };
+
+// ═══════════════════════════════════════════════════
+// QUẢN LÝ NGƯỜI DÙNG
+// ═══════════════════════════════════════════════════
+let allUsers = [];
+let filteredUsers = [];
+let userPageIndex = 0;
+const USER_LIMIT = 20;
+let editingUserId = null;
+
+async function loadUsers() {
+  const tbody = document.getElementById('users-tbody');
+  tbody.innerHTML = '<tr><td colspan="6" style="padding:40px;text-align:center;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i> Đang tải...</td></tr>';
+  try {
+    const data = await NOCO.listUsers({ limit: 1000 });
+    allUsers = data.list || [];
+    filterUsers();
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="6" style="padding:40px;text-align:center;color:var(--danger)">${e.message}</td></tr>`;
+  }
+}
+
+function filterUsers() {
+  const q = (document.getElementById('user-search')?.value || '').toLowerCase();
+  const role = document.getElementById('user-role-filter')?.value || '';
+  filteredUsers = allUsers.filter(u => {
+    const name = (u.FullName || u.HoTen || u.Name || '').toLowerCase();
+    const email = (u.Email || '').toLowerCase();
+    const matchQ = !q || name.includes(q) || email.includes(q);
+    const matchRole = !role || (u.Role || u.VaiTro || 'student') === role;
+    return matchQ && matchRole;
+  });
+  userPageIndex = 0;
+  renderUsersTable();
+}
+
+function renderUsersTable() {
+  const tbody = document.getElementById('users-tbody');
+  const total = filteredUsers.length;
+  const start = userPageIndex * USER_LIMIT;
+  const page = filteredUsers.slice(start, start + USER_LIMIT);
+
+  document.getElementById('user-count-label').textContent = `${total} người dùng`;
+  document.getElementById('user-page-label').textContent = `Trang ${userPageIndex + 1} / ${Math.max(1, Math.ceil(total / USER_LIMIT))}`;
+  document.getElementById('user-prev-btn').disabled = userPageIndex === 0;
+  document.getElementById('user-next-btn').disabled = start + USER_LIMIT >= total;
+
+  if (page.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="padding:40px;text-align:center;color:var(--text-muted)">Không có người dùng nào</td></tr>';
+    return;
+  }
+
+  const roleLabel = { admin: '<span style="background:#fef2f2;color:#b91c1c;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600">Admin</span>', teacher: '<span style="background:#eff6ff;color:#1d4ed8;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600">Giáo viên</span>', student: '<span style="background:#f0fdf4;color:#15803d;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600">Học sinh</span>' };
+  const statusLabel = { active: '<span style="color:#15803d">● Hoạt động</span>', inactive: '<span style="color:#94a3b8">○ Vô hiệu</span>', banned: '<span style="color:#b91c1c">✕ Bị khóa</span>' };
+
+  tbody.innerHTML = page.map(u => {
+    const name = u.FullName || u.HoTen || u.Name || '(chưa đặt tên)';
+    const email = u.Email || '';
+    const role = u.Role || u.VaiTro || 'student';
+    const status = u.Status || u.TrangThai || 'active';
+    const created = u.NgayTao || u.CreatedAt || '';
+    return `<tr style="border-bottom:1px solid var(--border);transition:background .15s" onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background=''">
+      <td style="padding:12px 16px;font-weight:500;color:var(--text)">${esc(name)}</td>
+      <td style="padding:12px 16px;color:var(--text-muted)">${esc(email)}</td>
+      <td style="padding:12px 16px">${roleLabel[role] || roleLabel.student}</td>
+      <td style="padding:12px 16px;font-size:12px">${statusLabel[status] || statusLabel.active}</td>
+      <td style="padding:12px 16px;color:var(--text-muted);font-size:12px">${esc(created)}</td>
+      <td style="padding:12px 16px;text-align:center">
+        <button onclick="editUser(${u.Id})" class="btn btn-outline btn-sm" title="Sửa"><i class="fas fa-pen"></i></button>
+        <button onclick="deleteUser(${u.Id},'${esc(name)}')" class="btn btn-sm" style="background:#fef2f2;color:#b91c1c;border:1px solid #fca5a5;margin-left:4px" title="Xóa"><i class="fas fa-trash"></i></button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function userPageNext() { userPageIndex++; renderUsersTable(); }
+function userPagePrev() { if (userPageIndex > 0) { userPageIndex--; renderUsersTable(); } }
+
+function openUserModal(user) {
+  editingUserId = user ? user.Id : null;
+  document.getElementById('user-modal-title').textContent = user ? 'Sửa người dùng' : 'Thêm người dùng';
+  document.getElementById('um-name').value  = user ? (user.FullName || user.HoTen || user.Name || '') : '';
+  document.getElementById('um-email').value = user ? (user.Email || '') : '';
+  document.getElementById('um-pass').value  = '';
+  document.getElementById('um-role').value  = user ? (user.Role || user.VaiTro || 'student') : 'student';
+  document.getElementById('um-status').value = user ? (user.Status || user.TrangThai || 'active') : 'active';
+  document.getElementById('um-phone').value = user ? (user.Phone || user.SDT || '') : '';
+  document.getElementById('um-note').value  = user ? (user.Note || user.GhiChu || '') : '';
+  document.getElementById('um-pass-hint').textContent = user ? '(để trống = giữ nguyên)' : '(bắt buộc)';
+  document.getElementById('um-msg').innerHTML = '';
+  document.getElementById('user-modal').style.display = 'flex';
+}
+
+function closeUserModal() {
+  document.getElementById('user-modal').style.display = 'none';
+  editingUserId = null;
+}
+
+async function saveUser() {
+  const name   = document.getElementById('um-name').value.trim();
+  const email  = document.getElementById('um-email').value.trim();
+  const pass   = document.getElementById('um-pass').value;
+  const role   = document.getElementById('um-role').value;
+  const status = document.getElementById('um-status').value;
+  const phone  = document.getElementById('um-phone').value.trim();
+  const note   = document.getElementById('um-note').value.trim();
+  const msg    = document.getElementById('um-msg');
+
+  if (!name) { msg.innerHTML = '<span style="color:var(--danger)">Vui lòng nhập họ tên!</span>'; return; }
+  if (!email) { msg.innerHTML = '<span style="color:var(--danger)">Vui lòng nhập email!</span>'; return; }
+  if (!editingUserId && !pass) { msg.innerHTML = '<span style="color:var(--danger)">Vui lòng nhập mật khẩu!</span>'; return; }
+  if (pass && pass.length < 6) { msg.innerHTML = '<span style="color:var(--danger)">Mật khẩu tối thiểu 6 ký tự!</span>'; return; }
+
+  const btn = document.getElementById('um-save-btn');
+  btn.disabled = true;
+  msg.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang lưu...';
+
+  try {
+    const payload = {
+      Name: name, FullName: name, HoTen: name,
+      Email: email, Role: role, VaiTro: role,
+      Status: status, TrangThai: status,
+      Phone: phone, SDT: phone,
+      Note: note, GhiChu: note,
+      NgayCapNhat: new Date().toLocaleDateString('vi-VN'),
+    };
+    if (pass) { payload.Password = pass; payload.MatKhau = pass; }
+
+    if (editingUserId) {
+      await NOCO.updateUser(editingUserId, payload);
+      showToast('✓ Đã cập nhật người dùng!', 'success');
+    } else {
+      payload.NgayTao = new Date().toLocaleDateString('vi-VN');
+      await NOCO.createUser(payload);
+      showToast('✓ Đã thêm người dùng!', 'success');
+    }
+    closeUserModal();
+    await loadUsers();
+  } catch(e) {
+    msg.innerHTML = `<span style="color:var(--danger)">Lỗi: ${e.message}</span>`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function editUser(id) {
+  const user = allUsers.find(u => u.Id === id);
+  if (user) openUserModal(user);
+}
+
+async function deleteUser(id, name) {
+  if (!confirm(`Xóa người dùng "${name}"?\nHành động này không thể hoàn tác!`)) return;
+  try {
+    await NOCO.deleteUser(id);
+    showToast(`✓ Đã xóa "${name}"`, 'success');
+    await loadUsers();
+  } catch(e) {
+    showToast('Lỗi xóa: ' + e.message, 'error');
+  }
+}
+
+function esc(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 
 // ── State ──
 let nocoPageIndex = 0;
@@ -2965,8 +3255,6 @@ function exportConfig() {
     contentDir:      c.contentDir      || 'content',
     url:             c.url             || '',
     // Admin
-    adminUser:       c.adminUser       || 'admin',
-    adminPass:       c.adminPass       || '',
     title:           c.title           || 'ActiveEdu',
     // Meta
     _exported:       new Date().toLocaleString('vi-VN'),
