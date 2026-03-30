@@ -2539,7 +2539,21 @@ async function editFile(path) {
 
     // Folder dropdown: update options trước, set value sau
     updateFolderSelects();
-    document.getElementById('e-folder').value = folder;
+    // Đặt timeout nhỏ để đảm bảo options đã render xong
+    setTimeout(() => {
+      const folderEl = document.getElementById('e-folder');
+      if (folderEl) {
+        folderEl.value = folder;
+        // Nếu không tìm thấy option → thêm tạm
+        if (folderEl.value !== folder && folder) {
+          const opt = document.createElement('option');
+          opt.value = folder;
+          opt.textContent = folder;
+          folderEl.appendChild(opt);
+          folderEl.value = folder;
+        }
+      }
+    }, 50);
 
     // Path label ở footer
     document.getElementById('e-path-label').innerHTML =
@@ -2705,13 +2719,29 @@ function updateFolderSelects() {
     for (const i of items) {
       if (i.type === 'folder') {
         const path = prefix ? prefix + '/' + i.name : i.name;
-        opts.push(`<option value="${path}">${path.replace(/\//g, ' / ')}</option>`);
+        opts.push(`<option value="${path}">${path.replace(/\//g, ' › ')}</option>`);
         if (i.children) opts = opts.concat(collectOpts(i.children, path));
       }
     }
     return opts;
   }
-  const opts = '<option value="">— Chọn thư mục —</option>' + collectOpts(indexTree).join('');
+
+  // Build từ indexTree
+  let folderOpts = collectOpts(indexTree);
+
+  // Nếu không có folder trong indexTree → lấy từ NocoDB Folders table
+  if (folderOpts.length === 0) {
+    NOCO.listFolders().then(data => {
+      const folders = (data.list || []).map(f => f.Path || f.Name || '').filter(Boolean);
+      const opts = '<option value="">— Chọn thư mục —</option>' +
+        folders.map(f => `<option value="${f}">${f.replace(/\//g,' › ')}</option>`).join('');
+      const ef = document.getElementById('e-folder');
+      if (ef) ef.innerHTML = opts;
+    }).catch(() => {});
+    return;
+  }
+
+  const opts = '<option value="">— Chọn thư mục —</option>' + folderOpts.join('');
   const ef = document.getElementById('e-folder');
   if (ef) ef.innerHTML = opts;
 }
