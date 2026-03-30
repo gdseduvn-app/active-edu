@@ -473,15 +473,23 @@ async function doUserLogin() {
     if (btn) btn.disabled = false;
   };
 
-  // Luôn dùng proxy để xác thực
+  // Dùng /api/auth/login — Worker tự hash & verify
   try {
-    const userPath = `/api/users?where=(Email,eq,${encodeURIComponent(u)})&limit=1`;
-    const data = await fetch(`${PROXY_URL}${userPath}`).then(r=>r.json());
-    const row = (data.list || [])[0];
-    if (row && (row.Password === p || row.MatKhau === p)) {
-      const status = row.Status || row.TrangThai || 'active';
-      if (status === 'inactive' || status === 'banned') { showErr(); return; }
-      setUser({ username: u, displayName: row.FullName || row.HoTen || row.Name || u, role: row.Role || row.VaiTro || 'student' });
+    const resp = await fetch(`${PROXY_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: u, password: p }),
+    });
+    const data = await resp.json();
+
+    if (resp.ok && data.token) {
+      // Lưu token + user info
+      setUser({
+        username: data.user.email,
+        displayName: data.user.displayName,
+        role: data.user.role,
+        token: data.token,
+      });
       await loadUserPerms();
       closeLoginModal();
       renderUserArea();
@@ -491,19 +499,9 @@ async function doUserLogin() {
       if (btn) btn.disabled = false;
       return;
     }
-  } catch(e) { console.warn('NocoDB login error:', e); }
+  } catch(e) { console.warn('Login error:', e); }
 
-  // Fallback: local USERS list
-  const found = USERS.find(x => x.username === u && x.password === p);
-  if (found) {
-    setUser({ username: found.username, displayName: found.displayName, role: found.role });
-    closeLoginModal();
-    renderUserArea();
-    if (pendingPrivateItem) { loadArticle(pendingPrivateItem); pendingPrivateItem = null; }
-    if (btn) btn.disabled = false;
-  } else {
-    showErr();
-  }
+  showErr();
 }
 
 function doLogout() {
@@ -1101,31 +1099,36 @@ async function saveProfile() {
   showProfileMsg('<i class="fas fa-spinner fa-spin"></i> Đang lưu...','');
   user.displayName = name; user.email = email; user.phone = phone; user.bio = bio;
   setUser(user); renderUserArea();
-  if (profileUserRow) {
-    const proxy = PROXY_URL.replace(/\/$/, '');
-    try {
-      if (changePass) {
-        const oldPass = profileUserRow.Password||profileUserRow.MatKhau||'';
-        if (oldPass && oldPass !== passOld) { showProfileMsg('Mật khẩu hiện tại không đúng!','error'); return; }
-      }
-      const payload = {
-        Name:name, FullName:name, HoTen:name, Email:email,
-        Phone:phone, SDT:phone, Bio:bio, GioiThieu:bio, Note:bio,
-        NgayCapNhat: new Date().toLocaleDateString('vi-VN'),
-      };
-      if (changePass) { payload.Password = passNew; payload.MatKhau = passNew; }
-      await fetch(`${proxy}/api/users`, {
-        method:'PATCH', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify([{...payload, Id:profileUserRow.Id}])
+
+  try {
+    // Đổi mật khẩu qua endpoint bảo mật (Worker tự hash)
+    if (changePass) {
+      const r = await fetch(`${PROXY_URL}/api/auth/change-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user.token || ''}` },
+        body: JSON.stringify({ oldPassword: passOld, newPassword: passNew }),
       });
-      showProfileMsg('✓ Đã lưu thông tin thành công!','success');
-      if (changePass) {
-        ['pf-pass-old','pf-pass-new','pf-pass-confirm'].forEach(id => document.getElementById(id).value='');
-      }
-    } catch(e) { showProfileMsg('Lỗi: '+e.message,'error'); }
-  } else {
-    showProfileMsg('✓ Đã cập nhật thông tin cục bộ!','success');
-  }
+      const res = await r.json();
+      if (!r.ok) { showProfileMsg(res.error || 'Lỗi đổi mật khẩu!', 'error'); return; }
+      ['pf-pass-old','pf-pass-new','pf-pass-confirm'].forEach(id => document.getElementById(id).value='');
+    }
+
+    // Cập nhật thông tin profile (không bao gồm password)
+    if (profileUserRow) {
+      await fetch(`${PROXY_URL}/api/users`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify([{
+          Id: profileUserRow.Id,
+          Name: name, FullName: name, HoTen: name,
+          Phone: phone, SDT: phone,
+          Bio: bio, GioiThieu: bio, Note: bio,
+          NgayCapNhat: new Date().toLocaleDateString('vi-VN'),
+        }])
+      });
+    }
+    showProfileMsg('✓ Đã lưu thông tin thành công!','success');
+  } catch(e) { showProfileMsg('Lỗi: '+e.message,'error'); }
 }
 
 function showProfileMsg(msg, type) {
