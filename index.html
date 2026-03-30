@@ -576,37 +576,9 @@ function mapToProxyPath(path, c) {
 }
 
 async function nocoFetch(path, opts = {}) {
-  const c = getNocoCfg();
-
-  // Ưu tiên 1: Cloudflare Worker proxy (không cần token, bảo mật nhất)
-  // Proxy tự biết table IDs qua env vars
-  let url, headers;
-
-  if (c.proxyUrl || PROXY_URL) {
-    // Dùng proxy - map path nếu có config, hoặc gửi path gốc
-    const proxy = (c.proxyUrl || PROXY_URL).replace(/\/$/, '');
-    let proxyPath = path;
-    // Thử map nếu có localStorage config
-    if (c.nocoTable) proxyPath = mapToProxyPath(path, c);
-    // Nếu chưa mapped (path vẫn có /tables/), strip xuống route tương ứng
-    else {
-      const m = path.match(/\/tables\/[^/]+\/records(.*)/);
-      // Không thể map nếu không biết table nào - fallback direct nếu có token
-      if (m && !c.nocoToken) {
-        throw new Error('Chưa cấu hình. Vào Admin để thiết lập.');
-      }
-    }
-    url = `${proxy}${proxyPath}`;
-    headers = { 'Content-Type': 'application/json', ...(opts.headers||{}) };
-  } else if (c.nocoToken) {
-    // Fallback: gọi trực tiếp nếu có token trong localStorage
-    const base = (c.nocoUrl || 'https://app.nocodb.com').replace(/\/$/, '');
-    url = `${base}/api/v2${path}`;
-    headers = { 'xc-token': c.nocoToken, 'Content-Type': 'application/json', ...(opts.headers||{}) };
-  } else {
-    throw new Error('Chưa cấu hình NocoDB');
-  }
-
+  const proxy = PROXY_URL.replace(/\/$/, '');
+  const url = `${proxy}${path}`;
+  const headers = { 'Content-Type': 'application/json', ...(opts.headers||{}) };
   const r = await fetch(url, { ...opts, headers });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
