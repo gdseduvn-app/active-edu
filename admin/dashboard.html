@@ -176,6 +176,12 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
 .tree-act-btn{padding:2px 5px;border-radius:4px;border:none;background:transparent;cursor:pointer;font-size:11px;color:var(--text-muted);transition:all .1s}
 .tree-act-btn:hover{background:#fee2e2;color:var(--danger)}
 .tree-act-btn.edit-btn:hover{background:var(--primary-light);color:var(--primary)}
+.tree-rename-input{
+  flex:1;border:1.5px solid var(--primary);border-radius:5px;
+  padding:1px 7px;font-size:13px;font-family:inherit;outline:none;
+  background:#fff;color:var(--text);min-width:0;
+  box-shadow:0 0 0 3px rgba(37,99,235,.12);
+}
 
 /* ── DETAIL PANEL ───────────────────── */
 .detail-panel{background:var(--card);border:1px solid var(--border);border-radius:12px;display:flex;flex-direction:column;overflow:hidden;flex:1;min-height:0}
@@ -1767,25 +1773,94 @@ async function confirmDeleteFile(path) {
   } finally { hideLoading(); }
 }
 
-async function renameFolder(folderPath, currentName) {
-  const newName = prompt('Đổi tên thư mục:', currentName);
-  if (!newName || newName.trim() === '' || newName.trim() === currentName) return;
-  const name = newName.trim();
+function renameFolder(folderPath, currentName) {
+  // Tìm span tên folder trong DOM để inline edit (Windows Explorer style)
+  const allHds = document.querySelectorAll('.tree-folder-hd');
+  let targetSpan = null;
+  let targetHd = null;
+  for (const hd of allHds) {
+    // Tìm hd chứa button có onclick khớp folderPath
+    const btn = hd.querySelector('.tree-act-btn[title="Đổi tên"]');
+    if (btn && btn.getAttribute('onclick').includes(folderPath.replace(/'/g,"\'"))) {
+      targetSpan = hd.querySelector('span[style*="flex:1"]') || hd.querySelector('span');
+      targetHd = hd;
+      break;
+    }
+  }
+  if (!targetSpan || !targetHd) {
+    // Fallback: prompt nếu không tìm thấy DOM element
+    const newName = prompt('Đổi tên thư mục:', currentName);
+    if (newName && newName.trim() && newName.trim() !== currentName)
+      doRenameFolder(folderPath, currentName, newName.trim());
+    return;
+  }
 
-  // Tìm folder trong indexTree và đổi tên
+  // Tạo input thay thế span
+  const input = document.createElement('input');
+  input.className = 'tree-rename-input';
+  input.value = currentName;
+  input.setAttribute('data-old-path', folderPath);
+
+  // Ẩn các element khác trong hd, hiện input
+  const hiddenEls = [];
+  for (const child of targetHd.children) {
+    if (child !== targetSpan && !child.classList.contains('tree-actions')) {
+      // Giữ icon folder và chevron, ẩn các actions
+    }
+  }
+  targetSpan.replaceWith(input);
+  targetHd.onclick = null; // tạm tắt toggle khi đang edit
+  input.focus();
+  input.select();
+
+  // Xử lý confirm: Enter hoặc blur
+  const confirmRename = async () => {
+    const newName = input.value.trim();
+    input.removeEventListener('blur', onBlur);
+    // Khôi phục span
+    const span = document.createElement('span');
+    span.style.flex = '1';
+    span.textContent = newName || currentName;
+    input.replaceWith(span);
+    // Khôi phục onclick
+    targetHd.onclick = (e) => {
+      targetHd.parentElement.classList.toggle('open');
+      selectFolder(folderPath, targetHd);
+    };
+    if (!newName || newName === currentName) return;
+    await doRenameFolder(folderPath, currentName, newName);
+  };
+
+  const onBlur = () => confirmRename();
+  const onKey = (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); confirmRename(); }
+    if (e.key === 'Escape') {
+      input.removeEventListener('blur', onBlur);
+      const span = document.createElement('span');
+      span.style.flex = '1';
+      span.textContent = currentName;
+      input.replaceWith(span);
+      targetHd.onclick = () => { targetHd.parentElement.classList.toggle('open'); selectFolder(folderPath, targetHd); };
+    }
+  };
+  input.addEventListener('blur', onBlur);
+  input.addEventListener('keydown', onKey);
+}
+
+async function doRenameFolder(folderPath, currentName, newName) {
   function findAndRename(items, path) {
     for (const item of items) {
       if (item.type === 'folder') {
         if (item.folderPath === path || item.path === path) {
           const oldPath = item.folderPath || item.path;
           const parentPath = oldPath.split('/').slice(0,-1).join('/');
-          const newPath = parentPath ? parentPath + '/' + name : name;
-          item.name = name;
+          const newPath = parentPath ? parentPath + '/' + newName : newName;
+          item.name = newName;
           item.folderPath = newPath;
           item.path = newPath;
           return { oldPath, newPath };
         }
-        const found = findAndRename(item.children || [], path);
+        const found = findAndRename(item.children||[], path);
         if (found) return found;
       }
     }
@@ -1795,24 +1870,22 @@ async function renameFolder(folderPath, currentName) {
   const result = findAndRename(indexTree, folderPath);
   if (!result) { showToast('Không tìm thấy thư mục!', 'warn'); return; }
 
-  showLoading('Đang đổi tên thư mục...');
   try {
-    // Cập nhật NocoDB Folders table — PATCH body [{Id, ...}], không cần Id trong URL
     const fData = await NOCO.listFolders();
     const folder = (fData.list||[]).find(f => (f.Path||f.Name) === result.oldPath);
     if (folder) {
-      // NocoDB v2: PATCH /records với Id trong body
       await NOCO.call('folders', '', 'PATCH',
-        [{ Id: folder.Id, Name: name, Path: result.newPath }]);
+        [{ Id: folder.Id, Name: newName, Path: result.newPath }]);
     } else {
-      // Folder chưa có trong NocoDB → tạo mới
-      await NOCO.createFolder({ Name: name, Path: result.newPath, Parent: result.newPath.split('/').slice(0,-1).join('/') });
+      await NOCO.createFolder({ Name: newName, Path: result.newPath,
+        Parent: result.newPath.split('/').slice(0,-1).join('/') });
     }
     commitIndexTree();
-    showToast(`✓ Đã đổi tên thành "${name}"`, 'success');
+    showToast(`✓ Đã đổi tên thành "${newName}"`, 'success');
   } catch(e) {
     showToast('Lỗi đổi tên: ' + e.message, 'error');
-  } finally { hideLoading(); }
+    commitIndexTree(); // rerender để khôi phục tên cũ nếu lỗi
+  }
 }
 
 async function confirmDeleteFolder(folderPath) {
