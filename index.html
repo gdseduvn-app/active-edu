@@ -869,7 +869,49 @@ async function loadArticle(item) {
     const data = await resp.json();
     const row = (data.list || [])[0];
     if (row && row.Content) {
-      iframe.srcdoc = row.Content;
+      const content = row.Content;
+
+      // MathJax snippet — luôn inject để đảm bảo LaTeX render đúng
+      const mathJaxSnippet = `
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<script>
+window.addEventListener('DOMContentLoaded', function() {
+  if (typeof renderMathInElement !== 'undefined') {
+    renderMathInElement(document.body, {
+      delimiters: [
+        {left: '$$', right: '$$', display: true},
+        {left: '\\\\[', right: '\\\\]', display: true},
+        {left: '$', right: '$', display: false},
+        {left: '\\\\(', right: '\\\\)', display: false}
+      ],
+      throwOnError: false
+    });
+  }
+});
+</script>`;
+
+      let finalContent;
+      const isFullPage = content.trim().toLowerCase().startsWith('<!doctype') || content.trim().toLowerCase().startsWith('<html');
+
+      if (isFullPage) {
+        // Full HTML: inject vào </head>, tránh trùng nếu đã có
+        if (!content.includes('katex') && !content.includes('MathJax')) {
+          finalContent = content.replace('</head>', mathJaxSnippet + '</head>');
+        } else {
+          finalContent = content;
+        }
+      } else {
+        // Fragment: wrap với đầy đủ head
+        finalContent = `<!DOCTYPE html><html><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+${mathJaxSnippet}
+</head><body style="margin:0;padding:0">${content}</body></html>`;
+      }
+
+      iframe.srcdoc = finalContent;
       iframe.onload = () => {
         try {
           const h = iframe.contentDocument.body.scrollHeight;
