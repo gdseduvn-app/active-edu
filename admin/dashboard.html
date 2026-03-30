@@ -2481,9 +2481,13 @@ function newArticle() {
   if (isDirty && !confirm('Bài chưa lưu, tiếp tục?')) return;
   currentEditPath = null;
   document.getElementById('e-title').value = '';
-  document.getElementById('e-folder').value = '';
   document.getElementById('e-desc').value = '';
   document.getElementById('e-access').value = 'public';
+  // Cập nhật dropdown thư mục trước
+  updateFolderSelects();
+  setTimeout(() => {
+    document.getElementById('e-folder').value = selectedFolder || '';
+  }, 60);
   setEditorHTML('');
   switchTab('rich');
   isDirty = false;
