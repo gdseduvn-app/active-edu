@@ -572,7 +572,7 @@ tr:hover td{background:var(--hover)}
             <!-- Live Preview iframe — body is contenteditable, changes sync to HTML source -->
             <iframe id="rich-iframe"
               style="flex:1;border:none;background:#fff;width:100%;min-height:400px"
-              sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals"
+              sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-popups-to-escape-sandbox"
             ></iframe>
           </div>
 
@@ -2100,7 +2100,7 @@ function richInsertEmbed() {
     html = `<iframe src="${url}" width="100%" height="500" frameborder="0" style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
   } else if (t.includes('drive.google.com/file')) {
     const m = t.match(/\/d\/([a-zA-Z0-9_-]+)/);
-    if (m) html = `<iframe src="https://drive.google.com/file/d/${m[1]}/preview" width="100%" height="480" frameborder="0" style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
+    if (m) html = `<iframe src="https://drive.google.com/file/d/${m[1]}/preview" width="100%" height="480" frameborder="0" allow="autoplay" style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
   } else if (t.includes('canva.com') || t.includes('padlet.com') || t.includes('figma.com') || t.includes('prezi.com')) {
     html = `<iframe src="${t}" width="100%" height="480" frameborder="0" allowfullscreen style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
   } else if (t.startsWith('http')) {
@@ -2417,7 +2417,7 @@ function richInsertEmbed() {
     embedHTML = `<iframe src="${url}" width="100%" height="500" frameborder="0" style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
   } else if (trimmed.includes('drive.google.com/file')) {
     const idM = trimmed.match(/\/d\/([a-zA-Z0-9_-]+)/);
-    if (idM) embedHTML = `<iframe src="https://drive.google.com/file/d/${idM[1]}/preview" width="100%" height="480" frameborder="0" style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
+    if (idM) embedHTML = `<iframe src="https://drive.google.com/file/d/${idM[1]}/preview" width="100%" height="480" frameborder="0" allow="autoplay" style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
   } else if (trimmed.includes('canva.com') || trimmed.includes('padlet.com')) {
     embedHTML = `<iframe src="${trimmed}" width="100%" height="480" frameborder="0" allowfullscreen style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
   } else if (trimmed.startsWith('http')) {
@@ -2669,7 +2669,11 @@ async function editFile(path) {
       folder = row.Folder      || '';
       desc   = row.Description || '';
       access = row.Access      || 'public';
-      html   = row.Content     || '';
+      // Giải nén nếu Content được nén bằng LZ-String
+      const _raw = row.Content || '';
+      html = _raw.startsWith('lz:')
+        ? (LZString.decompressFromBase64(_raw.slice(3)) || '')
+        : _raw;
     } else {
       const cached = flattenFiles(indexTree).find(f => f.path === path);
       if (cached) { title=cached.name; folder=cached.folder||''; desc=cached.description||''; access=cached.access||'public'; }
@@ -3501,7 +3505,12 @@ async function nocoLoadRecords(where = '') {
       tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted)">Không có bản ghi nào</td></tr>`;
     } else {
       tbody.innerHTML = records.map((row, i) => {
-        const preview = (row.Content||'').replace(/<[^>]*>/g,' ').trim().slice(0,50);
+        // Giải nén để lấy text preview (không hiện chuỗi lz:...)
+        const _c = row.Content || '';
+        const _decoded = _c.startsWith('lz:')
+          ? (LZString.decompressFromBase64(_c.slice(3)) || '')
+          : _c;
+        const preview = _decoded.replace(/<[^>]*>/g,' ').trim().slice(0,50);
         return `<tr>
           <td style="color:var(--text-muted);font-size:12px">${nocoPageIndex*NOCO_LIMIT + i + 1}</td>
           <td><b>${row.Title||'—'}</b></td>
