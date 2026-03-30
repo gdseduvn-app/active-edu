@@ -180,6 +180,7 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
 .detail-hd-path i{color:var(--primary)}
 .detail-placeholder{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;color:var(--text-muted);padding:40px}
 .detail-placeholder i{font-size:40px;color:var(--border)}
+#detail-body{display:flex;flex-direction:column;flex:1;overflow:hidden}
 
 /* ── EDITOR ─────────────────────────── */
 .editor-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden}
@@ -446,16 +447,27 @@ tr:hover td{background:var(--hover)}
       </div>
       <div class="detail-panel" style="min-height:580px">
         <div class="editor-wrap">
-          <div class="editor-meta">
-            <input type="text" id="e-title" class="input-title" placeholder="✏ Tên bài học...">
-            <select id="e-folder" class="input-folder">
-              <option value="">— Chọn thư mục —</option>
-            </select>
-            <input type="text" id="e-desc" class="input-desc" placeholder="Mô tả ngắn...">
-            <select id="e-access" style="border:1px solid var(--border);border-radius:7px;padding:7px 11px;font-size:13px;font-family:inherit;outline:none;background:#fff;min-width:140px">
+          <!-- Meta bar: Tên bài | Thư mục | Public/Private -->
+          <div class="editor-meta" style="display:flex;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--hover);flex-wrap:wrap;align-items:center">
+            <input type="text" id="e-title" class="input-title" placeholder="✏ Tên bài học..." style="flex:2;min-width:200px">
+            <!-- Folder picker với danh sách bài -->
+            <div style="position:relative;display:flex;align-items:center;gap:6px;flex:1;min-width:160px">
+              <select id="e-folder" class="input-folder" style="flex:1" onchange="onFolderChange(this.value)">
+                <option value="">— Thư mục —</option>
+              </select>
+            </div>
+            <!-- Bài viết trong thư mục -->
+            <div style="position:relative;flex:1;min-width:160px" id="e-article-wrap">
+              <select id="e-article-list" style="width:100%;border:1px solid var(--border);border-radius:7px;padding:7px 11px;font-size:13px;font-family:inherit;outline:none;background:#fff;color:var(--text)" onchange="onArticleSelect(this.value)">
+                <option value="">— Chọn bài viết —</option>
+              </select>
+            </div>
+            <!-- Public/Private -->
+            <select id="e-access" style="border:1px solid var(--border);border-radius:7px;padding:7px 11px;font-size:13px;font-family:inherit;outline:none;background:#fff;min-width:130px">
               <option value="public">🌐 Public</option>
               <option value="private">🔒 Private</option>
             </select>
+            <input type="hidden" id="e-desc" value="">
           </div>
           <!-- Tabs -->
           <div class="editor-tabs">
@@ -1401,13 +1413,47 @@ async function selectFile(item) {
   try {
     const data = await NOCO.listRecords({ where: `(Path,eq,${item.path})`, limit: 1 });
     const row = (data.list || [])[0];
-    const html = row ? (row.Content || '(chưa có nội dung)') : '(không tìm thấy trong NocoDB)';
+    const html = row ? (row.Content || '') : '';
     const size = (html.length / 1024).toFixed(1);
+
+    // Render bằng iframe — giống tab Soạn thảo
+    const isFullPage = html.trim().toLowerCase().startsWith('<!doctype') || html.trim().toLowerCase().startsWith('<html');
+    const katexSnippet = [
+      '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">',
+      '<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"><\\/script>',
+      '<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"><\\/script>',
+      '<script>document.addEventListener("DOMContentLoaded",function(){if(typeof renderMathInElement!=="undefined")renderMathInElement(document.body,{delimiters:[{left:"$$",right:"$$",display:true},{left:"\\\\[",right:"\\\\]",display:true},{left:"$",right:"$",display:false},{left:"\\\\(",right:"\\\\)",display:false}],throwOnError:false});});<\\/script>'
+    ].join('\n');
+
+    let finalHTML;
+    if (!html) {
+      finalHTML = '<p style="color:#94a3b8;padding:40px;text-align:center">Bài học chưa có nội dung</p>';
+    } else if (isFullPage) {
+      finalHTML = html.includes('katex') || html.includes('MathJax') ? html : html.replace('</head>', katexSnippet + '</head>');
+    } else {
+      finalHTML = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+${katexSnippet}
+</head><body style="margin:0;padding:0">${html}</body></html>`;
+    }
+
     body.innerHTML = `
-      <div style="padding:14px 16px;border-bottom:1px solid var(--border);font-size:12.5px;color:var(--text-muted);background:#f8fafc">
-        <b style="color:var(--text)">${item.name}</b> &nbsp;·&nbsp; 📁 ${item.folder||'Gốc'} &nbsp;·&nbsp; ${size} KB
+      <div style="padding:10px 16px;border-bottom:1px solid var(--border);font-size:12.5px;color:var(--text-muted);background:var(--hover);display:flex;align-items:center;gap:12px;flex-shrink:0">
+        <b style="color:var(--text)">${item.name}</b>
+        <span>📁 ${item.folder||'Gốc'}</span>
+        <span>${size} KB</span>
+        <button onclick="editSelectedFile()" class="btn btn-primary btn-sm" style="margin-left:auto"><i class="fas fa-pen"></i> Chỉnh sửa</button>
       </div>
-      <div style="padding:16px;font-size:13px;line-height:1.8;max-height:380px;overflow-y:auto">${html}</div>`;
+      <iframe id="detail-iframe" style="flex:1;border:none;width:100%;min-height:500px" sandbox="allow-same-origin allow-scripts allow-popups allow-forms"></iframe>`;
+
+    const iframe = document.getElementById('detail-iframe');
+    iframe.srcdoc = finalHTML;
+    iframe.onload = () => {
+      try {
+        const h = iframe.contentDocument.body.scrollHeight;
+        iframe.style.height = Math.max(h, 400) + 'px';
+      } catch { iframe.style.height = '500px'; }
+    };
   } catch(e) {
     body.innerHTML = `<div style="padding:20px;color:var(--danger)">Lỗi tải file: ${e.message}</div>`;
   }
@@ -2475,6 +2521,43 @@ function markSaving() {
   const dot = document.getElementById('save-dot');
   if (dot) dot.className = 'save-dot saving';
   document.getElementById('save-status').textContent = 'Đang lưu lên GitHub...';
+}
+
+// ── Khi chọn thư mục → load danh sách bài trong thư mục ──
+async function onFolderChange(folder) {
+  const sel = document.getElementById('e-article-list');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">⏳ Đang tải...</option>';
+
+  if (!folder) {
+    sel.innerHTML = '<option value="">— Chọn bài viết —</option>';
+    return;
+  }
+
+  try {
+    const data = await NOCO.listRecords({
+      limit: 200,
+      where: `(Folder,eq,${folder})`,
+      sort: 'Title'
+    });
+    const articles = data.list || [];
+    if (articles.length === 0) {
+      sel.innerHTML = '<option value="">— Thư mục trống —</option>';
+      return;
+    }
+    sel.innerHTML = '<option value="">— Chọn bài viết —</option>' +
+      articles.map(a => `<option value="${a.Path||''}" data-id="${a.Id}">${a.Title||a.Name||a.Path||'(chưa đặt tên)'}</option>`).join('');
+  } catch(e) {
+    sel.innerHTML = '<option value="">Lỗi tải bài</option>';
+  }
+}
+
+// ── Khi chọn bài viết → mở edit ──
+async function onArticleSelect(path) {
+  if (!path) return;
+  // Reset select về placeholder
+  document.getElementById('e-article-list').value = '';
+  await openArticleEditor(path);
 }
 
 function newArticle() {
