@@ -929,15 +929,7 @@ tr:hover td{background:var(--hover)}
 
 <script>
 
-// Kiểm tra auth - hiện login screen nếu chưa đăng nhập
-(function() {
-  if (sessionStorage.getItem('ae_auth') !== '1' || !sessionStorage.getItem('ae_admin_pass')) {
-    // Sẽ hiện login screen sau khi DOM load xong
-    document.addEventListener('DOMContentLoaded', () => {
-      document.getElementById('login-screen').style.display = 'flex';
-    });
-  }
-})();
+// Auth được xử lý trong DOMContentLoaded bên dưới
 
 // ═══════════════════════════════════════════════════
 // SETTINGS & AUTH
@@ -3004,7 +2996,18 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeModal();
 });
 
-window.addEventListener('DOMContentLoaded', () => { checkSession(); });
+window.addEventListener('DOMContentLoaded', () => {
+  const hasAuth = sessionStorage.getItem('ae_auth') === '1';
+  const hasPass = !!sessionStorage.getItem('ae_admin_pass');
+  const loginScreen = document.getElementById('login-screen');
+  if (hasAuth && hasPass) {
+    loginScreen.style.display = 'none';
+    initAdmin();
+  } else {
+    sessionStorage.removeItem('ae_auth');
+    loginScreen.style.display = 'flex';
+  }
+});
 // ── CONFIG EXPORT / IMPORT ──────────────────────────────
 function exportConfig() {
   const c = cfg();
