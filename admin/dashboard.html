@@ -493,6 +493,11 @@ tr:hover td{background:var(--hover)}
               <div class="form-hint">URL instance NocoDB của bạn (cloud hoặc self-hosted)</div>
             </div>
             <div class="form-group">
+              <label>🔒 Proxy URL <span style="color:var(--text-muted);font-weight:400;font-size:12px">(Cloudflare Worker)</span></label>
+              <input type="text" id="s-proxy-url" placeholder="https://api.gds.edu.vn">
+              <div class="form-hint">Để trống = gọi NocoDB trực tiếp. Có proxy = ẩn hoàn toàn API key</div>
+            </div>
+            <div class="form-group">
               <label>API Token</label>
               <input type="password" id="s-noco-token" placeholder="Dán API Token từ NocoDB vào đây">
               <div class="form-hint">Team menu → <b>Account Settings → Tokens → Add Token</b></div>
@@ -2040,6 +2045,7 @@ function loadSettings() {
 
   // NocoDB
   setVal('s-noco-url',         c.nocoUrl         || '');
+  setVal('s-proxy-url',        c.proxyUrl        || '');
   setVal('s-noco-token',       c.nocoToken        || '');
   setVal('s-noco-table',       c.nocoTable        || '');
   setVal('s-noco-base',        c.nocoBase         || '');
@@ -2052,6 +2058,7 @@ function saveSettings() {
   const c = cfg();
   const getVal = (id, def='') => document.getElementById(id)?.value?.trim() || def;
 
+  c.proxyUrl   = getVal('s-proxy-url');
   c.token      = getVal('s-token');
   c.repo       = getVal('s-repo');
   c.branch     = getVal('s-branch', 'main');
@@ -3254,6 +3261,7 @@ function exportConfig() {
   // Cấu hình đầy đủ gồm tất cả các field kể cả mới thêm
   const exportData = {
     // NocoDB
+    proxyUrl:        c.proxyUrl        || '',
     nocoUrl:         c.nocoUrl         || '',
     nocoToken:       c.nocoToken       || '',
     nocoTable:       c.nocoTable       || '',
@@ -3304,7 +3312,7 @@ function handleImportConfig(input) {
       // Merge vào config hiện tại (không ghi đè field trống)
       const current = getCfg();
       const merged = { ...current };
-      const fields = ['nocoUrl','nocoToken','nocoTable','nocoBase','nocoUserTable','nocoFolderTable','nocoPermTable',
+      const fields = ['proxyUrl','nocoUrl','nocoToken','nocoTable','nocoBase','nocoUserTable','nocoFolderTable','nocoPermTable',
                       'token','repo','branch','contentDir','url','adminUser','adminPass','title'];
       fields.forEach(k => { if (data[k]) merged[k] = data[k]; });
       saveCfg(merged);
