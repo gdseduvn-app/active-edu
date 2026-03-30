@@ -445,25 +445,23 @@ async function doUserLogin() {
 
   // Luôn dùng proxy để xác thực
   try {
-    {
-      const userPath = `/api/users?where=(Email,eq,${encodeURIComponent(u)})&limit=1`;
-      const data = await fetch(`${PROXY_URL}${userPath}`).then(r=>r.json());
-      const row = (data.list || [])[0];
-      if (row && (row.Password === p || row.MatKhau === p)) {
-        const status = row.Status || row.TrangThai || 'active';
-        if (status === 'inactive' || status === 'banned') { showErr(); return; }
-        setUser({ username: u, displayName: row.FullName || row.HoTen || row.Name || u, role: row.Role || row.VaiTro || 'student' });
-        await loadUserPerms();
-        closeLoginModal();
-        renderUserArea();
-        buildNav(contentTree);
-        buildCards(contentTree);
-        if (pendingPrivateItem) { loadArticle(pendingPrivateItem); pendingPrivateItem = null; }
-        if (btn) btn.disabled = false;
-        return;
-      }
-    } catch(e) { console.warn('NocoDB login error:', e); }
-  }
+    const userPath = `/api/users?where=(Email,eq,${encodeURIComponent(u)})&limit=1`;
+    const data = await fetch(`${PROXY_URL}${userPath}`).then(r=>r.json());
+    const row = (data.list || [])[0];
+    if (row && (row.Password === p || row.MatKhau === p)) {
+      const status = row.Status || row.TrangThai || 'active';
+      if (status === 'inactive' || status === 'banned') { showErr(); return; }
+      setUser({ username: u, displayName: row.FullName || row.HoTen || row.Name || u, role: row.Role || row.VaiTro || 'student' });
+      await loadUserPerms();
+      closeLoginModal();
+      renderUserArea();
+      buildNav(contentTree);
+      buildCards(contentTree);
+      if (pendingPrivateItem) { loadArticle(pendingPrivateItem); pendingPrivateItem = null; }
+      if (btn) btn.disabled = false;
+      return;
+    }
+  } catch(e) { console.warn('NocoDB login error:', e); }
 
   // Fallback: local USERS list
   const found = USERS.find(x => x.username === u && x.password === p);
