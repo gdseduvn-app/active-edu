@@ -309,7 +309,7 @@ tr:hover td{background:var(--hover)}
 
   <div id="noco-status-bar" class="gh-status disconnected" style="margin-top:0">
     <div class="gh-dot"></div>
-    <span id="noco-status-text">Chưa kết nối NocoDB</span>
+    <span id="noco-status-text">api.gds.edu.vn</span>
   </div>
 
   <div class="sb-section">Điều hướng</div>
@@ -640,21 +640,9 @@ tr:hover td{background:var(--hover)}
         </div>
       </div>
 
-      <!-- Not connected state -->
-      <div id="noco-not-connected" class="card" style="text-align:center;padding:40px">
-        <i class="fas fa-database" style="font-size:48px;color:var(--border);display:block;margin-bottom:12px"></i>
-        <h3 style="margin-bottom:8px">Chưa kết nối NocoDB</h3>
-        <p style="color:var(--text-muted);margin-bottom:18px;line-height:1.7">
-          Nhập thông tin NocoDB trong <b>Cài đặt → NocoDB</b> để quản lý<br>
-          metadata bài học (tags, lượt xem, trạng thái...) bằng cơ sở dữ liệu.
-        </p>
-        <button class="btn btn-primary" onclick="showPanel('settings',document.querySelectorAll('.sb-item')[5])">
-          <i class="fas fa-gear"></i> Đến Cài đặt
-        </button>
-      </div>
-
-      <!-- Connected state -->
-      <div id="noco-connected" style="display:none">
+      <!-- Connected state (always shown via proxy) -->
+      <div id="noco-not-connected" style="display:none"></div>
+      <div id="noco-connected">
 
         <!-- Status bar -->
         <div class="sync-bar" id="noco-sync-bar" style="display:none">
@@ -2220,11 +2208,9 @@ function showPanel(id, navEl) {
     loadUsers();
 
   } else if (id === 'nocodb') {
-    updateNocoStatus(hasNoco, c.nocoUrl ? c.nocoUrl.replace('https://','').split('/')[0] : '');
-    if (hasNoco) {
-      nocoTestConnection();
-      nocoLoadRecords();
-    }
+    updateNocoStatus(true, 'api.gds.edu.vn');
+    nocoTestConnection();
+    nocoLoadRecords();
   }
 }
 
@@ -2256,8 +2242,8 @@ function initAdmin() {
   const hasNoco = true; // Luôn dùng proxy
   const hasGH   = !!c.token && !!c.repo;
   updateGhStatus(hasGH);
-  updateNocoStatus(hasNoco, hasNoco ? (c.nocoUrl||'').replace('https://','').split('/')[0] : '');
-  document.getElementById('top-repo').textContent = hasNoco ? (c.nocoUrl||'').replace('https://','').split('/')[0] : (c.repo||'');
+  updateNocoStatus(true, 'api.gds.edu.vn');
+  document.getElementById('top-repo').textContent = 'api.gds.edu.vn';
 
   if (hasNoco) {
     // Sync 1 lần khi khởi động, sau đó user bấm "Đồng bộ ngay" khi cần
