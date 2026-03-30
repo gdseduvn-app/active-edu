@@ -340,7 +340,7 @@
     <div class="loading"><i class="fas fa-circle-notch spin"></i><br><br>Đang tải...</div>
   </div>
   <div class="sidebar-footer">
-    <a href="admin/index.html" class="admin-link"><i class="fas fa-cog"></i> Quản trị Admin</a>
+    <a href="admin/index.html" class="admin-link" id="admin-link" style="display:none"><i class="fas fa-cog"></i> Quản trị Admin</a>
     <div class="copy">ActiveEdu v2.0 • GitHub Pages</div>
   </div>
 </nav>
@@ -513,6 +513,13 @@ function doLogout() {
 function renderUserArea() {
   const area = document.getElementById('user-area');
   const user = getUser();
+
+  // Hiện/ẩn nút Quản trị Admin theo role
+  const adminLink = document.getElementById('admin-link');
+  if (adminLink) {
+    adminLink.style.display = (user && user.role === 'admin') ? 'inline-flex' : 'none';
+  }
+
   if (user) {
     const avatarSrc = user.avatar || '';
     const avatarHtml = avatarSrc
