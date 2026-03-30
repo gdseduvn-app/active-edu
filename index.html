@@ -637,6 +637,15 @@ async function init() {
     buildNav(contentTree);
     buildCards(contentTree);
     updateStats();
+
+    // Xử lý deep link: nếu URL có #/bai/... thì tự mở bài đó
+    const hash = window.location.hash;
+    if (hash.startsWith('#/bai/')) {
+      const slug = decodeURIComponent(hash.replace('#/bai/', ''));
+      // Tìm theo slug (tên file) hoặc full path
+      const item = findItemBySlug(contentTree, slug);
+      if (item) loadArticle(item);
+    }
   } catch(e) {
     console.error('NocoDB load error:', e);
     showEmptyState();
@@ -808,8 +817,9 @@ function buildCards(tree) {
 async function loadArticle(item) {
   // Cập nhật hash URL (không reload, không lộ đường dẫn thật)
   currentArticlePath = item.path;
-  const encodedPath = encodeURIComponent(item.path);
-  history.pushState(null, '', `#/bai/${encodedPath}`);
+  // Lấy slug từ tên file (phần cuối của path, bỏ .html)
+  const slug = item.path.split('/').pop().replace(/\.html?$/i, '');
+  history.pushState(null, '', `#/bai/${encodeURIComponent(slug)}`);
   document.title = `${item.name} — ActiveEdu`;
 
   // Kiểm tra quyền truy cập
@@ -864,6 +874,31 @@ async function loadArticle(item) {
   }
   closeSidebar();
   window.scrollTo(0, 0);
+}
+
+function findItemByPath(tree, path) {
+  for (const node of tree) {
+    if (node.type === 'folder') {
+      const found = findItemByPath(node.children || [], path);
+      if (found) return found;
+    } else if (node.path === path) {
+      return node;
+    }
+  }
+  return null;
+}
+
+function findItemBySlug(tree, slug) {
+  for (const node of tree) {
+    if (node.type === 'folder') {
+      const found = findItemBySlug(node.children || [], slug);
+      if (found) return found;
+    } else {
+      const nodeSlug = node.path.split('/').pop().replace(/\.html?$/i, '');
+      if (nodeSlug === slug || node.path === slug) return node;
+    }
+  }
+  return null;
 }
 
 function showHome() {
