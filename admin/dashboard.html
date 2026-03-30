@@ -572,7 +572,7 @@ tr:hover td{background:var(--hover)}
             <!-- Live Preview iframe — body is contenteditable, changes sync to HTML source -->
             <iframe id="rich-iframe"
               style="flex:1;border:none;background:#fff;width:100%;min-height:400px"
-              sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-popups-to-escape-sandbox"
+              sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
             ></iframe>
           </div>
 
@@ -1478,50 +1478,7 @@ ${katexSnippet}
       <iframe id="detail-iframe" style="flex:1;border:none;width:100%;min-height:500px" sandbox="allow-same-origin allow-scripts allow-popups allow-forms"></iframe>`;
 
     const iframe = document.getElementById('detail-iframe');
-    // Inject Drive fix
-    if (finalHTML.includes('</body>')) finalHTML = finalHTML.replace('</body>', `<script>
-(function() {
-  function fixDriveIframes() {
-    document.querySelectorAll('iframe[src*="drive.google"], iframe[src*="docs.google"], iframe[src*="accounts.google"]').forEach(function(el) {
-      var src = el.getAttribute('src');
-      if (!src || el.dataset.drivefixed) return;
-      el.dataset.drivefixed = '1';
-      el.setAttribute('referrerpolicy', 'no-referrer');
-      if (!el.hasAttribute('sandbox')) {
-        el.setAttribute('sandbox', 'allow-scripts allow-popups allow-forms');
-      }
-      el.src = ''; setTimeout(function() { el.src = src; }, 10);
-    });
-  }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fixDriveIframes);
-  else fixDriveIframes();
-  new MutationObserver(function(mutations) {
-    mutations.forEach(function(m) { m.addedNodes.forEach(function(n) { if (n.tagName==='IFRAME'||n.querySelectorAll) fixDriveIframes(); }); });
-  }).observe(document.body, { childList:true, subtree:true });
-})();
-<\/script></body>`);
-    else finalHTML += `<script>
-(function() {
-  function fixDriveIframes() {
-    document.querySelectorAll('iframe[src*="drive.google"], iframe[src*="docs.google"], iframe[src*="accounts.google"]').forEach(function(el) {
-      var src = el.getAttribute('src');
-      if (!src || el.dataset.drivefixed) return;
-      el.dataset.drivefixed = '1';
-      el.setAttribute('referrerpolicy', 'no-referrer');
-      if (!el.hasAttribute('sandbox')) {
-        el.setAttribute('sandbox', 'allow-scripts allow-popups allow-forms');
-      }
-      el.src = ''; setTimeout(function() { el.src = src; }, 10);
-    });
-  }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fixDriveIframes);
-  else fixDriveIframes();
-  new MutationObserver(function(mutations) {
-    mutations.forEach(function(m) { m.addedNodes.forEach(function(n) { if (n.tagName==='IFRAME'||n.querySelectorAll) fixDriveIframes(); }); });
-  }).observe(document.body, { childList:true, subtree:true });
-})();
-<\/script>`;
-    iframe.srcdoc = finalHTML;
+    setBlobSrcdoc(iframe, finalHTML);
     iframe.onload = () => {
       try {
         const h = iframe.contentDocument.body.scrollHeight;
@@ -1874,6 +1831,16 @@ function initTinyMCE(html, callback) {
 }
 
 // ── Core: render HTML into iframe ─────────────────
+
+// ── Blob URL helper: thay srcdoc → Blob URL (null origin, bypass X-Frame-Options) ──
+function setBlobSrcdoc(iframe, html) {
+  // Revoke URL cũ nếu có
+  if (iframe._blobUrl) { URL.revokeObjectURL(iframe._blobUrl); iframe._blobUrl = null; }
+  const blob = new Blob([html], { type: 'text/html' });
+  const url  = URL.createObjectURL(blob);
+  iframe._blobUrl = url;
+  iframe.src = url;
+}
 function _renderIframe(html) {
   const iframe = document.getElementById('rich-iframe');
   if (!iframe) return;
@@ -1910,74 +1877,7 @@ iframe{max-width:100%;border-radius:8px;display:block;margin:12px 0}
 [data-math]{background:#fef9c3;padding:2px 8px;border-radius:4px;font-family:'Courier New',monospace;font-size:13px;color:#854d0e}
 </style></head><body>${html || '<p><br></p>'}</body></html>`;
   }
-
-  // Inject Drive iframe fix script
-  if (fullHTML.includes('</body>')) {
-    fullHTML = fullHTML.replace('</body>', `<script>
-(function() {
-  function fixDriveIframes() {
-    document.querySelectorAll('iframe[src*="drive.google"], iframe[src*="docs.google"], iframe[src*="accounts.google"]').forEach(function(el) {
-      // Lưu src gốc
-      var src = el.getAttribute('src');
-      if (!src) return;
-      // Thêm referrerpolicy no-referrer
-      el.setAttribute('referrerpolicy', 'no-referrer');
-      // Thêm sandbox không có allow-same-origin → opaque origin → Drive không check X-Frame-Options  
-      if (!el.hasAttribute('sandbox')) {
-        el.setAttribute('sandbox', 'allow-scripts allow-popups allow-forms');
-      }
-      // Reload src để áp dụng
-      el.src = '';
-      setTimeout(function() { el.src = src; }, 10);
-    });
-  }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fixDriveIframes);
-  else fixDriveIframes();
-  // Theo dõi DOM mới (nội dung dynamic)
-  new MutationObserver(function(mutations) {
-    mutations.forEach(function(m) {
-      m.addedNodes.forEach(function(n) {
-        if (n.tagName === 'IFRAME') fixDriveIframes();
-        if (n.querySelectorAll) n.querySelectorAll('iframe').forEach(function() { fixDriveIframes(); });
-      });
-    });
-  }).observe(document.body, { childList: true, subtree: true });
-})();
-<\/script></body>`);
-  } else {
-    fullHTML += `<script>
-(function() {
-  function fixDriveIframes() {
-    document.querySelectorAll('iframe[src*="drive.google"], iframe[src*="docs.google"], iframe[src*="accounts.google"]').forEach(function(el) {
-      // Lưu src gốc
-      var src = el.getAttribute('src');
-      if (!src) return;
-      // Thêm referrerpolicy no-referrer
-      el.setAttribute('referrerpolicy', 'no-referrer');
-      // Thêm sandbox không có allow-same-origin → opaque origin → Drive không check X-Frame-Options  
-      if (!el.hasAttribute('sandbox')) {
-        el.setAttribute('sandbox', 'allow-scripts allow-popups allow-forms');
-      }
-      // Reload src để áp dụng
-      el.src = '';
-      setTimeout(function() { el.src = src; }, 10);
-    });
-  }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fixDriveIframes);
-  else fixDriveIframes();
-  // Theo dõi DOM mới (nội dung dynamic)
-  new MutationObserver(function(mutations) {
-    mutations.forEach(function(m) {
-      m.addedNodes.forEach(function(n) {
-        if (n.tagName === 'IFRAME') fixDriveIframes();
-        if (n.querySelectorAll) n.querySelectorAll('iframe').forEach(function() { fixDriveIframes(); });
-      });
-    });
-  }).observe(document.body, { childList: true, subtree: true });
-})();
-<\/script>`;
-  }
-  iframe.srcdoc = fullHTML;
+  setBlobSrcdoc(iframe, fullHTML);
 
   iframe.onload = () => {
     const doc = iframe.contentDocument || iframe.contentWindow?.document;
@@ -2315,50 +2215,7 @@ function setRichHTML(html) {
 </head><body>${html || '<p></p>'}</body></html>`;
   }
 
-  // Inject Drive fix
-  if (fullHTML.includes('</body>')) fullHTML = fullHTML.replace('</body>', `<script>
-(function() {
-  function fixDriveIframes() {
-    document.querySelectorAll('iframe[src*="drive.google"], iframe[src*="docs.google"], iframe[src*="accounts.google"]').forEach(function(el) {
-      var src = el.getAttribute('src');
-      if (!src || el.dataset.drivefixed) return;
-      el.dataset.drivefixed = '1';
-      el.setAttribute('referrerpolicy', 'no-referrer');
-      if (!el.hasAttribute('sandbox')) {
-        el.setAttribute('sandbox', 'allow-scripts allow-popups allow-forms');
-      }
-      el.src = ''; setTimeout(function() { el.src = src; }, 10);
-    });
-  }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fixDriveIframes);
-  else fixDriveIframes();
-  new MutationObserver(function(mutations) {
-    mutations.forEach(function(m) { m.addedNodes.forEach(function(n) { if (n.tagName==='IFRAME'||n.querySelectorAll) fixDriveIframes(); }); });
-  }).observe(document.body, { childList:true, subtree:true });
-})();
-<\/script></body>`);
-  else fullHTML += `<script>
-(function() {
-  function fixDriveIframes() {
-    document.querySelectorAll('iframe[src*="drive.google"], iframe[src*="docs.google"], iframe[src*="accounts.google"]').forEach(function(el) {
-      var src = el.getAttribute('src');
-      if (!src || el.dataset.drivefixed) return;
-      el.dataset.drivefixed = '1';
-      el.setAttribute('referrerpolicy', 'no-referrer');
-      if (!el.hasAttribute('sandbox')) {
-        el.setAttribute('sandbox', 'allow-scripts allow-popups allow-forms');
-      }
-      el.src = ''; setTimeout(function() { el.src = src; }, 10);
-    });
-  }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fixDriveIframes);
-  else fixDriveIframes();
-  new MutationObserver(function(mutations) {
-    mutations.forEach(function(m) { m.addedNodes.forEach(function(n) { if (n.tagName==='IFRAME'||n.querySelectorAll) fixDriveIframes(); }); });
-  }).observe(document.body, { childList:true, subtree:true });
-})();
-<\/script>`;
-  iframe.srcdoc = fullHTML;
+  setBlobSrcdoc(iframe, fullHTML);
 
   // Wait for iframe to load then make body editable
   iframe.onload = () => {
@@ -3902,7 +3759,7 @@ async function nocoSyncAll() {
 
   for (const file of files) {
     try {
-      const payload = {
+      const metaPayload = {
         Title:       file.name,
         Path:        file.path,
         Folder:      file.folder || '',
@@ -3912,9 +3769,11 @@ async function nocoSyncAll() {
         Status:      'Published'
       };
       if (existing[file.path]) {
-        await NOCO.updateRecord(existing[file.path], payload);
+        // Chỉ PATCH metadata — KHÔNG ghi đè Content (tránh xóa nội dung bài)
+        await NOCO.updateRecord(existing[file.path], metaPayload);
       } else {
-        await NOCO.createRecord(payload);
+        // Bài mới: tạo record với Content rỗng (sẽ điền khi soạn thảo)
+        await NOCO.createRecord(metaPayload);
       }
       ok++;
     } catch { err++; }
