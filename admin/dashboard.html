@@ -909,7 +909,7 @@ tr:hover td{background:var(--hover)}
 </div>
 
 <!-- ── LOGIN ────────────────────────────────── -->
-<div id="login-screen" style="position:fixed;inset:0;background:linear-gradient(135deg,#2563eb,#4338ca);display:flex;align-items:center;justify-content:center;z-index:1000">
+<div id="login-screen" style="position:fixed;inset:0;background:linear-gradient(135deg,#2563eb,#4338ca);display:none;align-items:center;justify-content:center;z-index:1000">
   <div style="background:#fff;border-radius:20px;padding:44px;width:380px;box-shadow:0 24px 80px rgba(0,0,0,.3)">
     <div style="text-align:center;margin-bottom:28px">
       <div style="width:48px;height:48px;background:#2563eb;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;margin:0 auto 12px">⚡</div>
@@ -929,10 +929,13 @@ tr:hover td{background:var(--hover)}
 
 <script>
 
-// Kiểm tra auth - nếu chưa đăng nhập thì về trang login
+// Kiểm tra auth - hiện login screen nếu chưa đăng nhập
 (function() {
-  if (sessionStorage.getItem('ae_auth') !== '1') {
-    window.location.href = 'index.html';
+  if (sessionStorage.getItem('ae_auth') !== '1' || !sessionStorage.getItem('ae_admin_pass')) {
+    // Sẽ hiện login screen sau khi DOM load xong
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('login-screen').style.display = 'flex';
+    });
   }
 })();
 
@@ -1005,11 +1008,13 @@ async function doLogin() {
 }
 
 function checkSession() {
-  if (sessionStorage.getItem('ae_auth') === '1') {
+  if (sessionStorage.getItem('ae_auth') === '1' && sessionStorage.getItem('ae_admin_pass')) {
     document.getElementById('login-screen').style.display = 'none';
     initAdmin();
     return true;
   }
+  // Chưa đăng nhập → hiện login screen
+  document.getElementById('login-screen').style.display = 'flex';
   return false;
 }
 
