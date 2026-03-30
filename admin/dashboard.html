@@ -334,7 +334,7 @@ tr:hover td{background:var(--hover)}
 .modal-tree-folder-hd .fa-chevron-right{font-size:9px;color:var(--text-muted);transition:transform .18s}
 .modal-tree-folder.open>.modal-tree-folder-hd .fa-chevron-right{transform:rotate(90deg)}
 .modal-tree-folder.open>.modal-tree-folder-hd .fa-folder{color:#3b82f6}
-.modal-tree-folder-children{display:none;padding-left:16px}
+.modal-tree-folder-children{display:none;padding-left:14px;border-left:2px solid #e2e8f0;margin-left:12px}
 .modal-tree-folder.open>.modal-tree-folder-children{display:block}
 .modal h3{font-size:16px;font-weight:600;margin-bottom:16px;color:var(--text)}
 .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
@@ -1347,9 +1347,10 @@ function commitIndexTree() {
 
 // Broadcast thay đổi đến tất cả panels
 function _syncAllPanels() {
-  renderTree(indexTree);          // Quản lý tệp
+  renderTree(indexTree);           // Quản lý tệp
   updateDashboard();               // Dashboard
-  updateFolderSelects();           // Soạn thảo - dropdown thư mục
+  updateFolderSelects();           // Editor - folder dropdown
+  loadSidebarFolders();            // Editor - sidebar tree
   // NocoDB panel: chỉ reload nếu đang active (tránh request thừa)
   const nocoPanel = document.getElementById('panel-nocodb');
   if (nocoPanel?.classList.contains('active')) nocoLoadRecords();
@@ -1364,60 +1365,70 @@ let isDirty = false;
 function buildIndexTree(ghItems) {
   const c = cfg();
   const dir = (c.contentDir || 'content') + '/';
-  const folders = {};
-  const root = [];
 
-  // First pass: collect folders
-  ghItems.filter(i => i.type === 'tree').forEach(i => {
-    const rel = i.path.slice(dir.length);
-    if (!rel.includes('/')) {
-      folders[rel] = { type:'folder', name: rel, children: [] };
+  // Build nested folder map đúng cấp bậc
+  const folderMap = {}; // path -> folder node
+
+  // Pass 1: tạo tất cả folder nodes (mọi cấp)
+  ghItems
+    .filter(i => i.type === 'tree')
+    .sort((a, b) => a.path.length - b.path.length) // xử lý cha trước con
+    .forEach(i => {
+      const rel = i.path.slice(dir.length);
+      if (!rel) return;
+      const parts = rel.split('/');
+      const name  = parts[parts.length - 1];
+      folderMap[rel] = { type:'folder', name, path:rel, folderPath:rel, children:[], access:'public' };
+    });
+
+  // Pass 2: lồng folder vào đúng cha
+  const root = [];
+  Object.entries(folderMap).forEach(([rel, node]) => {
+    const parts = rel.split('/');
+    if (parts.length === 1) {
+      root.push(node); // folder gốc
+    } else {
+      const parentPath = parts.slice(0, -1).join('/');
+      const parent = folderMap[parentPath];
+      if (parent) {
+        parent.children.push(node);
+      } else {
+        root.push(node); // fallback
+      }
     }
   });
 
-  // Second pass: collect files
+  // Pass 3: thêm files vào đúng folder
+  const rootFiles = [];
   ghItems.filter(i => i.type === 'blob' && i.path.endsWith('.html')).forEach(i => {
-    const rel     = i.path.slice(dir.length);
-    const parts   = rel.split('/');
+    const rel      = i.path.slice(dir.length);
+    const parts    = rel.split('/');
     const fileName = parts[parts.length - 1];
-    const folderName = parts.length > 1 ? parts[0] : '';
+    const folderRel = parts.length > 1 ? parts.slice(0, -1).join('/') : '';
     const name = fileNameToTitle(fileName);
 
-    // Giữ access từ cached indexTree nếu có
     const cached = fileShaMap['_access_' + (dir + rel)];
     const item = {
-      type: 'file',
-      name,
+      type: 'file', name,
       path: rel,
-      folder: folderName,
+      folder: folderRel,
       description: '',
       access: cached || 'public',
       updated: new Date().toISOString().split('T')[0],
       sha: i.sha
     };
     fileShaMap[dir + rel] = i.sha;
-    // Giữ access từ indexTree cũ
-    const prevItem = (indexTree||[]).flatMap(x => x.type==='file'?[x]:(x.children||[])).find(x => x.path === rel);
+    const prevItem = flattenFiles(indexTree||[]).find(x => x.path === rel);
     if (prevItem && prevItem.access) fileShaMap['_access_' + (dir + rel)] = prevItem.access;
 
-    if (folderName && folders[folderName]) {
-      folders[folderName].children.push(item);
+    if (folderRel && folderMap[folderRel]) {
+      folderMap[folderRel].children.push(item);
     } else {
-      root.push(item);
+      rootFiles.push(item);
     }
   });
 
-  // Build final tree: folders first, then root files
-  const folderItems = ghItems
-    .filter(i => i.type === 'tree')
-    .map(i => {
-      const rel = i.path.slice(dir.length);
-      if (!rel.includes('/') && folders[rel]) return folders[rel];
-      return null;
-    })
-    .filter(Boolean);
-
-  return [...folderItems, ...root];
+  return [...root, ...rootFiles];
 }
 
 function fileNameToTitle(fileName) {
@@ -1642,13 +1653,15 @@ function autoSelectModalFolder(targetPath) {
   }
 }
 
-function renderModalTree(items, container, parentPath) {
+function renderModalTree(items, container, parentPath, depth) {
   if (!container) return;
+  depth = depth || 0;
   container.innerHTML = '';
   (items||[]).forEach(item => {
     if (item.type !== 'folder') return;
     const folderPath = parentPath ? parentPath + '/' + item.name : item.name;
-    const hasChildren = (item.children||[]).some(c => c.type === 'folder');
+    const childFolders = (item.children||[]).filter(c => c.type === 'folder');
+    const hasChildren = childFolders.length > 0;
 
     const wrap = document.createElement('div');
     wrap.className = 'modal-tree-folder';
@@ -1660,21 +1673,24 @@ function renderModalTree(items, container, parentPath) {
     if (hasChildren) {
       const arrow = document.createElement('i');
       arrow.className = 'fas fa-chevron-right';
+      arrow.style.cssText = 'font-size:9px;color:#94a3b8;transition:transform .15s;flex-shrink:0';
       arrow.onclick = (e) => { e.stopPropagation(); wrap.classList.toggle('open'); };
       hd.appendChild(arrow);
     } else {
       const spacer = document.createElement('span');
-      spacer.style.cssText = 'width:13px;display:inline-block';
+      spacer.style.cssText = 'width:13px;display:inline-block;flex-shrink:0';
       hd.appendChild(spacer);
     }
 
     const icon = document.createElement('i');
+    // Màu folder theo depth
+    const colors = ['#3b82f6','#6366f1','#0ea5e9','#14b8a6'];
     icon.className = 'fas fa-folder';
-    icon.style.cssText = 'color:#60a5fa;font-size:13px';
+    icon.style.cssText = `color:${colors[depth % colors.length]};font-size:13px;flex-shrink:0`;
     hd.appendChild(icon);
 
     const label = document.createElement('span');
-    label.style.flex = '1';
+    label.style.cssText = 'flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
     label.textContent = item.name;
     hd.appendChild(label);
 
@@ -1685,7 +1701,7 @@ function renderModalTree(items, container, parentPath) {
     wrap.appendChild(children);
 
     if (hasChildren) {
-      renderModalTree(item.children||[], children, folderPath);
+      renderModalTree(item.children||[], children, folderPath, depth + 1);
     }
     container.appendChild(wrap);
   });
@@ -1731,7 +1747,7 @@ async function confirmCreate() {
       showToast('Thư mục đã tồn tại!', 'warn'); return;
     }
     const folderPath = parentPath ? parentPath + '/' + name : name;
-    target.push({ type:'folder', name, path: folderPath, access:'public', children:[] });
+    target.push({ type:'folder', name, path: folderPath, folderPath: folderPath, access:'public', children:[] });
     commitIndexTree();
     // Auto-mở thư mục mới trong cây
     selectedFolder = folderPath;
@@ -1778,6 +1794,75 @@ async function confirmCreate() {
 // ═══════════════════════════════════════════════════
 // DELETE
 // ═══════════════════════════════════════════════════
+
+// ── Toggle access thư mục (public ↔ private) ──
+async function toggleFolderAccess(folderPath, currentAccess) {
+  const newAccess = currentAccess === 'private' ? 'public' : 'private';
+
+  // Cập nhật indexTree
+  function findAndUpdate(items, path) {
+    for (const item of items) {
+      if (item.type === 'folder') {
+        if (item.folderPath === path || item.path === path) {
+          item.access = newAccess;
+          return true;
+        }
+        if (findAndUpdate(item.children||[], path)) return true;
+      }
+    }
+    return false;
+  }
+  findAndUpdate(indexTree, folderPath);
+
+  // Cập nhật NocoDB Folders table
+  try {
+    const fData = await NOCO.listFolders();
+    const folder = (fData.list||[]).find(f =>
+      f.Path === folderPath || f.Name === folderPath
+    );
+    if (folder) {
+      await NOCO.call('folders', '', 'PATCH',
+        [{ Id: folder.Id, Access: newAccess }]);
+    }
+    commitIndexTree();
+    showToast(`✓ Đã đổi quyền thư mục thành ${newAccess === 'private' ? '🔒 Private' : '🌐 Public'}`, 'success');
+  } catch(e) {
+    showToast('Lỗi đổi quyền: ' + e.message, 'error');
+    commitIndexTree();
+  }
+}
+
+// ── Toggle access bài viết (public ↔ private) ──
+async function toggleFileAccess(filePath, currentAccess) {
+  const newAccess = currentAccess === 'private' ? 'public' : 'private';
+
+  // Cập nhật indexTree
+  function findAndUpdate(items) {
+    for (const item of items) {
+      if (item.type === 'file' && item.path === filePath) {
+        item.access = newAccess; return true;
+      }
+      if (item.type === 'folder' && findAndUpdate(item.children||[])) return true;
+    }
+    return false;
+  }
+  findAndUpdate(indexTree);
+
+  // Cập nhật NocoDB Articles table
+  try {
+    const data = await NOCO.listRecords({ where: `(Path,eq,${filePath})`, limit: 1 });
+    const row  = (data.list||[])[0];
+    if (row) {
+      await NOCO.updateRecord(row.Id, { Access: newAccess });
+    }
+    commitIndexTree();
+    showToast(`✓ Đã đổi quyền bài thành ${newAccess === 'private' ? '🔒 Private' : '🌐 Public'}`, 'success');
+  } catch(e) {
+    showToast('Lỗi đổi quyền: ' + e.message, 'error');
+    commitIndexTree();
+  }
+}
+
 async function confirmDeleteFile(path) {
   if (!confirm(`Xóa bài "${path}" khỏi NocoDB?`)) return;
   showLoading('Đang xóa trong NocoDB...');
@@ -1798,6 +1883,25 @@ async function confirmDeleteFile(path) {
     }
     removeFromTree(indexTree, path);
     commitIndexTree();
+    // Reset detail panel nếu đang hiện bài vừa xóa
+    if (selectedFilePath === path) {
+      selectedFilePath = null;
+      const detailPath = document.getElementById('detail-path');
+      const detailBody = document.getElementById('detail-body');
+      const detailActions = document.getElementById('detail-actions');
+      if (detailPath) detailPath.innerHTML = '<i class="fas fa-info-circle"></i> Chọn tệp để xem';
+      if (detailActions) detailActions.style.display = 'none';
+      if (detailBody) detailBody.innerHTML = '<div class="detail-placeholder"><i class="fas fa-hand-pointer"></i><span>Chọn tệp từ cây thư mục</span></div>';
+    }
+    // Reset editor nếu đang mở bài vừa xóa
+    if (currentEditPath === path) {
+      currentEditPath = null;
+      document.getElementById('e-title').value = '';
+      document.getElementById('e-path-label').innerHTML = '<i class="fas fa-file"></i> Bài mới';
+      setEditorHTML('');
+      isDirty = false;
+      document.getElementById('save-status').textContent = 'Bài đã xóa';
+    }
     showToast('✓ Đã xóa bài và quyền liên quan!', 'success');
   } catch(e) {
     showToast('Lỗi xóa: ' + e.message, 'error');
@@ -1901,6 +2005,7 @@ async function doRenameFolder(folderPath, currentName, newName) {
   const result = findAndRename(indexTree, folderPath);
   if (!result) { showToast('Không tìm thấy thư mục!', 'warn'); return; }
 
+  showLoading('Đang đổi tên thư mục...');
   try {
     const fData = await NOCO.listFolders();
     const allFolders = fData.list || [];
@@ -1916,9 +2021,14 @@ async function doRenameFolder(folderPath, currentName, newName) {
       await NOCO.call('folders', '', 'PATCH',
         [{ Id: folder.Id, Name: newName, Path: result.newPath }]);
       commitIndexTree();
+      // Cập nhật currentEditPath nếu bài đang mở nằm trong folder vừa rename
+      if (currentEditPath && result && currentEditPath.startsWith(result.oldPath + '/')) {
+        currentEditPath = result.newPath + currentEditPath.slice(result.oldPath.length);
+        const lbl = document.getElementById('e-path-label');
+        if (lbl) lbl.innerHTML = `<i class="fas fa-file-lines" style="color:var(--primary)"></i> ${currentEditPath}`;
+      }
       showToast(`✓ Đã đổi tên thành "${newName}"`, 'success');
     } else {
-      // Không tìm thấy trong NocoDB → chỉ cập nhật indexTree local, không tạo mới
       console.warn('[rename] Folder không có trong NocoDB, chỉ đổi tên local:', folderPath);
       commitIndexTree();
       showToast(`✓ Đã đổi tên thành "${newName}" (chỉ local)`, 'warn');
@@ -1926,7 +2036,7 @@ async function doRenameFolder(folderPath, currentName, newName) {
   } catch(e) {
     showToast('Lỗi đổi tên: ' + e.message, 'error');
     commitIndexTree();
-  }
+  } finally { hideLoading(); }
 }
 
 async function confirmDeleteFolder(folderPath) {
@@ -2009,6 +2119,15 @@ Xóa thư mục này?`;
     }
     removeFolderByPath(indexTree, folderPath);
     commitIndexTree();
+    // Reset editor nếu đang mở bài trong folder vừa xóa
+    if (currentEditPath && currentEditPath.startsWith(folderPath + '/')) {
+      currentEditPath = null;
+      document.getElementById('e-title').value = '';
+      const _lbl = document.getElementById('e-path-label');
+      if (_lbl) _lbl.innerHTML = '<i class="fas fa-file"></i> Bài mới';
+      setEditorHTML(''); isDirty = false;
+      document.getElementById('save-status').textContent = 'Thư mục đã xóa';
+    }
     showToast(`✓ Đã xóa thư mục "${name}"${files.length ? ` và ${files.length} bài viết` : ''}!`, 'success');
   } catch(e) {
     showToast('Lỗi xóa: ' + e.message, 'error');
@@ -2885,6 +3004,7 @@ function renderEditorTreeItems(items, container, parentPath) {
         ${accessBadge}
         <div class="tree-actions">
           <button class="tree-act-btn edit-btn" title="Sửa" onclick="event.stopPropagation();openArticleEditor('${item.path}')"><i class="fas fa-pen"></i></button>
+          <button class="tree-act-btn" title="Đổi quyền" onclick="event.stopPropagation();toggleFileAccess('${item.path}','${item.access||'public'}')"><i class="fas fa-${(item.access||'public')==='private'?'lock':'unlock'}"></i></button>
           <button class="tree-act-btn" title="Xóa" onclick="event.stopPropagation();confirmDeleteFile('${item.path}')"><i class="fas fa-trash"></i></button>
         </div>`;
       el.onclick = () => {
@@ -2937,6 +3057,7 @@ function _activatePanel(id) {
 // ── editFile: load 1 bài từ NocoDB vào editor ──
 async function editFile(path) {
   if (!path) return;
+  if (isDirty && currentEditPath && !confirm('Bài hiện tại chưa lưu. Tiếp tục sẽ mất thay đổi. Bạn có chắc?')) return;
   currentEditPath = path;
   showLoading('Tải nội dung từ NocoDB...');
   try {
@@ -2953,9 +3074,16 @@ async function editFile(path) {
       access = row.Access      || 'public';
       // Giải nén nếu Content được nén bằng LZ-String
       const _raw = row.Content || '';
-      html = _raw.startsWith('lz:')
-        ? (LZString.decompressFromBase64(_raw.slice(3)) || '')
-        : _raw;
+      if (_raw.startsWith('lz:')) {
+        try {
+          html = LZString.decompressFromBase64(_raw.slice(3)) || '';
+          if (!html) throw new Error('Kết quả giải nén rỗng');
+        } catch(e) {
+          html = `<p style="color:red;padding:20px">Lỗi giải nén: ${e.message}</p>`;
+        }
+      } else {
+        html = _raw;
+      }
     } else {
       const cached = flattenFiles(indexTree).find(f => f.path === path);
       if (cached) { title=cached.name; folder=cached.folder||''; desc=cached.description||''; access=cached.access||'public'; }
@@ -3033,6 +3161,8 @@ async function saveToNoco() {
     if (!confirm('Nội dung bài đang trống. Bạn có chắc muốn lưu không?')) return;
   }
   markSaving();
+  const _saveBtn = document.getElementById('btn-save');
+  if (_saveBtn) _saveBtn.disabled = true;
   showLoading('Đang lưu vào NocoDB...');
   try {
     const now = new Date().toISOString().split('T')[0];
@@ -3104,7 +3234,11 @@ async function saveToNoco() {
   } catch(e) {
     showToast('Lỗi NocoDB: ' + e.message, 'error');
     markDirty();
-  } finally { hideLoading(); }
+  } finally {
+    hideLoading();
+    const _sb = document.getElementById('btn-save');
+    if (_sb) _sb.disabled = false;
+  }
 }
 async function saveToGitHub() { return saveToNoco(); }
 
