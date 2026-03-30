@@ -1936,9 +1936,7 @@ Xóa thư mục này?`;
         const fData = await NOCO.listFolders();
         for (const f of (fData.list||[])) {
           if (f.Path === folderPath || (f.Path||'').startsWith(folderPath + '/')) {
-            await fetch(`${NOCO.folderBase()}/records`, {
-              method:'DELETE', headers: NOCO.headers(), body: JSON.stringify([{Id:f.Id}])
-            });
+            await NOCO.call('folders', '', 'DELETE', [{Id: f.Id}]);
           }
         }
       } catch(e) { console.warn('Delete folder NocoDB:', e.message); }
