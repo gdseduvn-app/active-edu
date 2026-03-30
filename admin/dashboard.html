@@ -920,7 +920,7 @@ tr:hover td{background:var(--hover)}
     <div class="form-group" style="margin-bottom:18px"><label>Mật khẩu</label><input type="password" id="login-pass" placeholder="••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
     <button onclick="doLogin()" style="width:100%;padding:12px;background:#2563eb;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;transition:background .15s" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">Đăng nhập →</button>
     <div id="login-err" style="color:#ef4444;font-size:13px;text-align:center;margin-top:10px;display:none">Sai tài khoản hoặc mật khẩu!</div>
-    <div style="text-align:center;font-size:12px;color:#94a3b8;margin-top:14px">Mặc định: <code style="background:#f1f5f9;padding:1px 5px;border-radius:3px">admin</code> / <code style="background:#f1f5f9;padding:1px 5px;border-radius:3px">activeedu2024</code></div>
+    <div style="text-align:center;font-size:12px;color:#94a3b8;margin-top:14px">Mật khẩu được cấu hình trong Cloudflare Worker</div>
   </div>
 </div>
 
@@ -2987,7 +2987,6 @@ function nocoOpenTable() {
 // ═══════════════════════════════════════════════════
 // USERS TABLE
 // ═══════════════════════════════════════════════════
-let userPageIndex = 0;
 const USER_LIMIT = 25;
 let userTotalRows = 0;
 let userWhereClause = '';
