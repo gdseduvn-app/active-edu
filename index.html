@@ -214,7 +214,7 @@
   .count-badge { font-size:12px;color:var(--text-muted);background:var(--bg);border:1px solid var(--border);padding:4px 10px;border-radius:20px; }
 
   #content-area { flex:1;padding:28px 32px;max-width:1100px; }
-  #content-area.article-mode { max-width:100%;padding:20px 28px; }
+  #content-area.article-mode { max-width:100%;padding:16px 20px; }
 
   /* ── HERO ── */
   .home-hero { background:linear-gradient(135deg,var(--primary) 0%,var(--indigo) 100%);border-radius:24px;padding:44px 48px;color:#fff;margin-bottom:32px;position:relative;overflow:hidden;box-shadow:0 10px 30px rgba(37,99,235,.25); }
@@ -254,8 +254,25 @@
 
   /* ── ARTICLE ── */
   #article-view { display:none;width:100%; }
+  /* iframe: tỉ lệ vàng 1:1.618, cuộn dọc bên trong nếu nội dung dài */
+  #article-iframe-wrap {
+    width: 100%;
+    position: relative;
+  }
+  #article-iframe {
+    width: 100% !important;
+    /* aspect-ratio tỉ lệ vàng: width / 1.618 */
+    aspect-ratio: 1.618 / 1;
+    min-height: 500px;
+    max-height: 92vh;      /* không vượt quá màn hình */
+    display: block;
+    border: none;
+    /* Cuộn dọc bên trong iframe khi nội dung dài hơn max-height */
+    overflow-y: auto;
+    transition: none !important; /* bỏ transition gây reflow */
+  }
   #article-gate { display:none;max-width:860px; }
-  .article-wrap { background:var(--card-bg);border:1px solid var(--border);border-radius:20px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.04); }
+  .article-wrap { background:var(--card-bg);border:1px solid var(--border);border-radius:20px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.04);width:100%;box-sizing:border-box; }
   .article-hd { background:var(--hover);border-bottom:1px solid #bfdbfe;padding:22px 32px;display:flex;align-items:flex-start;justify-content:space-between;gap:16px; }
   .article-hd-tags { display:flex;gap:6px;margin-bottom:8px;align-items:center; }
   .article-hd-tag { padding:3px 10px;background:#fff;border:1px solid #bfdbfe;color:var(--primary);font-size:11px;font-weight:700;border-radius:6px; }
@@ -411,7 +428,9 @@
           <i class="fas fa-book-reader article-hd-icon"></i>
         </div>
         <div class="article-body" style="padding:0">
-          <iframe id="article-iframe" style="width:100%;border:none;height:600px;display:block;transition:height 0.2s ease" scrolling="no"></iframe>
+          <div id="article-iframe-wrap">
+            <iframe id="article-iframe" scrolling="auto"></iframe>
+          </div>
         </div>
       </div>
     </div>
@@ -828,16 +847,7 @@ function buildCards(tree) {
 
 
 // Lắng nghe chiều cao từ iframe (postMessage)
-window.addEventListener('message', (e) => {
-  if (e.data && e.data.type === 'ae-iframe-height') {
-    const iframe = document.getElementById('article-iframe');
-    if (!iframe) return;
-    const newH = Math.max(e.data.height + 40, 400);
-    // Chỉ tăng, không giảm đột ngột (tránh nhấp nháy khi tab click)
-    const curH = parseInt(iframe.style.height) || 600;
-    iframe.style.height = Math.max(newH, curH) + 'px';
-  }
-});
+// iframe sizing handled purely by CSS aspect-ratio
 
 async function loadArticle(item) {
   // Cập nhật hash URL (không reload, không lộ đường dẫn thật)
@@ -867,6 +877,7 @@ async function loadArticle(item) {
   document.getElementById('article-gate').style.display = 'none';
   document.getElementById('article-view').style.display = 'block';
   document.getElementById('content-area').classList.add('article-mode');
+
   document.getElementById('article-title').textContent = item.name;
   const accessTag = item.access === 'private'
     ? '<span class="article-hd-tag" style="background:#fef2f2;border-color:#fca5a5;color:#b91c1c"><i class="fas fa-lock"></i> Private</span>'
@@ -936,43 +947,29 @@ ${mathJaxSnippet}
 </head><body style="margin:0;padding:0">${content}</body></html>`;
       }
 
-      // Inject auto-resize script vào mọi bài học
-      const autoResizeScript = `<script>
-(function() {
-  function rh() {
-    var h = Math.max(
-      document.body.scrollHeight, document.body.offsetHeight,
-      document.documentElement.scrollHeight, document.documentElement.offsetHeight
-    );
-    window.parent.postMessage({ type: 'ae-iframe-height', height: h }, '*');
-  }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', rh);
-  else rh();
-  window.addEventListener('load', rh);
-  try { new MutationObserver(rh).observe(document.body, {childList:true,subtree:true,attributes:true,characterData:true}); } catch(e){}
-  try { new ResizeObserver(rh).observe(document.body); } catch(e){}
-  [300,600,1000,2000,3500].forEach(t => setTimeout(rh, t));
-  // Reset + đo lại khi click bất kỳ element nào (tab, button, accordion)
-  document.addEventListener('click', function() { setTimeout(rh, 50); setTimeout(rh, 300); });
-})();
-<\/script>`;
-      if (finalContent.includes('</body>')) {
-        finalContent = finalContent.replace('</body>', autoResizeScript + '</body>');
-      } else {
-        finalContent = finalContent + autoResizeScript;
+      // Inject CSS ổn định layout (chống trôi đồ thị khi resize)
+      const stabilizeCSS = `<style>
+/* Chống trôi đồ thị khi iframe resize */
+canvas { display:block !important; }
+[style*="position:sticky"], [style*="position: sticky"] { position:relative !important; }
+/* Các container đồ thị giữ nguyên kích thước */
+.canvas-wrap, .chart-wrap, .graph-wrap,
+[class*="canvas"], [class*="chart"], [class*="graph"],
+[class*="interactive"], [class*="edtech"] {
+  contain: layout style;
+  overflow: hidden;
+}
+/* Đảm bảo grid/flex layout không bị reflow gây trôi */
+body { overflow-x: hidden; }
+img { max-width: 100%; height: auto; }
+</style>`;
+      if (finalContent.includes('</head>')) {
+        finalContent = finalContent.replace('</head>', stabilizeCSS + '</head>');
       }
+
+      // No auto-resize script needed — CSS aspect-ratio handles sizing
       iframe.srcdoc = finalContent;
-      iframe.onload = () => {
-        // Đo ban đầu (postMessage script bên trong sẽ tiếp tục cập nhật)
-        try {
-          const body = iframe.contentDocument?.body;
-          const doc  = iframe.contentDocument?.documentElement;
-          if (body) {
-            const h = Math.max(body.scrollHeight, body.offsetHeight, doc.scrollHeight, doc.offsetHeight);
-            iframe.style.height = Math.max(h + 32, 400) + 'px';
-          }
-        } catch { iframe.style.height = '80vh'; }
-      };
+      // iframe height managed by CSS aspect-ratio
     } else {
       iframe.srcdoc = '<p style="color:#ef4444;padding:40px;text-align:center">Bài học chưa có nội dung trong NocoDB.</p>';
     }
