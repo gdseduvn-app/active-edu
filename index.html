@@ -363,7 +363,13 @@
 
     <!-- ARTICLE -->
     <div id="article-view">
-      <button class="back-btn" onclick="showHome()"><i class="fas fa-arrow-left"></i> Quay lại thư viện</button>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <button class="back-btn" style="margin:0" onclick="showHome()"><i class="fas fa-arrow-left"></i> Quay lại</button>
+        <button class="back-btn" id="share-btn" style="margin:0;background:rgba(37,99,235,.1);color:#2563eb;border-color:#bfdbfe" onclick="shareArticle()" title="Sao chép link chia sẻ">
+          <i class="fas fa-share-nodes"></i> Chia sẻ
+        </button>
+        <span id="share-toast" style="font-size:12px;color:#16a34a;display:none"><i class="fas fa-check"></i> Đã sao chép link!</span>
+      </div>
       <div class="article-wrap">
         <div class="article-hd">
           <div>
@@ -441,7 +447,10 @@ async function doUserLogin() {
   // Try NocoDB Users table first
   if (c.nocoToken && c.nocoUserTable) {
     try {
-      const data = await nocoFetch(`/tables/${c.nocoUserTable}/records?where=(Email,eq,${encodeURIComponent(u)})&limit=1`);
+      const userPath = c.nocoUserTable
+        ? `/tables/${c.nocoUserTable}/records?where=(Email,eq,${encodeURIComponent(u)})&limit=1`
+        : `/api/users?where=(Email,eq,${encodeURIComponent(u)})&limit=1`;
+      const data = await nocoFetch(userPath);
       const row = (data.list || [])[0];
       if (row && (row.Password === p || row.MatKhau === p)) {
         const status = row.Status || row.TrangThai || 'active';
@@ -520,45 +529,86 @@ const COLORS = ['blue','indigo','teal','slate'];
 const ICONS  = ['fas fa-book','fas fa-shapes','fas fa-calculator','fas fa-code','fas fa-flask','fas fa-globe'];
 
 // ── Lấy config NocoDB từ localStorage (do admin đã cấu hình)
+// ── Proxy-first: học sinh không cần config, token lưu trên Cloudflare Worker ──
+const PROXY_URL = 'https://api.gds.edu.vn'; // Cloudflare Worker
+
 function getNocoCfg() {
-  // Đọc config từ key 'ae_config' (giống dashboard admin)
-  try {
-    const c = JSON.parse(localStorage.getItem('ae_config') || '{}');
-    return c;
-  } catch { return {}; }
+  try { return JSON.parse(localStorage.getItem('ae_config') || '{}'); } catch { return {}; }
+}
+
+// Map NocoDB table path → proxy route (dùng khi có localStorage config)
+function mapToProxyPath(path, c) {
+  const tableMap = {
+    [c.nocoTable]:       '/api/articles',
+    [c.nocoUserTable]:   '/api/users',
+    [c.nocoFolderTable]: '/api/folders',
+    [c.nocoPermTable]:   '/api/permissions',
+  };
+  for (const [tableId, route] of Object.entries(tableMap)) {
+    if (tableId && path.includes(tableId)) {
+      return path.replace(`/tables/${tableId}`, route);
+    }
+  }
+  return path;
 }
 
 async function nocoFetch(path, opts = {}) {
   const c = getNocoCfg();
-  const base = (c.nocoUrl || 'https://app.nocodb.com').replace(/\/$/, '');
-  const r = await fetch(`${base}/api/v2${path}`, {
-    ...opts,
-    headers: { 'xc-token': c.nocoToken, 'Content-Type': 'application/json', ...(opts.headers||{}) }
-  });
+
+  // Ưu tiên 1: Cloudflare Worker proxy (không cần token, bảo mật nhất)
+  // Proxy tự biết table IDs qua env vars
+  let url, headers;
+
+  if (c.proxyUrl || PROXY_URL) {
+    // Dùng proxy - map path nếu có config, hoặc gửi path gốc
+    const proxy = (c.proxyUrl || PROXY_URL).replace(/\/$/, '');
+    let proxyPath = path;
+    // Thử map nếu có localStorage config
+    if (c.nocoTable) proxyPath = mapToProxyPath(path, c);
+    // Nếu chưa mapped (path vẫn có /tables/), strip xuống route tương ứng
+    else {
+      const m = path.match(/\/tables\/[^/]+\/records(.*)/);
+      // Không thể map nếu không biết table nào - fallback direct nếu có token
+      if (m && !c.nocoToken) {
+        throw new Error('Chưa cấu hình. Vào Admin để thiết lập.');
+      }
+    }
+    url = `${proxy}${proxyPath}`;
+    headers = { 'Content-Type': 'application/json', ...(opts.headers||{}) };
+  } else if (c.nocoToken) {
+    // Fallback: gọi trực tiếp nếu có token trong localStorage
+    const base = (c.nocoUrl || 'https://app.nocodb.com').replace(/\/$/, '');
+    url = `${base}/api/v2${path}`;
+    headers = { 'xc-token': c.nocoToken, 'Content-Type': 'application/json', ...(opts.headers||{}) };
+  } else {
+    throw new Error('Chưa cấu hình NocoDB');
+  }
+
+  const r = await fetch(url, { ...opts, headers });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
+
 
 async function init() {
   renderUserArea();
   const c = getNocoCfg();
 
-  if (!c.nocoToken || !c.nocoTable) {
-    // Fallback: try loading from content/index.json
-    try {
-      const res = await fetch('content/index.json');
-      if (!res.ok) throw new Error();
-      contentTree = await res.json();
-      buildNav(contentTree);
-      buildCards(contentTree);
-      updateStats();
-    } catch { showEmptyState(); }
+  // Nếu không có localStorage config → dùng proxy (Cloudflare Worker)
+  // Proxy tự có token → học sinh không cần cấu hình gì
+  const useProxy = !c.nocoToken || !c.nocoTable;
+  if (useProxy && !PROXY_URL) {
+    showEmptyState();
     return;
   }
 
   try {
     // Load all articles from NocoDB
-    const data = await nocoFetch(`/tables/${c.nocoTable}/records?limit=1000&sort=Folder`);
+    // Proxy route (không cần table ID) hoặc direct với table ID
+    const articlesPath = c.nocoTable
+      ? `/tables/${c.nocoTable}/records?limit=1000&sort=Folder`
+      : `/api/articles?limit=1000&sort=Folder`;
+    const data = await nocoFetch(articlesPath);
     const records = data.list || [];
 
     // Build tree from NocoDB records
@@ -776,6 +826,12 @@ function buildCards(tree) {
 
 
 async function loadArticle(item) {
+  // Cập nhật hash URL (không reload, không lộ đường dẫn thật)
+  currentArticlePath = item.path;
+  const encodedPath = encodeURIComponent(item.path);
+  history.pushState(null, '', `#/bai/${encodedPath}`);
+  document.title = `${item.name} — ActiveEdu`;
+
   // Kiểm tra quyền truy cập
   if (item.access === 'private' && !isLoggedIn()) {
     // Hiện trang gate
