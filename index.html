@@ -923,10 +923,34 @@ ${mathJaxSnippet}
 
       iframe.srcdoc = finalContent;
       iframe.onload = () => {
+        // Đo height ngay khi load
+        const resizeIframe = () => {
+          try {
+            const body = iframe.contentDocument?.body;
+            const doc  = iframe.contentDocument?.documentElement;
+            if (!body) return;
+            // Lấy max của body và documentElement để chắc chắn đủ chiều cao
+            const h = Math.max(
+              body.scrollHeight, body.offsetHeight,
+              doc.scrollHeight,  doc.offsetHeight
+            );
+            iframe.style.height = Math.max(h + 32, 400) + 'px';
+          } catch { iframe.style.height = '80vh'; }
+        };
+
+        resizeIframe();
+
+        // Theo dõi thay đổi kích thước nội dung (KaTeX, canvas, ảnh load sau)
         try {
-          const h = iframe.contentDocument.body.scrollHeight;
-          iframe.style.height = Math.max(h, 400) + 'px';
-        } catch { iframe.style.height = '80vh'; }
+          const ro = new ResizeObserver(() => resizeIframe());
+          ro.observe(iframe.contentDocument.body);
+          // Dọn dẹp khi load bài mới
+          iframe.addEventListener('load', () => ro.disconnect(), { once: true });
+        } catch {}
+
+        // Fallback: đo lại sau 500ms và 1500ms cho KaTeX/canvas render xong
+        setTimeout(resizeIframe, 500);
+        setTimeout(resizeIframe, 1500);
       };
     } else {
       iframe.srcdoc = '<p style="color:#ef4444;padding:40px;text-align:center">Bài học chưa có nội dung trong NocoDB.</p>';
