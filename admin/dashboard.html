@@ -1797,12 +1797,16 @@ async function renameFolder(folderPath, currentName) {
 
   showLoading('Đang đổi tên thư mục...');
   try {
-    // Cập nhật NocoDB Folders table
+    // Cập nhật NocoDB Folders table — PATCH body [{Id, ...}], không cần Id trong URL
     const fData = await NOCO.listFolders();
     const folder = (fData.list||[]).find(f => (f.Path||f.Name) === result.oldPath);
     if (folder) {
-      await NOCO.call('folders', '/' + folder.Id, 'PATCH',
+      // NocoDB v2: PATCH /records với Id trong body
+      await NOCO.call('folders', '', 'PATCH',
         [{ Id: folder.Id, Name: name, Path: result.newPath }]);
+    } else {
+      // Folder chưa có trong NocoDB → tạo mới
+      await NOCO.createFolder({ Name: name, Path: result.newPath, Parent: result.newPath.split('/').slice(0,-1).join('/') });
     }
     commitIndexTree();
     showToast(`✓ Đã đổi tên thành "${name}"`, 'success');
