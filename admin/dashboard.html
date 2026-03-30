@@ -10,6 +10,7 @@
 <!-- Custom Rich Editor (no external dependencies) -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
@@ -1429,7 +1430,21 @@ async function selectFile(item) {
   try {
     const data = await NOCO.listRecords({ where: `(Path,eq,${item.path})`, limit: 1 });
     const row = (data.list || [])[0];
-    const html = row ? (row.Content || '') : '';
+    // Giải nén nếu nội dung được nén bằng LZ-String (tiền tố "lz:")
+    let html = '';
+    if (row) {
+      const rawContent = row.Content || '';
+      if (rawContent.startsWith('lz:')) {
+        try {
+          html = LZString.decompressFromBase64(rawContent.slice(3)) || '';
+          if (!html) throw new Error('Giải nén thất bại');
+        } catch(e) {
+          html = '<p style="color:red;padding:20px">Lỗi giải nén: ' + e.message + '</p>';
+        }
+      } else {
+        html = rawContent;
+      }
+    }
     const size = (html.length / 1024).toFixed(1);
 
     // Render bằng iframe — giống tab Soạn thảo
@@ -1630,17 +1645,10 @@ async function confirmDeleteFile(path) {
     // CASCADE: xóa permissions liên quan đến bài này
     if (true) { // proxy handles permissions
       try {
-        const permData = await fetch(
-          `${NOCO.permBase()}/records?where=(TargetPath,eq,${encodeURIComponent(path)})&limit=100`,
-          { headers: NOCO.headers() }
-        );
-        if (permData.ok) {
-          const perms = await permData.json();
-          for (const p of (perms.list||[])) {
-            await fetch(`${NOCO.permBase()}/records`, {
-              method:'DELETE', headers: NOCO.headers(), body: JSON.stringify([{Id:p.Id}])
-            });
-          }
+        const perms = await NOCO.call('permissions', '', 'GET', undefined,
+          `where=${encodeURIComponent('(TargetPath,eq,' + path + ')')}&limit=100`);
+        for (const p of (perms.list||[])) {
+          await NOCO.call('permissions', '', 'DELETE', [{Id: p.Id}]);
         }
       } catch(e) { console.warn('Permission cascade on article delete:', e.message); }
     }
@@ -1711,18 +1719,11 @@ Xóa thư mục này?`;
     // CASCADE: xóa permissions
     if (true) { // proxy handles permissions
       try {
-        const permData = await fetch(
-          `${NOCO.permBase()}/records?limit=1000`, { headers: NOCO.headers() }
-        );
-        if (permData.ok) {
-          const perms = await permData.json();
-          for (const p of (perms.list||[])) {
-            const tp = p.TargetPath || '';
-            if (tp === folderPath || tp.startsWith(folderPath + '/')) {
-              await fetch(`${NOCO.permBase()}/records`, {
-                method:'DELETE', headers: NOCO.headers(), body: JSON.stringify([{Id:p.Id}])
-              });
-            }
+        const perms = await NOCO.call('permissions', '', 'GET', undefined, 'limit=1000');
+        for (const p of (perms.list||[])) {
+          const tp = p.TargetPath || '';
+          if (tp === folderPath || tp.startsWith(folderPath + '/')) {
+            await NOCO.call('permissions', '', 'DELETE', [{Id: p.Id}]);
           }
         }
       } catch(e) { console.warn('Permission cascade:', e.message); }
@@ -2756,7 +2757,17 @@ async function saveToNoco() {
       const slug = title.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/gi,'d').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') + '.html';
       filePath = folder ? folder + '/' + slug : slug;
     }
-    const payload = { Title:title, Path:filePath, Folder:folder||'', Description:desc||'', Updated:now, Content:htmlContent };
+    // ── Nén nội dung nếu > 100,000 ký tự (LZ-String), dưới ngưỡng lưu thẳng ──
+    const LZ_THRESHOLD = 100000;
+    let contentValue = htmlContent;
+    if (htmlContent.length > LZ_THRESHOLD) {
+      showLoading('Nội dung lớn — đang nén LZ-String...');
+      const compressed = LZString.compressToBase64(htmlContent);
+      contentValue = 'lz:' + compressed;
+      const ratio = Math.round((1 - compressed.length / htmlContent.length) * 100);
+      console.log(`[LZ] ${htmlContent.length} → ${compressed.length} ký tự (nén ${ratio}%)`);
+    }
+    const payload = { Title:title, Path:filePath, Folder:folder||'', Description:desc||'', Updated:now, Content:contentValue };
     const existing = await NOCO.listRecords({ where: `(Path,eq,${filePath})`, limit: 1 });
     const existingRow = (existing.list || [])[0];
     if (existingRow) { await NOCO.updateRecord(existingRow.Id, payload); }
