@@ -10,6 +10,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%232563eb'/><text y='75' x='50' text-anchor='middle' font-size='65' font-family='sans-serif'>⚡</text></svg>">
 <title>ActiveEdu — Nền tảng học tập</title>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 <script>
 // Chuyển index.html#/bai/slug → /bai/slug (clean URL)
@@ -869,7 +870,15 @@ async function loadArticle(item) {
     const data = await resp.json();
     const row = (data.list || [])[0];
     if (row && row.Content) {
-      const content = row.Content;
+      let content = row.Content;
+      if (content.startsWith('lz:')) {
+        try {
+          content = LZString.decompressFromBase64(content.slice(3)) || '';
+          if (!content) throw new Error('Ket qua giai nen rong');
+        } catch(e) {
+          content = '<p style="color:red;padding:20px">Loi giai nen: ' + e.message + '</p>';
+        }
+      }
 
       // KaTeX snippet — dùng cdnjs để tránh CSP
       const mathJaxSnippet = [
