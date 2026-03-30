@@ -502,7 +502,9 @@ tr:hover td{background:var(--hover)}
                 <option value="private">🔒 Private</option>
               </select>
               <input type="hidden" id="e-desc" value="">
-              <input type="hidden" id="e-folder" value="">
+              <select id="e-folder" style="border:1px solid var(--border);border-radius:7px;padding:7px 11px;font-size:13px;font-family:inherit;outline:none;background:#fff;min-width:160px;max-width:220px;color:var(--text)">
+                <option value="">📁 Chọn thư mục...</option>
+              </select>
             </div>
             <!-- Editor body -->
             <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0">
@@ -2656,21 +2658,8 @@ async function onArticleSelect(path)  { if (path) await openArticleEditor(path);
 
 function newArticle() {
   if (isDirty && !confirm('Bài chưa lưu, tiếp tục?')) return;
-  currentEditPath = null;
-  document.getElementById('e-title').value = '';
-  document.getElementById('e-desc').value = '';
-  document.getElementById('e-access').value = 'public';
-  // Cập nhật dropdown thư mục trước
-  updateFolderSelects();
-  setTimeout(() => {
-    document.getElementById('e-folder').value = selectedFolder || '';
-  }, 60);
-  setEditorHTML('');
-  switchTab('rich');
-  isDirty = false;
-  document.getElementById('save-dot').className = 'save-dot unsaved';
-  document.getElementById('save-status').textContent = 'Bài mới';
-  document.getElementById('e-path-label').innerHTML = '<i class="fas fa-file"></i> Bài mới';
+  // Dùng cùng modal với "Tệp mới" của panel Quản lý tệp
+  showNewFile();
 }
 
 // Mở editor với bài cụ thể - dùng khi click từ NocoDB hoặc Files panel
@@ -2943,14 +2932,20 @@ function updateFolderSelects() {
       const opts = '<option value="">— Chọn thư mục —</option>' +
         folders.map(f => `<option value="${f}">${f.replace(/\//g,' › ')}</option>`).join('');
       const ef = document.getElementById('e-folder');
-      if (ef) ef.innerHTML = opts;
+      if (ef) {
+        const prev = ef.value;
+        ef.innerHTML = opts;
+        if (prev) ef.value = prev;
+      }
     }).catch(() => {});
     return;
   }
 
-  const opts = '<option value="">— Chọn thư mục —</option>' + folderOpts.join('');
   const ef = document.getElementById('e-folder');
-  if (ef) ef.innerHTML = opts;
+  if (!ef) return;
+  const prev = ef.value; // giữ lại giá trị đang chọn
+  ef.innerHTML = '<option value="">📁 Chọn thư mục...</option>' + folderOpts.join('');
+  if (prev) ef.value = prev; // khôi phục nếu vẫn còn trong danh sách
 }
 
 function updateGhStatus(connected) {
