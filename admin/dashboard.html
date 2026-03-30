@@ -880,22 +880,38 @@ function getCfg() {
 function saveCfg(c) { localStorage.setItem(CFG_KEY, JSON.stringify(c)); }
 
 function getDefaultCfg() {
-  return { token:'', repo:'', branch:'main', contentDir:'content', title:'ActiveEdu', url:'', adminUser:'admin', adminPass:'activeedu2024' };
+  return { token:'', repo:'', branch:'main', contentDir:'content', title:'ActiveEdu', url:'', adminUser:'admin', adminPass:'' };
 }
 function cfg() { return { ...getDefaultCfg(), ...getCfg() }; }
 
 // ── Auth ──
 const ADMIN_USER = 'admin';
-const ADMIN_PASS = 'activeedu2024';
 
 function doLogin() {
   var u = document.getElementById('login-user').value.trim();
   var p = document.getElementById('login-pass').value.trim();
-  if (u === ADMIN_USER && p === ADMIN_PASS) {
+  const c = cfg();
+  const savedPass = c.adminPass || '';
+  // Nếu chưa đặt mật khẩu → cho phép đặt lần đầu với user = admin
+  if (!savedPass) {
+    if (u === (c.adminUser || ADMIN_USER) && p.length >= 6) {
+      c.adminPass = p;
+      saveCfg(c);
+      sessionStorage.setItem('ae_auth', '1');
+      document.getElementById('login-screen').style.display = 'none';
+      initAdmin();
+      return;
+    }
+    document.getElementById('login-err').textContent = 'Lần đầu: nhập "admin" và mật khẩu mới (tối thiểu 6 ký tự) để đặt mật khẩu.';
+    document.getElementById('login-err').style.display = 'block';
+    return;
+  }
+  if (u === (c.adminUser || ADMIN_USER) && p === savedPass) {
     sessionStorage.setItem('ae_auth', '1');
     document.getElementById('login-screen').style.display = 'none';
     initAdmin();
   } else {
+    document.getElementById('login-err').textContent = 'Sai tên đăng nhập hoặc mật khẩu!';
     document.getElementById('login-err').style.display = 'block';
     document.getElementById('login-pass').value = '';
     document.getElementById('login-pass').focus();
