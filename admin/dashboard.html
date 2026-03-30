@@ -4069,6 +4069,37 @@ async function savePermissions(userId) {
   }
 }
 
+
+// ── Function aliases (tương thích tên cũ với tên mới) ──
+const userLoadRecords  = () => loadUsers();
+const userAddRecord    = () => { const p = document.getElementById("user-form-panel"); if(p) p.style.display="block"; else showToast("Dùng nút Thêm user ở trên","info"); };
+const userSaveForm     = () => saveUser();
+const userCloseForm    = () => { document.getElementById('user-form-panel').style.display='none'; };
+const userChangePage   = (dir) => dir > 0 ? userPageNext() : userPagePrev();
+const userSearchRecords= (q) => { if(typeof renderUsersTable==="function") renderUsersTable(); };
+
+// Sidebar resize cho editor panel
+function startSidebarResize(e) {
+  e.preventDefault();
+  const sidebar = document.getElementById('editor-sidebar');
+  if (!sidebar) return;
+  const startX = e.clientX;
+  const startW = sidebar.offsetWidth;
+  function onMove(ev) {
+    const newW = Math.max(160, Math.min(400, startW + ev.clientX - startX));
+    sidebar.style.width = newW + 'px';
+    // Cập nhật grid columns của file-manager
+    const fm = sidebar.closest('.file-manager');
+    if (fm) fm.style.gridTemplateColumns = newW + 'px minmax(0,1fr)';
+  }
+  function onUp() {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+  }
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
 // ── END CONFIG EXPORT / IMPORT ──────────────────────────
 
 </script>
