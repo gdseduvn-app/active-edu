@@ -173,7 +173,8 @@
     width:var(--sidebar-w); background:var(--sidebar-bg); color:#fff;
     position:fixed; top:0; left:0; height:100vh;
     overflow-y:auto; z-index:100;
-    display:flex; flex-direction:column; transition:transform .3s;
+    display:flex; flex-direction:column;
+    transition:transform .28s cubic-bezier(.4,0,.2,1), box-shadow .28s;
   }
   .sidebar-logo { padding:18px 20px; border-bottom:1px solid rgba(255,255,255,.1); display:flex; align-items:center; gap:10px; }
   .logo-icon { width:34px;height:34px;border-radius:10px;background:var(--primary);display:flex;align-items:center;justify-content:center;color:#fff;font-size:15px;flex-shrink:0; }
@@ -203,13 +204,14 @@
 
   /* ── MAIN ── */
   #main { margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column;min-height:100vh; }
+  @media (max-width:1024px) { #main { margin-left:0; } }
   .topbar { background:var(--card-bg);border-bottom:1px solid var(--border);padding:0 28px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:0 1px 3px rgba(0,0,0,.04); }
   .breadcrumb { display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-muted); }
   .bc-home { color:var(--primary);font-weight:500;cursor:pointer;display:flex;align-items:center;gap:5px; }
   .bc-home:hover { text-decoration:underline; }
   .bc-cur { color:var(--text);font-weight:600; }
   .bc-sep { color:var(--border); }
-  .btn-toggle { display:none;background:none;border:none;font-size:17px;cursor:pointer;color:var(--text-muted);padding:4px 8px;border-radius:6px;transition:all .15s; }
+  .btn-toggle { display:none;background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted);padding:6px 10px;border-radius:8px;transition:all .15s; }
   .btn-toggle:hover { background:var(--hover);color:var(--primary); }
   .count-badge { font-size:12px;color:var(--text-muted);background:var(--bg);border:1px solid var(--border);padding:4px 10px;border-radius:20px; }
 
@@ -254,22 +256,25 @@
 
   /* ── ARTICLE ── */
   #article-view { display:none;width:100%; }
-  /* iframe: tỉ lệ vàng 1:1.618, cuộn dọc bên trong nếu nội dung dài */
-  #article-iframe-wrap {
-    width: 100%;
-    position: relative;
-  }
+  #article-iframe-wrap { width:100%; }
+
+  /*
+   * CHIẾN LƯỢC IFRAME:
+   * - KHÔNG dùng aspect-ratio cố định → nội dung dài sẽ bị cắt
+   * - KHÔNG dùng max-height → nội dung bị ẩn, phải scroll bên trong iframe
+   * - Dùng height tối thiểu + JS postMessage để iframe tự báo chiều cao thực
+   * - Trang ngoài scroll dọc tự nhiên (không scroll bên trong iframe)
+   * - Portrait: ưu tiên đọc dọc → width 100%, height theo nội dung
+   * - Landscape: ưu tiên đọc ngang → width 100%, height >= 85vw
+   */
   #article-iframe {
-    width: 100% !important;
-    /* aspect-ratio tỉ lệ vàng: width / 1.618 */
-    aspect-ratio: 1.618 / 1;
-    min-height: 500px;
-    max-height: 92vh;      /* không vượt quá màn hình */
+    width: 100%;
+    min-height: 400px;
+    height: 600px;           /* initial height, JS sẽ cập nhật */
     display: block;
     border: none;
-    /* Cuộn dọc bên trong iframe khi nội dung dài hơn max-height */
-    overflow-y: auto;
-    transition: none !important; /* bỏ transition gây reflow */
+    overflow: hidden;        /* không scroll bên trong iframe */
+    transition: height 0.1s ease;
   }
   #article-gate { display:none;max-width:860px; }
   .article-wrap { background:var(--card-bg);border:1px solid var(--border);border-radius:20px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.04);width:100%;box-sizing:border-box; }
@@ -301,58 +306,55 @@
   .empty-state { text-align:center;padding:60px 20px;color:var(--text-muted); }
   .empty-state .emoji { font-size:48px;margin-bottom:14px; }
   .empty-state h3 { font-size:17px;margin-bottom:6px;color:var(--text);font-weight:600; }
-  .overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:90; }
+  .overlay {
+    display:none;position:fixed;inset:0;
+    background:rgba(0,0,0,.45);z-index:99;
+    backdrop-filter:blur(2px);
+    -webkit-backdrop-filter:blur(2px);
+  }
   .overlay.show { display:block; }
-  /* ══ MOBILE: 768px ══════════════════════════════════════ */
+  /* ══ TABLET/MOBILE: sidebar ẩn ≤ 1024px ══════════════ */
+  @media (max-width:1024px) {
+    :root { --sidebar-w: 280px; }
+    #sidebar {
+      transform:translateX(-100%);
+      box-shadow:none;
+      width:var(--sidebar-w);
+    }
+    #sidebar.open {
+      transform:translateX(0);
+      box-shadow:4px 0 24px rgba(0,0,0,.35);
+    }
+    .btn-toggle { display:flex; }
+  }
+
+  /* ══ TABLET/MOBILE: 768px ════════════════════════════ */
   @media (max-width:768px) {
-    /* Sidebar: ẩn, mở bằng nút toggle */
     :root { --sidebar-w: 260px; }
-    #sidebar { transform:translateX(-100%); width:260px; }
-    #sidebar.open { transform:translateX(0); }
+    #sidebar { width:260px; }
     #main { margin-left:0; }
     .btn-toggle { display:flex; }
-
-    /* Topbar */
     .topbar { padding:0 14px; height:52px; }
     .count-badge { display:none; }
-
-    /* Content area */
     #content-area { padding:14px 14px 24px; }
     #content-area.article-mode { padding:10px 12px; }
-
-    /* Hero */
     .home-hero { padding:24px 20px; border-radius:16px; }
     .home-hero h1 { font-size:20px; }
     .home-hero p { font-size:13.5px; }
     .hero-stats { gap:16px; flex-wrap:wrap; }
     .s-num { font-size:22px; }
-
-    /* Cards: 1 cột trên mobile nhỏ */
     .cards-grid { grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px; }
     .card-body { padding:12px 14px; }
     .card-title { font-size:13.5px; }
-
-    /* Article header */
     .article-hd { padding:14px 16px; gap:10px; }
     .article-hd h1 { font-size:17px; line-height:1.4; }
     .article-hd-icon { display:none; }
     .article-hd-meta { font-size:11.5px; }
-
-    /* Article view: nút back + share */
     #article-view > div:first-child { flex-wrap:wrap; gap:8px; margin-bottom:12px; }
     .back-btn { padding:7px 14px; font-size:12.5px; }
-
-    /* Article iframe: full height tự nhiên trên mobile */
-    #article-iframe {
-      aspect-ratio: auto !important;
-      min-height: 70vh !important;
-      max-height: none !important;
-    }
-
-    /* Login modal */
+    /* iframe: không giới hạn height, scroll trang ngoài */
+    #article-iframe { min-height:300px; }
     #login-modal > .lm-box { width:calc(100vw - 32px) !important; padding:28px 20px; }
-
-    /* Profile modal */
     .profile-box { width:calc(100vw - 24px) !important; max-height:85vh; }
   }
 
@@ -362,33 +364,38 @@
     #sidebar { width:240px; }
     #content-area { padding:10px 10px 20px; }
     #content-area.article-mode { padding:8px 10px; }
-
     .home-hero { padding:20px 16px; border-radius:14px; }
     .home-hero h1 { font-size:18px; }
     .home-hero p { font-size:13px; margin-bottom:14px; }
     .hero-btn { font-size:13px; padding:9px 18px; }
-
     .cards-grid { grid-template-columns:1fr; gap:10px; }
-
     .article-hd { padding:12px 14px; }
     .article-hd h1 { font-size:15.5px; }
     .article-hd-tags { flex-wrap:wrap; }
-
-    #article-iframe {
-      min-height: 75vh !important;
-    }
-
+    #article-iframe { min-height:250px; }
     .topbar { padding:0 10px; }
     .bc-cur { max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-
-    /* Nút share ẩn text trên mobile rất nhỏ */
     #share-btn span { display:none; }
   }
 
-  /* ══ LANDSCAPE MOBILE ══════════════════════════════════ */
-  @media (max-width:768px) and (orientation:landscape) {
-    .home-hero { padding:18px 20px; }
-    #article-iframe { min-height:90vw !important; }
+  /* ══ LANDSCAPE: quay ngang → ưu tiên chiều ngang ════════ */
+  @media (orientation:landscape) and (max-height:600px) {
+    /* Khi quay ngang, màn hình thấp → giảm header, tăng vùng đọc */
+    .topbar { height:44px; }
+    .article-hd { padding:10px 16px; }
+    .article-hd h1 { font-size:15px; }
+    #content-area { padding:8px 12px; }
+    #content-area.article-mode { padding:6px 10px; }
+    /* Sidebar hẹp hơn để nhường chỗ cho nội dung */
+    :root { --sidebar-w: 220px; }
+    /* iframe chiều ngang: min-height = 80% chiều cao viewport */
+    #article-iframe { min-height:80vh; }
+  }
+
+  /* ══ PORTRAIT: quay dọc → ưu tiên chiều dọc ════════════ */
+  @media (orientation:portrait) {
+    /* Không giới hạn height iframe → scroll tự nhiên */
+    #article-iframe { min-height:50vh; }
   }
 </style>
 </head>
@@ -924,8 +931,36 @@ function buildCards(tree) {
 }
 
 
-// Lắng nghe chiều cao từ iframe (postMessage)
-// iframe sizing handled purely by CSS aspect-ratio
+// ── Nhận chiều cao từ iframe, điều chỉnh theo orientation ──
+window.addEventListener('message', (e) => {
+  if (!e.data || e.data.type !== 'ae-iframe-height') return;
+  const iframe = document.getElementById('article-iframe');
+  if (!iframe) return;
+  const h = Math.max(parseInt(e.data.height) || 0, 200);
+  if (h < 200) return;
+  // Portrait: scroll tự nhiên → dùng đúng height
+  // Landscape: min 85% viewport height
+  const isLandscape = window.innerWidth > window.innerHeight;
+  const finalH = isLandscape ? Math.max(h, Math.round(window.innerHeight * 0.85)) : h;
+  if (Math.abs(finalH - (parseInt(iframe.style.height) || 0)) >= 10) {
+    iframe.style.height = finalH + 'px';
+  }
+});
+
+// Re-measure khi xoay màn hình
+window.addEventListener('orientationchange', () => {
+  setTimeout(() => {
+    const iframe = document.getElementById('article-iframe');
+    if (!iframe) return;
+    try {
+      const iDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (!iDoc?.body) return;
+      const h = Math.max(iDoc.body.scrollHeight, iDoc.documentElement?.scrollHeight || 0);
+      const isLandscape = window.innerWidth > window.innerHeight;
+      iframe.style.height = Math.max(h, isLandscape ? Math.round(window.innerHeight * 0.85) : 300) + 'px';
+    } catch {}
+  }, 350);
+});
 
 async function loadArticle(item) {
   // Cập nhật hash URL (không reload, không lộ đường dẫn thật)
@@ -1069,9 +1104,41 @@ img { max-width: 100%; height: auto; }
         finalContent = finalContent.replace('</head>', stabilizeCSS + '</head>');
       }
 
-      // No auto-resize script needed — CSS aspect-ratio handles sizing
+      // Inject auto-resize script vào iframe: báo height ra ngoài qua postMessage
+      const _resizeScript = `<script>
+(function(){
+  var _t = null;
+  function rh() {
+    var h = Math.max(
+      document.body ? document.body.scrollHeight : 0,
+      document.documentElement ? document.documentElement.scrollHeight : 0
+    );
+    if (h > 100) window.parent.postMessage({ type: 'ae-iframe-height', height: h }, '*');
+  }
+  // Báo ngay khi load
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', rh);
+  else rh();
+  window.addEventListener('load', rh);
+  // Theo dõi thay đổi DOM (tab click, accordion, KaTeX render)
+  try {
+    new ResizeObserver(function(){ clearTimeout(_t); _t = setTimeout(rh, 50); }).observe(document.body);
+  } catch(e){}
+  try {
+    new MutationObserver(function(){ clearTimeout(_t); _t = setTimeout(rh, 50); })
+      .observe(document.body, {childList:true, subtree:true});
+  } catch(e){}
+  // Đo lại tại các mốc thời gian (KaTeX, canvas chậm)
+  [200, 500, 1000, 2000, 4000].forEach(function(t){ setTimeout(rh, t); });
+  // Click: đo lại sau tab/accordion
+  document.addEventListener('click', function(){ setTimeout(rh, 150); });
+})();
+<\/script>`;
+      if (finalContent.includes('</body>')) {
+        finalContent = finalContent.replace('</body>', _resizeScript + '</body>');
+      } else {
+        finalContent += _resizeScript;
+      }
       iframe.srcdoc = finalContent;
-      // iframe height managed by CSS aspect-ratio
     } else {
       iframe.srcdoc = '<p style="color:#ef4444;padding:40px;text-align:center">Bài học chưa có nội dung trong NocoDB.</p>';
     }
@@ -1107,6 +1174,15 @@ function findItemBySlug(tree, slug) {
   return null;
 }
 
+
+// Auto-close sidebar khi resize lên desktop (>1024px)
+window.addEventListener('resize', () => {
+  if (window.innerWidth > 1024) {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('overlay').classList.remove('show');
+    document.body.style.overflow = '';
+  }
+});
 
 function shareArticle() {
   const path = typeof currentArticlePath !== 'undefined' ? currentArticlePath : '';
@@ -1180,9 +1256,12 @@ function filterNav(q) {
 function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('open');
   document.getElementById('overlay').classList.toggle('show');
+  // Ngăn scroll body khi sidebar mở trên mobile
+  document.body.style.overflow = document.getElementById('sidebar').classList.contains('open') ? 'hidden' : '';
 }
 function closeSidebar() {
   document.getElementById('sidebar').classList.remove('open');
+  document.body.style.overflow = '';
   document.getElementById('overlay').classList.remove('show');
 }
 function showEmptyState() {
