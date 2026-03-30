@@ -1872,19 +1872,29 @@ async function doRenameFolder(folderPath, currentName, newName) {
 
   try {
     const fData = await NOCO.listFolders();
-    const folder = (fData.list||[]).find(f => (f.Path||f.Name) === result.oldPath);
+    const allFolders = fData.list || [];
+    // Match linh hoạt: Path, Name, hoặc kết hợp
+    const folder = allFolders.find(f =>
+      f.Path === result.oldPath ||
+      f.Name === result.oldPath ||
+      f.Path === folderPath ||
+      f.Name === folderPath ||
+      f.Name === currentName && (f.Path||'').endsWith(currentName)
+    );
     if (folder) {
       await NOCO.call('folders', '', 'PATCH',
         [{ Id: folder.Id, Name: newName, Path: result.newPath }]);
+      commitIndexTree();
+      showToast(`✓ Đã đổi tên thành "${newName}"`, 'success');
     } else {
-      await NOCO.createFolder({ Name: newName, Path: result.newPath,
-        Parent: result.newPath.split('/').slice(0,-1).join('/') });
+      // Không tìm thấy trong NocoDB → chỉ cập nhật indexTree local, không tạo mới
+      console.warn('[rename] Folder không có trong NocoDB, chỉ đổi tên local:', folderPath);
+      commitIndexTree();
+      showToast(`✓ Đã đổi tên thành "${newName}" (chỉ local)`, 'warn');
     }
-    commitIndexTree();
-    showToast(`✓ Đã đổi tên thành "${newName}"`, 'success');
   } catch(e) {
     showToast('Lỗi đổi tên: ' + e.message, 'error');
-    commitIndexTree(); // rerender để khôi phục tên cũ nếu lỗi
+    commitIndexTree();
   }
 }
 
