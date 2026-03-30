@@ -443,14 +443,11 @@ async function doUserLogin() {
     if (btn) btn.disabled = false;
   };
 
-  const c = getNocoCfg();
-  // Try NocoDB Users table first
-  if (c.nocoToken && c.nocoUserTable) {
-    try {
-      const userPath = c.nocoUserTable
-        ? `/tables/${c.nocoUserTable}/records?where=(Email,eq,${encodeURIComponent(u)})&limit=1`
-        : `/api/users?where=(Email,eq,${encodeURIComponent(u)})&limit=1`;
-      const data = await nocoFetch(userPath);
+  // Luôn dùng proxy để xác thực
+  try {
+    {
+      const userPath = `/api/users?where=(Email,eq,${encodeURIComponent(u)})&limit=1`;
+      const data = await fetch(`${PROXY_URL}${userPath}`).then(r=>r.json());
       const row = (data.list || [])[0];
       if (row && (row.Password === p || row.MatKhau === p)) {
         const status = row.Status || row.TrangThai || 'active';
@@ -592,22 +589,14 @@ async function nocoFetch(path, opts = {}) {
 
 async function init() {
   renderUserArea();
-  const c = getNocoCfg();
-
-  // Nếu không có localStorage config → dùng proxy (Cloudflare Worker)
-  // Proxy tự có token → học sinh không cần cấu hình gì
-  const useProxy = !c.nocoToken || !c.nocoTable;
-  if (useProxy && !PROXY_URL) {
+  if (!PROXY_URL) {
     showEmptyState();
     return;
   }
 
   try {
-    // Load all articles from NocoDB
-    // Proxy route (không cần table ID) hoặc direct với table ID
-    const articlesPath = c.nocoTable
-      ? `/tables/${c.nocoTable}/records?limit=1000&sort=Folder`
-      : `/api/articles?limit=1000&sort=Folder`;
+    // Luôn dùng proxy - không cần localStorage config
+    const articlesPath = `/api/articles?limit=1000&sort=Folder`;
     const data = await nocoFetch(articlesPath);
     const records = data.list || [];
 
@@ -666,15 +655,12 @@ let _userPerms = null;
 async function loadUserPerms() {
   const user = getUser();
   if (!user) { _userPerms = null; return; }
-  const c = getNocoCfg();
-  if (!c.nocoToken || !c.nocoPermTable || !c.nocoTable) { _userPerms = null; return; }
   try {
-    // Find user ID from Users table by email/username
-    const userData = await nocoFetch(`/tables/${c.nocoUserTable}/records?where=(Email,eq,${encodeURIComponent(user.username)})&limit=1`);
+    const proxy = PROXY_URL.replace(/\/$/, '');
+    const userData = await fetch(`${proxy}/api/users?where=(Email,eq,${encodeURIComponent(user.username)})&limit=1`).then(r=>r.json());
     const userRow = (userData.list || [])[0];
     if (!userRow) { _userPerms = null; return; }
-    // Load permissions for this user
-    const permData = await nocoFetch(`/tables/${c.nocoPermTable}/records?where=(UserId,eq,${userRow.Id})&limit=1000`);
+    const permData = await fetch(`${proxy}/api/permissions?where=(UserId,eq,${userRow.Id})&limit=1000`).then(r=>r.json());
     _userPerms = permData.list || [];
   } catch(e) {
     console.warn('Permission load error:', e);
@@ -863,31 +849,21 @@ async function loadArticle(item) {
     const iframe = document.getElementById('article-iframe');
     iframe.srcdoc = '<div style="padding:40px;text-align:center;color:#64748b"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>';
 
-    const c = getNocoCfg();
-    if (c.nocoToken && c.nocoTable) {
-      // Load from NocoDB by Path
-      const data = await nocoFetch(`/tables/${c.nocoTable}/records?where=(Path,eq,${encodeURIComponent(item.path)})&limit=1`);
-      const row = (data.list || [])[0];
-      if (row && row.Content) {
-        iframe.srcdoc = row.Content;
-        iframe.onload = () => {
-          try {
-            const h = iframe.contentDocument.body.scrollHeight;
-            iframe.style.height = Math.max(h, 400) + 'px';
-          } catch { iframe.style.height = '80vh'; }
-        };
-      } else {
-        iframe.srcdoc = '<p style="color:#ef4444;padding:40px;text-align:center">Bài học chưa có nội dung trong NocoDB.</p>';
-      }
-    } else {
-      // Fallback: load from GitHub Pages file
-      iframe.src = 'content/' + item.path;
+    // Load from proxy API by Path
+    const proxyBase = (PROXY_URL || 'https://api.gds.edu.vn').replace(/\/$/, '');
+    const resp = await fetch(`${proxyBase}/api/articles?where=(Path,eq,${encodeURIComponent(item.path)})&limit=1`);
+    const data = await resp.json();
+    const row = (data.list || [])[0];
+    if (row && row.Content) {
+      iframe.srcdoc = row.Content;
       iframe.onload = () => {
         try {
           const h = iframe.contentDocument.body.scrollHeight;
           iframe.style.height = Math.max(h, 400) + 'px';
         } catch { iframe.style.height = '80vh'; }
       };
+    } else {
+      iframe.srcdoc = '<p style="color:#ef4444;padding:40px;text-align:center">Bài học chưa có nội dung trong NocoDB.</p>';
     }
   } catch(e) {
     document.getElementById('article-iframe').srcdoc = `<p style="color:#ef4444;padding:40px;text-align:center">Lỗi tải bài: ${e.message}</p>`;
@@ -956,13 +932,8 @@ function closeSidebar() {
 }
 function showEmptyState() {
   const c = getNocoCfg();
-  const hasConfig = !!c.nocoToken && !!c.nocoTable;
-  document.getElementById('nav-menu').innerHTML = hasConfig
-    ? '<div style="padding:20px;text-align:center;color:rgba(255,255,255,.35);font-size:13px">Chưa có bài học nào</div>'
-    : '<div style="padding:20px;text-align:center;color:rgba(255,255,255,.35);font-size:12px">Chưa kết nối NocoDB</div>';
-  document.getElementById('home-cards').innerHTML = hasConfig
-    ? `<div class="empty-state" style="grid-column:1/-1"><div class="emoji">📂</div><h3>Chưa có nội dung</h3><p style="color:#94a3b8;font-size:13px;margin-top:8px">Vào Admin để thêm bài học</p></div>`
-    : `<div class="empty-state" style="grid-column:1/-1"><div class="emoji">⚙️</div><h3>Chưa cấu hình NocoDB</h3><p style="color:#94a3b8;font-size:13px;margin-top:8px">Vào <a href='admin/' style='color:#2563eb'>Admin</a> → Cài đặt để kết nối</p></div>`;
+  document.getElementById('nav-menu').innerHTML = '<div style="padding:20px;text-align:center;color:rgba(255,255,255,.35);font-size:13px">Chưa có bài học nào</div>';
+  document.getElementById('home-cards').innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="emoji">📂</div><h3>Chưa có nội dung</h3><p style="color:#94a3b8;font-size:13px;margin-top:8px">Vào Admin để thêm bài học</p></div>`;
   updateStats();
 }
 
@@ -986,19 +957,17 @@ async function openProfile() {
   document.getElementById('pf-pass-confirm').value = '';
   document.getElementById('profile-msg').innerHTML = '';
   updateProfileHeader(user);
-  const c = getNocoCfg();
-  if (c.nocoToken && c.nocoUserTable) {
-    try {
-      const data = await nocoFetch(`/tables/${c.nocoUserTable}/records?where=(Email,eq,${encodeURIComponent(user.email||user.username)})&limit=1`);
-      profileUserRow = (data.list||[])[0]||null;
-      if (profileUserRow) {
-        document.getElementById('pf-name').value  = profileUserRow.Name||profileUserRow.FullName||profileUserRow.HoTen||user.displayName;
-        document.getElementById('pf-email').value = profileUserRow.Email||user.username;
-        document.getElementById('pf-phone').value = profileUserRow.Phone||profileUserRow.SDT||'';
-        document.getElementById('pf-bio').value   = profileUserRow.Bio||profileUserRow.GioiThieu||profileUserRow.Note||'';
-      }
-    } catch(e) {}
-  }
+  const proxy = PROXY_URL.replace(/\/$/, '');
+  try {
+    const data = await fetch(`${proxy}/api/users?where=(Email,eq,${encodeURIComponent(user.email||user.username)})&limit=1`).then(r=>r.json());
+    profileUserRow = (data.list||[])[0]||null;
+    if (profileUserRow) {
+      document.getElementById('pf-name').value  = profileUserRow.Name||profileUserRow.FullName||profileUserRow.HoTen||user.displayName;
+      document.getElementById('pf-email').value = profileUserRow.Email||user.username;
+      document.getElementById('pf-phone').value = profileUserRow.Phone||profileUserRow.SDT||'';
+      document.getElementById('pf-bio').value   = profileUserRow.Bio||profileUserRow.GioiThieu||profileUserRow.Note||'';
+    }
+  } catch(e) {}
 }
 
 function updateProfileHeader(user) {
@@ -1058,8 +1027,8 @@ async function saveProfile() {
   showProfileMsg('<i class="fas fa-spinner fa-spin"></i> Đang lưu...','');
   user.displayName = name; user.email = email; user.phone = phone; user.bio = bio;
   setUser(user); renderUserArea();
-  const c = getNocoCfg();
-  if (c.nocoToken && c.nocoUserTable && profileUserRow) {
+  if (profileUserRow) {
+    const proxy = PROXY_URL.replace(/\/$/, '');
     try {
       if (changePass) {
         const oldPass = profileUserRow.Password||profileUserRow.MatKhau||'';
@@ -1071,8 +1040,9 @@ async function saveProfile() {
         NgayCapNhat: new Date().toLocaleDateString('vi-VN'),
       };
       if (changePass) { payload.Password = passNew; payload.MatKhau = passNew; }
-      await nocoFetch(`/tables/${c.nocoUserTable}/records`, {
-        method:'PATCH', body: JSON.stringify([{...payload, Id:profileUserRow.Id}])
+      await fetch(`${proxy}/api/users`, {
+        method:'PATCH', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify([{...payload, Id:profileUserRow.Id}])
       });
       showProfileMsg('✓ Đã lưu thông tin thành công!','success');
       if (changePass) {
