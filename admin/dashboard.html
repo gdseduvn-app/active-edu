@@ -7,8 +7,7 @@
 <title>ActiveEdu Admin</title>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-<!-- TinyMCE - Rich Text Editor như Canvas LMS -->
-<script src="https://cdn.jsdelivr.net/npm/tinymce@6.8.4/tinymce.min.js"></script>
+<!-- Custom Rich Editor (no external dependencies) -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
@@ -228,6 +227,32 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
 #wrap-html{flex:1;display:none;flex-direction:column;overflow:hidden}
 #wrap-html .CodeMirror{height:100%;border-radius:0}
 /* Visual editor iframe */
+/* Custom Rich Editor Toolbar */
+.tb-btn{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;padding:0 5px;border:none;border-radius:5px;background:transparent;cursor:pointer;font-size:13px;color:var(--text);transition:background .15s;font-family:inherit}
+.tb-btn:hover{background:var(--hover)}
+.tb-btn:active{background:#dbeafe;color:var(--primary)}
+.tb-sep{width:1px;height:20px;background:var(--border);margin:0 3px;flex-shrink:0}
+#rich-editor h1{font-size:22px;font-weight:700;color:#0f172a;margin:16px 0 8px;border-bottom:2px solid #dbeafe;padding-bottom:6px}
+#rich-editor h2{font-size:18px;font-weight:700;color:#1e293b;margin:14px 0 6px}
+#rich-editor h3{font-size:15px;font-weight:600;color:#334155;margin:12px 0 5px}
+#rich-editor h4{font-size:13px;font-weight:600;color:#475569;margin:10px 0 4px}
+#rich-editor blockquote{border-left:4px solid #2563eb;background:#eff6ff;padding:10px 14px;margin:10px 0;border-radius:0 6px 6px 0;color:#1e40af}
+#rich-editor pre{background:#1e293b;color:#e2e8f0;padding:14px;border-radius:8px;overflow-x:auto;font-size:13px;font-family:'Courier New',monospace;white-space:pre-wrap}
+#rich-editor code{background:#f1f5f9;padding:2px 6px;border-radius:4px;font-size:12px;color:#1e40af;font-family:'Courier New',monospace}
+#rich-editor table{border-collapse:collapse;width:100%;margin:10px 0}
+#rich-editor td,#rich-editor th{border:1px solid #e2e8f0;padding:8px 12px}
+#rich-editor th{background:#f8fafc;font-weight:600}
+#rich-editor a{color:#2563eb;text-decoration:underline}
+#rich-editor img{max-width:100%;border-radius:6px;cursor:pointer}
+#rich-editor ul{padding-left:24px;margin:8px 0}
+#rich-editor ol{padding-left:24px;margin:8px 0}
+#rich-editor li{margin-bottom:4px}
+#rich-editor hr{border:none;border-top:2px solid var(--border);margin:16px 0}
+#rich-editor p{margin-bottom:10px}
+#rich-editor:focus{outline:none}
+#rich-editor [data-math]{background:#fef9c3;padding:2px 8px;border-radius:4px;font-family:'Courier New',monospace;font-size:13px;color:#854d0e;cursor:pointer}
+
+/* TinyMCE editor container */
 /* TinyMCE editor container */
 #tinymce-container{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0}
 .tox-tinymce{flex:1!important;border:none!important;border-radius:0!important}
@@ -443,11 +468,106 @@ tr:hover td{background:var(--hover)}
               <button class="btn btn-outline btn-sm" onclick="useTemplate('code')"><i class="fas fa-laptop-code"></i> Code</button>
             </div>
           </div>
-          <!-- Rich: Visual iframe editor -->
+          <!-- Rich: Custom Visual Editor -->
           <div id="wrap-rich" style="flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0">
-            <div id="tinymce-container" style="flex:1;display:flex;flex-direction:column;min-height:0">
-              <textarea id="tinymce-editor"></textarea>
+            <!-- Toolbar -->
+            <div id="rich-toolbar" style="background:#f8fafc;border-bottom:1px solid var(--border);padding:6px 10px;display:flex;flex-wrap:wrap;gap:3px;flex-shrink:0;align-items:center">
+              <!-- Undo/Redo -->
+              <button class="tb-btn" onclick="rExec('undo')" title="Hoàn tác (Ctrl+Z)"><i class="fas fa-rotate-left"></i></button>
+              <button class="tb-btn" onclick="rExec('redo')" title="Làm lại (Ctrl+Y)"><i class="fas fa-rotate-right"></i></button>
+              <span class="tb-sep"></span>
+              <!-- Heading -->
+              <select onchange="rExecVal('formatBlock',this.value);this.value=''" style="height:28px;border:1px solid var(--border);border-radius:5px;font-size:12px;padding:0 6px;background:#fff;cursor:pointer" title="Kiểu đoạn văn">
+                <option value="">Đoạn văn</option>
+                <option value="h1">Tiêu đề 1</option>
+                <option value="h2">Tiêu đề 2</option>
+                <option value="h3">Tiêu đề 3</option>
+                <option value="h4">Tiêu đề 4</option>
+                <option value="p">Đoạn thường</option>
+                <option value="pre">Code block</option>
+                <option value="blockquote">Trích dẫn</option>
+              </select>
+              <!-- Font family -->
+              <select onchange="rExecVal('fontName',this.value)" style="height:28px;border:1px solid var(--border);border-radius:5px;font-size:12px;padding:0 6px;background:#fff;cursor:pointer" title="Font chữ">
+                <option value="'Segoe UI',sans-serif">Segoe UI</option>
+                <option value="Arial,sans-serif">Arial</option>
+                <option value="'Times New Roman',serif">Times New Roman</option>
+                <option value="'Courier New',monospace">Courier New</option>
+                <option value="Georgia,serif">Georgia</option>
+                <option value="Verdana,sans-serif">Verdana</option>
+                <option value="'Be Vietnam Pro',sans-serif">Be Vietnam Pro</option>
+              </select>
+              <!-- Font size -->
+              <select onchange="rExecVal('fontSize',this.value)" style="height:28px;border:1px solid var(--border);border-radius:5px;font-size:12px;padding:0 6px;background:#fff;cursor:pointer;width:60px" title="Cỡ chữ">
+                <option value="1">8px</option>
+                <option value="2">10px</option>
+                <option value="3" selected>12px</option>
+                <option value="4">14px</option>
+                <option value="5">18px</option>
+                <option value="6">24px</option>
+                <option value="7">36px</option>
+              </select>
+              <span class="tb-sep"></span>
+              <!-- Text format -->
+              <button class="tb-btn" onclick="rExec('bold')" title="Đậm (Ctrl+B)"><b>B</b></button>
+              <button class="tb-btn" onclick="rExec('italic')" title="Nghiêng (Ctrl+I)"><i>I</i></button>
+              <button class="tb-btn" onclick="rExec('underline')" title="Gạch dưới (Ctrl+U)"><u>U</u></button>
+              <button class="tb-btn" onclick="rExec('strikeThrough')" title="Gạch ngang"><s>S</s></button>
+              <button class="tb-btn" onclick="rExec('subscript')" title="Chỉ số dưới">x<sub>2</sub></button>
+              <button class="tb-btn" onclick="rExec('superscript')" title="Chỉ số trên">x<sup>2</sup></button>
+              <span class="tb-sep"></span>
+              <!-- Colors -->
+              <label class="tb-btn" title="Màu chữ" style="position:relative;overflow:hidden">
+                <i class="fas fa-font"></i>
+                <input type="color" onchange="rExecVal('foreColor',this.value)" style="position:absolute;opacity:0;width:100%;height:100%;top:0;left:0;cursor:pointer">
+              </label>
+              <label class="tb-btn" title="Màu nền chữ" style="position:relative;overflow:hidden">
+                <i class="fas fa-highlighter"></i>
+                <input type="color" onchange="rExecVal('hiliteColor',this.value)" style="position:absolute;opacity:0;width:100%;height:100%;top:0;left:0;cursor:pointer">
+              </label>
+              <span class="tb-sep"></span>
+              <!-- Align -->
+              <button class="tb-btn" onclick="rExec('justifyLeft')" title="Căn trái"><i class="fas fa-align-left"></i></button>
+              <button class="tb-btn" onclick="rExec('justifyCenter')" title="Căn giữa"><i class="fas fa-align-center"></i></button>
+              <button class="tb-btn" onclick="rExec('justifyRight')" title="Căn phải"><i class="fas fa-align-right"></i></button>
+              <button class="tb-btn" onclick="rExec('justifyFull')" title="Căn đều"><i class="fas fa-align-justify"></i></button>
+              <span class="tb-sep"></span>
+              <!-- Lists -->
+              <button class="tb-btn" onclick="rExec('insertUnorderedList')" title="Danh sách dấu chấm"><i class="fas fa-list-ul"></i></button>
+              <button class="tb-btn" onclick="rExec('insertOrderedList')" title="Danh sách số"><i class="fas fa-list-ol"></i></button>
+              <button class="tb-btn" onclick="rExec('outdent')" title="Giảm thụt lề"><i class="fas fa-outdent"></i></button>
+              <button class="tb-btn" onclick="rExec('indent')" title="Tăng thụt lề"><i class="fas fa-indent"></i></button>
+              <span class="tb-sep"></span>
+              <!-- Insert -->
+              <button class="tb-btn" onclick="rInsertLink()" title="Chèn liên kết"><i class="fas fa-link"></i></button>
+              <button class="tb-btn" onclick="rInsertImage()" title="Chèn hình ảnh"><i class="fas fa-image"></i></button>
+              <button class="tb-btn" onclick="rInsertTable()" title="Chèn bảng"><i class="fas fa-table"></i></button>
+              <button class="tb-btn" onclick="rInsertHR()" title="Chèn đường kẻ"><i class="fas fa-minus"></i></button>
+              <button class="tb-btn" onclick="rInsertMath()" title="Công thức toán"><i class="fas fa-square-root-variable"></i></button>
+              <button class="tb-btn" onclick="rInsertEmbed()" title="Nhúng YouTube/Google Docs/Slides/iframe"><i class="fas fa-film"></i></button>
+              <span class="tb-sep"></span>
+              <!-- Clear -->
+              <button class="tb-btn" onclick="rExec('removeFormat')" title="Xóa định dạng"><i class="fas fa-eraser"></i></button>
+              <button class="tb-btn" onclick="rExec('selectAll')" title="Chọn tất cả"><i class="fas fa-object-group"></i></button>
+              <!-- Background color of editor -->
+              <span class="tb-sep"></span>
+              <label style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:4px;cursor:pointer" title="Màu nền trang">
+                <i class="fas fa-fill-drip"></i>
+                <input type="color" id="editor-bg-color" value="#ffffff" onchange="document.getElementById('rich-editor').style.background=this.value" style="width:20px;height:20px;border:none;border-radius:3px;cursor:pointer;padding:0">
+              </label>
+              <label style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:4px;cursor:pointer;margin-left:4px" title="Màu chữ trang">
+                <i class="fas fa-font"></i>
+                <input type="color" id="editor-text-color" value="#1e293b" onchange="document.getElementById('rich-editor').style.color=this.value" style="width:20px;height:20px;border:none;border-radius:3px;cursor:pointer;padding:0">
+              </label>
             </div>
+            <!-- Editable area -->
+            <div id="rich-editor"
+              contenteditable="true"
+              spellcheck="false"
+              style="flex:1;overflow-y:auto;padding:24px 32px;outline:none;line-height:1.85;font-size:14px;font-family:'Segoe UI',system-ui,sans-serif;color:#1e293b;background:#fff;min-height:400px"
+              oninput="onRichInput()"
+              onkeydown="onRichKeydown(event)"
+            ></div>
           </div>
           <!-- HTML: CodeMirror -->
           <div id="wrap-html" style="flex:1;display:none;flex-direction:column;overflow:hidden">
@@ -1591,8 +1711,7 @@ function removeFromTree(tree, path) {
 // ═══════════════════════════════════════════════════
 let editorTab = 'rich';
 let cmEditor = null;      // CodeMirror instance
-let tinyEditor = null;    // TinyMCE instance
-let tinyReady = false;
+// tinyEditor and tinyReady defined in custom editor section
 
 function initCodeMirror() {
   if (cmEditor) return;
@@ -1610,124 +1729,240 @@ function initCodeMirror() {
 }
 
 
-// ── Detect full-page HTML (có <!DOCTYPE hoặc <html) ──
+// ── Detect full-page HTML ──
 function isFullPageHTML(html) {
   const trimmed = (html || '').trim().toLowerCase();
   return trimmed.startsWith('<!doctype') || trimmed.startsWith('<html');
 }
 
-// ── Sync CodeMirror <-> TinyMCE thông minh ──
-// Nếu full-page HTML: chỉ dùng CodeMirror, ẩn TinyMCE, thông báo
+// ── Apply HTML to editor — KHÔNG khóa tab Soạn thảo ──
 function applyHTMLToEditor(html) {
-  // Luôn sync vào CodeMirror
+  // Sync vào CodeMirror
   if (cmEditor) cmEditor.setValue(html || '');
   else { const src = document.getElementById('html-source'); if (src) src.value = html || ''; }
 
-  if (isFullPageHTML(html)) {
-    // Full page: disable tab Soạn thảo, chỉ dùng HTML + Preview
-    const richTab = document.getElementById('etab-rich');
-    if (richTab) {
-      richTab.style.opacity = '0.4';
-      richTab.style.cursor = 'not-allowed';
-      richTab.title = 'Bài này là trang HTML đầy đủ — chỉ chỉnh sửa ở tab HTML';
-      richTab.onclick = (e) => {
-        e.preventDefault();
-        showToast('Bài này là trang HTML đầy đủ (có <head>/<body>). Chỉnh sửa trực tiếp ở tab HTML.', 'warn');
-      };
-    }
-    // Auto switch sang HTML tab
-    if (editorTab === 'rich') {
-      editorTab = 'html';
-      document.querySelectorAll('.etab').forEach(b => b.classList.remove('active'));
-      document.getElementById('etab-html')?.classList.add('active');
-      document.getElementById('wrap-rich').style.display = 'none';
-      document.getElementById('wrap-html').style.display = 'flex';
-      document.getElementById('wrap-preview').style.display = 'none';
-      setTimeout(() => { initCodeMirror(); if (cmEditor) cmEditor.refresh(); }, 50);
-    }
-    showToast('📄 Trang HTML đầy đủ — dùng tab HTML hoặc Xem trước', 'info');
-  } else {
-    // Fragment: enable tab Soạn thảo, load vào TinyMCE
-    const richTab = document.getElementById('etab-rich');
-    if (richTab) {
-      richTab.style.opacity = '';
-      richTab.style.cursor = '';
-      richTab.title = '';
-      richTab.onclick = () => switchTab('rich');
-    }
-    if (editorTab === 'rich') initTinyMCE(html || '');
+  // Luôn enable tab Soạn thảo
+  const richTab = document.getElementById('etab-rich');
+  if (richTab) {
+    richTab.style.opacity = '';
+    richTab.style.cursor = '';
+    richTab.title = '';
+    richTab.onclick = () => switchTab('rich');
   }
+
+  // Load vào rich editor nếu đang ở tab rich
+  if (editorTab === 'rich') initTinyMCE(html || '');
 }
 
 // ── TinyMCE Init ──
+// ═══════════════════════════════════════════════════
+// CUSTOM RICH EDITOR
+// ═══════════════════════════════════════════════════
+let richEditor = null;
+// tinyEditor (compat shim for getRichHTML)
+let tinyReady = false;
+
 function initTinyMCE(html, callback) {
-  if (typeof tinymce === 'undefined') {
-    console.warn('TinyMCE not loaded');
-    if (callback) callback();
-    return;
+  richEditor = document.getElementById('rich-editor');
+  tinyEditor = { // compat shim
+    getContent: getRichHTML,
+    setContent: (h) => setRichHTML(h),
+  };
+  tinyReady = true;
+  setRichHTML(html || '');
+  if (callback) callback();
+}
+
+function rExec(cmd) {
+  document.getElementById('rich-editor').focus();
+  document.execCommand(cmd, false, null);
+  onRichInput();
+}
+
+function rExecVal(cmd, val) {
+  if (!val) return;
+  document.getElementById('rich-editor').focus();
+  document.execCommand(cmd, false, val);
+  onRichInput();
+}
+
+function setRichHTML(html) {
+  const ed = document.getElementById('rich-editor');
+  if (!ed) return;
+  if (isFullPageHTML(html)) {
+    // Extract body content để hiển thị trong editor
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    ed.innerHTML = doc.body.innerHTML || '';
+  } else {
+    ed.innerHTML = html || '';
   }
-  // Nếu đã có instance, chỉ set content
-  if (tinyEditor && tinyReady) {
-    tinyEditor.setContent(html || '');
-    if (callback) callback();
-    return;
+}
+
+// Khi lưu: nếu CodeMirror có full HTML → dùng đó, còn lại lấy rich editor
+function getFinalHTML() {
+  const cmVal = cmEditor ? cmEditor.getValue() : '';
+  if (isFullPageHTML(cmVal)) {
+    // Cập nhật body content từ rich editor vào full HTML
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(cmVal, 'text/html');
+    doc.body.innerHTML = getRichHTML();
+    return '<!DOCTYPE html>' + doc.documentElement.outerHTML;
   }
-  // Remove old instance nếu có
-  if (tinymce.get('tinymce-editor')) {
-    tinymce.get('tinymce-editor').remove();
-    tinyEditor = null;
-    tinyReady = false;
+  return getRichHTML();
+}
+
+function getRichHTML() {
+  const ed = document.getElementById('rich-editor');
+  if (!ed) return '';
+  return ed.innerHTML;
+}
+
+function onRichInput() {
+  markDirty();
+  updateEditorStats();
+}
+
+function onRichKeydown(e) {
+  // Tab → indent
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    document.execCommand('insertHTML', false, '&nbsp;&nbsp;&nbsp;&nbsp;');
   }
-  tinymce.init({
-    selector: '#tinymce-editor',
-    height: '100%',
-    resize: false,
-    menubar: 'edit view insert format tools table',
-    plugins: [
-      'advlist', 'autolink', 'lists', 'link', 'image', 'charmap',
-      'searchreplace', 'visualblocks', 'code', 'fullscreen',
-      'insertdatetime', 'media', 'table', 'wordcount', 'emoticons',
-      'codesample', 'accordion'
-    ],
-    toolbar: [
-      'undo redo | styles | bold italic underline strikethrough | forecolor backcolor',
-      'alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | link image media table codesample | fullscreen code'
-    ],
-    toolbar_mode: 'sliding',
-    content_style: `
-      body { font-family: "Segoe UI", system-ui, sans-serif; font-size: 14px; line-height: 1.75; color: #1e293b; margin: 16px 20px; }
-      h1 { font-size: 22px; font-weight: 700; color: #0f172a; margin: 16px 0 8px; }
-      h2 { font-size: 18px; font-weight: 700; color: #1e293b; border-bottom: 2px solid #dbeafe; padding-bottom: 4px; margin: 14px 0 6px; }
-      h3 { font-size: 15px; font-weight: 600; color: #334155; margin: 12px 0 5px; }
-      blockquote { border-left: 4px solid #2563eb; background: #eff6ff; padding: 10px 14px; margin: 10px 0; border-radius: 0 6px 6px 0; }
-      pre { background: #1e293b; color: #e2e8f0; padding: 14px; border-radius: 8px; overflow-x: auto; font-size: 13px; }
-      code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 12px; color: #1e40af; }
-      table { border-collapse: collapse; width: 100%; } td, th { border: 1px solid #e2e8f0; padding: 8px 12px; } th { background: #f8fafc; }
-      img { max-width: 100%; border-radius: 6px; }
-    `,
-    language: 'vi',
-    language_url: 'https://cdn.jsdelivr.net/npm/tinymce-i18n@23.10.9/langs6/vi.js',
-    branding: false,
-    promotion: false,
-    setup: (editor) => {
-      tinyEditor = editor;
-      editor.on('init', () => {
-        tinyReady = true;
-        editor.setContent(html || '');
-        if (callback) callback();
-      });
-      editor.on('input keyup change', () => { markDirty(); updateEditorStats(); });
+  // Ctrl+B/I/U handled by browser
+}
+
+function rInsertLink() {
+  const sel = window.getSelection();
+  const text = sel ? sel.toString() : '';
+  const url = prompt('Nhập URL:', 'https://');
+  if (!url) return;
+  const label = text || prompt('Nhập tên liên kết:', url) || url;
+  document.getElementById('rich-editor').focus();
+  document.execCommand('insertHTML', false, `<a href="${url}" target="_blank">${label}</a>`);
+  onRichInput();
+}
+
+function rInsertImage() {
+  const url = prompt('Nhập URL hình ảnh:');
+  if (!url) return;
+  const alt = prompt('Mô tả hình ảnh (alt text):', '') || '';
+  const w = prompt('Chiều rộng (px hoặc %, để trống = 100%):', '100%') || '100%';
+  document.getElementById('rich-editor').focus();
+  document.execCommand('insertHTML', false, `<img src="${url}" alt="${alt}" style="max-width:${w};border-radius:6px;display:block;margin:8px 0">`);
+  onRichInput();
+}
+
+function rInsertTable() {
+  const rows = parseInt(prompt('Số hàng:', '3')) || 3;
+  const cols = parseInt(prompt('Số cột:', '3')) || 3;
+  let html = '<table style="border-collapse:collapse;width:100%;margin:10px 0"><thead><tr>';
+  for (let c = 0; c < cols; c++) html += `<th style="border:1px solid #e2e8f0;padding:8px 12px;background:#f8fafc;font-weight:600">Cột ${c+1}</th>`;
+  html += '</tr></thead><tbody>';
+  for (let r = 0; r < rows; r++) {
+    html += '<tr>';
+    for (let c = 0; c < cols; c++) html += '<td style="border:1px solid #e2e8f0;padding:8px 12px"> </td>';
+    html += '</tr>';
+  }
+  html += '</tbody></table><p></p>';
+  document.getElementById('rich-editor').focus();
+  document.execCommand('insertHTML', false, html);
+  onRichInput();
+}
+
+function rInsertHR() {
+  document.getElementById('rich-editor').focus();
+  document.execCommand('insertHTML', false, '<hr style="border:none;border-top:2px solid #e2e8f0;margin:16px 0"><p></p>');
+  onRichInput();
+}
+
+function rInsertMath() {
+  const formula = prompt('Nhập công thức (LaTeX hoặc text):', 'x^2 + y^2 = r^2');
+  if (!formula) return;
+  document.getElementById('rich-editor').focus();
+  document.execCommand('insertHTML', false, `<span data-math="1" style="background:#fef9c3;padding:2px 8px;border-radius:4px;font-family:'Courier New',monospace;font-size:13px;color:#854d0e">${formula}</span>`);
+  onRichInput();
+}
+
+function rInsertEmbed() {
+  // Hỗ trợ: YouTube, Google Docs, Google Slides, Google Forms, hoặc iframe bất kỳ
+  const input = prompt(
+    '🎬 Nhúng nội dung học liệu\n\nDán vào:\n• Link YouTube (youtube.com/watch?v=...)\n• Link Google Docs/Slides/Forms\n• Hoặc mã <iframe> embed đầy đủ\n• Hoặc bất kỳ URL nào muốn nhúng:',
+    ''
+  );
+  if (!input) return;
+
+  const trimmed = input.trim();
+  let embedHTML = '';
+
+  // Nếu đã là thẻ <iframe> đầy đủ
+  if (trimmed.toLowerCase().startsWith('<iframe')) {
+    embedHTML = trimmed;
+  }
+  // YouTube
+  else if (trimmed.match(/youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)/)) {
+    const id = trimmed.match(/v=([a-zA-Z0-9_-]+)/)[1];
+    embedHTML = `<iframe width="100%" height="450" src="https://www.youtube.com/embed/${id}" frameborder="0" allowfullscreen style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
+  }
+  else if (trimmed.match(/youtu\.be\/([a-zA-Z0-9_-]+)/)) {
+    const id = trimmed.match(/youtu\.be\/([a-zA-Z0-9_-]+)/)[1];
+    embedHTML = `<iframe width="100%" height="450" src="https://www.youtube.com/embed/${id}" frameborder="0" allowfullscreen style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
+  }
+  // Google Docs
+  else if (trimmed.includes('docs.google.com/document')) {
+    const url = trimmed.replace('/edit', '/preview').replace('/pub', '/preview');
+    embedHTML = `<iframe src="${url}" width="100%" height="600" frameborder="0" style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
+  }
+  // Google Slides
+  else if (trimmed.includes('docs.google.com/presentation')) {
+    const url = trimmed.replace('/edit', '/embed').replace('/pub', '/embed');
+    embedHTML = `<iframe src="${url}" width="100%" height="480" frameborder="0" allowfullscreen style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
+  }
+  // Google Forms
+  else if (trimmed.includes('docs.google.com/forms')) {
+    const url = trimmed.replace('/edit', '/viewform');
+    embedHTML = `<iframe src="${url}" width="100%" height="600" frameborder="0" style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
+  }
+  // Google Sheets
+  else if (trimmed.includes('docs.google.com/spreadsheets')) {
+    const url = trimmed.replace('/edit', '/pubhtml');
+    embedHTML = `<iframe src="${url}" width="100%" height="500" frameborder="0" style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
+  }
+  // Google Drive file
+  else if (trimmed.includes('drive.google.com/file')) {
+    const idMatch = trimmed.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    if (idMatch) {
+      embedHTML = `<iframe src="https://drive.google.com/file/d/${idMatch[1]}/preview" width="100%" height="480" frameborder="0" style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
     }
-  });
+  }
+  // Canva
+  else if (trimmed.includes('canva.com')) {
+    embedHTML = `<iframe src="${trimmed}" width="100%" height="480" frameborder="0" allowfullscreen style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
+  }
+  // Padlet
+  else if (trimmed.includes('padlet.com')) {
+    embedHTML = `<iframe src="${trimmed}" width="100%" height="500" frameborder="0" style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
+  }
+  // Bất kỳ URL nào khác → nhúng trực tiếp
+  else if (trimmed.startsWith('http')) {
+    const h = parseInt(prompt('Chiều cao iframe (px):', '500')) || 500;
+    embedHTML = `<iframe src="${trimmed}" width="100%" height="${h}" frameborder="0" style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
+  }
+  else {
+    showToast('Không nhận dạng được link. Vui lòng dán mã <iframe> đầy đủ.', 'warn');
+    return;
+  }
+
+  document.getElementById('rich-editor').focus();
+  document.execCommand('insertHTML', false, embedHTML + '<p></p>');
+  onRichInput();
+  showToast('✅ Đã nhúng nội dung!', 'success');
 }
 
 function getTinyHTML() {
-  // Nếu là full-page HTML (có <head>/<body>), lấy từ CodeMirror để giữ nguyên
-  const cmVal = cmEditor ? cmEditor.getValue() : (document.getElementById('html-source')?.value || '');
+  const cmVal = cmEditor ? cmEditor.getValue() : '';
   if (isFullPageHTML(cmVal)) return cmVal;
-  // Còn lại lấy từ TinyMCE
-  if (tinyEditor && tinyReady) return tinyEditor.getContent();
-  return cmVal;
+  return getRichHTML();
 }
 
 function getVisualHTML() { return getTinyHTML(); }
