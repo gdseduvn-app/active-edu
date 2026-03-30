@@ -1008,6 +1008,25 @@ function findItemBySlug(tree, slug) {
   return null;
 }
 
+
+function shareArticle() {
+  const path = typeof currentArticlePath !== 'undefined' ? currentArticlePath : '';
+  if (!path) { showToast && showToast('Không có bài để chia sẻ', 'warn'); return; }
+  const slug = path.split('/').pop().replace(/\.html?$/i, '');
+  const url  = window.location.origin + window.location.pathname + '?article=' + encodeURIComponent(slug);
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(url).then(() => {
+      const toast = document.getElementById('share-toast');
+      if (toast) {
+        toast.style.display = 'inline';
+        setTimeout(() => toast.style.display = 'none', 2500);
+      }
+    }).catch(() => prompt('Sao chép link này:', url));
+  } else {
+    prompt('Sao chép link này:', url);
+  }
+}
+
 function showHome() {
   document.getElementById('home-view').style.display = 'block';
   document.getElementById('article-view').style.display = 'none';
