@@ -484,58 +484,16 @@ tr:hover td{background:var(--hover)}
 
       <!-- NocoDB -->
       <div class="settings-section">
-        <div class="settings-hd"><i class="fas fa-database" style="color:var(--teal)"></i> Kết nối NocoDB — Cơ sở dữ liệu metadata</div>
+        <div class="settings-hd"><i class="fas fa-database" style="color:var(--teal)"></i> Kết nối NocoDB</div>
         <div class="settings-body">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-            <div class="form-group">
-              <label>NocoDB URL</label>
-              <input type="text" id="s-noco-url" placeholder="https://app.nocodb.com hoặc http://localhost:8080">
-              <div class="form-hint">URL instance NocoDB của bạn (cloud hoặc self-hosted)</div>
-            </div>
-            <div class="form-group">
-              <label>🔒 Proxy URL <span style="color:var(--text-muted);font-weight:400;font-size:12px">(Cloudflare Worker)</span></label>
-              <input type="text" id="s-proxy-url" placeholder="https://api.gds.edu.vn">
-              <div class="form-hint">Để trống = gọi NocoDB trực tiếp. Có proxy = ẩn hoàn toàn API key</div>
-            </div>
-            <div class="form-group">
-              <label>API Token</label>
-              <input type="password" id="s-noco-token" placeholder="Dán API Token từ NocoDB vào đây">
-              <div class="form-hint">Team menu → <b>Account Settings → Tokens → Add Token</b></div>
-            </div>
-            <div class="form-group">
-              <label>Table ID <span style="color:var(--text-muted);font-weight:400">(bắt đầu bằng <code>md_</code>)</span></label>
-              <input type="text" id="s-noco-table" placeholder="md_xxxxxxxxxxxxxxxxxx">
-              <div class="form-hint">URL khi mở bảng: <code>/nc/p_xxx/<b>md_xxx</b></code></div>
-            </div>
-            <div class="form-group">
-              <label>Base ID <span style="color:var(--text-muted);font-weight:400">(bắt đầu bằng <code>p_</code>)</span></label>
-              <input type="text" id="s-noco-base" placeholder="p_xxxxxxxxxxxxxxxxxx">
-              <div class="form-hint">URL workspace: <code>/nc/<b>p_xxx</b></code></div>
-            </div>
-            <div class="form-group">
-              <label>Table ID — Bảng Users <span style="color:var(--text-muted);font-weight:400">(bắt đầu bằng <code>md_</code>)</span></label>
-              <input type="text" id="s-noco-user-table" placeholder="md_xxxxxxxxxxxxxxxxxx">
-              <div class="form-hint">Table ID của bảng <b>Users</b> trong NocoDB</div>
-            </div>
-            <div class="form-group">
-              <label>Table ID — Bảng Folders <span style="color:var(--text-muted);font-weight:400">(bắt đầu bằng <code>md_</code>)</span></label>
-              <input type="text" id="s-noco-folder-table" placeholder="md_xxxxxxxxxxxxxxxxxx">
-              <div class="form-hint">Table ID của bảng <b>Folders</b> trong NocoDB — quản lý cây thư mục</div>
-            </div>
-            <div class="form-group">
-              <label>Table ID — Bảng Permissions <span style="color:var(--text-muted);font-weight:400">(bắt đầu bằng <code>md_</code>)</span></label>
-              <input type="text" id="s-noco-perm-table" placeholder="md_xxxxxxxxxxxxxxxxxx">
-              <div class="form-hint">Table ID của bảng <b>Permissions</b> — phân quyền user</div>
-            </div>
+          <div style="padding:12px 14px;background:var(--hover);border-radius:8px;border-left:3px solid var(--teal);font-size:13px;color:var(--text);line-height:1.7">
+            <b>✅ Đã cấu hình qua Cloudflare Worker</b><br>
+            Token NocoDB được lưu an toàn trong biến môi trường của Worker tại <code>api.gds.edu.vn</code>.<br>
+            Không cần nhập token hay Table ID tại đây.
           </div>
-          <div style="margin-top:14px;display:flex;gap:10px;align-items:center">
-            <button class="btn btn-teal" onclick="nocoTestAndSave()"><i class="fas fa-plug"></i> Kiểm tra & Lưu</button>
+          <div style="margin-top:12px;display:flex;gap:10px;align-items:center">
+            <button class="btn btn-teal" onclick="nocoTestAndSave()"><i class="fas fa-plug"></i> Kiểm tra kết nối</button>
             <div id="noco-test-result" style="font-size:13px;color:var(--text-muted);display:flex;align-items:center;gap:6px"></div>
-          </div>
-          <div style="margin-top:14px;padding:12px 14px;background:var(--hover);border-radius:8px;border-left:3px solid var(--primary);font-size:12.5px;color:var(--text-muted);line-height:1.7">
-            <b style="color:var(--text)">💡 NocoDB lưu gì?</b><br>
-            Metadata bài học: tên, mô tả, tags, trạng thái, lượt xem, ngày tạo/cập nhật.<br>
-            Nội dung HTML được lưu trực tiếp trong NocoDB.
           </div>
         </div>
       </div>
@@ -880,7 +838,7 @@ function getCfg() {
 function saveCfg(c) { localStorage.setItem(CFG_KEY, JSON.stringify(c)); }
 
 function getDefaultCfg() {
-  return { token:'', repo:'', branch:'main', contentDir:'content', title:'ActiveEdu', url:'', adminUser:'admin', adminPass:'' };
+  return { token:'', repo:'', branch:'main', contentDir:'content', title:'ActiveEdu', url:'', adminUser:'admin', adminPass:'', proxyUrl:'https://api.gds.edu.vn' };
 }
 function cfg() { return { ...getDefaultCfg(), ...getCfg() }; }
 
@@ -2060,14 +2018,7 @@ function loadSettings() {
   setVal('s-pass', '');
 
   // NocoDB
-  setVal('s-noco-url',         c.nocoUrl         || '');
   setVal('s-proxy-url',        c.proxyUrl        || '');
-  setVal('s-noco-token',       c.nocoToken        || '');
-  setVal('s-noco-table',       c.nocoTable        || '');
-  setVal('s-noco-base',        c.nocoBase         || '');
-  setVal('s-noco-user-table',  c.nocoUserTable    || '');
-  setVal('s-noco-folder-table',c.nocoFolderTable  || '');
-  setVal('s-noco-perm-table',  c.nocoPermTable    || '');
 }
 
 function saveSettings() {
@@ -2085,15 +2036,7 @@ function saveSettings() {
   const np     = document.getElementById('s-pass').value;
   if (np) c.adminPass = np;
   // NocoDB
-  c.nocoUrl   = document.getElementById('s-noco-url').value.trim();
-  c.nocoToken = document.getElementById('s-noco-token').value.trim();
-  c.nocoTable = document.getElementById('s-noco-table').value.trim();
-  c.nocoBase  = document.getElementById('s-noco-base').value.trim();
-  c.nocoUserTable   = document.getElementById('s-noco-user-table').value.trim();
-  const ftEl = document.getElementById('s-noco-folder-table');
-  if (ftEl) c.nocoFolderTable = ftEl.value.trim();
-  const ptEl = document.getElementById('s-noco-perm-table');
-  if (ptEl) c.nocoPermTable = ptEl.value.trim();
+  // NocoDB config handled by Cloudflare Worker
   saveCfg(c);
   updateGhStatus(!!c.token && !!c.repo);
   updateNocoStatus(!!c.nocoToken && !!c.nocoTable, c.nocoUrl ? c.nocoUrl.replace('https://','').split('/')[0] : '');
@@ -2296,348 +2239,92 @@ async function syncFromNoco() {
 }
 
 // ═══════════════════════════════════════════════════
-// NOCODB API
+// NOCODB API — qua Cloudflare Worker proxy (không cần token ở client)
 // ═══════════════════════════════════════════════════
+const PROXY = 'https://api.gds.edu.vn';
+
+function adminHeaders() {
+  const c = cfg();
+  return { 'Content-Type': 'application/json', 'Admin-Password': c.adminPass || '' };
+}
+
 const NOCO = {
-  base() {
-    const c = cfg();
-    const url = (c.nocoUrl || '').replace(/\/$/, '');
-    return `${url}/api/v2`;
-  },
-  tableBase() { return `${this.base()}/tables/${this.tableId()}`; },
-  userBase()  { return `${this.base()}/tables/${this.userTableId()}`; },
-  headers() {
-    const c = cfg();
-    return { 'xc-token': c.nocoToken, 'Content-Type': 'application/json' };
-  },
-  tableId() { return cfg().nocoTable || ''; },
-  baseId()  { return cfg().nocoBase  || ''; },
-
-  // List records with optional params
-  async listRecords({ limit=25, offset=0, where='', sort='' } = {}) {
-    let url = `${this.tableBase()}/records?limit=${limit}&offset=${offset}`;
-    if (where) url += `&where=${encodeURIComponent(where)}`;
-    if (sort)  url += `&sort=${encodeURIComponent(sort)}`;
-    const r = await fetch(url, { headers: this.headers() });
-    if (!r.ok) throw new Error(`NocoDB ${r.status}: ${await r.text()}`);
-    return await r.json(); // { list: [...], pageInfo: {...} }
-  },
-
-  // Get single record
-  async getRecord(rowId) {
-    const r = await fetch(`${this.tableBase()}/records/${rowId}`, { headers: this.headers() });
-    if (!r.ok) throw new Error(`NocoDB ${r.status}`);
-    return await r.json();
-  },
-
-  // Create record
-  async createRecord(data) {
-    const r = await fetch(`${this.tableBase()}/records`, {
-      method: 'POST', headers: this.headers(), body: JSON.stringify([data])
+  async call(route, path, method, body, params) {
+    path = path || '';
+    method = method || 'GET';
+    params = params || '';
+    const url = `${PROXY}/admin/${route}${path}${params ? '?' + params : ''}`;
+    const r = await fetch(url, {
+      method,
+      headers: adminHeaders(),
+      body: body ? JSON.stringify(body) : undefined,
     });
-    if (!r.ok) throw new Error(`NocoDB ${r.status}: ${await r.text()}`);
-    return await r.json();
+    if (r.status === 401) throw new Error('Sai mật khẩu Admin!');
+    if (!r.ok) throw new Error(`Lỗi ${r.status}: ${await r.text()}`);
+    return r.json();
   },
 
-  async updateRecord(rowId, data) {
-    const r = await fetch(`${this.tableBase()}/records`, {
-      method: 'PATCH', headers: this.headers(),
-      body: JSON.stringify([{ ...data, Id: rowId }])
-    });
-    if (!r.ok) throw new Error(`NocoDB ${r.status}: ${await r.text()}`);
-    return await r.json();
+  async listRecords(opts) {
+    opts = opts || {};
+    var limit = opts.limit || 25, offset = opts.offset || 0, where = opts.where || '', sort = opts.sort || '';
+    var p = 'limit=' + limit + '&offset=' + offset;
+    if (where) p += '&where=' + encodeURIComponent(where);
+    if (sort)  p += '&sort='  + encodeURIComponent(sort);
+    return this.call('articles', '', 'GET', undefined, p);
   },
-
-  // Delete record
-  async deleteRecord(rowId) {
-    const r = await fetch(`${this.tableBase()}/records`, {
-      method: 'DELETE', headers: this.headers(),
-      body: JSON.stringify([{ Id: rowId }])
-    });
-    if (!r.ok) throw new Error(`NocoDB ${r.status}: ${await r.text()}`);
-    return true;
-  },
+  async getRecord(rowId)   { return this.call('articles', '/' + rowId); },
+  async createRecord(data) { return this.call('articles', '', 'POST', [data]); },
+  async updateRecord(rowId, data) { return this.call('articles', '', 'PATCH', [Object.assign({}, data, {Id: rowId})]); },
+  async deleteRecord(rowId) { return this.call('articles', '', 'DELETE', [{Id: rowId}]); },
 
   async getFields() {
-    const r = await fetch(`${this.tableBase()}/records?limit=1`, { headers: this.headers() });
-    if (!r.ok) throw new Error(`NocoDB ${r.status}`);
-    const data = await r.json();
-    const rows = data.list || data.records || [];
-    const keys = rows.length > 0 ? Object.keys(rows[0]).filter(k => k !== 'Id' && k !== 'nc_order') : [];
-    return { list: keys.map(k => ({ title: k, id: k })) };
+    var data = await this.listRecords({limit: 1});
+    var rows = data.list || [];
+    var keys = rows.length > 0 ? Object.keys(rows[0]).filter(function(k){ return k !== 'Id' && k !== 'nc_order'; }) : [];
+    return { list: keys.map(function(k){ return {title: k, id: k}; }) };
   },
-
-  // Test: get records (limit 1) to verify connection
   async testConnection() {
-    const r = await fetch(`${this.tableBase()}/records?limit=1`, { headers: this.headers() });
-    if (!r.ok) throw new Error(`${r.status}: ${await r.text()}`);
-    const data = await r.json();
-    return { title: 'Articles', table_name: this.tableId() };
+    await this.listRecords({limit: 1});
+    return { title: 'Articles', table_name: 'articles' };
   },
 
-
-  // ── PERMISSIONS TABLE ──
   async listPermissions(userId) {
-    if (!this.permTableId()) return { list: [] };
-    const url = `${this.permBase()}/records?where=(UserId,eq,${userId})&limit=1000`;
-    const r = await fetch(url, { headers: this.headers() });
-    if (!r.ok) return { list: [] };
-    return await r.json();
+    return this.call('permissions', '', 'GET', undefined, 'where=(UserId,eq,' + userId + ')&limit=1000');
   },
   async setPermissions(userId, perms) {
-    // perms: [{ type:'folder'|'article', targetId, targetPath }]
-    if (!this.permTableId()) throw new Error('Chưa cấu hình Permissions Table!');
-    // Delete existing permissions for user first
-    const existing = await this.listPermissions(userId);
-    for (const row of (existing.list || [])) {
-      await fetch(`${this.permBase()}/records`, {
-        method: 'DELETE', headers: this.headers(), body: JSON.stringify([{ Id: row.Id }])
-      });
+    var existing = await this.listPermissions(userId);
+    for (var row of (existing.list || [])) {
+      await this.call('permissions', '', 'DELETE', [{Id: row.Id}]);
     }
-    // Insert new permissions
     if (perms.length === 0) return;
-    const records = perms.map(p => ({
-      UserId: userId, Type: p.type, TargetId: p.targetId, TargetPath: p.targetPath
-    }));
-    const r = await fetch(`${this.permBase()}/records`, {
-      method: 'POST', headers: this.headers(), body: JSON.stringify(records)
-    });
-    if (!r.ok) throw new Error(`NocoDB ${r.status}: ${await r.text()}`);
-    return await r.json();
+    var records = perms.map(function(p){ return {UserId: userId, Type: p.type, TargetId: p.targetId, TargetPath: p.targetPath}; });
+    return this.call('permissions', '', 'POST', records);
   },
   async getUserPermissions(userId) {
-    const data = await this.listPermissions(userId);
-    return (data.list || []);
+    var data = await this.listPermissions(userId);
+    return data.list || [];
   },
 
-// ── FOLDER TABLE ──
-  async listFolders() {
-    if (!this.folderTableId()) return { list: [] };
-    const r = await fetch(`${this.folderBase()}/records?limit=500&sort=Path`, { headers: this.headers() });
-    if (!r.ok) return { list: [] };
-    return await r.json();
-  },
-  async createFolder(data) {
-    if (!this.folderTableId()) throw new Error('Chưa cấu hình Folder Table ID!');
-    const r = await fetch(`${this.folderBase()}/records`, {
-      method: 'POST', headers: this.headers(), body: JSON.stringify([data])
-    });
-    if (!r.ok) throw new Error(`NocoDB ${r.status}: ${await r.text()}`);
-    return await r.json();
-  },
-  async deleteFolder(rowId) {
-    if (!this.folderTableId()) return;
-    const r = await fetch(`${this.folderBase()}/records`, {
-      method: 'DELETE', headers: this.headers(), body: JSON.stringify([{ Id: rowId }])
-    });
-    if (!r.ok) throw new Error(`NocoDB ${r.status}`);
-    return true;
-  },
-  // ── USER TABLE ──
-  userTableId()   { return cfg().nocoUserTable   || ''; },
-  folderTableId() { return cfg().nocoFolderTable || ''; },
-  folderBase()    { return `${this.base()}/tables/${this.folderTableId()}`; },
-  permTableId()   { return cfg().nocoPermTable   || ''; },
-  permBase()      { return `${this.base()}/tables/${this.permTableId()}`; },
+  async listFolders() { return this.call('folders', '', 'GET', undefined, 'limit=500&sort=Path'); },
+  async createFolder(data) { return this.call('folders', '', 'POST', [data]); },
+  async deleteFolder(rowId) { return this.call('folders', '', 'DELETE', [{Id: rowId}]); },
 
-  async listUsers({ limit=25, offset=0, where='', sort='-NgayTao' } = {}) {
-    if (!this.userTableId()) throw new Error('Chưa cấu hình User Table ID!');
-    let url = `${this.userBase()}/records?limit=${limit}&offset=${offset}`;
-    if (where) url += `&where=${encodeURIComponent(where)}`;
-    if (sort)  url += `&sort=${encodeURIComponent(sort)}`;
-    const r = await fetch(url, { headers: this.headers() });
-    if (!r.ok) throw new Error(`NocoDB ${r.status}: ${await r.text()}`);
-    return await r.json();
+  async listUsers(opts) {
+    opts = opts || {};
+    var limit = opts.limit || 25, offset = opts.offset || 0, where = opts.where || '', sort = opts.sort || '-NgayTao';
+    var p = 'limit=' + limit + '&offset=' + offset + '&sort=' + encodeURIComponent(sort);
+    if (where) p += '&where=' + encodeURIComponent(where);
+    return this.call('users', '', 'GET', undefined, p);
   },
+  async getUser(rowId)   { return this.call('users', '/' + rowId); },
+  async createUser(data) { return this.call('users', '', 'POST', [data]); },
+  async updateUser(rowId, data) { return this.call('users', '', 'PATCH', [Object.assign({}, data, {Id: rowId})]); },
+  async deleteUser(rowId) { return this.call('users', '', 'DELETE', [{Id: rowId}]); },
 
-  async getUser(rowId) {
-    const r = await fetch(`${this.userBase()}/records/${rowId}`, { headers: this.headers() });
-    if (!r.ok) throw new Error(`NocoDB ${r.status}`);
-    return await r.json();
-  },
-
-  async createUser(data) {
-    const r = await fetch(`${this.userBase()}/records`, {
-      method: 'POST', headers: this.headers(), body: JSON.stringify(data)
-    });
-    if (!r.ok) throw new Error(`NocoDB ${r.status}: ${await r.text()}`);
-    return await r.json();
-  },
-
-  async updateUser(rowId, data) {
-    const r = await fetch(`${this.userBase()}/records`, {
-      method: 'PATCH', headers: this.headers(),
-      body: JSON.stringify({ ...data, Id: rowId })
-    });
-    if (!r.ok) throw new Error(`NocoDB ${r.status}: ${await r.text()}`);
-    return await r.json();
-  },
-
-  async deleteUser(rowId) {
-    const r = await fetch(`${this.userBase()}/records`, {
-      method: 'DELETE', headers: this.headers(),
-      body: JSON.stringify({ Id: rowId })
-    });
-    if (!r.ok) throw new Error(`NocoDB ${r.status}: ${await r.text()}`);
-    return true;
-  }
-
-
+  headers()    { return adminHeaders(); },
+  folderBase() { return PROXY + '/admin/folders'; },
+  permBase()   { return PROXY + '/admin/permissions'; },
 };
-
-
-
-// Toggle folder access public/private
-async function toggleFolderAccess(folderPath, currentAccess) {
-  const newAccess = currentAccess === 'private' ? 'public' : 'private';
-
-  // Update in local tree
-  function updateAccess(items) {
-    for (const i of items) {
-      if (i.type === 'folder' && (i.path === folderPath || i.name === folderPath)) {
-        i.access = newAccess;
-        // Also update all child articles
-        function setChildAccess(children) {
-          (children||[]).forEach(c => {
-            if (c.type === 'file') c.access = newAccess;
-            if (c.type === 'folder') { c.access = newAccess; setChildAccess(c.children); }
-          });
-        }
-        setChildAccess(i.children);
-        return true;
-      }
-      if (i.children && updateAccess(i.children)) return true;
-    }
-    return false;
-  }
-  updateAccess(indexTree);
-  commitIndexTree();
-
-  // Update in NocoDB Folders table
-  if (cfg().nocoFolderTable) {
-    try {
-      const data = await NOCO.listFolders();
-      const row = (data.list||[]).find(f => f.Path === folderPath);
-      if (row) {
-        await fetch(`${NOCO.folderBase()}/records`, {
-          method: 'PATCH', headers: NOCO.headers(),
-          body: JSON.stringify([{ Id: row.Id, Access: newAccess }])
-        });
-      }
-    } catch(e) { console.warn('Folder access update:', e); }
-  }
-
-  // Update all articles in this folder in NocoDB
-  const articles = flattenFiles(indexTree).filter(f => f.folder === folderPath || f.folder?.startsWith(folderPath + '/'));
-  for (const art of articles) {
-    try {
-      const d = await NOCO.listRecords({ where: `(Path,eq,${art.path})`, limit:1 });
-      const row = (d.list||[])[0];
-      if (row) await NOCO.updateRecord(row.Id, { Access: newAccess });
-    } catch(e) {}
-  }
-
-  showToast(`✓ Thư mục "${folderPath.split('/').pop()}" → ${newAccess === 'private' ? '🔒 Private' : '🌐 Public'}`, 'success');
-}
-
-// ── RENAME FOLDER: cascade update Articles + Folders + Permissions ──
-async function renameFolder(folderPath, oldName) {
-  const newName = prompt(`Đổi tên thư mục "${oldName}" thành:`, oldName);
-  if (!newName || newName.trim() === oldName) return;
-  const trimmed = newName.trim();
-
-  // Calculate new path
-  const parentPath = folderPath.includes('/')
-    ? folderPath.substring(0, folderPath.lastIndexOf('/'))
-    : '';
-  const newPath = parentPath ? parentPath + '/' + trimmed : trimmed;
-
-  showLoading(`Đang đổi tên "${oldName}" → "${trimmed}"...`);
-  let ok = 0, err = 0;
-
-  try {
-    // 1. Update all Articles with Folder starting with oldPath
-    const artData = await NOCO.listRecords({ limit: 1000 });
-    for (const art of (artData.list || [])) {
-      const artFolder = art.Folder || '';
-      if (artFolder === folderPath || artFolder.startsWith(folderPath + '/')) {
-        const newFolder = artFolder.replace(folderPath, newPath);
-        const newArtPath = (art.Path || '').replace(folderPath, newPath);
-        try {
-          await NOCO.updateRecord(art.Id, { Folder: newFolder, Path: newArtPath });
-          ok++;
-        } catch(e) { err++; }
-      }
-    }
-
-    // 2. Update Folders table
-    if (cfg().nocoFolderTable) {
-      const fData = await NOCO.listFolders();
-      for (const f of (fData.list || [])) {
-        const fPath = f.Path || '';
-        if (fPath === folderPath || fPath.startsWith(folderPath + '/')) {
-          const newFPath = fPath.replace(folderPath, newPath);
-          const newFName = fPath === folderPath ? trimmed : f.Name;
-          try {
-            await fetch(`${NOCO.folderBase()}/records`, {
-              method: 'PATCH', headers: NOCO.headers(),
-              body: JSON.stringify([{ Id: f.Id, Name: newFName, Path: newFPath,
-                Parent: (f.Parent||'').replace(folderPath, newPath) }])
-            });
-          } catch(e) {}
-        }
-      }
-    }
-
-    // 3. Cascade update Permissions (TargetPath)
-    if (cfg().nocoPermTable) {
-      const permData = await fetch(
-        `${NOCO.permBase()}/records?limit=1000`, { headers: NOCO.headers() }
-      );
-      if (permData.ok) {
-        const perms = await permData.json();
-        for (const p of (perms.list || [])) {
-          const tp = p.TargetPath || '';
-          if (tp === folderPath || tp.startsWith(folderPath + '/')) {
-            const newTp = tp.replace(folderPath, newPath);
-            try {
-              await fetch(`${NOCO.permBase()}/records`, {
-                method: 'PATCH', headers: NOCO.headers(),
-                body: JSON.stringify([{ Id: p.Id, TargetPath: newTp }])
-              });
-            } catch(e) {}
-          }
-        }
-      }
-    }
-
-    // 4. Update local indexTree
-    function renameFolderInTree(items) {
-      for (const i of items) {
-        if (i.type === 'folder') {
-          if (i.path === folderPath || i.folderPath === folderPath) {
-            i.name = trimmed;
-            i.path = newPath;
-            i.folderPath = newPath;
-          } else if ((i.path||'').startsWith(folderPath + '/')) {
-            i.path = (i.path||'').replace(folderPath, newPath);
-          }
-          if (i.children) renameFolderInTree(i.children);
-        } else {
-          if ((i.folder||'') === folderPath || (i.folder||'').startsWith(folderPath + '/')) {
-            i.folder = (i.folder||'').replace(folderPath, newPath);
-            i.path = (i.path||'').replace(folderPath, newPath);
-          }
-        }
-      }
-    }
-    renameFolderInTree(indexTree);
-    commitIndexTree();
-    showToast(`✓ Đổi tên xong! Cập nhật ${ok} bài${err?' · '+err+' lỗi':''}`, 'success');
-  } catch(e) {
-    showToast('Lỗi đổi tên: ' + e.message, 'error');
-  } finally { hideLoading(); }
-}
 
 // ── State ──
 let nocoPageIndex = 0;
@@ -2667,31 +2354,17 @@ function setNocoSyncBar(show, text='', time='', err=false) {
 
 // ── Test connection button in settings ──
 async function nocoTestAndSave() {
-  const url   = document.getElementById('s-noco-url').value.trim();
-  const token = document.getElementById('s-noco-token').value.trim();
-  const table = document.getElementById('s-noco-table').value.trim();
-  const base  = document.getElementById('s-noco-base').value.trim();
-  const res   = document.getElementById('noco-test-result');
-
-  if (!url || !token || !table) {
-    res.innerHTML = '<i class="fas fa-triangle-exclamation" style="color:var(--warn)"></i> Nhập đủ URL, Token, Table ID';
-    return;
-  }
+  const res = document.getElementById('noco-test-result');
   res.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang kiểm tra...';
-  // Save first so NOCO object uses the new values
-  const c = cfg();
-  c.nocoUrl = url; c.nocoToken = token; c.nocoTable = table; c.nocoBase = base;
-  saveCfg(c);
   try {
-    const info = await NOCO.testConnection();
-    const name = info.title || info.table_name || table;
-    res.innerHTML = `<i class="fas fa-circle-check" style="color:var(--success)"></i> Kết nối thành công — bảng <b>${name}</b>`;
-    updateNocoStatus(true, url.replace('https://','').split('/')[0]);
-    showToast('✓ NocoDB kết nối thành công!', 'success');
+    await NOCO.testConnection();
+    res.innerHTML = '<i class="fas fa-check-circle" style="color:var(--teal)"></i> Kết nối thành công qua proxy!';
+    updateNocoStatus(true, 'api.gds.edu.vn');
+    showToast('✓ Kết nối NocoDB thành công!', 'success');
   } catch(e) {
-    res.innerHTML = `<i class="fas fa-circle-xmark" style="color:var(--danger)"></i> Lỗi: ${e.message}`;
+    res.innerHTML = `<i class="fas fa-times-circle" style="color:var(--danger)"></i> ${e.message}`;
     updateNocoStatus(false);
-    showToast('Lỗi NocoDB: ' + e.message, 'error');
+    showToast('Lỗi: ' + e.message, 'error');
   }
 }
 
