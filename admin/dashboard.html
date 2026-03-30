@@ -580,9 +580,6 @@ tr:hover td{background:var(--hover)}
       <div class="sec-hd">
         <h3>⚙️ Cài đặt</h3>
         <button class="btn btn-success" onclick="saveSettings()"><i class="fas fa-save"></i> Lưu tất cả</button>
-        <button class="btn btn-outline" onclick="exportConfig()" style="margin-left:8px"><i class="fas fa-download"></i> Export config</button>
-        <button class="btn btn-outline" onclick="importConfig()" style="margin-left:4px"><i class="fas fa-upload"></i> Import config</button>
-        <input type="file" id="import-config-file" accept=".json" style="display:none" onchange="handleImportConfig(this)">
       </div>
 
       <!-- NocoDB -->
@@ -1424,7 +1421,7 @@ async function confirmCreate() {
     selectedFolder = folderPath;
     closeModal();
     // Lưu vào NocoDB Folders table
-    if (cfg().nocoFolderTable) {
+    if (true) { // proxy handles folders
       NOCO.createFolder({ Name: name, Path: folderPath, Parent: parentPath || '', Access: 'public' })
         .then(() => showToast(`✓ Đã tạo thư mục "${name}" và lưu vào NocoDB!`, 'success'))
         .catch(e => {
@@ -1474,7 +1471,7 @@ async function confirmDeleteFile(path) {
     if (!row) { showToast('Bài không tồn tại trong NocoDB', 'warn'); return; }
     await NOCO.deleteRecord(row.Id);
     // CASCADE: xóa permissions liên quan đến bài này
-    if (cfg().nocoPermTable) {
+    if (true) { // proxy handles permissions
       try {
         const permData = await fetch(
           `${NOCO.permBase()}/records?where=(TargetPath,eq,${encodeURIComponent(path)})&limit=100`,
@@ -1541,7 +1538,7 @@ Xóa thư mục này?`;
     }
 
     // Xóa folder khỏi Folders table
-    if (cfg().nocoFolderTable) {
+    if (true) { // proxy handles folders
       try {
         const fData = await NOCO.listFolders();
         for (const f of (fData.list||[])) {
@@ -1555,7 +1552,7 @@ Xóa thư mục này?`;
     }
 
     // CASCADE: xóa permissions
-    if (cfg().nocoPermTable) {
+    if (true) { // proxy handles permissions
       try {
         const permData = await fetch(
           `${NOCO.permBase()}/records?limit=1000`, { headers: NOCO.headers() }
@@ -1951,11 +1948,7 @@ async function saveToNoco() {
   const desc   = document.getElementById('e-desc').value.trim();
   const access = document.getElementById('e-access').value || 'public';
   if (!title) { showToast('Nhập tên bài học!', 'warn'); return; }
-  if (!cfg().nocoToken || !cfg().nocoTable) {
-    showToast('Chưa kết nối NocoDB!', 'warn');
-    showPanel('settings', document.querySelectorAll('.sb-item')[4]);
-    return;
-  }
+  // Proxy luôn sẵn sàng - không cần check nocoToken
 
   // Lấy HTML từ đúng tab đang active
   let htmlContent = '';
@@ -2159,7 +2152,7 @@ function saveSettings() {
   // NocoDB config handled by Cloudflare Worker
   saveCfg(c);
   updateGhStatus(!!c.token && !!c.repo);
-  updateNocoStatus(!!c.nocoToken && !!c.nocoTable, c.nocoUrl ? c.nocoUrl.replace('https://','').split('/')[0] : '');
+  updateNocoStatus(true, 'api.gds.edu.vn');
   document.getElementById('top-repo').textContent = c.nocoUrl ? c.nocoUrl.replace('https://','').split('/')[0] : '';
   showToast('✓ Đã lưu cài đặt!', 'success');
 }
@@ -2199,7 +2192,7 @@ function showPanel(id, navEl) {
   }
 
   const c = cfg();
-  const hasNoco = !!c.nocoToken && !!c.nocoTable;
+  const hasNoco = true; // Luôn dùng proxy
 
   if (id === 'settings') {
     loadSettings();
@@ -2260,7 +2253,7 @@ function initAdmin() {
     try { indexTree = JSON.parse(cached); _syncAllPanels(); } catch {}
   }
   const c = cfg();
-  const hasNoco = !!c.nocoToken && !!c.nocoTable;
+  const hasNoco = true; // Luôn dùng proxy
   const hasGH   = !!c.token && !!c.repo;
   updateGhStatus(hasGH);
   updateNocoStatus(hasNoco, hasNoco ? (c.nocoUrl||'').replace('https://','').split('/')[0] : '');
@@ -2656,11 +2649,7 @@ async function nocoTestAndSave() {
 }
 
 async function nocoTestConnection() {
-  if (!cfg().nocoToken || !cfg().nocoTable) {
-    showToast('Chưa cấu hình NocoDB!', 'warn');
-    showPanel('settings', document.querySelectorAll('.sb-item')[5]);
-    return;
-  }
+  // Proxy luôn sẵn sàng - không cần check nocoToken
   setNocoSyncBar(true, 'Đang kiểm tra kết nối NocoDB...');
   try {
     const info = await NOCO.testConnection();
@@ -2668,7 +2657,7 @@ async function nocoTestConnection() {
     nocoFields = fields.list || fields;
     await nocoLoadRecords();
     // Load user count nếu đã cấu hình
-    if (cfg().nocoUserTable) {
+    if (true) { // proxy handles users
       try {
         const ud = await NOCO.listUsers({ limit:1 });
         document.getElementById('noco-user-count').textContent = ud.pageInfo?.totalRows ?? 0;
@@ -2929,7 +2918,7 @@ async function nocoExportCSV() {
 
 // ── Sync all articles to NocoDB ──
 async function nocoSyncAll() {
-  if (!cfg().nocoToken || !cfg().nocoTable) { showToast('Chưa cấu hình NocoDB!', 'warn'); return; }
+  // Proxy luôn sẵn sàng
   if (!indexTree.length) { showToast('Chưa có dữ liệu từ GitHub! Đồng bộ GitHub trước.', 'warn'); return; }
   const files = flattenFiles(indexTree);
   if (!confirm(`Đồng bộ ${files.length} bài viết từ GitHub lên NocoDB?`)) return;
@@ -2973,11 +2962,7 @@ async function nocoSyncAll() {
 
 function nocoOpenTable() {
   const c = cfg();
-  if (c.nocoUrl && c.nocoBase && c.nocoTable) {
-    window.open(`${c.nocoUrl}/nc/${c.nocoBase}/${c.nocoTable}`, '_blank');
-  } else if (c.nocoUrl) {
-    window.open(c.nocoUrl, '_blank');
-  }
+  window.open('https://app.nocodb.com', '_blank');
 }
 
 
@@ -3011,188 +2996,49 @@ window.addEventListener('DOMContentLoaded', () => {
 // ── CONFIG EXPORT / IMPORT ──────────────────────────────
 function exportConfig() {
   const c = cfg();
-  // Cấu hình đầy đủ gồm tất cả các field kể cả mới thêm
   const exportData = {
-    // NocoDB
-    proxyUrl:        c.proxyUrl        || '',
-    nocoUrl:         c.nocoUrl         || '',
-    nocoToken:       c.nocoToken       || '',
-    nocoTable:       c.nocoTable       || '',
-    nocoBase:        c.nocoBase        || '',
-    nocoUserTable:   c.nocoUserTable   || '',
-    nocoFolderTable: c.nocoFolderTable || '',
-    nocoPermTable:   c.nocoPermTable   || '',
-    // GitHub (dùng cho migration)
-    token:           c.token           || '',
-    repo:            c.repo            || '',
-    branch:          c.branch          || 'main',
-    contentDir:      c.contentDir      || 'content',
-    url:             c.url             || '',
-    // Admin
-    title:           c.title           || 'ActiveEdu',
-    // Meta
-    _exported:       new Date().toLocaleString('vi-VN'),
-    _version:        'ActiveEdu v2.0',
+    token:      c.token      || '',
+    repo:       c.repo       || '',
+    branch:     c.branch     || 'main',
+    contentDir: c.contentDir || 'content',
+    title:      c.title      || 'ActiveEdu',
+    url:        c.url        || '',
+    proxyUrl:   c.proxyUrl   || 'https://api.gds.edu.vn',
+    exportedAt: new Date().toISOString(),
   };
-  const json = JSON.stringify(exportData, null, 2);
-  const blob = new Blob([json], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `activeedu-config-${new Date().toISOString().slice(0,10)}.json`;
+  a.download = 'activeedu-config.json';
   a.click();
-  URL.revokeObjectURL(a.href);
-  showToast('✓ Đã xuất config!', 'success');
+  showToast('✓ Đã xuất cấu hình!', 'success');
 }
+
 
 function importConfig() {
-  document.getElementById('import-config-file').click();
-}
-
-function handleImportConfig(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    try {
-      const data = JSON.parse(e.target.result);
-      // Validate — phải có ít nhất nocoToken hoặc token
-      if (!data.nocoToken && !data.token) {
-        showToast('File config không hợp lệ — thiếu token!', 'error');
-        return;
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        const c = cfg();
+        const fields = ['proxyUrl','token','repo','branch','contentDir','url','title'];
+        fields.forEach(k => { if (data[k] !== undefined) c[k] = data[k]; });
+        saveCfg(c);
+        loadSettings();
+        showToast('✓ Đã nhập cấu hình!', 'success');
+      } catch(e) {
+        showToast('Lỗi: File không hợp lệ', 'error');
       }
-      // Merge vào config hiện tại (không ghi đè field trống)
-      const current = getCfg();
-      const merged = { ...current };
-      const fields = ['proxyUrl','nocoUrl','nocoToken','nocoTable','nocoBase','nocoUserTable','nocoFolderTable','nocoPermTable',
-                      'token','repo','branch','contentDir','url','adminUser','adminPass','title'];
-      fields.forEach(k => { if (data[k]) merged[k] = data[k]; });
-      saveCfg(merged);
-      loadSettings();
-      // Re-init với config mới
-      const hasNoco = !!merged.nocoToken && !!merged.nocoTable;
-      updateNocoStatus(hasNoco, hasNoco ? (merged.nocoUrl||'').replace('https://','').split('/')[0] : '');
-      if (hasNoco) syncFromNoco();
-      showToast(`✓ Đã import config từ "${file.name}"!`, 'success');
-    } catch(err) {
-      showToast('Lỗi đọc file: ' + err.message, 'error');
-    }
-    input.value = '';
+    };
+    reader.readAsText(file);
   };
-  reader.readAsText(file);
-}
-
-// ═══════════════════════════════════════════════════
-// PERMISSION SYSTEM
-// ═══════════════════════════════════════════════════
-
-// Quick permission modal (from user table)
-async function userManagePerm(userId, userName) {
-  // Create modal if not exists
-  let modal = document.getElementById('perm-modal');
-  if (!modal) {
-    modal = document.createElement('div');
-    modal.id = 'perm-modal';
-    modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.6);display:flex;align-items:center;justify-content:center';
-    modal.innerHTML = `
-      <div style="background:#fff;border-radius:16px;padding:24px;width:560px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(0,0,0,.25)">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-          <div>
-            <div style="font-size:16px;font-weight:700;color:var(--text)" id="perm-modal-title">Phân quyền</div>
-            <div style="font-size:12px;color:var(--text-muted)" id="perm-modal-sub">Chọn nội dung user được phép xem</div>
-          </div>
-          <button onclick="document.getElementById('perm-modal').remove()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--text-muted)">✕</button>
-        </div>
-        <div style="display:flex;gap:6px;margin-bottom:12px">
-          <button class="btn btn-outline btn-sm" onclick="permSelectAll()">✓ Tất cả</button>
-          <button class="btn btn-outline btn-sm" onclick="permClearAll()">✗ Bỏ chọn</button>
-          <span style="flex:1"></span>
-          <span style="font-size:12px;color:var(--text-muted);align-self:center" id="perm-count-label"></span>
-        </div>
-        <div id="perm-tree" style="flex:1;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:10px;background:#f8fafc;font-size:13px;max-height:420px">
-          <div style="text-align:center;padding:30px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i></div>
-        </div>
-        <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end">
-          <button class="btn btn-outline" onclick="document.getElementById('perm-modal').remove()">Hủy</button>
-          <button class="btn btn-success" id="perm-save-btn"><i class="fas fa-shield-halved"></i> Lưu phân quyền</button>
-        </div>
-      </div>`;
-    document.body.appendChild(modal);
-  }
-  document.getElementById('perm-modal-title').textContent = `Phân quyền: ${userName}`;
-  document.getElementById('perm-modal-sub').textContent = `ID: ${userId} · Chọn thư mục/bài user được phép xem`;
-  document.getElementById('perm-save-btn').onclick = async () => {
-    await savePermissions(userId);
-    document.getElementById('perm-modal').remove();
-  };
-  // Load perm tree
-  await loadPermTree(userId);
-}
-let currentPermUserId = null;
-let currentPermissions = []; // { type, targetId, targetPath }
-
-// Load permission tree when opening user edit form
-async function loadPermTree(userId) {
-  currentPermUserId = userId;
-  currentPermissions = [];
-  const container = document.getElementById('perm-tree');
-  if (!container) return;
-  container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i> Đang tải quyền...</div>';
-
-  // Load existing permissions for this user
-  let existingPerms = [];
-  try {
-    if (cfg().nocoPermTable && userId) {
-      const data = await NOCO.listPermissions(userId);
-      existingPerms = data.list || [];
-    }
-  } catch(e) { console.warn('Load perm error:', e); }
-
-  const grantedPaths = new Set(existingPerms.map(p => p.TargetPath));
-  const grantedIds = new Set(existingPerms.map(p => p.TargetId));
-
-  // Build tree UI from indexTree
-  if (!indexTree.length) {
-    container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted)">Chưa có dữ liệu. Tải lại từ NocoDB trước.</div>';
-    return;
-  }
-
-  function buildPermNode(items, level = 0) {
-    let html = '';
-    for (const item of items) {
-      const pad = level * 18;
-      if (item.type === 'folder') {
-        const checked = grantedPaths.has(item.path || item.name) ? 'checked' : '';
-        const fPath = item.path || item.name;
-        html += `<div style="padding:5px 0 5px ${pad}px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #f1f5f9">
-          <input type="checkbox" id="perm-f-${fPath.replace(/\//g,'_')}" data-type="folder" data-path="${fPath}" data-name="${item.name}"
-            ${checked} onchange="permToggleFolder(this)"
-            style="width:15px;height:15px;cursor:pointer;accent-color:var(--primary)">
-          <label for="perm-f-${fPath.replace(/\//g,'_')}" style="cursor:pointer;display:flex;align-items:center;gap:6px;flex:1">
-            <i class="fas fa-folder" style="color:#60a5fa;font-size:12px"></i>
-            <strong>${item.name}</strong>
-            <span style="font-size:11px;color:var(--text-muted)">(${(item.children||[]).filter(c=>c.type==='file').length} bài)</span>
-          </label>
-        </div>`;
-        if (item.children?.length) html += buildPermNode(item.children, level + 1);
-      } else {
-        const checked = grantedPaths.has(item.path) || grantedIds.has(item.nocoId?.toString()) ? 'checked' : '';
-        html += `<div style="padding:4px 0 4px ${pad + 8}px;display:flex;align-items:center;gap:8px">
-          <input type="checkbox" id="perm-a-${item.path?.replace(/\//g,'_')}" data-type="article" data-path="${item.path}" data-id="${item.nocoId||''}" data-name="${item.name}"
-            ${checked} onchange="permToggleArticle(this)"
-            style="width:14px;height:14px;cursor:pointer;accent-color:var(--teal)">
-          <label for="perm-a-${item.path?.replace(/\//g,'_')}" style="cursor:pointer;display:flex;align-items:center;gap:6px;color:var(--text-muted)">
-            <i class="fas fa-file-lines" style="font-size:11px"></i>
-            ${item.name}
-          </label>
-        </div>`;
-      }
-    }
-    return html;
-  }
-
-  container.innerHTML = buildPermNode(indexTree);
-  syncPermFromUI();
-  updatePermCountLabel();
+  input.click();
 }
 
 
@@ -3251,7 +3097,7 @@ function permClearAll() {
 
 // Save permissions after saving user
 async function savePermissions(userId) {
-  if (!cfg().nocoPermTable || !userId) return;
+  if (!userId) return; // proxy handles permissions
   syncPermFromUI();
   try {
     await NOCO.setPermissions(userId.toString(), currentPermissions);
