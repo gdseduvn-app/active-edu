@@ -2109,7 +2109,7 @@ function richInsertEmbed() {
     html = `<iframe src="${url}" width="100%" height="500" frameborder="0" style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
   } else if (t.includes('drive.google.com/file')) {
     const m = t.match(/\/d\/([a-zA-Z0-9_-]+)/);
-    if (m) html = `<iframe src="https://drive.google.com/file/d/${m[1]}/preview" width="100%" height="480" frameborder="0" allow="autoplay" style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
+    if (m) html = `<iframe src="https://docs.google.com/viewer?url=https://drive.google.com/uc?id=${m[1]}&embedded=true" width="100%" height="480" frameborder="0" style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
   } else if (t.includes('canva.com') || t.includes('padlet.com') || t.includes('figma.com') || t.includes('prezi.com')) {
     html = `<iframe src="${t}" width="100%" height="480" frameborder="0" allowfullscreen style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
   } else if (t.startsWith('http')) {
@@ -2426,7 +2426,7 @@ function richInsertEmbed() {
     embedHTML = `<iframe src="${url}" width="100%" height="500" frameborder="0" style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
   } else if (trimmed.includes('drive.google.com/file')) {
     const idM = trimmed.match(/\/d\/([a-zA-Z0-9_-]+)/);
-    if (idM) embedHTML = `<iframe src="https://drive.google.com/file/d/${idM[1]}/preview" width="100%" height="480" frameborder="0" allow="autoplay" style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
+    if (idM) embedHTML = `<iframe src="https://docs.google.com/viewer?url=https://drive.google.com/uc?id=${idM[1]}&embedded=true" width="100%" height="480" frameborder="0" style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
   } else if (trimmed.includes('canva.com') || trimmed.includes('padlet.com')) {
     embedHTML = `<iframe src="${trimmed}" width="100%" height="480" frameborder="0" allowfullscreen style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
   } else if (trimmed.startsWith('http')) {
