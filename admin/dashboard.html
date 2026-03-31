@@ -1480,7 +1480,7 @@ async function rebuildAndPushIndex() {
 async function selectFile(item) {
   selectedFilePath = item.path;
   document.querySelectorAll('.tree-file').forEach(el => el.classList.toggle('active', el.dataset.path === item.path));
-  document.getElementById('detail-path').innerHTML = `<i class="fas fa-file-lines" style="color:var(--primary)"></i> ${item.folder ? item.folder + ' / ' + item.name : item.name}`;
+  document.getElementById('detail-path').innerHTML = `<i class="fas fa-file-lines" style="color:var(--primary)"></i> ${item.folder ? esc(item.folder) + ' / ' + esc(item.name) : esc(item.name)}`;
   document.getElementById('detail-actions').style.display = 'flex';
 
   const body = document.getElementById('detail-body');
@@ -3551,10 +3551,10 @@ async function testGitHubConnection() {
     const r = await fetch(url, { headers: { Authorization:`Bearer ${token}`, Accept:'application/vnd.github.v3+json' } });
     const d = await r.json();
     if (r.ok) {
-      result.innerHTML = `<i class="fas fa-circle-check" style="color:var(--success)"></i> Kết nối thành công — <b>${d.full_name}</b> (${d.private?'private':'public'})`;
+      result.innerHTML = `<i class="fas fa-circle-check" style="color:var(--success)"></i> Kết nối thành công — <b>${esc(d.full_name)}</b> (${d.private?'private':'public'})`;
       updateGhStatus(true);
     } else {
-      result.innerHTML = `<i class="fas fa-circle-xmark" style="color:var(--danger)"></i> Lỗi ${r.status}: ${d.message}`;
+      result.innerHTML = `<i class="fas fa-circle-xmark" style="color:var(--danger)"></i> Lỗi ${r.status}: ${esc(d.message)}`;
     }
   } catch(e) {
     result.innerHTML = `<i class="fas fa-circle-xmark" style="color:var(--danger)"></i> ${e.message}`;
