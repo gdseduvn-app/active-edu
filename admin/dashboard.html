@@ -2228,432 +2228,174 @@ function setBlobSrcdoc(iframe, html) {
   iframe.src = url;
 }
 
-// ══ PASTE HANDLER: Xử lý paste từ Google Docs/Word có LaTeX ══════
-function _handleSmartPaste(e, doc) {
-  const clipData = e.clipboardData || window.clipboardData;
-  if (!clipData) return;
+// ══ PASTE HANDLER: Smart paste với LaTeX support ══════════════
 
-  // Lấy HTML và text từ clipboard
-  const pastedHTML = clipData.getData('text/html');
-  const pastedText = clipData.getData('text/plain');
-
-  // Kiểm tra có LaTeX không (dạng $...$ hoặc \(...\) hoặc \[...\])
-  const hasLatex = /\$[^$
-]+?\$|\\\([\s\S]+?\\\)|\\\[[\s\S]+?\\\]/.test(pastedText || pastedHTML);
-
-  if (!hasLatex && !pastedHTML) return; // không cần xử lý đặc biệt
-
-  e.preventDefault();
-
-  let html = '';
-
-  if (pastedHTML) {
-    // Có HTML: dùng HTML nhưng convert LaTeX inline thành span
-    html = _convertLatexInHTML(pastedHTML);
-  } else if (pastedText) {
-    // Chỉ có text: convert LaTeX rồi wrap paragraph
-    html = _convertLatexInText(pastedText);
-  }
-
-  if (!html) return;
-
-  // Insert vào vị trí con trỏ
-  const selection = (doc || document).getSelection();
-  if (selection && selection.rangeCount > 0) {
-    const range = selection.getRangeAt(0);
-    range.deleteContents();
-    const div = (doc || document).createElement('div');
-    div.innerHTML = html;
-    const frag = (doc || document).createDocumentFragment();
-    let lastNode = null;
-    while (div.firstChild) {
-      lastNode = div.firstChild;
-      frag.appendChild(lastNode);
-    }
-    range.insertNode(frag);
-    if (lastNode) {
-      const newRange = (doc || document).createRange();
-      newRange.setStartAfter(lastNode);
-      newRange.collapse(true);
-      selection.removeAllRanges();
-      selection.addRange(newRange);
-    }
-  }
-
-  // Re-render KaTeX sau khi paste
-  setTimeout(() => {
-    const bodyEl = doc ? doc.body : document.body;
-    if (bodyEl && typeof renderMathInElement !== 'undefined') {
-      renderMathInElement(bodyEl, {
-        delimiters: [
-          {left:"$$",right:"$$",display:true},
-          {left:"\\[",right:"\\]",display:true},
-          {left:"$",right:"$",display:false},
-          {left:"\\(",right:"\\)",display:false}
-        ],
-        throwOnError: false
-      });
-    }
-    // Trigger sync sau paste
-    if (doc) {
-      doc.body.dispatchEvent(new Event('input', {bubbles:true}));
-    }
-  }, 100);
-}
-
-// Convert LaTeX trong plain text → HTML có thể render
-function _convertLatexInText(text) {
-  // Escape HTML entities
-  const esc = (s) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-
-  // Split theo dòng → paragraph
-  const lines = text.split(/\n+/);
-  return lines.map(line => {
-    if (!line.trim()) return '';
-    // Giữ nguyên $...$ vì KaTeX sẽ render sau
-    return `<p>${esc(line)}</p>`;
-  }).filter(Boolean).join('');
-}
-
-// Convert LaTeX trong HTML paste từ Google Docs
-function _convertLatexInHTML(html) {
-  // Google Docs wrap LaTeX trong <span> với font đặc biệt, hoặc để dạng text thô
-  // Xử lý: giữ nguyên $...$ trong text nodes, strip các style không cần thiết
-
-  // Tạo parser tạm
-  const parser = new DOMParser();
-  const doc2 = parser.parseFromString(html, 'text/html');
-  const body = doc2.body;
-
-  // Strip các style inline không cần thiết từ Google Docs
-  body.querySelectorAll('[style]').forEach(el => {
-    // Giữ lại bold, italic, font-size cơ bản
-    const style = el.getAttribute('style') || '';
-    const keep = [];
-    if (/font-weight\s*:\s*(bold|700)/i.test(style)) keep.push('font-weight:bold');
-    if (/font-style\s*:\s*italic/i.test(style)) keep.push('font-style:italic');
-    if (keep.length) el.setAttribute('style', keep.join(';'));
-    else el.removeAttribute('style');
-  });
-
-  // Strip span wrapper không cần thiết (Google Docs bọc nhiều span)
-  body.querySelectorAll('span:not([class]):not([style])').forEach(span => {
-    span.replaceWith(...span.childNodes);
-  });
-
-  // Strip các attribute không cần
-  body.querySelectorAll('*').forEach(el => {
-    ['id','class','data-docs-delta'].forEach(attr => el.removeAttribute(attr));
-  });
-
-  // Lấy innerHTML đã clean
-  let cleaned = body.innerHTML;
-
-  // Fix: Google Docs đôi khi encode $ thành &#36; hoặc &dollar;
-  cleaned = cleaned.replace(/&#36;/g, '$').replace(/&dollar;/g, '$');
-
-  return cleaned;
-}
-
-
-// ══ PASTE HANDLER: Xử lý paste từ Google Docs, Word, LaTeX ══════════
-
-// ══ PASTE HANDLER v2: Google Docs, Gemini, Word, LaTeX ══════════════
-
-// Nhận diện nguồn clipboard
-function _detectSource(html) {
-  if (html.includes('docs.google.com') || html.includes('id="docs-internal')) return 'gdocs';
-  if (html.includes('gemini.google.com') || html.includes('bard') || html.includes('chat-app')) return 'gemini';
-  if (html.includes('urn:schemas-microsoft') || html.includes('mso-')) return 'word';
-  if (html.includes('<math') || html.includes('MathJax')) return 'math';
+function _detectPasteSource(html) {
+  if (!html) return 'plain';
+  if (html.indexOf('gemini.google.com') >= 0 || html.indexOf('chat-app') >= 0) return 'gemini';
+  if (html.indexOf('docs.google.com') >= 0 || html.indexOf('docs-internal') >= 0) return 'gdocs';
+  if (html.indexOf('mso-') >= 0 || html.indexOf('urn:schemas-microsoft') >= 0) return 'word';
   return 'generic';
 }
 
-// Convert LaTeX raw text → span highlight
+function _latexSpan(math, display) {
+  if (display) {
+    return '<span data-math-display="1" style="display:block;text-align:center;padding:6px 10px;background:#fef9c3;border-radius:6px;font-family:\'Courier New\',monospace;font-size:14px;color:#854d0e;margin:6px 0">' + math.trim() + '</span>';
+  }
+  return '<span data-math="1" style="background:#fef9c3;padding:1px 6px;border-radius:4px;font-family:\'Courier New\',monospace;font-size:13px;color:#854d0e">' + math.trim() + '</span>';
+}
+
 function _processLatexInText(text) {
   if (!text) return text;
-  // Display: $$...$$
-  text = text.replace(/\$\$([^$]+?)\$\$/g, (_, m) =>
-    `<span data-math-display="1" style="display:block;text-align:center;padding:6px 10px;background:#fef9c3;border-radius:6px;font-family:'Courier New',monospace;font-size:14px;color:#854d0e;margin:6px 0">${m.trim()}</span>`);
-  // Inline: $...$  (không match $$ và không chứa newline)
-  text = text.replace(/\$(?!\$)([^$
-]+?)\$/g, (_, m) =>
-    `<span data-math="1" style="background:#fef9c3;padding:1px 6px;border-radius:4px;font-family:'Courier New',monospace;font-size:13px;color:#854d0e">${m.trim()}</span>`);
-  // \( ... \)
-  text = text.replace(/\\\((.+?)\\\)/gs, (_, m) =>
-    `<span data-math="1" style="background:#fef9c3;padding:1px 6px;border-radius:4px;font-family:'Courier New',monospace;font-size:13px;color:#854d0e">${m.trim()}</span>`);
-  // \[ ... \]
-  text = text.replace(/\\\[(.+?)\\\]/gs, (_, m) =>
-    `<span data-math-display="1" style="display:block;text-align:center;padding:6px 10px;background:#fef9c3;border-radius:6px;font-family:'Courier New',monospace;font-size:14px;color:#854d0e;margin:6px 0">${m.trim()}</span>`);
+  // Display $$...$$
+  text = text.replace(/\$\$([^$]+?)\$\$/g, function(_, m) { return _latexSpan(m, true); });
+  // Inline $...$ (no newline inside)
+  text = text.replace(/\$([^$\r\n]+?)\$/g, function(_, m) {
+    // Skip if looks like currency (preceded by digit or space+digit)
+    return _latexSpan(m, false);
+  });
   return text;
 }
 
-// Xử lý LaTeX trong mọi text node của DOM
 function _processLatexInDOM(root) {
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-    acceptNode: n => {
-      // Bỏ qua text trong code, pre, script, style
-      const p = n.parentElement;
-      if (p && ['CODE','PRE','SCRIPT','STYLE'].includes(p.tagName)) return NodeFilter.FILTER_REJECT;
-      // Chỉ xử lý nếu có dấu $
-      return /\$/.test(n.textContent) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+  var nodes = [];
+  var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
+  var n;
+  while ((n = walker.nextNode())) {
+    if (n.textContent.indexOf('$') >= 0) {
+      var p = n.parentElement;
+      if (p && (p.tagName === 'CODE' || p.tagName === 'PRE' || p.tagName === 'SCRIPT')) continue;
+      nodes.push(n);
     }
-  });
-  const nodes = [];
-  let n;
-  while ((n = walker.nextNode())) nodes.push(n);
-  nodes.forEach(tn => {
-    const processed = _processLatexInText(tn.textContent);
+  }
+  nodes.forEach(function(tn) {
+    var processed = _processLatexInText(tn.textContent);
     if (processed !== tn.textContent) {
-      const span = document.createElement('span');
+      var span = document.createElement('span');
       span.innerHTML = processed;
       tn.parentNode.replaceChild(span, tn);
     }
   });
 }
 
-// Clean HTML từ bất kỳ nguồn nào
 function _cleanPastedHTML(html, source) {
-  const tmp = document.createElement('div');
+  var tmp = document.createElement('div');
   tmp.innerHTML = html;
 
-  // Xóa toàn bộ elements không cần thiết
-  const REMOVE_TAGS = 'script,style,link,meta,head,noscript,iframe,svg,canvas,video,audio,object,embed,form,input,button,select,textarea,chat-app,[ng-non-bindable],[data-ng-non-bindable]';
-  tmp.querySelectorAll(REMOVE_TAGS).forEach(el => el.remove());
+  // Remove unwanted tags
+  tmp.querySelectorAll('script,style,link,meta,head,noscript,iframe,form,input,button,select,textarea,chat-app').forEach(function(el) { el.remove(); });
+  tmp.querySelectorAll('[ng-non-bindable],[data-ng-non-bindable]').forEach(function(el) { el.remove(); });
 
-  // Với Gemini: lấy text có ý nghĩa, bỏ UI chrome
+  // For Gemini: extract meaningful blocks only
   if (source === 'gemini') {
-    // Gemini render math trong <p> và các span, lấy text content của mỗi block
-    const blocks = tmp.querySelectorAll('p, h1, h2, h3, h4, li, pre, code, blockquote');
-    if (blocks.length) {
-      const result = document.createElement('div');
-      blocks.forEach(block => {
-        const clone = block.cloneNode(true);
-        // Remove nested UI elements
-        clone.querySelectorAll('button,[role="button"],[aria-label]').forEach(e => e.remove());
+    var blocks = tmp.querySelectorAll('p,h1,h2,h3,h4,h5,h6,li,pre,code,blockquote');
+    if (blocks.length > 0) {
+      var result = document.createElement('div');
+      blocks.forEach(function(b) {
+        var clone = b.cloneNode(true);
+        clone.querySelectorAll('[role="button"],button,[aria-label]').forEach(function(e) { e.remove(); });
         result.appendChild(clone);
       });
       tmp.innerHTML = result.innerHTML;
     }
   }
 
-  // Clean styles: giữ chỉ formatting quan trọng
-  tmp.querySelectorAll('[style]').forEach(el => {
-    const s = el.getAttribute('style') || '';
-    const keep = [];
-    // Bold
+  // Clean styles - keep only formatting
+  tmp.querySelectorAll('[style]').forEach(function(el) {
+    var s = el.getAttribute('style') || '';
+    var keep = [];
     if (/font-weight\s*:\s*(bold|700|800|900)/i.test(s)) keep.push('font-weight:700');
-    // Italic
     if (/font-style\s*:\s*italic/i.test(s)) keep.push('font-style:italic');
-    // Underline
     if (/text-decoration[^;]*underline/i.test(s)) keep.push('text-decoration:underline');
-    // Strike
     if (/text-decoration[^;]*line-through/i.test(s)) keep.push('text-decoration:line-through');
-    // Color (bỏ black/white)
-    const cm = s.match(/(?:^|;)\s*color\s*:\s*([^;]+)/i);
+    var cm = s.match(/(?:^|;)\s*color\s*:\s*([^;]+)/i);
     if (cm) {
-      const c = cm[1].trim();
-      if (!/(rgb\(0,\s*0,\s*0\)|#000|black|rgb\(255,\s*255,\s*255\)|#fff|white)/i.test(c))
+      var c = cm[1].trim();
+      if (!/(rgb\(0,\s*0,\s*0\)|#000000|#000\b|black|rgb\(255,\s*255,\s*255\)|white|#fff)/i.test(c))
         keep.push('color:' + c);
     }
     if (keep.length) el.setAttribute('style', keep.join(';'));
     else el.removeAttribute('style');
   });
 
-  // Clean class
-  tmp.querySelectorAll('[class]').forEach(el => el.removeAttribute('class'));
-  // Clean data-* attributes (trừ data-math)
-  tmp.querySelectorAll('*').forEach(el => {
-    [...el.attributes].forEach(attr => {
-      if (attr.name.startsWith('data-') && attr.name !== 'data-math' && attr.name !== 'data-math-display')
-        el.removeAttribute(attr.name);
-    });
-  });
-  // Clean rogue attributes
-  const KEEP_ATTRS = new Set(['href','src','alt','title','style','data-math','data-math-display','target','colspan','rowspan']);
-  tmp.querySelectorAll('*').forEach(el => {
-    [...el.attributes].forEach(attr => {
-      if (!KEEP_ATTRS.has(attr.name)) el.removeAttribute(attr.name);
+  // Remove classes and unwanted attrs
+  tmp.querySelectorAll('[class]').forEach(function(el) { el.removeAttribute('class'); });
+  var KEEP = {href:1,src:1,alt:1,title:1,style:1,'data-math':1,'data-math-display':1,target:1,colspan:1,rowspan:1};
+  tmp.querySelectorAll('*').forEach(function(el) {
+    Array.from(el.attributes).forEach(function(a) {
+      if (!KEEP[a.name]) el.removeAttribute(a.name);
     });
   });
 
-  // Flatten span rỗng/không style
-  tmp.querySelectorAll('span').forEach(el => {
-    if (!el.getAttribute('style') && !el.dataset.math && !el.dataset.mathDisplay) {
-      el.replaceWith(...el.childNodes);
+  // Flatten empty spans
+  tmp.querySelectorAll('span').forEach(function(el) {
+    if (!el.getAttribute('style') && !el.getAttribute('data-math') && !el.getAttribute('data-math-display')) {
+      while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
+      el.remove();
     }
-  });
-
-  // Xóa empty elements
-  tmp.querySelectorAll('p:empty, span:empty, div:empty').forEach(el => {
-    if (!el.children.length && !el.textContent.trim()) el.remove();
   });
 
   return tmp.innerHTML;
 }
 
-// Build HTML để paste
 function _buildPasteHTML(plainText, htmlText) {
-  // Ưu tiên plain text nếu ngắn và có LaTeX
-  const hasLatexPlain = /\$/.test(plainText);
+  var source = _detectPasteSource(htmlText);
 
-  if (htmlText && htmlText.trim().startsWith('<')) {
-    const source = _detectSource(htmlText);
+  // Gemini + LaTeX: use plain text (simpler and more reliable)
+  if (source === 'gemini' && plainText && plainText.indexOf('$') >= 0) {
+    return plainText.split('\n').map(function(line) {
+      return line.trim() ? '<p>' + _processLatexInText(line) + '</p>' : '';
+    }).filter(Boolean).join('');
+  }
 
-    // Với Gemini/AI: plain text thường tốt hơn vì HTML quá phức tạp
-    if ((source === 'gemini') && hasLatexPlain) {
-      const processed = _processLatexInText(plainText);
-      return plainText.split('\n')
-        .map(line => {
-          const p = _processLatexInText(line);
-          return line.trim() ? `<p>${p}</p>` : '';
-        })
-        .filter(Boolean).join('') || `<p>${processed}</p>`;
-    }
-
-    let clean = _cleanPastedHTML(htmlText, source);
-    // Xử lý LaTeX trong DOM
-    const wrapper = document.createElement('div');
+  // Has HTML: clean it
+  if (htmlText && htmlText.indexOf('<') >= 0) {
+    var clean = _cleanPastedHTML(htmlText, source);
+    var wrapper = document.createElement('div');
     wrapper.innerHTML = clean;
-    _processLatexInDOM(wrapper);
+    if (plainText && plainText.indexOf('$') >= 0) {
+      _processLatexInDOM(wrapper);
+    }
     return wrapper.innerHTML;
   }
 
-  // Chỉ có plain text
+  // Plain text only
   if (!plainText) return '';
-  const lines = plainText.split('\n');
-  return lines.map(line => {
-    if (!line.trim()) return '';
-    return `<p>${_processLatexInText(line)}</p>`;
-  }).filter(Boolean).join('') || `<p>${_processLatexInText(plainText)}</p>`;
+  return plainText.split('\n').map(function(line) {
+    return line.trim() ? '<p>' + _processLatexInText(line) + '</p>' : '';
+  }).filter(Boolean).join('') || '<p>' + _processLatexInText(plainText) + '</p>';
 }
 
-// Main paste handler
 function _handlePaste(e, doc) {
   e.preventDefault();
-  const cd = e.clipboardData || window.clipboardData;
+  var cd = e.clipboardData || window.clipboardData;
   if (!cd) return;
-
-  const html  = cd.getData('text/html')  || '';
-  const plain = cd.getData('text/plain') || '';
-
+  var html  = cd.getData('text/html')  || '';
+  var plain = cd.getData('text/plain') || '';
   if (!html && !plain) return;
 
-  const insertHTML = _buildPasteHTML(plain, html);
+  var insertHTML = _buildPasteHTML(plain, html);
   if (!insertHTML) return;
 
-  // Insert tại vị trí con trỏ
-  const sel = doc.getSelection();
+  var sel = doc.getSelection();
   if (!sel || !sel.rangeCount) return;
-  const range = sel.getRangeAt(0);
+  var range = sel.getRangeAt(0);
   range.deleteContents();
   try {
-    const frag = range.createContextualFragment(insertHTML);
-    const lastNode = frag.lastChild;
+    var frag = range.createContextualFragment(insertHTML);
+    var last = frag.lastChild;
     range.insertNode(frag);
-    // Di chuyển con trỏ ra sau
-    if (lastNode) {
-      range.setStartAfter(lastNode);
+    if (last) {
+      range.setStartAfter(last);
       range.collapse(true);
       sel.removeAllRanges();
       sel.addRange(range);
     }
   } catch(err) {
-    // Fallback: insertHTML command
     doc.execCommand('insertHTML', false, insertHTML);
   }
 }
 
-function _renderIframe(html) {
-  const iframe = document.getElementById('rich-iframe');
-  if (!iframe) return;
-
-  const isFullPage = isFullPageHTML(html);
-  let fullHTML;
-
-  if (isFullPage) {
-    // Inject editor helpers into existing full page
-    fullHTML = html.replace('</head>', `<style>
-body{outline:none;min-height:100px;cursor:text}
-</style></head>`);
-  } else {
-    fullHTML = `<!DOCTYPE html><html><head><meta charset="UTF-8">
-<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"><\/script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"><\/script>
-<script>
-document.addEventListener("DOMContentLoaded", function() {
-  if (typeof renderMathInElement !== "undefined") {
-    renderMathInElement(document.body, {
-      delimiters: [
-        {left:"$$",right:"$$",display:true},
-        {left:"\\\\[",right:"\\\\]",display:true},
-        {left:"$",right:"$",display:false},
-        {left:"\\\\(",right:"\\\\)",display:false}
-      ],
-      throwOnError: false
-    });
-  }
-});
-<\/script>
-<style>
-body{font-family:'Be Vietnam Pro',sans-serif;font-size:14px;line-height:1.85;color:#1e293b;margin:24px 32px;outline:none;min-height:300px;cursor:text}
-h1{font-size:22px;font-weight:700;color:#0f172a;margin:16px 0 8px;border-bottom:2px solid #dbeafe;padding-bottom:6px}
-h2{font-size:18px;font-weight:700;color:#1e293b;margin:14px 0 6px}
-h3{font-size:15px;font-weight:600;color:#334155;margin:12px 0 5px}
-h4{font-size:13px;font-weight:600;color:#475569;margin:10px 0 4px}
-blockquote{border-left:4px solid #2563eb;background:#eff6ff;padding:10px 14px;margin:10px 0;border-radius:0 6px 6px 0;color:#1e40af}
-pre{background:#1e293b;color:#e2e8f0;padding:14px;border-radius:8px;font-size:13px;font-family:'Courier New',monospace;white-space:pre-wrap;overflow-x:auto}
-code{background:#f1f5f9;padding:2px 6px;border-radius:4px;font-size:12px;color:#1e40af;font-family:'Courier New',monospace}
-table{border-collapse:collapse;width:100%;margin:10px 0}
-td,th{border:1px solid #e2e8f0;padding:8px 12px}
-th{background:#f8fafc;font-weight:600}
-a{color:#2563eb;text-decoration:underline}
-img{max-width:100%;border-radius:6px}
-ul,ol{padding-left:24px;margin:8px 0}li{margin-bottom:4px}
-hr{border:none;border-top:2px solid #e2e8f0;margin:16px 0}
-p{margin-bottom:10px}
-iframe{max-width:100%;border-radius:8px;display:block;margin:12px 0}
-[data-math]{background:#fef9c3;padding:2px 8px;border-radius:4px;font-family:'Courier New',monospace;font-size:13px;color:#854d0e}
-</style></head><body>${html || '<p><br></p>'}</body></html>`;
-  }
-  setBlobSrcdoc(iframe, fullHTML);
-
-  iframe.onload = () => {
-    const doc = iframe.contentDocument || iframe.contentWindow?.document;
-    if (!doc || !doc.body) return;
-
-    doc.body.contentEditable = 'true';
-    doc.body.spellcheck = false;
-    doc.body.style.outline = 'none';
-
-    // Save initial state
-    _richHistory = [_getBodyHTML(doc)];
-    _richFuture = [];
-
-    // Paste handler: xử lý LaTeX từ Google Docs/Word
-    doc.body.addEventListener('paste', (e) => _handleSmartPaste(e, doc));
-
-    // Input → sync to CodeMirror (debounced)
-    doc.body.addEventListener('input', () => {
-      clearTimeout(_refreshTimer);
-      _refreshTimer = setTimeout(() => _syncIframeToSource(), 400);
-      markDirty();
-      updateEditorStats();
-    });
-
-    // Keyboard shortcuts
-    doc.addEventListener('keydown', e => {
-      if ((e.ctrlKey||e.metaKey) && !e.shiftKey && e.key==='z') { e.preventDefault(); richUndo(); }
-      if ((e.ctrlKey||e.metaKey) && (e.key==='y' || (e.shiftKey&&e.key==='z'))) { e.preventDefault(); richRedo(); }
-      if ((e.ctrlKey||e.metaKey) && e.key==='s') { e.preventDefault(); saveToNoco(); }
-    });
-
-    // Paste handler: xử lý LaTeX, clean HTML từ Google Docs/Word
-    doc.addEventListener('paste', e => _handlePaste(e, doc));
-  };
-}
 
 // ── Get/Set HTML ──────────────────────────────────
 function _getIframeDoc() {
