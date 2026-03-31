@@ -933,7 +933,13 @@ function buildCards(tree) {
 
 // ── Nhận chiều cao từ iframe, điều chỉnh theo orientation ──
 window.addEventListener('message', (e) => {
-  if (!e.data || e.data.type !== 'ae-iframe-height') return;
+  if (!e.data) return;
+  // Hiện thông báo khi copy bị chặn
+  if (e.data.type === 'ae-copy-blocked') {
+    _showCopyBlockedToast();
+    return;
+  }
+  if (e.data.type !== 'ae-iframe-height') return;
   const iframe = document.getElementById('article-iframe');
   if (!iframe) return;
   const h = Math.max(parseInt(e.data.height) || 0, 200);
@@ -1074,6 +1080,27 @@ canvas { display:block !important; }
 body { overflow-x: hidden; }
 img { max-width: 100%; height: auto; }
 
+/* ══ LỚP 1: CHỐNG COPY NỘI DUNG ══════════════════════════ */
+
+/* 1a. Tắt select toàn bộ */
+* {
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  user-select: none !important;
+}
+
+/* 1b. Tắt highlight khi chọn text */
+::selection { background: transparent !important; }
+::-moz-selection { background: transparent !important; }
+
+/* 1c. Tắt kéo thả ảnh/text */
+* { -webkit-user-drag: none !important; }
+img { pointer-events: none !important; }
+
+/* 1d. Tắt tooltip preview ảnh trên mobile */
+img { -webkit-touch-callout: none !important; }
+
 /* ── Mobile responsive bên trong iframe ── */
 @media (max-width: 600px) {
   body { font-size: 14px !important; margin: 12px 14px !important; }
@@ -1082,21 +1109,16 @@ img { max-width: 100%; height: auto; }
   h3 { font-size: 14.5px !important; }
   table { font-size: 12px !important; }
   table td, table th { padding: 6px 8px !important; }
-  /* Bảng tràn: scroll ngang */
   table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  /* Grid/flex layout trong bài: stack trên mobile */
   [style*="display:grid"], [style*="display: grid"] {
     grid-template-columns: 1fr !important;
   }
   [style*="display:flex"][style*="gap"], [style*="display: flex"][style*="gap"] {
     flex-wrap: wrap;
   }
-  /* Canvas và đồ thị: scale down */
   canvas { max-width: 100% !important; height: auto !important; }
   [style*="width:"][style*="px"] { max-width: 100% !important; }
-  /* Code blocks */
   pre { font-size: 12px !important; padding: 10px !important; }
-  /* Iframe lồng nhau (video, chart) */
   iframe { max-width: 100% !important; }
 }
 </style>`;
@@ -1107,6 +1129,7 @@ img { max-width: 100%; height: auto; }
       // Inject auto-resize script vào iframe: báo height ra ngoài qua postMessage
       const _resizeScript = `<script>
 (function(){
+  /* ── Auto resize: báo height qua postMessage ── */
   var _t = null;
   function rh() {
     var h = Math.max(
@@ -1115,22 +1138,55 @@ img { max-width: 100%; height: auto; }
     );
     if (h > 100) window.parent.postMessage({ type: 'ae-iframe-height', height: h }, '*');
   }
-  // Báo ngay khi load
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', rh);
   else rh();
   window.addEventListener('load', rh);
-  // Theo dõi thay đổi DOM (tab click, accordion, KaTeX render)
-  try {
-    new ResizeObserver(function(){ clearTimeout(_t); _t = setTimeout(rh, 50); }).observe(document.body);
-  } catch(e){}
-  try {
-    new MutationObserver(function(){ clearTimeout(_t); _t = setTimeout(rh, 50); })
-      .observe(document.body, {childList:true, subtree:true});
-  } catch(e){}
-  // Đo lại tại các mốc thời gian (KaTeX, canvas chậm)
+  try { new ResizeObserver(function(){ clearTimeout(_t); _t = setTimeout(rh, 50); }).observe(document.body); } catch(e){}
+  try { new MutationObserver(function(){ clearTimeout(_t); _t = setTimeout(rh, 50); }).observe(document.body, {childList:true, subtree:true}); } catch(e){}
   [200, 500, 1000, 2000, 4000].forEach(function(t){ setTimeout(rh, t); });
-  // Click: đo lại sau tab/accordion
   document.addEventListener('click', function(){ setTimeout(rh, 150); });
+
+  /* ══ LỚP 1: CHỐNG COPY JS ══════════════════════════════ */
+
+  /* 1. Block copy / cut */
+  document.addEventListener('copy',  function(e){ e.preventDefault(); e.stopPropagation(); return false; }, true);
+  document.addEventListener('cut',   function(e){ e.preventDefault(); e.stopPropagation(); return false; }, true);
+
+  /* 2. Block chuột phải (context menu) */
+  document.addEventListener('contextmenu', function(e){ e.preventDefault(); return false; }, true);
+
+  /* 3. Block keyboard shortcuts: Ctrl+C, Ctrl+A, Ctrl+U, Ctrl+S, Ctrl+P */
+  document.addEventListener('keydown', function(e) {
+    var ctrl = e.ctrlKey || e.metaKey;
+    if (!ctrl) return;
+    var k = e.key ? e.key.toLowerCase() : '';
+    if (k === 'c' || k === 'a' || k === 'u' || k === 's' || k === 'p' || k === 'x') {
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
+    }
+    /* Block F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C */
+    if (e.key === 'F12' || (ctrl && e.shiftKey && (k==='i'||k==='j'||k==='c'||k==='k'))) {
+      e.preventDefault();
+      return false;
+    }
+  }, true);
+
+  /* 4. Block drag & drop text */
+  document.addEventListener('dragstart', function(e){ e.preventDefault(); return false; }, true);
+
+  /* 5. Block print */
+  window.addEventListener('beforeprint', function(e){ e.preventDefault(); return false; });
+  window.onbeforeprint = function(){ return false; };
+
+  /* 6. Block selection qua JS (nếu extension cố select) */
+  document.addEventListener('selectstart', function(e){ e.preventDefault(); return false; }, true);
+
+  /* 7. Thông báo nhẹ nhàng khi cố copy */
+  document.addEventListener('copy', function() {
+    window.parent.postMessage({ type: 'ae-copy-blocked' }, '*');
+  }, true);
+
 })();
 <\/script>`;
       if (finalContent.includes('</body>')) {
@@ -1183,6 +1239,30 @@ window.addEventListener('resize', () => {
     document.body.style.overflow = '';
   }
 });
+
+// Toast thông báo khi copy bị chặn
+function _showCopyBlockedToast() {
+  var existing = document.getElementById('_copy-toast');
+  if (existing) { clearTimeout(existing._t); existing.remove(); }
+  var toast = document.createElement('div');
+  toast.id = '_copy-toast';
+  toast.textContent = '🔒 Nội dung được bảo vệ bản quyền';
+  toast.style.cssText = [
+    'position:fixed','bottom:24px','left:50%','transform:translateX(-50%)',
+    'background:#1e293b','color:#f8fafc','padding:10px 20px',
+    'border-radius:100px','font-size:13px','font-weight:500',
+    'z-index:9999','pointer-events:none',
+    'box-shadow:0 4px 16px rgba(0,0,0,.25)',
+    'opacity:0','transition:opacity .2s'
+  ].join(';');
+  document.body.appendChild(toast);
+  requestAnimationFrame(function() { toast.style.opacity = '1'; });
+  toast._t = setTimeout(function() {
+    toast.style.opacity = '0';
+    setTimeout(function() { toast.remove(); }, 200);
+  }, 2000);
+}
+
 
 function shareArticle() {
   const path = typeof currentArticlePath !== 'undefined' ? currentArticlePath : '';
