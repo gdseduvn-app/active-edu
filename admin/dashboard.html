@@ -191,10 +191,23 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
 .detail-placeholder{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;color:var(--text-muted);padding:40px}
 .detail-placeholder i{font-size:40px;color:var(--border)}
 #detail-body{display:flex;flex-direction:column;flex:1;overflow:hidden}
-.sb-folder-row:hover{background:var(--hover)!important}
-.sb-article-item:hover{background:var(--hover)!important}
-#sb-resize-handle:hover .sb-resize-bar,
-#sidebar-resize-handle:hover{background:var(--primary)!important}
+.ctx-item{padding:7px 16px;cursor:pointer;display:flex;align-items:center;gap:9px;color:var(--text);transition:background .1s}
+.ctx-item:hover{background:var(--hover)}
+.ctx-danger{color:var(--danger)}
+.ctx-sep{height:1px;background:var(--border);margin:3px 0}
+.utree-folder-hd{display:flex;align-items:center;gap:6px;padding:6px 10px;cursor:pointer;font-size:12.5px;color:var(--text);transition:background .1s;user-select:none}
+.utree-folder-hd:hover{background:var(--hover)}
+.utree-folder-children{display:none;padding-left:14px}
+.utree-folder.open>.utree-folder-hd .utree-chevron{transform:rotate(90deg)}
+.utree-folder.open>.utree-folder-children{display:block}
+.utree-chevron{font-size:9px;color:var(--text-muted);transition:transform .15s;flex-shrink:0}
+.utree-file{display:flex;align-items:center;gap:6px;padding:5px 10px 5px 22px;cursor:pointer;font-size:12px;color:var(--text-muted);border-left:2px solid transparent;transition:all .1s}
+.utree-file:hover{background:var(--hover);color:var(--text)}
+.utree-file.active{background:var(--primary-light);color:var(--primary);border-left-color:var(--primary);font-weight:500}
+.ubadge{font-size:9px;padding:1px 4px;border-radius:3px;margin-left:auto;flex-shrink:0}
+.ubadge-pub{background:#ccfbf1;color:#0f766e}
+.ubadge-priv{background:#fee2e2;color:#b91c1c}
+
 
 /* ── EDITOR ─────────────────────────── */
 .editor-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0}
@@ -385,7 +398,6 @@ tr:hover td{background:var(--hover)}
 
   <div class="sb-section">Điều hướng</div>
   <div class="sb-item active" onclick="showPanel('dashboard',this)"><i class="fas fa-chart-bar"></i> Dashboard</div>
-  <div class="sb-item" onclick="showPanel('files',this)"><i class="fas fa-folder-tree"></i> Quản lý tệp</div>
   <div class="sb-item" onclick="showPanel('editor',this)"><i class="fas fa-pen-fancy"></i> Soạn thảo</div>
   <div class="sb-item" onclick="showPanel('users',this)"><i class="fas fa-users"></i> Người dùng</div>
   <div class="sb-item" onclick="showPanel('nocodb',this)"><i class="fas fa-database"></i> NocoDB</div>
@@ -428,7 +440,7 @@ tr:hover td{background:var(--hover)}
           <h3>📋 Bài viết gần đây (từ NocoDB)</h3>
           <div class="actions">
             <button class="btn btn-teal btn-sm" onclick="syncFromGitHub()"><i class="fas fa-rotate"></i> Đồng bộ ngay</button>
-            <button class="btn btn-primary btn-sm" onclick="showPanel('editor',document.querySelectorAll('.sb-item')[2])"><i class="fas fa-plus"></i> Tạo bài</button>
+            <button class="btn btn-primary btn-sm" onclick="showPanel('editor',document.querySelectorAll('.sb-item')[1])"><i class="fas fa-plus"></i> Tạo bài</button>
           </div>
         </div>
         <div class="table-wrap">
@@ -439,77 +451,33 @@ tr:hover td{background:var(--hover)}
       </div>
     </div>
 
-    <!-- ══ FILES ════════════════════════════════ -->
-    <div class="panel" id="panel-files">
-      <div id="sync-bar-files" class="sync-bar" style="display:none">
-        <i class="fas fa-rotate sync-icon"></i>
-        <span class="sync-text" id="sync-text-files">Đang tải cây thư mục từ GitHub...</span>
-      </div>
-      <div class="sec-hd">
-        <h3>📁 Cây thư mục — nguồn thật từ GitHub</h3>
-        <div class="actions">
-          <button class="btn btn-outline btn-sm" onclick="syncFromGitHub()"><i class="fas fa-rotate"></i> Tải lại</button>
+    <!-- ══ EDITOR (gộp Quản lý tệp + Soạn thảo) ════════ -->
+    <div class="panel panel-fullh" id="panel-editor" style="padding:0;gap:0;box-sizing:border-box;overflow:hidden;display:none">
+      <!-- Topbar -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:48px;border-bottom:1px solid var(--border);background:var(--card);flex-shrink:0">
+        <span id="editor-breadcrumb" style="font-size:13px;color:var(--text-muted);display:flex;align-items:center;gap:6px"><i class="fas fa-file" style="color:var(--primary)"></i> Chưa chọn bài</span>
+        <div style="display:flex;gap:8px;align-items:center">
           <button class="btn btn-outline btn-sm" onclick="showNewFolder()"><i class="fas fa-folder-plus"></i> Thư mục</button>
-          <button class="btn btn-primary btn-sm" onclick="showNewFile()"><i class="fas fa-file-circle-plus"></i> Tệp mới</button>
+          <button class="btn btn-outline btn-sm" onclick="showNewFile()"><i class="fas fa-file-circle-plus"></i> Bài mới</button>
+          <button class="btn btn-success btn-sm" id="btn-save" onclick="saveToNoco()"><i class="fas fa-database"></i> Lưu vào NocoDB</button>
         </div>
       </div>
-      <div class="file-manager">
-        <div class="tree-panel">
-          <div class="tree-hd">
-            <span class="tree-hd-title" id="tree-hd-title"><i class="fas fa-database"></i> NocoDB / bài học</span>
-            <span style="font-size:11px;color:var(--text-muted)" id="tree-count"></span>
+      <!-- Body: sidebar + editor -->
+      <div style="display:grid;grid-template-columns:240px minmax(0,1fr);flex:1;min-height:0;overflow:hidden;height:calc(100% - 48px)">
+        <!-- Sidebar cây thư mục -->
+        <div style="border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;background:var(--bg)">
+          <div style="padding:6px 8px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px">
+            <input type="text" id="tree-search" placeholder="Tìm bài..." oninput="filterTree(this.value)"
+              style="flex:1;border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:12px;font-family:inherit;outline:none;background:var(--card)">
+            <button onclick="syncFromNoco()" title="Tải lại" style="background:none;border:none;cursor:pointer;color:var(--text-muted);padding:3px 5px;border-radius:4px;font-size:12px"><i class="fas fa-rotate"></i></button>
           </div>
-          <div class="tree-body" id="tree-body">
-            <div class="tree-empty"><i class="fas fa-plug" style="font-size:24px;color:var(--border);display:block;margin-bottom:8px"></i>Kết nối NocoDB<br>để xem danh sách bài</div>
-          </div>
-        </div>
-        <div class="detail-panel" id="detail-panel">
-          <div class="detail-hd">
-            <div class="detail-hd-path" id="detail-path"><i class="fas fa-info-circle"></i> Chọn tệp để xem</div>
-            <div class="actions" id="detail-actions" style="display:none">
-              <button class="btn btn-outline btn-sm" onclick="editSelectedFile()"><i class="fas fa-pen"></i> Sửa</button>
-              <button class="btn btn-danger btn-sm" onclick="deleteSelectedFile()"><i class="fas fa-trash"></i> Xóa</button>
-            </div>
-          </div>
-          <div id="detail-body">
-            <div class="detail-placeholder">
-              <i class="fas fa-hand-pointer"></i>
-              <span>Chọn tệp từ cây thư mục</span>
-            </div>
+          <div id="unified-tree-body" style="flex:1;overflow-y:auto;padding:4px 0">
+            <div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px"><i class="fas fa-spinner fa-spin" style="display:block;font-size:18px;margin-bottom:8px"></i>Đang tải...</div>
           </div>
         </div>
-      </div>
-    </div>
-
-    <!-- ══ EDITOR ════════════════════════════════ -->
-    <div class="panel panel-fullh" id="panel-editor" style="padding:20px 24px;gap:0;box-sizing:border-box;overflow:hidden">
-      <div class="sec-hd" style="flex-shrink:0">
-        <h3>✏️ Soạn thảo bài học</h3>
-        <div class="actions">
-          <button class="btn btn-outline btn-sm" onclick="newArticle()"><i class="fas fa-plus"></i> Bài mới</button>
-          <button class="btn btn-success" id="btn-save" onclick="saveToNoco()"><i class="fas fa-database"></i> Lưu vào NocoDB</button>
-        </div>
-      </div>
-      <!-- Layout giống hệt file-manager: grid sidebar | editor -->
-      <div class="file-manager" style="grid-template-columns:260px minmax(0,1fr);gap:16px;flex:1;min-height:0">
-        <!-- Sidebar trái: dùng .tree-panel -->
-        <div id="editor-sidebar" class="tree-panel" style="position:relative;height:100%">
-          <div id="sidebar-resize-handle" style="position:absolute;right:-3px;top:0;bottom:0;width:6px;cursor:col-resize;z-index:10" onmousedown="startSidebarResize(event)"></div>
-          <div class="tree-hd">
-            <span class="tree-hd-title"><i class="fas fa-database"></i> Thư mục &amp; Bài viết</span>
-            <button onclick="loadSidebarFolders()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);padding:2px 4px;border-radius:4px" title="Tải lại"><i class="fas fa-rotate" style="font-size:11px"></i></button>
-          </div>
-          <div id="sb-panel-folder" class="tree-body">
-            <div class="tree-empty"><i class="fas fa-spinner fa-spin" style="display:block;font-size:18px;margin-bottom:8px"></i>Đang tải...</div>
-          </div>
-          <div id="sb-panel-articles" style="display:none"></div>
-          <div id="sb-tab-folder" style="display:none"></div>
-          <div id="sb-tab-articles" style="display:none"></div>
-        </div>
-        <!-- Editor phải: dùng .detail-panel -->
-        <div class="detail-panel" style="min-height:0;min-width:0;height:100%;overflow:hidden">
-          <div class="editor-wrap">
-            <!-- Top bar: Tên bài | Public/Private -->
+        <!-- Editor -->
+        <div style="display:flex;flex-direction:column;overflow:hidden;min-height:0">
+          <div class="editor-wrap" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
             <div class="editor-meta">
               <input type="text" id="e-title" class="input-title" placeholder="✏ Tên bài học...">
               <select id="e-access" style="border:1px solid var(--border);border-radius:7px;padding:7px 11px;font-size:13px;font-family:inherit;outline:none;background:#fff;min-width:120px">
@@ -521,124 +489,87 @@ tr:hover td{background:var(--hover)}
                 <option value="">📁 Chọn thư mục...</option>
               </select>
             </div>
-            <!-- Editor body -->
             <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0">
-          <!-- Tabs -->
-          <div class="editor-tabs">
-            <button class="etab active" id="etab-rich" onclick="switchTab('rich')"><i class="fas fa-eye"></i> Soạn thảo</button>
-            <button class="etab" id="etab-html" onclick="switchTab('html')"><i class="fas fa-code"></i> HTML / CSS / JS</button>
-            <div class="etab-right">
-              <button class="btn btn-outline btn-sm" onclick="useTemplate('lesson')"><i class="fas fa-book"></i> Mẫu bài</button>
-              <button class="btn btn-outline btn-sm" onclick="useTemplate('quiz')"><i class="fas fa-circle-question"></i> Quiz</button>
-              <button class="btn btn-outline btn-sm" onclick="useTemplate('code')"><i class="fas fa-laptop-code"></i> Code</button>
+              <div class="editor-tabs">
+                <button class="etab active" id="etab-rich" onclick="switchTab('rich')"><i class="fas fa-eye"></i> Soạn thảo</button>
+                <button class="etab" id="etab-html" onclick="switchTab('html')"><i class="fas fa-code"></i> HTML / CSS / JS</button>
+              </div>
+              <div id="wrap-rich">
+                <div id="rich-toolbar" style="background:#f8fafc;border-bottom:1px solid var(--border);padding:5px 10px;display:flex;flex-wrap:wrap;gap:2px;flex-shrink:0;align-items:center">
+                  <button class="tb-btn" onclick="richUndo()" title="Hoàn tác Ctrl+Z"><i class="fas fa-rotate-left"></i></button>
+                  <button class="tb-btn" onclick="richRedo()" title="Làm lại Ctrl+Y"><i class="fas fa-rotate-right"></i></button>
+                  <span class="tb-sep"></span>
+                  <select onchange="richWrap(this.value);this.value=''" title="Kiểu đoạn văn" style="height:27px;border:1px solid var(--border);border-radius:5px;font-size:12px;padding:0 5px;background:#fff;cursor:pointer;max-width:100px">
+                    <option value="">Đoạn văn</option>
+                    <option value="h1">Tiêu đề 1</option>
+                    <option value="h2">Tiêu đề 2</option>
+                    <option value="h3">Tiêu đề 3</option>
+                    <option value="h4">Tiêu đề 4</option>
+                    <option value="blockquote">Trích dẫn</option>
+                    <option value="pre">Code block</option>
+                    <option value="p">Đoạn thường</option>
+                  </select>
+                  <span class="tb-sep"></span>
+                  <button class="tb-btn" onclick="richToggle('bold')" title="Đậm Ctrl+B"><b>B</b></button>
+                  <button class="tb-btn" onclick="richToggle('italic')" title="Nghiêng Ctrl+I"><i style="font-style:italic">I</i></button>
+                  <button class="tb-btn" onclick="richToggle('underline')" title="Gạch dưới Ctrl+U"><u>U</u></button>
+                  <button class="tb-btn" onclick="richToggle('strikeThrough')" title="Gạch ngang"><s>S</s></button>
+                  <span class="tb-sep"></span>
+                  <label class="tb-btn" title="Màu chữ" style="position:relative;overflow:hidden;gap:2px">
+                    <span style="font-size:11px;font-weight:700;border-bottom:3px solid #e74c3c">A</span>
+                    <input type="color" value="#e74c3c" oninput="richFontColor(this.value)" style="position:absolute;opacity:0;inset:0;cursor:pointer">
+                  </label>
+                  <label class="tb-btn" title="Nền chữ" style="position:relative;overflow:hidden">
+                    <i class="fas fa-highlighter" style="font-size:11px;color:#f39c12"></i>
+                    <input type="color" value="#fff176" oninput="richBgColor(this.value)" style="position:absolute;opacity:0;inset:0;cursor:pointer">
+                  </label>
+                  <span class="tb-sep"></span>
+                  <button class="tb-btn" onclick="richAlign('left')" title="Căn trái"><i class="fas fa-align-left"></i></button>
+                  <button class="tb-btn" onclick="richAlign('center')" title="Căn giữa"><i class="fas fa-align-center"></i></button>
+                  <button class="tb-btn" onclick="richAlign('right')" title="Căn phải"><i class="fas fa-align-right"></i></button>
+                  <span class="tb-sep"></span>
+                  <button class="tb-btn" onclick="richList('ul')" title="Danh sách chấm"><i class="fas fa-list-ul"></i></button>
+                  <button class="tb-btn" onclick="richList('ol')" title="Danh sách số"><i class="fas fa-list-ol"></i></button>
+                  <span class="tb-sep"></span>
+                  <button class="tb-btn" onclick="richInsertLink()" title="Chèn link"><i class="fas fa-link"></i></button>
+                  <button class="tb-btn" onclick="richInsertImage()" title="Chèn hình"><i class="fas fa-image"></i></button>
+                  <button class="tb-btn" onclick="richInsertTable()" title="Chèn bảng"><i class="fas fa-table"></i></button>
+                  <button class="tb-btn" onclick="richInsertEmbed()" title="Nhúng YouTube / GDocs / iframe"><i class="fas fa-film"></i> <span style="font-size:10px">Nhúng</span></button>
+                  <button class="tb-btn" onclick="richInsertMath()" title="Công thức toán"><i class="fas fa-square-root-variable"></i></button>
+                  <button class="tb-btn" onclick="richInsertHR()" title="Đường kẻ ngang"><i class="fas fa-minus"></i></button>
+                  <span class="tb-sep"></span>
+                  <label class="tb-btn" title="Màu nền trang" style="position:relative;overflow:hidden;gap:2px;font-size:10px">
+                    <i class="fas fa-fill-drip"></i>Nền
+                    <input type="color" value="#ffffff" oninput="richPageColor('bg',this.value)" style="position:absolute;opacity:0;inset:0;cursor:pointer">
+                  </label>
+                  <label class="tb-btn" title="Màu chữ trang" style="position:relative;overflow:hidden;gap:2px;font-size:10px">
+                    <i class="fas fa-font"></i>Chữ
+                    <input type="color" value="#1e293b" oninput="richPageColor('text',this.value)" style="position:absolute;opacity:0;inset:0;cursor:pointer">
+                  </label>
+                  <span class="tb-sep"></span>
+                  <button class="tb-btn" onclick="richClearFormat()" title="Xóa định dạng"><i class="fas fa-eraser"></i></button>
+                </div>
+                <iframe id="rich-iframe" sandbox="allow-scripts allow-popups allow-forms allow-modals allow-popups-to-escape-sandbox"></iframe>
+              </div>
+              <div id="wrap-html" style="flex:1;display:none;flex-direction:column;overflow:hidden">
+                <textarea id="html-source" spellcheck="false" placeholder="<!-- HTML tại đây -->"></textarea>
+              </div>
+              <div class="editor-footer">
+                <div style="display:flex;gap:14px">
+                  <span id="e-path-label" style="color:var(--text-muted)"><i class="fas fa-file"></i> Bài mới</span>
+                  <span id="e-chars">0 ký tự</span>
+                  <span id="e-words">0 từ</span>
+                </div>
+                <div class="save-indicator">
+                  <div class="save-dot unsaved" id="save-dot"></div>
+                  <span id="save-status">Chưa lưu</span>
+                </div>
+              </div>
             </div>
           </div>
-          <!-- Rich: Soạn thảo = Live Preview iframe + Toolbar -->
-          <!-- Toolbar tác động lên HTML source, iframe tự refresh (Notion/Canvas style) -->
-          <div id="wrap-rich">
-            <div id="rich-toolbar" style="background:#f8fafc;border-bottom:1px solid var(--border);padding:5px 10px;display:flex;flex-wrap:wrap;gap:2px;flex-shrink:0;align-items:center">
-
-              <!-- Undo / Redo -->
-              <button class="tb-btn" onclick="richUndo()" title="Hoàn tác Ctrl+Z"><i class="fas fa-rotate-left"></i></button>
-              <button class="tb-btn" onclick="richRedo()" title="Làm lại Ctrl+Y"><i class="fas fa-rotate-right"></i></button>
-              <span class="tb-sep"></span>
-
-              <!-- Block type -->
-              <select onchange="richWrap(this.value);this.value=''" title="Kiểu đoạn văn"
-                style="height:27px;border:1px solid var(--border);border-radius:5px;font-size:12px;padding:0 5px;background:#fff;cursor:pointer;max-width:100px">
-                <option value="">Đoạn văn</option>
-                <option value="h1">Tiêu đề 1</option>
-                <option value="h2">Tiêu đề 2</option>
-                <option value="h3">Tiêu đề 3</option>
-                <option value="h4">Tiêu đề 4</option>
-                <option value="blockquote">Trích dẫn</option>
-                <option value="pre">Code block</option>
-                <option value="p">Đoạn thường</option>
-              </select>
-              <span class="tb-sep"></span>
-
-              <!-- Text format -->
-              <button class="tb-btn" onclick="richToggle('bold')" title="Đậm Ctrl+B"><b>B</b></button>
-              <button class="tb-btn" onclick="richToggle('italic')" title="Nghiêng Ctrl+I"><i style="font-style:italic">I</i></button>
-              <button class="tb-btn" onclick="richToggle('underline')" title="Gạch dưới Ctrl+U"><u>U</u></button>
-              <button class="tb-btn" onclick="richToggle('strikeThrough')" title="Gạch ngang"><s>S</s></button>
-              <span class="tb-sep"></span>
-
-              <!-- Colors -->
-              <label class="tb-btn" title="Màu chữ" style="position:relative;overflow:hidden;gap:2px">
-                <span style="font-size:11px;font-weight:700;border-bottom:3px solid #e74c3c">A</span>
-                <input type="color" value="#e74c3c" oninput="richFontColor(this.value)" style="position:absolute;opacity:0;inset:0;cursor:pointer">
-              </label>
-              <label class="tb-btn" title="Nền chữ" style="position:relative;overflow:hidden">
-                <i class="fas fa-highlighter" style="font-size:11px;color:#f39c12"></i>
-                <input type="color" value="#fff176" oninput="richBgColor(this.value)" style="position:absolute;opacity:0;inset:0;cursor:pointer">
-              </label>
-              <span class="tb-sep"></span>
-
-              <!-- Align -->
-              <button class="tb-btn" onclick="richAlign('left')" title="Căn trái"><i class="fas fa-align-left"></i></button>
-              <button class="tb-btn" onclick="richAlign('center')" title="Căn giữa"><i class="fas fa-align-center"></i></button>
-              <button class="tb-btn" onclick="richAlign('right')" title="Căn phải"><i class="fas fa-align-right"></i></button>
-              <span class="tb-sep"></span>
-
-              <!-- Lists -->
-              <button class="tb-btn" onclick="richList('ul')" title="Danh sách chấm"><i class="fas fa-list-ul"></i></button>
-              <button class="tb-btn" onclick="richList('ol')" title="Danh sách số"><i class="fas fa-list-ol"></i></button>
-              <span class="tb-sep"></span>
-
-              <!-- Insert objects -->
-              <button class="tb-btn" onclick="richInsertLink()" title="Chèn link"><i class="fas fa-link"></i></button>
-              <button class="tb-btn" onclick="richInsertImage()" title="Chèn hình"><i class="fas fa-image"></i></button>
-              <button class="tb-btn" onclick="richInsertTable()" title="Chèn bảng"><i class="fas fa-table"></i></button>
-              <button class="tb-btn" onclick="richInsertEmbed()" title="Nhúng YouTube / GDocs / Slides / iframe"><i class="fas fa-film"></i> <span style="font-size:10px">Nhúng</span></button>
-              <button class="tb-btn" onclick="richInsertMath()" title="Công thức toán"><i class="fas fa-square-root-variable"></i></button>
-              <button class="tb-btn" onclick="richInsertHR()" title="Đường kẻ ngang"><i class="fas fa-minus"></i></button>
-              <span class="tb-sep"></span>
-
-              <!-- Page appearance -->
-              <label class="tb-btn" title="Màu nền trang" style="position:relative;overflow:hidden;gap:2px;font-size:10px">
-                <i class="fas fa-fill-drip"></i>Nền
-                <input type="color" value="#ffffff" oninput="richPageColor('bg',this.value)" style="position:absolute;opacity:0;inset:0;cursor:pointer">
-              </label>
-              <label class="tb-btn" title="Màu chữ trang" style="position:relative;overflow:hidden;gap:2px;font-size:10px">
-                <i class="fas fa-font"></i>Chữ
-                <input type="color" value="#1e293b" oninput="richPageColor('text',this.value)" style="position:absolute;opacity:0;inset:0;cursor:pointer">
-              </label>
-              <span class="tb-sep"></span>
-              <button class="tb-btn" onclick="richClearFormat()" title="Xóa định dạng"><i class="fas fa-eraser"></i></button>
-            </div>
-
-            <!-- Live Preview iframe — body is contenteditable, changes sync to HTML source -->
-            <iframe id="rich-iframe"
-              sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
-            ></iframe>
-          </div>
-
-          <!-- HTML: CodeMirror -->
-          <div id="wrap-html" style="flex:1;display:none;flex-direction:column;overflow:hidden">
-            <textarea id="html-source" spellcheck="false" placeholder="<!-- HTML tại đây -->"></textarea>
-          </div>
-          <!-- Preview -->
-          <div id="wrap-preview" class="preview-wrap" style="display:none">
-            <iframe id="preview-iframe"></iframe>
-          </div>
-          <!-- Footer -->
-          <div class="editor-footer">
-            <div style="display:flex;gap:14px">
-              <span id="e-path-label" style="color:var(--text-muted)"><i class="fas fa-file"></i> Bài mới</span>
-              <span id="e-chars">0 ký tự</span>
-              <span id="e-words">0 từ</span>
-            </div>
-            <div class="save-indicator">
-              <div class="save-dot unsaved" id="save-dot"></div>
-              <span id="save-status">Chưa lưu</span>
-            </div>
-          </div>
-            </div><!-- end editor-main -->
         </div>
       </div>
     </div>
-    </div><!-- end file-manager grid -->
 
     <!-- ══ SETTINGS ══════════════════════════════ -->
     <div class="panel" id="panel-users">
@@ -1077,6 +1008,35 @@ tr:hover td{background:var(--hover)}
   </div>
 </div>
 
+<!-- ── MODAL DI CHUYỂN ───────────────────────── -->
+<div class="modal-overlay" id="modal-move">
+  <div class="modal" style="width:480px">
+    <h3 id="move-modal-title">Di chuyển đến...</h3>
+    <p id="move-modal-sub" style="font-size:12px;color:var(--text-muted);margin-bottom:12px"></p>
+    <div style="border:1.5px solid var(--border);border-radius:9px;overflow:hidden">
+      <div style="padding:8px 12px;background:#f8fafc;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+        <span id="move-selected-path" style="font-size:13px;color:var(--primary);font-weight:500"><i class="fas fa-folder-open"></i> (gốc)</span>
+        <button onclick="moveSelectRoot()" style="font-size:11px;background:none;border:none;cursor:pointer;color:var(--text-muted);padding:2px 6px;border-radius:4px">✕ Chọn gốc</button>
+      </div>
+      <div id="move-tree-body" style="max-height:240px;overflow-y:auto;padding:4px 0"></div>
+    </div>
+    <input type="hidden" id="move-target-path" value="">
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">Hủy</button>
+      <button class="btn btn-primary" onclick="confirmMove()"><i class="fas fa-arrow-right"></i> Di chuyển</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── CONTEXT MENU ──────────────────────────── -->
+<div id="ctx-menu" style="display:none;position:fixed;z-index:9999;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:4px 0;box-shadow:0 8px 24px rgba(0,0,0,.15);min-width:160px;font-size:13px">
+  <div id="ctx-edit" class="ctx-item" onclick="ctxEdit()"><i class="fas fa-pen" style="width:16px"></i> Sửa bài</div>
+  <div id="ctx-rename" class="ctx-item" onclick="ctxRename()"><i class="fas fa-i-cursor" style="width:16px"></i> Đổi tên</div>
+  <div id="ctx-move" class="ctx-item" onclick="ctxMove()"><i class="fas fa-arrow-right" style="width:16px"></i> Di chuyển</div>
+  <div class="ctx-sep"></div>
+  <div id="ctx-delete" class="ctx-item ctx-danger" onclick="ctxDelete()"><i class="fas fa-trash" style="width:16px"></i> Xóa</div>
+</div>
+
 <!-- ── LOGIN ────────────────────────────────── -->
 <div id="login-screen" style="position:fixed;inset:0;background:linear-gradient(135deg,#2563eb,#4338ca);display:none;align-items:center;justify-content:center;z-index:1000">
   <div style="background:#fff;border-radius:20px;padding:44px;width:380px;box-shadow:0 24px 80px rgba(0,0,0,.3)">
@@ -1347,10 +1307,9 @@ function commitIndexTree() {
 
 // Broadcast thay đổi đến tất cả panels
 function _syncAllPanels() {
-  renderTree(indexTree);           // Quản lý tệp
-  updateDashboard();               // Dashboard
-  updateFolderSelects();           // Editor - folder dropdown
-  loadSidebarFolders();            // Editor - sidebar tree
+  renderUnifiedTree(indexTree);  // Unified tree (Soạn thảo)
+  updateDashboard();             // Dashboard
+  updateFolderSelects();         // Editor - folder dropdown
   // NocoDB panel: chỉ reload nếu đang active (tránh request thừa)
   const nocoPanel = document.getElementById('panel-nocodb');
   if (nocoPanel?.classList.contains('active')) nocoLoadRecords();
@@ -2908,31 +2867,28 @@ function newArticle() {
   showNewFile();
 }
 
-// Mở editor với bài cụ thể - dùng khi click từ NocoDB hoặc Files panel
-// ── openArticleEditor: entry point khi bấm nút ✏️ từ bất kỳ panel nào ──
+// Mở editor với bài cụ thể
 async function openArticleEditor(path) {
   if (!path) return;
-  // 1. Chuyển panel nếu chưa ở editor
   if (!document.getElementById('panel-editor').classList.contains('active')) {
     _activatePanel('editor');
   }
-  // 2. Init CodeMirror nếu chưa có
   setTimeout(() => { initCodeMirror(); if (cmEditor) cmEditor.refresh(); }, 30);
-  // 3. Load data bài từ NocoDB (sidebar KHÔNG bị ẩn, giữ nguyên trạng thái)
   await editFile(path);
+  // Highlight file active trong unified tree
+  document.querySelectorAll('#unified-tree-body .utree-file').forEach(el => {
+    el.classList.toggle('active', el.dataset.path === path);
+  });
 }
 
 // ── _activatePanel: chuyển panel không trigger showPanel logic ──
 function _activatePanel(id) {
-  const alreadyActive = document.getElementById('panel-editor')?.classList.contains('active');
-  // Chỉ reload sidebar khi chuyển VÀO editor lần đầu (không reload nếu đã active)
-  if (id === 'editor' && !alreadyActive) setTimeout(() => loadSidebarFolders(), 100);
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.getElementById('panel-' + id)?.classList.add('active');
   document.querySelectorAll('.sb-item').forEach(n => n.classList.remove('active'));
-  const idx = {dashboard:0, files:1, editor:2, nocodb:3, settings:4};
+  const idx = {dashboard:0, editor:1, users:2, nocodb:3, settings:4};
   document.querySelectorAll('.sb-item')[idx[id]]?.classList.add('active');
-  const titles = {dashboard:'Dashboard', files:'Quản lý tệp', editor:'Soạn thảo', nocodb:'NocoDB — Cơ sở dữ liệu', settings:'Cài đặt'};
+  const titles = {dashboard:'Dashboard', editor:'Soạn thảo', users:'Người dùng', nocodb:'NocoDB — Cơ sở dữ liệu', settings:'Cài đặt'};
   document.getElementById('panel-title').textContent = titles[id] || id;
 }
 
@@ -3007,6 +2963,9 @@ async function editFile(path) {
     isDirty = false;
     document.getElementById('save-dot').className = 'save-dot';
     document.getElementById('save-status').textContent = `Đã tải: ${title}`;
+    // Cập nhật breadcrumb topbar
+    const bc = document.getElementById('editor-breadcrumb');
+    if (bc) bc.innerHTML = `<i class="fas fa-file-lines" style="color:var(--primary)"></i> ${folder ? folder.replace(/\//g,' › ') + ' › ' : ''}${title || path.split('/').pop()}`;
 
   } catch(e) {
     showToast('Lỗi tải bài: ' + e.message, 'error');
@@ -3310,8 +3269,8 @@ function showPanel(id, navEl) {
     loadSettings();
 
   } else if (id === 'editor') {
+    renderUnifiedTree(indexTree);
     updateFolderSelects();
-    loadSidebarFolders();
     setTimeout(() => {
       initCodeMirror();
       if (cmEditor) cmEditor.refresh();
@@ -3320,13 +3279,7 @@ function showPanel(id, navEl) {
       }
     }, 80);
 
-  } else if (id === 'files') {
-    // Render từ indexTree hiện tại, KHÔNG tự sync
-    renderTree(indexTree);
-    updateFolderSelects();
-
   } else if (id === 'dashboard') {
-    // Render từ indexTree hiện tại, KHÔNG tự sync
     updateDashboard();
 
   } else if (id === 'users') {
@@ -3368,15 +3321,12 @@ function initAdmin() {
   document.getElementById('top-repo').textContent = 'api.gds.edu.vn';
 
   if (hasNoco) {
-    // Sync 1 lần khi khởi động, sau đó user bấm "Đồng bộ ngay" khi cần
     syncFromNoco().then(() => {
-      // Sau khi sync xong, hiện dashboard
       updateDashboard();
-      renderTree(indexTree);
       updateFolderSelects();
     });
   } else {
-    showPanel('settings', document.querySelectorAll('.sb-item')[4]);
+    showPanel('settings', document.querySelectorAll('.sb-item')[3]);
     setTimeout(() => showToast('Cấu hình NocoDB để bắt đầu!', 'warn'), 500);
   }
 }
@@ -4109,6 +4059,307 @@ document.addEventListener('keydown', e => {
   if ((e.ctrlKey||e.metaKey) && e.key==='s') { e.preventDefault(); saveToNoco(); }
   if (e.key === 'Escape') closeModal();
 });
+
+// ═══════════════════════════════════════════════════
+// UNIFIED TREE — cây thư mục duy nhất cho panel Soạn thảo
+// ═══════════════════════════════════════════════════
+let _ctxTarget = null; // { type:'file'|'folder', path, name, item }
+
+function renderUnifiedTree(tree, filter) {
+  const body = document.getElementById('unified-tree-body');
+  if (!body) return;
+  if (!tree || !tree.length) {
+    body.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px"><i class="fas fa-plug" style="display:block;font-size:20px;margin-bottom:8px"></i>Kết nối NocoDB để tải</div>';
+    return;
+  }
+  body.innerHTML = '';
+  _renderUnifiedItems(tree, body, '', filter || '');
+}
+
+function _renderUnifiedItems(items, container, parentPath, filter) {
+  (items || []).forEach(item => {
+    if (item.type === 'folder') {
+      const folderPath = parentPath ? parentPath + '/' + item.name : item.name;
+      item.folderPath = folderPath;
+      const childFiles = (item.children || []).filter(c => c.type === 'file');
+      const childFolders = (item.children || []).filter(c => c.type === 'folder');
+      const matchFilter = !filter || item.name.toLowerCase().includes(filter) ||
+        childFiles.some(f => f.name.toLowerCase().includes(filter)) ||
+        childFolders.length > 0;
+      if (!matchFilter) return;
+
+      const wrap = document.createElement('div');
+      wrap.className = 'utree-folder';
+      if (!filter) wrap.classList.add('open');
+
+      const hd = document.createElement('div');
+      hd.className = 'utree-folder-hd';
+      hd.innerHTML = `
+        <i class="fas fa-chevron-right utree-chevron"></i>
+        <i class="fas fa-folder" style="color:#60a5fa;font-size:12px;flex-shrink:0"></i>
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.name}</span>
+        ${childFiles.length ? `<span style="font-size:10px;background:#e0e7ff;color:#3730a3;padding:1px 5px;border-radius:8px;flex-shrink:0">${childFiles.length}</span>` : ''}
+        <span class="ubadge ${item.access==='private'?'ubadge-priv':'ubadge-pub'}">${item.access==='private'?'prv':'pub'}</span>`;
+      hd.onclick = () => { wrap.classList.toggle('open'); selectedFolder = folderPath; };
+      hd.oncontextmenu = (e) => { e.preventDefault(); showCtxMenu(e, 'folder', folderPath, item.name, item); };
+
+      const children = document.createElement('div');
+      children.className = 'utree-folder-children';
+      _renderUnifiedItems(item.children || [], children, folderPath, filter);
+
+      wrap.appendChild(hd);
+      wrap.appendChild(children);
+      container.appendChild(wrap);
+    } else {
+      if (!item.path) return;
+      if (filter && !item.name.toLowerCase().includes(filter)) return;
+
+      const el = document.createElement('div');
+      el.className = 'utree-file';
+      if (currentEditPath === item.path) el.classList.add('active');
+      el.dataset.path = item.path;
+      el.innerHTML = `
+        <i class="fas fa-file-lines" style="font-size:11px;flex-shrink:0"></i>
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${item.name}">${item.name}</span>
+        <span class="ubadge ${item.access==='private'?'ubadge-priv':'ubadge-pub'}">${item.access==='private'?'prv':'pub'}</span>`;
+      el.onclick = () => openArticleEditor(item.path);
+      el.oncontextmenu = (e) => { e.preventDefault(); showCtxMenu(e, 'file', item.path, item.name, item); };
+      container.appendChild(el);
+    }
+  });
+}
+
+function filterTree(q) {
+  renderUnifiedTree(indexTree, q.toLowerCase().trim());
+}
+
+// ── Context Menu ─────────────────────────────────
+function showCtxMenu(e, type, path, name, item) {
+  _ctxTarget = { type, path, name, item };
+  const menu = document.getElementById('ctx-menu');
+  document.getElementById('ctx-edit').style.display = type === 'file' ? '' : 'none';
+  // Đặt vị trí
+  menu.style.display = 'block';
+  const mx = Math.min(e.clientX, window.innerWidth - 170);
+  const my = Math.min(e.clientY, window.innerHeight - 160);
+  menu.style.left = mx + 'px';
+  menu.style.top  = my + 'px';
+}
+
+function hideCtxMenu() { document.getElementById('ctx-menu').style.display = 'none'; }
+document.addEventListener('click', hideCtxMenu);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') hideCtxMenu(); });
+
+function ctxEdit() {
+  hideCtxMenu();
+  if (_ctxTarget?.type === 'file') openArticleEditor(_ctxTarget.path);
+}
+
+function ctxRename() {
+  hideCtxMenu();
+  if (!_ctxTarget) return;
+  const { type, path, name } = _ctxTarget;
+  const newName = prompt(`Đổi tên ${type === 'folder' ? 'thư mục' : 'bài'}:`, name);
+  if (!newName || !newName.trim() || newName.trim() === name) return;
+  if (type === 'folder') doRenameFolder(path, name, newName.trim());
+  else doRenameFile(path, name, newName.trim());
+}
+
+function ctxDelete() {
+  hideCtxMenu();
+  if (!_ctxTarget) return;
+  if (_ctxTarget.type === 'folder') confirmDeleteFolder(_ctxTarget.path);
+  else confirmDeleteFile(_ctxTarget.path);
+}
+
+function ctxMove() {
+  hideCtxMenu();
+  if (!_ctxTarget) return;
+  const { type, path, name } = _ctxTarget;
+  document.getElementById('move-modal-title').textContent = `Di chuyển ${type === 'folder' ? 'thư mục' : 'bài'}: "${name}"`;
+  document.getElementById('move-modal-sub').textContent = type === 'folder' ? 'Chọn thư mục cha mới (không thể chọn chính nó hoặc con cháu)' : 'Chọn thư mục chứa bài mới';
+  document.getElementById('move-target-path').value = '';
+  document.getElementById('move-selected-path').innerHTML = '<i class="fas fa-folder-open"></i> (gốc)';
+  // Render cây loại trừ chính nó và con cháu
+  const excludePrefix = type === 'folder' ? path : null;
+  renderMoveTree(indexTree, document.getElementById('move-tree-body'), '', excludePrefix);
+  document.getElementById('modal-move').classList.add('show');
+}
+
+function renderMoveTree(items, container, parentPath, exclude) {
+  container.innerHTML = '';
+  (items || []).forEach(item => {
+    if (item.type !== 'folder') return;
+    const fp = parentPath ? parentPath + '/' + item.name : item.name;
+    // Loại trừ chính nó và con cháu
+    if (exclude && (fp === exclude || fp.startsWith(exclude + '/'))) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'modal-tree-folder';
+    const hd = document.createElement('div');
+    hd.className = 'modal-tree-folder-hd';
+    const childFolders = (item.children || []).filter(c => c.type === 'folder').filter(c => {
+      const cfp = fp + '/' + c.name;
+      return !exclude || (cfp !== exclude && !cfp.startsWith(exclude + '/'));
+    });
+    hd.innerHTML = `
+      ${childFolders.length ? '<i class="fas fa-chevron-right" style="font-size:9px;color:#94a3b8;transition:transform .15s;flex-shrink:0"></i>' : '<span style="width:13px;display:inline-block"></span>'}
+      <i class="fas fa-folder" style="color:#60a5fa;font-size:13px;flex-shrink:0"></i>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.name}</span>`;
+    hd.onclick = () => moveSelectFolder(fp, wrap);
+    if (childFolders.length) {
+      hd.querySelector('.fa-chevron-right').onclick = (e) => { e.stopPropagation(); wrap.classList.toggle('open'); };
+    }
+    const children = document.createElement('div');
+    children.className = 'modal-tree-folder-children';
+    renderMoveTree(item.children || [], children, fp, exclude);
+    wrap.appendChild(hd);
+    wrap.appendChild(children);
+    container.appendChild(wrap);
+  });
+}
+
+function moveSelectFolder(path, folderEl) {
+  document.querySelectorAll('#move-tree-body .modal-tree-folder-hd.selected').forEach(el => el.classList.remove('selected'));
+  folderEl.querySelector('.modal-tree-folder-hd').classList.add('selected');
+  document.getElementById('move-target-path').value = path;
+  document.getElementById('move-selected-path').innerHTML = `<i class="fas fa-folder-open" style="color:#3b82f6"></i> ${path.replace(/\//g,' › ')}`;
+}
+
+function moveSelectRoot() {
+  document.querySelectorAll('#move-tree-body .modal-tree-folder-hd.selected').forEach(el => el.classList.remove('selected'));
+  document.getElementById('move-target-path').value = '';
+  document.getElementById('move-selected-path').innerHTML = '<i class="fas fa-folder-open"></i> (gốc)';
+}
+
+async function confirmMove() {
+  if (!_ctxTarget) return;
+  const { type, path, name } = _ctxTarget;
+  const dest = document.getElementById('move-target-path').value;
+  const newPath = dest ? dest + '/' + name : name;
+
+  // Kiểm tra trùng tại đích
+  function findChildren(items, folderPath) {
+    if (!folderPath) return items;
+    const parts = folderPath.split('/');
+    let node = items;
+    for (const part of parts) {
+      const found = node.find(i => i.type === 'folder' && i.name === part);
+      if (!found) return null;
+      node = found.children || [];
+    }
+    return node;
+  }
+  const destChildren = findChildren(indexTree, dest) || [];
+  const sameName = destChildren.find(i => i.name === name);
+  if (sameName) { showToast(`Đã có "${name}" tại thư mục đích!`, 'warn'); return; }
+
+  closeModal();
+  showLoading('Đang di chuyển...');
+  try {
+    if (type === 'file') {
+      // Cập nhật Article: Path + Folder
+      const data = await NOCO.listRecords({ where: `(Path,eq,"${path}")`, limit: 1 });
+      const row = (data.list || [])[0];
+      if (!row) throw new Error('Không tìm thấy bài trong NocoDB');
+      await NOCO.updateRecord(row.Id, { Path: newPath, Folder: dest });
+      // Cập nhật indexTree
+      function moveFile(items, oldPath, destPath, destFolder) {
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].type === 'file' && items[i].path === oldPath) {
+            const [removed] = items.splice(i, 1);
+            removed.path = destPath;
+            removed.folder = destFolder;
+            return removed;
+          }
+          if (items[i].children) {
+            const found = moveFile(items[i].children, oldPath, destPath, destFolder);
+            if (found) return found;
+          }
+        }
+        return null;
+      }
+      const movedItem = moveFile(indexTree, path, newPath, dest);
+      if (movedItem) {
+        const destArr = findChildren(indexTree, dest);
+        if (destArr) destArr.push(movedItem);
+        else indexTree.push(movedItem);
+      }
+      if (currentEditPath === path) {
+        currentEditPath = newPath;
+        document.getElementById('e-path-label').innerHTML = `<i class="fas fa-file-lines" style="color:var(--primary)"></i> ${newPath}`;
+      }
+    } else {
+      // Di chuyển thư mục: cập nhật Folder record + tất cả bài con
+      const oldPathPrefix = path;
+      const newPathPrefix = newPath;
+      // Cập nhật folder trong Folders table
+      const fData = await NOCO.listFolders();
+      for (const f of (fData.list || [])) {
+        if (f.Path === oldPathPrefix) {
+          await NOCO.call('folders', '', 'PATCH', [{ Id: f.Id, Path: newPathPrefix, Parent: dest }]);
+        } else if ((f.Path || '').startsWith(oldPathPrefix + '/')) {
+          const newSubPath = newPathPrefix + f.Path.slice(oldPathPrefix.length);
+          await NOCO.call('folders', '', 'PATCH', [{ Id: f.Id, Path: newSubPath }]);
+        }
+      }
+      // Cập nhật tất cả bài con trong Articles table
+      const allFiles = flattenFiles(indexTree).filter(f => f.path && f.path.startsWith(oldPathPrefix + '/'));
+      for (const file of allFiles) {
+        const fileData = await NOCO.listRecords({ where: `(Path,eq,"${file.path}")`, limit: 1 });
+        const row = (fileData.list || [])[0];
+        if (row) {
+          const newFilePath = newPathPrefix + file.path.slice(oldPathPrefix.length);
+          const newFolder = dest ? dest + '/' + name + file.folder.slice(oldPathPrefix.length) : name + file.folder.slice(oldPathPrefix.length);
+          await NOCO.updateRecord(row.Id, { Path: newFilePath, Folder: newFolder });
+        }
+      }
+      // Cập nhật currentEditPath nếu đang mở bài trong folder vừa di chuyển
+      if (currentEditPath && currentEditPath.startsWith(oldPathPrefix + '/')) {
+        currentEditPath = newPathPrefix + currentEditPath.slice(oldPathPrefix.length);
+        const lbl = document.getElementById('e-path-label');
+        if (lbl) lbl.innerHTML = `<i class="fas fa-file-lines" style="color:var(--primary)"></i> ${currentEditPath}`;
+      }
+    }
+    // Reload từ NocoDB để đảm bảo toàn vẹn
+    await syncFromNoco();
+    showToast(`✓ Đã di chuyển "${name}" thành công!`, 'success');
+  } catch(e) {
+    showToast('Lỗi di chuyển: ' + e.message, 'error');
+  } finally { hideLoading(); }
+}
+
+// ── Đổi tên bài (Article) ─────────────────────────
+async function doRenameFile(oldPath, currentName, newName) {
+  showLoading('Đang đổi tên bài...');
+  try {
+    const data = await NOCO.listRecords({ where: `(Path,eq,"${oldPath}")`, limit: 1 });
+    const row = (data.list || [])[0];
+    if (!row) throw new Error('Không tìm thấy bài trong NocoDB');
+    const folder = row.Folder || '';
+    const newPath = folder ? folder + '/' + newName : newName;
+    await NOCO.updateRecord(row.Id, { Title: newName, Path: newPath });
+    // Cập nhật indexTree
+    function renameFn(items) {
+      for (const item of items) {
+        if (item.type === 'file' && item.path === oldPath) {
+          item.name = newName; item.path = newPath; return true;
+        }
+        if (item.children && renameFn(item.children)) return true;
+      }
+      return false;
+    }
+    renameFn(indexTree);
+    if (currentEditPath === oldPath) {
+      currentEditPath = newPath;
+      document.getElementById('e-title').value = newName;
+      document.getElementById('e-path-label').innerHTML = `<i class="fas fa-file-lines" style="color:var(--primary)"></i> ${newPath}`;
+    }
+    commitIndexTree();
+    showToast(`✓ Đã đổi tên thành "${newName}"`, 'success');
+  } catch(e) {
+    showToast('Lỗi đổi tên: ' + e.message, 'error');
+  } finally { hideLoading(); }
+}
 
 window.addEventListener('DOMContentLoaded', () => {
   const hasAuth = sessionStorage.getItem('ae_auth') === '1';
