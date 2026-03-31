@@ -2281,16 +2281,15 @@ function setRichHTML(html) {
   let fullHTML;
 
   if (isFullPage) {
-    // Inject designMode into existing full page
     fullHTML = html.replace('</head>', `
 <style>
   body { outline: none; min-height: 200px; }
   [contenteditable]:focus { outline: none; }
-  iframe { pointer-events: none; } /* iframes inside content - non-interactive in editor */
+  iframe { pointer-events: none; }
 </style>
 </head>`);
   } else {
-    // Wrap fragment in full page with nice defaults
+    const bodyContent = html || '<p>&#8203;</p>';
     fullHTML = `<!DOCTYPE html><html><head>
 <meta charset="UTF-8">
 <style>
@@ -2298,6 +2297,10 @@ function setRichHTML(html) {
     font-family: 'Segoe UI', system-ui, sans-serif;
     font-size: 14px; line-height: 1.85; color: #1e293b;
     margin: 24px 32px; outline: none; min-height: 300px;
+  }
+  body:empty::before, p:only-child:empty::before {
+    content: 'Bắt đầu nhập nội dung bài học...';
+    color: #94a3b8; pointer-events: none;
   }
   h1{font-size:22px;font-weight:700;color:#0f172a;margin:16px 0 8px;border-bottom:2px solid #dbeafe;padding-bottom:6px}
   h2{font-size:18px;font-weight:700;color:#1e293b;margin:14px 0 6px}
@@ -2317,7 +2320,7 @@ function setRichHTML(html) {
   p{margin-bottom:10px}
   [data-math]{background:#fef9c3;padding:2px 8px;border-radius:4px;font-family:'Courier New',monospace;font-size:13px;color:#854d0e}
 </style>
-</head><body>${html || '<p></p>'}</body></html>`;
+</head><body>${bodyContent}</body></html>`;
   }
 
   setIframeSrcdoc(iframe, fullHTML);
@@ -2332,26 +2335,19 @@ function setRichHTML(html) {
     body.spellcheck = false;
     body.style.outline = 'none';
 
-    // Paste handler: xử lý LaTeX từ Google Docs/Word
     body.addEventListener('paste', (e) => _handleSmartPaste(e, richDoc));
+    body.addEventListener('input', () => { _onRichChange(); });
 
-    // Sync changes back to CodeMirror
-    body.addEventListener('input', () => {
-      _onRichChange();
-    });
-
-    // Keyboard shortcuts
     richDoc.addEventListener('keydown', (e) => {
       if ((e.ctrlKey||e.metaKey) && e.key === 'z') { e.preventDefault(); richUndo(); }
       if ((e.ctrlKey||e.metaKey) && (e.key === 'y' || (e.shiftKey && e.key==='z'))) { e.preventDefault(); richRedo(); }
     });
 
-    // Paste handler: xử lý LaTeX, clean HTML từ Google Docs/Word
     richDoc.addEventListener('paste', e => { _handlePaste(e, richDoc); setTimeout(_onRichChange, 100); });
 
     _richLastHTML = getRichHTML();
     _richHistory = [_richLastHTML];
-    markDirty();
+    // Stats cập nhật SAU khi iframe load xong
     updateEditorStats();
   };
 }
@@ -2729,11 +2725,10 @@ async function editFile(path) {
     document.getElementById('e-path-label').innerHTML =
       `<i class="fas fa-file-lines" style="color:var(--primary)"></i> ${folder ? folder+'/' : ''}${path.split('/').pop()}`;
 
-    // Load HTML vào editor (tự detect full-page vs fragment)
+    // Load HTML vào editor
     setTimeout(() => {
       initCodeMirror();
       applyHTMLToEditor(html);
-      updateEditorStats();
     }, 100);
 
     isDirty = false;
