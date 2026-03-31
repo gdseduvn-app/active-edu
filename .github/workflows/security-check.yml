@@ -15,10 +15,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Kiem tra khong co token hardcode
+      - name: Kiem tra khong co secrets hardcode
         run: |
           FOUND=0
-          for pattern in "xc-token" "activeedu2024" "hocsinh123"; do
+          for pattern in "xc-token" "activeedu2024" "hocsinh123" "ghp_" "github_pat_"; do
             if grep -rni "$pattern" --include="*.html" --include="*.js" --exclude-dir=".git" . ; then
               echo "CANH BAO: Phat hien pattern nguy hiem: $pattern"
               FOUND=1
@@ -29,6 +29,15 @@ jobs:
           else
             echo "LOI: Co secrets trong code!"
             exit 1
+          fi
+
+      - name: Kiem tra iframe sandbox an toan
+        run: |
+          if grep -rni 'sandbox="[^"]*allow-same-origin[^"]*allow-scripts\|sandbox="[^"]*allow-scripts[^"]*allow-same-origin' --include="*.html" . ; then
+            echo "LOI: iframe dung ca allow-same-origin va allow-scripts - nguy co bypass sandbox!"
+            exit 1
+          else
+            echo "OK: Khong phat hien iframe sandbox nguy hiem"
           fi
 
       - name: Kiem tra Worker JS syntax
