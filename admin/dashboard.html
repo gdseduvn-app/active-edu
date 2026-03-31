@@ -2406,202 +2406,12 @@ function _handlePaste(e, doc) {
 
 
 
-// ── getFinalHTML: always use iframe doc ───────────
-function getFinalHTML() {
-  const doc = _getIframeDoc();
-  if (doc) {
-    _syncIframeToSource();
-    return '<!DOCTYPE html>' + doc.documentElement.outerHTML;
-  }
-  return cmEditor ? cmEditor.getValue() : '';
-}
-function getVisualHTML() { return getFinalHTML(); }
-function getTinyHTML()   { return getFinalHTML(); }
-
-// ── Undo / Redo ───────────────────────────────────
-function richUndo() {
-  if (_richHistory.length <= 1) return;
-  _richFuture.push(_richHistory.pop());
-  const prev = _richHistory[_richHistory.length-1];
-  const doc = _getIframeDoc();
-  if (doc?.body) { doc.body.innerHTML = prev; _syncIframeToSource(); }
-}
-function richRedo() {
-  if (!_richFuture.length) return;
-  const next = _richFuture.pop();
-  _richHistory.push(next);
-  const doc = _getIframeDoc();
-  if (doc?.body) { doc.body.innerHTML = next; _syncIframeToSource(); }
-}
-
-// ── Toolbar commands (act on iframe doc) ──────────
-function _cmd(fn) {
-  const doc = _getIframeDoc();
-  if (!doc) return;
-  doc.body.focus();
-  fn(doc);
-  clearTimeout(_refreshTimer);
-  _refreshTimer = setTimeout(() => _syncIframeToSource(), 200);
-  markDirty();
-}
-
-function richToggle(cmd) {
-  _cmd(doc => doc.execCommand(cmd, false, null));
-}
-
-function richWrap(tag) {
-  if (!tag) return;
-  _cmd(doc => doc.execCommand('formatBlock', false, tag));
-}
-
-function richAlign(dir) {
-  const map = {left:'justifyLeft',center:'justifyCenter',right:'justifyRight'};
-  _cmd(doc => doc.execCommand(map[dir], false, null));
-}
-
-function richList(type) {
-  _cmd(doc => doc.execCommand(type==='ul' ? 'insertUnorderedList' : 'insertOrderedList', false, null));
-}
-
-function richFontColor(val) {
-  _cmd(doc => doc.execCommand('foreColor', false, val));
-}
-
-function richBgColor(val) {
-  _cmd(doc => doc.execCommand('hiliteColor', false, val));
-}
-
-function richClearFormat() {
-  _cmd(doc => doc.execCommand('removeFormat', false, null));
-}
-
-function richPageColor(what, val) {
-  const doc = _getIframeDoc();
-  if (!doc?.body) return;
-  if (what==='bg') doc.body.style.backgroundColor = val;
-  else doc.body.style.color = val;
-  _syncIframeToSource();
-}
-
-function _insertHTML(html) {
-  _cmd(doc => doc.execCommand('insertHTML', false, html));
-}
-
-// ── Insert helpers ────────────────────────────────
-function richInsertLink() {
-  const doc = _getIframeDoc();
-  const sel = doc?.getSelection();
-  const text = sel?.toString() || '';
-  const url = prompt('Nhập URL:', 'https://');
-  if (!url) return;
-  _insertHTML(`<a href="${url}" target="_blank">${text||url}</a>`);
-}
-
-function richInsertImage() {
-  const url = prompt('URL hình ảnh:');
-  if (!url) return;
-  const alt = prompt('Mô tả (alt):', '') || '';
-  const w = prompt('Chiều rộng (vd: 100%, 400px):', '100%') || '100%';
-  _insertHTML(`<img src="${url}" alt="${alt}" style="max-width:${w};border-radius:6px;display:block;margin:8px auto">`);
-}
-
-function richInsertTable() {
-  const rows = parseInt(prompt('Số hàng:', '3')) || 3;
-  const cols = parseInt(prompt('Số cột:', '3')) || 3;
-  let h = '<table style="border-collapse:collapse;width:100%;margin:10px 0"><thead><tr>';
-  for (let c=0;c<cols;c++) h+=`<th style="border:1px solid #e2e8f0;padding:8px 12px;background:#f8fafc">Cột ${c+1}</th>`;
-  h+='</tr></thead><tbody>';
-  for (let r=0;r<rows;r++){h+='<tr>';for(let c=0;c<cols;c++)h+='<td style="border:1px solid #e2e8f0;padding:8px 12px">&nbsp;</td>';h+='</tr>';}
-  h+='</tbody></table><p></p>';
-  _insertHTML(h);
-}
-
-function richInsertHR() {
-  _insertHTML('<hr style="border:none;border-top:2px solid #e2e8f0;margin:16px 0"><p></p>');
-}
-
-function richInsertMath() {
-  const f = prompt('Công thức (LaTeX hoặc text):', 'S = 5t^2');
-  if (!f) return;
-  _insertHTML(`<span data-math="1" style="background:#fef9c3;padding:2px 8px;border-radius:4px;font-family:'Courier New',monospace;font-size:13px;color:#854d0e">${f}</span>`);
-}
-
-function richInsertEmbed() {
-  const input = prompt('🎬 Nhúng học liệu\n\nDán vào:\n• Link YouTube\n• Link Google Docs / Slides / Forms / Sheets\n• Link Google Drive\n• Canva, Padlet, hoặc bất kỳ URL\n• Mã <iframe> embed đầy đủ\n', '');
-  if (!input) return;
-  const t = input.trim();
-  let html = '';
-
-  if (/^<iframe/i.test(t)) {
-    html = t;
-  } else if (t.match(/youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)/)) {
-    const id = t.match(/v=([a-zA-Z0-9_-]+)/)[1];
-    html = `<iframe width="100%" height="450" src="https://www.youtube.com/embed/${id}" frameborder="0" allowfullscreen style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
-  } else if (t.match(/youtu\.be\/([a-zA-Z0-9_-]+)/)) {
-    const id = t.match(/youtu\.be\/([a-zA-Z0-9_-]+)/)[1];
-    html = `<iframe width="100%" height="450" src="https://www.youtube.com/embed/${id}" frameborder="0" allowfullscreen style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
-  } else if (t.includes('docs.google.com/document')) {
-    const url = t.split('?')[0].replace(/\/edit$/,'') + '/preview';
-    html = `<iframe src="${url}" width="100%" height="600" frameborder="0" style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
-  } else if (t.includes('docs.google.com/presentation')) {
-    const url = t.split('?')[0].replace(/\/edit$/,'') + '/embed?start=false&loop=false';
-    html = `<iframe src="${url}" width="100%" height="480" frameborder="0" allowfullscreen style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
-  } else if (t.includes('docs.google.com/forms')) {
-    const url = t.split('?')[0].replace(/\/edit$/,'') + '/viewform?embedded=true';
-    html = `<iframe src="${url}" width="100%" height="600" frameborder="0" style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
-  } else if (t.includes('docs.google.com/spreadsheets')) {
-    const url = t.split('?')[0].replace(/\/edit$/,'') + '/pubhtml';
-    html = `<iframe src="${url}" width="100%" height="500" frameborder="0" style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
-  } else if (t.includes('drive.google.com/file')) {
-    const m = t.match(/\/d\/([a-zA-Z0-9_-]+)/);
-    if (m) html = `<iframe src="https://docs.google.com/viewer?url=https://drive.google.com/uc?id=${m[1]}&embedded=true" width="100%" height="480" frameborder="0" style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
-  } else if (t.includes('canva.com') || t.includes('padlet.com') || t.includes('figma.com') || t.includes('prezi.com')) {
-    html = `<iframe src="${t}" width="100%" height="480" frameborder="0" allowfullscreen style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
-  } else if (t.startsWith('http')) {
-    const h = parseInt(prompt('Chiều cao iframe (px):', '500')) || 500;
-    html = `<iframe src="${t}" width="100%" height="${h}" frameborder="0" style="border-radius:8px;display:block;margin:12px 0"></iframe>`;
-  } else {
-    showToast('Không nhận dạng được. Hãy dán mã <iframe> đầy đủ.', 'warn'); return;
-  }
-
-  _insertHTML(html + '<p></p>');
-  showToast('✅ Đã nhúng!', 'success');
-}
-
-// ── Backward compat aliases ───────────────────────
-function rExec(cmd)       { richToggle(cmd); }
-function rExecVal(c,v)    { _cmd(doc => doc.execCommand(c,false,v)); }
-function rInsertLink()    { richInsertLink(); }
-function rInsertImage()   { richInsertImage(); }
-function rInsertTable()   { richInsertTable(); }
-function rInsertHR()      { richInsertHR(); }
-function rInsertMath()    { richInsertMath(); }
-function rInsertEmbed()   { richInsertEmbed(); }
-function onRichInput()    { _syncIframeToSource(); }
-
-
-// ── Detect full-page HTML ──
-function isFullPageHTML(html) {
-  const trimmed = (html || '').trim().toLowerCase();
-  return trimmed.startsWith('<!doctype') || trimmed.startsWith('<html');
-}
-
-// ── Apply HTML to editor — KHÔNG khóa tab Soạn thảo ──
+// ── Apply HTML to editor ──────────────────────────
 function applyHTMLToEditor(html) {
-  // Sync vào CodeMirror
+  // Sync vào CodeMirror (source of truth cho tab HTML)
   if (cmEditor) cmEditor.setValue(html || '');
   else { const src = document.getElementById('html-source'); if (src) src.value = html || ''; }
-
-  // Luôn enable tab Soạn thảo
-  const richTab = document.getElementById('etab-rich');
-  if (richTab) {
-    richTab.style.opacity = '';
-    richTab.style.cursor = '';
-    richTab.title = '';
-    richTab.onclick = () => switchTab('rich');
-  }
-
-  // Load vào rich editor nếu đang ở tab rich
+  // Load vào rich iframe nếu đang ở tab Soạn thảo
   if (editorTab === 'rich') initTinyMCE(html || '');
 }
 
@@ -2932,7 +2742,7 @@ function switchTab(tab) {
 
   // Sync OUT: khi rời tab Soạn thảo → sync iframe → CodeMirror
   if (prevTab === 'rich' && tab === 'html') {
-    _syncIframeToSource();
+    _syncRichToCodeMirror();
   }
 
   editorTab = tab;
@@ -3135,6 +2945,7 @@ async function editFile(path) {
   try {
     // Fetch chỉ 1 record từ NocoDB - không sync toàn bộ
     const data = await NOCO.listRecords({ where: `(Path,eq,"${path}")`, limit: 1 });
+    const row = (data.list || [])[0];
     let title = '', folder = '', desc = '', access = 'public', html = '';
     if (row) {
       title  = row.Title       || '';
