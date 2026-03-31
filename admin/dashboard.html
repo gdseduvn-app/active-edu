@@ -2037,7 +2037,8 @@ function removeFromTree(tree, path) {
 // ═══════════════════════════════════════════════════
 let editorTab = 'rich';
 let cmEditor = null;      // CodeMirror instance
-// tinyEditor and tinyReady defined in custom editor section
+let _richLoading = false; // true trong 200ms đầu sau setRichHTML — bỏ qua _onRichChange
+let _cmLoading   = false; // true khi applyHTMLToEditor đang set value — bỏ qua cmEditor.on('change')
 
 function initCodeMirror() {
   if (cmEditor) return;
@@ -2050,7 +2051,7 @@ function initCodeMirror() {
     tabSize: 2, indentWithTabs: false,
     extraKeys: { 'Ctrl-S': () => saveToNoco(), 'Tab': cm => cm.execCommand('indentMore') }
   });
-  cmEditor.on('change', () => { markDirty(); updateEditorStats(); });
+  cmEditor.on('change', () => { if (!_cmLoading) { markDirty(); updateEditorStats(); } });
   cmEditor.setSize('100%', '100%');
 }
 
@@ -2251,9 +2252,11 @@ function _handlePaste(e, doc) {
 
 // ── Apply HTML to editor ──────────────────────────
 function applyHTMLToEditor(html) {
-  // Sync vào CodeMirror (source of truth cho tab HTML)
+  // Sync vào CodeMirror — set _cmLoading để không trigger markDirty
+  _cmLoading = true;
   if (cmEditor) cmEditor.setValue(html || '');
   else { const src = document.getElementById('html-source'); if (src) src.value = html || ''; }
+  _cmLoading = false;
   // Load vào rich iframe nếu đang ở tab Soạn thảo
   if (editorTab === 'rich') initTinyMCE(html || '');
 }
@@ -2324,6 +2327,7 @@ function setRichHTML(html) {
   }
 
   setIframeSrcdoc(iframe, fullHTML);
+  _richLoading = true; // bỏ qua _onRichChange trong khi iframe đang load
 
   // Wait for iframe to load then make body editable
   iframe.onload = () => {
@@ -2347,12 +2351,17 @@ function setRichHTML(html) {
 
     _richLastHTML = getRichHTML();
     _richHistory = [_richLastHTML];
+
+    // Hết giai đoạn load — cho phép _onRichChange hoạt động trở lại
+    setTimeout(() => { _richLoading = false; }, 200);
+
     // Stats cập nhật SAU khi iframe load xong
     updateEditorStats();
   };
 }
 
 function _onRichChange() {
+  if (_richLoading) return; // bỏ qua khi iframe đang load ban đầu
   const html = getRichHTML();
   if (html === _richLastHTML) return;
   _richHistory.push(html);
@@ -2369,7 +2378,9 @@ function _syncRichToCodeMirror() {
   const html = getFinalHTML();
   if (cmEditor && cmEditor.getValue() !== html) {
     const cursor = cmEditor.getCursor();
+    _cmLoading = true;
     cmEditor.setValue(html);
+    _cmLoading = false;
     try { cmEditor.setCursor(cursor); } catch {}
   }
 }
@@ -2541,15 +2552,6 @@ function richInsertEmbed() {
   showToast('✅ Đã nhúng nội dung!', 'success');
 }
 
-// Backward compat
-
-function getTinyHTML() {
-  const cmVal = cmEditor ? cmEditor.getValue() : '';
-  if (isFullPageHTML(cmVal)) return cmVal;
-  return getRichHTML();
-}
-
-function getVisualHTML() { return getTinyHTML(); }
 
 function switchTab(tab) {
   const prevTab = editorTab;
@@ -2671,8 +2673,9 @@ async function editFile(path) {
   currentEditPath = path;
   showLoading('Tải nội dung từ NocoDB...');
   try {
-    // Fetch chỉ 1 record từ NocoDB - không sync toàn bộ
-    const data = await NOCO.listRecords({ where: `(Path,eq,"${path}")`, limit: 1 });
+    // Fetch chỉ 1 record từ NocoDB - escape path để tránh query fail
+    const _ep = path.replace(/"/g, '\\"');
+    const data = await NOCO.listRecords({ where: `(Path,eq,"${_ep}")`, limit: 1 });
     const row = (data.list || [])[0];
     let title = '', folder = '', desc = '', access = 'public', html = '';
     if (row) {
@@ -2725,18 +2728,22 @@ async function editFile(path) {
     document.getElementById('e-path-label').innerHTML =
       `<i class="fas fa-file-lines" style="color:var(--primary)"></i> ${folder ? folder+'/' : ''}${path.split('/').pop()}`;
 
-    // Load HTML vào editor
-    setTimeout(() => {
-      initCodeMirror();
-      applyHTMLToEditor(html);
-    }, 100);
-
-    isDirty = false;
-    document.getElementById('save-dot').className = 'save-dot';
-    document.getElementById('save-status').textContent = `Đã tải: ${title}`;
     // Cập nhật breadcrumb topbar
     const bc = document.getElementById('editor-breadcrumb');
     if (bc) bc.innerHTML = `<i class="fas fa-file-lines" style="color:var(--primary)"></i> ${folder ? folder.replace(/\//g,' › ') + ' › ' : ''}${title || path.split('/').pop()}`;
+
+    // Load HTML vào editor — isDirty=false sau khi iframe load xong (300ms = 100 init + 200 _richLoading)
+    setTimeout(() => {
+      initCodeMirror();
+      applyHTMLToEditor(html);
+      setTimeout(() => {
+        isDirty = false;
+        const dot = document.getElementById('save-dot');
+        if (dot) dot.className = 'save-dot';
+        const ss = document.getElementById('save-status');
+        if (ss) ss.textContent = `Đã tải: ${title}`;
+      }, 300);
+    }, 100);
 
   } catch(e) {
     showToast('Lỗi tải bài: ' + e.message, 'error');
@@ -2754,17 +2761,11 @@ async function saveToNoco() {
   if (!title) { showToast('Nhập tên bài học!', 'warn'); return; }
   // Proxy luôn sẵn sàng - không cần check nocoToken
 
-  // Lấy HTML từ đúng tab đang active
-  let htmlContent = '';
+  // Lấy HTML — luôn sync iframe → CodeMirror trước để đảm bảo source of truth
   if (editorTab === 'rich') {
-    htmlContent = getVisualHTML();
-    // Sync vào CodeMirror để đồng bộ
-    if (cmEditor) cmEditor.setValue(htmlContent);
-  } else if (editorTab === 'html') {
-    htmlContent = cmEditor ? cmEditor.getValue() : (document.getElementById('html-source')?.value || '');
-  } else {
-    htmlContent = cmEditor ? cmEditor.getValue() : (document.getElementById('html-source')?.value || '');
+    _syncRichToCodeMirror();
   }
+  let htmlContent = cmEditor ? cmEditor.getValue() : (document.getElementById('html-source')?.value || '');
 
   // Cảnh báo nội dung rỗng nhưng KHÔNG chặn lưu, KHÔNG xóa cây thư mục
   if (!htmlContent || htmlContent.trim() === '' || htmlContent.trim() === '<p><br></p>') {
@@ -2793,9 +2794,10 @@ async function saveToNoco() {
       const ratio = Math.round((1 - compressed.length / htmlContent.length) * 100);
       console.log(`[LZ] ${htmlContent.length} → ${compressed.length} ký tự (nén ${ratio}%)`);
     }
-    const payload = { Title:title, Path:filePath, Folder:folder||'', Description:desc||'', Updated:now, Content:contentValue,
+    const payload = { Title:title, Path:filePath, Folder:folder||'', Description:desc||'', Access:access, Updated:now, Content:contentValue,
       Excerpt: htmlContent.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0, 150) };
-    const existing = await NOCO.listRecords({ where: `(Path,eq,"${filePath}")`, limit: 1 });
+    const _escapedPath = filePath.replace(/"/g, '\\"');
+    const existing = await NOCO.listRecords({ where: `(Path,eq,"${_escapedPath}")`, limit: 1 });
     const existingRow = (existing.list || [])[0];
     if (existingRow) { await NOCO.updateRecord(existingRow.Id, payload); }
     else { payload.NgayTao = now; await NOCO.createRecord(payload); }
