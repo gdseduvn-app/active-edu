@@ -1128,49 +1128,6 @@ function doLogout() {
 // TREE RENDER
 // ═══════════════════════════════════════════════════
 
-function renderTreeItems(items, container, parentPath = '') {
-  (items||[]).forEach(item => {
-    if (item.type === 'folder') {
-      item.folderPath = parentPath ? parentPath + '/' + item.name : item.name;
-      const wrap = document.createElement('div');
-      wrap.className = 'tree-folder';
-      const fAccess = item.access || 'public';
-      const fAccessIcon = fAccess === 'private'
-        ? '<span style="font-size:10px;background:#fee2e2;color:#b91c1c;padding:1px 5px;border-radius:4px;margin-right:4px">🔒</span>'
-        : '<span style="font-size:10px;background:#ccfbf1;color:#0f766e;padding:1px 5px;border-radius:4px;margin-right:4px">🌐</span>';
-      wrap.innerHTML = `
-        <div class="tree-folder-hd" onclick="this.parentElement.classList.toggle('open');selectFolder('${item.folderPath}',this)">
-          <i class="fas fa-chevron-right"></i>
-          <i class="fas fa-folder" style="color:#60a5fa;font-size:13px"></i>
-          <span style="flex:1">${item.name}</span>
-          ${fAccessIcon}
-          <div class="tree-actions">
-            <button class="tree-act-btn" title="Đổi tên" onclick="event.stopPropagation();renameFolder('${item.folderPath}','${item.name}')"><i class="fas fa-pen"></i></button>
-            <button class="tree-act-btn" title="Đổi quyền" onclick="event.stopPropagation();toggleFolderAccess('${item.folderPath}','${fAccess}')"><i class="fas fa-${fAccess==='private'?'lock':'unlock'}"></i></button>
-            <button class="tree-act-btn" title="Xóa thư mục" onclick="event.stopPropagation();confirmDeleteFolder('${item.folderPath}')"><i class="fas fa-trash"></i></button>
-          </div>
-        </div>
-        <div class="tree-folder-children"></div>`;
-      renderTreeItems(item.children||[], wrap.querySelector('.tree-folder-children'), item.folderPath);
-      container.appendChild(wrap);
-    } else {
-      const el = document.createElement('div');
-      el.className = 'tree-file';
-      el.dataset.path = item.path;
-      el.innerHTML = `
-        <i class="fas fa-file-lines"></i>
-        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.name}</span>
-        ${item.access === 'private' ? '<span style="font-size:10px;background:#fee2e2;color:#b91c1c;padding:1px 5px;border-radius:4px;margin-right:4px">🔒</span>' : '<span style="font-size:10px;background:#ccfbf1;color:#0f766e;padding:1px 5px;border-radius:4px;margin-right:4px">🌐</span>'}
-        <div class="tree-actions">
-          <button class="tree-act-btn edit-btn" title="Sửa" onclick="event.stopPropagation();openArticleEditor('${item.path}')"><i class="fas fa-pen"></i></button>
-          <button class="tree-act-btn" title="Xóa" onclick="event.stopPropagation();confirmDeleteFile('${item.path}')"><i class="fas fa-trash"></i></button>
-        </div>`;
-      el.onclick = () => selectFile(item);
-      container.appendChild(el);
-    }
-  });
-}
-
 
 // ═══════════════════════════════════════════════════
 // GITHUB API — Single Source of Truth
@@ -1281,7 +1238,6 @@ function _syncAllPanels() {
   if (nocoPanel?.classList.contains('active')) nocoLoadRecords();
 }
 let fileShaMap = {}; // path → sha (for updates)
-let selectedFilePath = null;
 let selectedFolder = '';
 let currentEditPath  = null;
 let isDirty = false;
@@ -1709,6 +1665,24 @@ async function toggleFolderAccess(folderPath, currentAccess) {
 }
 
 // ── Toggle access bài viết (public ↔ private) ──
+// ── ID-first helper: lấy NocoDB row Id từ path, ưu tiên nocoId trong indexTree ──
+async function _getNocoId(path) {
+  if (!path) return null;
+  const item = flattenFiles(indexTree).find(f => f.path === path);
+  if (item?.nocoId) return item.nocoId;
+  // Fallback: query by path
+  try {
+    const ep = path.replace(/"/g, '\\"');
+    const data = await NOCO.listRecords({ where: `(Path,eq,"${ep}")`, limit: 1 });
+    const row = (data.list || [])[0];
+    if (row?.Id) {
+      if (item) item.nocoId = row.Id; // cache vào tree
+      return row.Id;
+    }
+  } catch(e) { console.warn('[_getNocoId] fallback query failed:', e.message); }
+  return null;
+}
+
 async function toggleFileAccess(filePath, currentAccess) {
   const newAccess = currentAccess === 'private' ? 'public' : 'private';
 
@@ -1726,10 +1700,9 @@ async function toggleFileAccess(filePath, currentAccess) {
 
   // Cập nhật NocoDB Articles table
   try {
-    const data = await NOCO.listRecords({ where: `(Path,eq,"${filePath}")`, limit: 1 });
-    const row  = (data.list||[])[0];
-    if (row) {
-      await NOCO.updateRecord(row.Id, { Access: newAccess });
+    const rowId = await _getNocoId(filePath);
+    if (rowId) {
+      await NOCO.updateRecord(rowId, { Access: newAccess });
     }
     commitIndexTree();
     showToast(`✓ Đã đổi quyền bài thành ${newAccess === 'private' ? '🔒 Private' : '🌐 Public'}`, 'success');
@@ -1744,10 +1717,9 @@ async function confirmDeleteFile(path) {
   if (!confirm(`Xóa bài "${path}" khỏi NocoDB?`)) return;
   showLoading('Đang xóa trong NocoDB...');
   try {
-    const data = await NOCO.listRecords({ where: `(Path,eq,"${path}")`, limit: 1 });
-    const row = (data.list || [])[0];
-    if (!row) { showToast('Bài không tồn tại trong NocoDB', 'warn'); return; }
-    await NOCO.deleteRecord(row.Id);
+    const rowId = await _getNocoId(path);
+    if (!rowId) { showToast('Bài không tồn tại trong NocoDB', 'warn'); hideLoading(); return; }
+    await NOCO.deleteRecord(rowId);
     // CASCADE: xóa permissions liên quan đến bài này
     if (true) { // proxy handles permissions
       try {
@@ -1760,16 +1732,6 @@ async function confirmDeleteFile(path) {
     }
     removeFromTree(indexTree, path);
     commitIndexTree();
-    // Reset detail panel nếu đang hiện bài vừa xóa
-    if (selectedFilePath === path) {
-      selectedFilePath = null;
-      const detailPath = document.getElementById('detail-path');
-      const detailBody = document.getElementById('detail-body');
-      const detailActions = document.getElementById('detail-actions');
-      if (detailPath) detailPath.innerHTML = '<i class="fas fa-info-circle"></i> Chọn tệp để xem';
-      if (detailActions) detailActions.style.display = 'none';
-      if (detailBody) detailBody.innerHTML = '<div class="detail-placeholder"><i class="fas fa-hand-pointer"></i><span>Chọn tệp từ cây thư mục</span></div>';
-    }
     // Reset editor nếu đang mở bài vừa xóa
     if (currentEditPath === path) {
       currentEditPath = null;
@@ -1965,9 +1927,8 @@ Xóa thư mục này?`;
     // Xóa tất cả bài viết trong thư mục khỏi NocoDB
     for (const file of files) {
       try {
-        const data = await NOCO.listRecords({ where: `(Path,eq,"${file.path}")`, limit: 1 });
-        const row = (data.list||[])[0];
-        if (row) await NOCO.deleteRecord(row.Id);
+        const rowId = file.nocoId || await _getNocoId(file.path);
+        if (rowId) await NOCO.deleteRecord(rowId);
       } catch(e) { console.warn('Delete article:', file.path, e.message); }
     }
 
@@ -2635,11 +2596,8 @@ function markSaving() {
 // ═══════════════════════════════════════════════════
 // EDITOR SIDEBAR — Cây thư mục giống panel Quản lý tệp
 // ═══════════════════════════════════════════════════
-let _sbActiveFolderPath = '';
 
-// Render cây thư mục vào sidebar editor (tái sử dụng indexTree)
 
-// Render tree cho editor sidebar — giống renderTreeItems của panel quản lý tệp
 
 // Mở editor với bài cụ thể
 async function openArticleEditor(path) {
@@ -2673,10 +2631,22 @@ async function editFile(path) {
   currentEditPath = path;
   showLoading('Tải nội dung từ NocoDB...');
   try {
-    // Fetch chỉ 1 record từ NocoDB - escape path để tránh query fail
-    const _ep = path.replace(/"/g, '\\"');
-    const data = await NOCO.listRecords({ where: `(Path,eq,"${_ep}")`, limit: 1 });
-    const row = (data.list || [])[0];
+    // Ưu tiên dùng nocoId từ indexTree để tránh query by path với Unicode
+    const _cached = flattenFiles(indexTree).find(f => f.path === path);
+    let row = null;
+    if (_cached?.nocoId) {
+      try {
+        row = await NOCO.getRecord(_cached.nocoId);
+      } catch(e) {
+        console.warn('[editFile] getRecord by id failed, fallback to path query:', e.message);
+      }
+    }
+    if (!row) {
+      // Fallback: query by path
+      const _ep = path.replace(/"/g, '\\"');
+      const data = await NOCO.listRecords({ where: `(Path,eq,"${_ep}")`, limit: 1 });
+      row = (data.list || [])[0];
+    }
     let title = '', folder = '', desc = '', access = 'public', html = '';
     if (row) {
       title  = row.Title       || '';
@@ -2796,25 +2766,30 @@ async function saveToNoco() {
     }
     const payload = { Title:title, Path:filePath, Folder:folder||'', Description:desc||'', Access:access, Updated:now, Content:contentValue,
       Excerpt: htmlContent.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0, 150) };
-    const _escapedPath = filePath.replace(/"/g, '\\"');
-    const existing = await NOCO.listRecords({ where: `(Path,eq,"${_escapedPath}")`, limit: 1 });
-    const existingRow = (existing.list || [])[0];
-    if (existingRow) { await NOCO.updateRecord(existingRow.Id, payload); }
-    else { payload.NgayTao = now; await NOCO.createRecord(payload); }
+
+    // Ưu tiên dùng nocoId từ indexTree để tránh query by path với Unicode
+    const _treeItem = flattenFiles(indexTree).find(f => f.path === filePath);
+    let existingId = _treeItem?.nocoId || null;
+    if (!existingId) {
+      // Fallback: query by path
+      const _ep = filePath.replace(/"/g, '\\"');
+      const existing = await NOCO.listRecords({ where: `(Path,eq,"${_ep}")`, limit: 1 });
+      existingId = (existing.list || [])[0]?.Id || null;
+    }
+    if (existingId) { await NOCO.updateRecord(existingId, payload); }
+    else { payload.NgayTao = now; const created = await NOCO.createRecord(payload); }
     currentEditPath = filePath;
     document.getElementById('e-path-label').innerHTML = `<i class="fas fa-file-lines" style="color:var(--primary)"></i> ${filePath}`;
     const existingItem = flattenFiles(indexTree).find(f => f.path === filePath);
     if (existingItem) {
       existingItem.name = title; existingItem.description = desc; existingItem.access = access; existingItem.updated = now;
+      if (existingId) existingItem.nocoId = existingId;
     } else {
-      const newItem = { type:'file', name:title, path:filePath, folder, description:desc, access, updated:now };
+      const newItem = { type:'file', name:title, path:filePath, folder, description:desc, access, updated:now, nocoId: existingId };
       // insertIntoTree: chỉ tạo folder mới nếu chưa tồn tại, không reset children
       function insertIntoTree(tree, folderPath, item) {
         if (!folderPath) {
-          // Kiểm tra bài đã có trong gốc chưa
-          if (!tree.find(i => i.type==='file' && i.path === item.path)) {
-            tree.push(item);
-          }
+          if (!tree.find(i => i.type==='file' && i.path === item.path)) tree.push(item);
           return;
         }
         const parts = folderPath.split('/');
@@ -2822,16 +2797,12 @@ async function saveToNoco() {
         for (const part of parts) {
           let found = node.find(i => i.type==='folder' && i.name===part);
           if (!found) {
-            // Chỉ tạo folder mới nếu chưa có
             found = { type:'folder', name:part, path:parts.slice(0, parts.indexOf(part)+1).join('/'), children:[] };
             node.push(found);
           }
           node = found.children;
         }
-        // Kiểm tra bài đã có trong folder chưa
-        if (!node.find(i => i.type==='file' && i.path === item.path)) {
-          node.push(item);
-        }
+        if (!node.find(i => i.type==='file' && i.path === item.path)) node.push(item);
       }
       insertIntoTree(indexTree, folder, newItem);
     }
@@ -3956,11 +3927,10 @@ async function confirmMove() {
   showLoading('Đang di chuyển...');
   try {
     if (type === 'file') {
-      // Cập nhật Article: Path + Folder
-      const data = await NOCO.listRecords({ where: `(Path,eq,"${path}")`, limit: 1 });
-      const row = (data.list || [])[0];
-      if (!row) throw new Error('Không tìm thấy bài trong NocoDB');
-      await NOCO.updateRecord(row.Id, { Path: newPath, Folder: dest });
+      // Cập nhật Article: Path + Folder — dùng nocoId từ _ctxTarget.item
+      const rowId = _ctxTarget.item?.nocoId || await _getNocoId(path);
+      if (!rowId) throw new Error('Không tìm thấy bài trong NocoDB');
+      await NOCO.updateRecord(rowId, { Path: newPath, Folder: dest });
       // Cập nhật indexTree
       function moveFile(items, oldPath, destPath, destFolder) {
         for (let i = 0; i < items.length; i++) {
@@ -4001,15 +3971,14 @@ async function confirmMove() {
           await NOCO.call('folders', '', 'PATCH', [{ Id: f.Id, Path: newSubPath }]);
         }
       }
-      // Cập nhật tất cả bài con trong Articles table
+      // Cập nhật tất cả bài con trong Articles table — dùng nocoId trực tiếp
       const allFiles = flattenFiles(indexTree).filter(f => f.path && f.path.startsWith(oldPathPrefix + '/'));
       for (const file of allFiles) {
-        const fileData = await NOCO.listRecords({ where: `(Path,eq,"${file.path}")`, limit: 1 });
-        const row = (fileData.list || [])[0];
-        if (row) {
+        const rowId = file.nocoId || await _getNocoId(file.path);
+        if (rowId) {
           const newFilePath = newPathPrefix + file.path.slice(oldPathPrefix.length);
           const newFolder = dest ? dest + '/' + name + file.folder.slice(oldPathPrefix.length) : name + file.folder.slice(oldPathPrefix.length);
-          await NOCO.updateRecord(row.Id, { Path: newFilePath, Folder: newFolder });
+          await NOCO.updateRecord(rowId, { Path: newFilePath, Folder: newFolder });
         }
       }
       // Cập nhật currentEditPath nếu đang mở bài trong folder vừa di chuyển
@@ -4031,12 +4000,12 @@ async function confirmMove() {
 async function doRenameFile(oldPath, currentName, newName) {
   showLoading('Đang đổi tên bài...');
   try {
-    const data = await NOCO.listRecords({ where: `(Path,eq,"${oldPath}")`, limit: 1 });
-    const row = (data.list || [])[0];
-    if (!row) throw new Error('Không tìm thấy bài trong NocoDB');
-    const folder = row.Folder || '';
+    const rowId = await _getNocoId(oldPath);
+    if (!rowId) throw new Error('Không tìm thấy bài trong NocoDB');
+    const item = flattenFiles(indexTree).find(f => f.path === oldPath);
+    const folder = item?.folder || '';
     const newPath = folder ? folder + '/' + newName : newName;
-    await NOCO.updateRecord(row.Id, { Title: newName, Path: newPath });
+    await NOCO.updateRecord(rowId, { Title: newName, Path: newPath });
     // Cập nhật indexTree
     function renameFn(items) {
       for (const item of items) {
