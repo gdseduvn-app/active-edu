@@ -722,7 +722,7 @@ async function init() {
 
   try {
     // Chỉ lấy metadata — Content được load riêng khi học sinh click bài (lazy load)
-    const articlesPath = `/api/articles?limit=1000&sort=Folder&fields=${encodeURIComponent('Id,Title,Path,Folder,Access,Updated,Description')}`;
+    const articlesPath = `/api/articles?limit=1000&sort=Folder`;
     const data = await nocoFetch(articlesPath);
     const records = data.list || [];
 
