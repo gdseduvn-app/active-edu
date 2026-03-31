@@ -3331,8 +3331,7 @@ function flattenFolders(tree) {
 function updateDashboard() {
   const files   = flattenFiles(indexTree);
   const folders = flattenFolders(indexTree);
-  const validFiles = files.filter(f => f.path && f.name && f.name !== '—');
-  document.getElementById('d-articles').textContent = validFiles.length;
+  document.getElementById('d-articles').textContent = files.length;
   document.getElementById('d-folders').textContent  = folders.length;
   const c = cfg();
   document.getElementById('d-repo').textContent = c.repo || '—';
@@ -3340,11 +3339,11 @@ function updateDashboard() {
   document.getElementById('top-repo').textContent = c.nocoUrl ? c.nocoUrl.replace('https://','').split('/')[0] : '';
 
   const tbody = document.getElementById('dash-table');
-  if (!validFiles.length) {
+  if (!files.length) {
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:28px">Chưa có bài viết. Kết nối NocoDB hoặc tạo bài mới.</td></tr>';
     return;
   }
-  tbody.innerHTML = validFiles.slice(-12).reverse().map(f => `
+  tbody.innerHTML = files.slice(-12).reverse().map(f => `
     <tr>
       <td><i class="fas fa-file-lines" style="color:var(--text-muted)"></i> <b>${f.name}</b></td>
       <td>${f.folder ? `<span class="badge badge-blue">${f.folder}</span>` : '<span style="color:var(--text-muted)">Gốc</span>'}</td>
@@ -3612,21 +3611,31 @@ async function syncFromNoco() {
       ensureFolderPath(tree, path, { nocoFolderId: f.Id, access: f.Access || 'public' });
     }
 
-    // Step 2: Add articles into correct folders (auto-create folder if not in Folders table)
-    for (const r of records) {
-      const folder = r.Folder || '';
+    // Step 2: Add articles into correct folders — CHỈ nhận record có Path hợp lệ
+    const validRecords = records.filter(r => r.Path && r.Path.trim() && r.Path !== '—');
+    const skipped = records.length - validRecords.length;
+    if (skipped > 0) console.warn(`[ActiveEdu] Bỏ qua ${skipped} record không có Path hợp lệ:`,
+      records.filter(r => !r.Path || !r.Path.trim() || r.Path === '—').map(r => ({ Id: r.Id, Title: r.Title }))
+    );
+
+    for (const r of validRecords) {
+      const folder = (r.Folder || '').trim();
       const item = {
-        type:'file', name:r.Title||r.Path||'(chưa có tên)',
-        path:r.Path||'', folder,
-        description:r.Description||'', access:r.Access||'public',
-        updated:r.Updated||r.NgayCapNhat||'', nocoId:r.Id
+        type:'file',
+        name: (r.Title || '').trim() || r.Path.split('/').pop(),
+        path: r.Path.trim(),
+        folder,
+        description: r.Description || '',
+        access: r.Access || 'public',
+        updated: r.Updated || r.NgayCapNhat || '',
+        nocoId: r.Id
       };
       if (!folder) {
         tree.push(item);
       } else {
         const targetChildren = ensureFolderPath(tree, folder);
-        // Avoid duplicate articles
-        if (!targetChildren.find(n => n.type==='file' && n.path === item.path)) {
+        // Tránh trùng lặp theo path
+        if (!targetChildren.find(n => n.type === 'file' && n.path === item.path)) {
           targetChildren.push(item);
         }
       }
@@ -3642,10 +3651,10 @@ async function syncFromNoco() {
     }
 
     const totalFolders = flattenFolders(indexTree).length;
-    const syncMsg = `✓ ${totalFolders} thư mục · ${records.length} bài viết`;
+    const syncMsg = `✓ ${totalFolders} thư mục · ${validRecords.length} bài viết` + (skipped ? ` (${skipped} bị bỏ qua)` : '');
     setSyncBar(false, syncMsg, new Date().toLocaleTimeString('vi-VN'));
     updateNocoStatus(true, (cfg().nocoUrl||'').replace('https://','').split('/')[0]);
-    showToast(`✓ Đồng bộ xong! ${records.length} bài · ${totalFolders} thư mục`, 'success');
+    showToast(`✓ Đồng bộ xong! ${validRecords.length} bài · ${totalFolders} thư mục` + (skipped ? ` · ${skipped} record lỗi` : ''), 'success');
   } catch(e) {
     setSyncBar(false, '✗ Lỗi NocoDB: ' + e.message, '', true);
     showToast('Lỗi tải NocoDB: ' + e.message, 'error');
