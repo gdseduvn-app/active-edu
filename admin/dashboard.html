@@ -1104,7 +1104,7 @@ tr:hover td{background:var(--hover)}
 // SETTINGS & AUTH
 // ═══════════════════════════════════════════════════
 const CFG_KEY     = 'ae_config';
-const TREE_KEY    = 'ae_tree';
+// TREE_KEY removed — indexTree không lưu local, luôn load từ NocoDB
 const SESSION_KEY = 'ae_session';
 
 function getCfg() {
@@ -1335,13 +1335,13 @@ let indexTree = [];  // structured tree for index.json
 // Gọi hàm này MỌI LÚC muốn thay đổi indexTree
 function setIndexTree(tree) {
   indexTree = tree;
-  localStorage.setItem(TREE_KEY, JSON.stringify(indexTree));
+  // Không lưu local — indexTree luôn từ NocoDB/GitHub
   _syncAllPanels();
 }
 
 // Cập nhật indexTree tại chỗ rồi broadcast
 function commitIndexTree() {
-  localStorage.setItem(TREE_KEY, JSON.stringify(indexTree));
+  // Không lưu local — chỉ sync panels trong memory
   _syncAllPanels();
 }
 
@@ -1747,20 +1747,60 @@ async function confirmCreate() {
       showToast('Thư mục đã tồn tại!', 'warn'); return;
     }
     const folderPath = parentPath ? parentPath + '/' + name : name;
-    target.push({ type:'folder', name, path: folderPath, folderPath: folderPath, access:'public', children:[] });
-    commitIndexTree();
-    // Auto-mở thư mục mới trong cây
-    selectedFolder = folderPath;
+    const depth = folderPath.split('/').length;
+
+    // Hiển thị loading trong khi lưu NocoDB
     closeModal();
-    // Lưu vào NocoDB Folders table
-    if (true) { // proxy handles folders
-      NOCO.createFolder({ Name: name, Path: folderPath, Parent: parentPath || '', Access: 'public' })
-        .then(() => showToast(`✓ Đã tạo thư mục "${name}" và lưu vào NocoDB!`, 'success'))
-        .catch(e => {
-          showToast(`✓ Thư mục "${name}" đã tạo (chưa lưu NocoDB: ${e.message})`, 'warn');
-        });
-    } else {
-      showToast(`✓ Đã tạo thư mục "${name}" (chưa cấu hình Folders Table ID)`, 'warn');
+    showLoading(`Đang tạo thư mục "${name}"...`);
+    try {
+      // ── LUÔN lưu NocoDB TRƯỚC ──────────────────────────
+      // Đảm bảo folder cha đã tồn tại trong NocoDB (cần cho cấp 3+)
+      if (parentPath) {
+        const existingFolders = await NOCO.listFolders();
+        const parentInDB = (existingFolders.list || []).find(f =>
+          f.Path === parentPath || f.Name === parentPath
+        );
+        if (!parentInDB) {
+          // Folder cha chưa có trong DB → tạo folder cha trước (đệ quy)
+          const parts = parentPath.split('/');
+          for (let i = 1; i <= parts.length; i++) {
+            const ancestorPath = parts.slice(0, i).join('/');
+            const ancestorName = parts[i - 1];
+            const ancestorParent = i > 1 ? parts.slice(0, i - 1).join('/') : '';
+            const alreadyExists = (existingFolders.list || []).find(f => f.Path === ancestorPath);
+            if (!alreadyExists) {
+              await NOCO.createFolder({
+                Name: ancestorName,
+                Path: ancestorPath,
+                Parent: ancestorParent,
+                Access: 'public'
+              });
+            }
+          }
+        }
+      }
+      // Tạo folder hiện tại vào NocoDB
+      await NOCO.createFolder({
+        Name: name,
+        Path: folderPath,
+        Parent: parentPath || '',
+        Access: 'public'
+      });
+      // ── Chỉ cập nhật local tree SAU KHI NocoDB thành công ──
+      target.push({ type:'folder', name, path: folderPath, folderPath, access:'public', children:[] });
+      selectedFolder = folderPath;
+      commitIndexTree();
+      showToast(
+        depth >= 3
+          ? `✓ Đã tạo thư mục cấp ${depth} "${name}" và lưu NocoDB!`
+          : `✓ Đã tạo thư mục "${name}"!`,
+        'success'
+      );
+    } catch(e) {
+      // NocoDB fail → KHÔNG cập nhật local tree → không mất toàn vẹn
+      showToast(`✗ Lỗi tạo thư mục: ${e.message}`, 'error');
+    } finally {
+      hideLoading();
     }
   } else {
     const folder = document.getElementById('modal-parent').value;
@@ -3588,10 +3628,7 @@ function showToast(msg, type='info') {
 // INIT
 // ═══════════════════════════════════════════════════
 function initAdmin() {
-  const cached = localStorage.getItem(TREE_KEY);
-  if (cached) {
-    try { indexTree = JSON.parse(cached); _syncAllPanels(); } catch {}
-  }
+  // Không load từ localStorage — luôn fetch từ NocoDB khi init
   const c = cfg();
   const hasNoco = true; // Luôn dùng proxy
   const hasGH   = !!c.token && !!c.repo;
