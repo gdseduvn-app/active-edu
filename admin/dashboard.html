@@ -517,11 +517,11 @@ tr:hover td{background:var(--hover)}
                   <span class="tb-sep"></span>
                   <label class="tb-btn" title="Màu chữ" style="position:relative;overflow:hidden;gap:2px">
                     <span style="font-size:11px;font-weight:700;border-bottom:3px solid #e74c3c">A</span>
-                    <input type="color" value="#e74c3c" oninput="richFontColor(this.value)" style="position:absolute;opacity:0;inset:0;cursor:pointer">
+                    <input type="color" value="#e74c3c" oninput="richColor('color',this.value)" style="position:absolute;opacity:0;inset:0;cursor:pointer">
                   </label>
                   <label class="tb-btn" title="Nền chữ" style="position:relative;overflow:hidden">
                     <i class="fas fa-highlighter" style="font-size:11px;color:#f39c12"></i>
-                    <input type="color" value="#fff176" oninput="richBgColor(this.value)" style="position:absolute;opacity:0;inset:0;cursor:pointer">
+                    <input type="color" value="#fff176" oninput="richColor('backgroundColor',this.value)" style="position:absolute;opacity:0;inset:0;cursor:pointer">
                   </label>
                   <span class="tb-sep"></span>
                   <button class="tb-btn" onclick="richAlign('left')" title="Căn trái"><i class="fas fa-align-left"></i></button>
@@ -537,19 +537,8 @@ tr:hover td{background:var(--hover)}
                   <button class="tb-btn" onclick="richInsertEmbed()" title="Nhúng YouTube / GDocs / iframe"><i class="fas fa-film"></i> <span style="font-size:10px">Nhúng</span></button>
                   <button class="tb-btn" onclick="richInsertMath()" title="Công thức toán"><i class="fas fa-square-root-variable"></i></button>
                   <button class="tb-btn" onclick="richInsertHR()" title="Đường kẻ ngang"><i class="fas fa-minus"></i></button>
-                  <span class="tb-sep"></span>
-                  <label class="tb-btn" title="Màu nền trang" style="position:relative;overflow:hidden;gap:2px;font-size:10px">
-                    <i class="fas fa-fill-drip"></i>Nền
-                    <input type="color" value="#ffffff" oninput="richPageColor('bg',this.value)" style="position:absolute;opacity:0;inset:0;cursor:pointer">
-                  </label>
-                  <label class="tb-btn" title="Màu chữ trang" style="position:relative;overflow:hidden;gap:2px;font-size:10px">
-                    <i class="fas fa-font"></i>Chữ
-                    <input type="color" value="#1e293b" oninput="richPageColor('text',this.value)" style="position:absolute;opacity:0;inset:0;cursor:pointer">
-                  </label>
-                  <span class="tb-sep"></span>
-                  <button class="tb-btn" onclick="richClearFormat()" title="Xóa định dạng"><i class="fas fa-eraser"></i></button>
                 </div>
-                <iframe id="rich-iframe" sandbox="allow-scripts allow-popups allow-forms allow-modals allow-popups-to-escape-sandbox"></iframe>
+                <iframe id="rich-iframe" sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-popups-to-escape-sandbox"></iframe>
               </div>
               <div id="wrap-html" style="flex:1;display:none;flex-direction:column;overflow:hidden">
                 <textarea id="html-source" spellcheck="false" placeholder="<!-- HTML tại đây -->"></textarea>
@@ -559,6 +548,7 @@ tr:hover td{background:var(--hover)}
                   <span id="e-path-label" style="color:var(--text-muted)"><i class="fas fa-file"></i> Bài mới</span>
                   <span id="e-chars">0 ký tự</span>
                   <span id="e-words">0 từ</span>
+                  <span id="e-size" style="color:var(--text-muted)"></span>
                 </div>
                 <div class="save-indicator">
                   <div class="save-dot unsaved" id="save-dot"></div>
@@ -2753,8 +2743,20 @@ function updateEditorStats() {
   const words = text ? text.split(/\s+/).filter(Boolean).length : 0;
   const ec = document.getElementById('e-chars');
   const ew = document.getElementById('e-words');
+  const es = document.getElementById('e-size');
   if (ec) ec.textContent = chars.toLocaleString() + ' ký tự';
   if (ew) ew.textContent = words.toLocaleString() + ' từ';
+  if (es) {
+    const rawLen = (html || '').length;
+    const kb = (rawLen / 1024).toFixed(1);
+    if (rawLen > 100000) {
+      es.textContent = `~${kb}KB · sẽ nén LZ`;
+      es.style.color = 'var(--warn)';
+    } else {
+      es.textContent = `~${kb}KB`;
+      es.style.color = 'var(--text-muted)';
+    }
+  }
 }
 
 function markDirty() {
@@ -3022,7 +3024,8 @@ async function saveToNoco() {
       const ratio = Math.round((1 - compressed.length / htmlContent.length) * 100);
       console.log(`[LZ] ${htmlContent.length} → ${compressed.length} ký tự (nén ${ratio}%)`);
     }
-    const payload = { Title:title, Path:filePath, Folder:folder||'', Description:desc||'', Updated:now, Content:contentValue };
+    const payload = { Title:title, Path:filePath, Folder:folder||'', Description:desc||'', Updated:now, Content:contentValue,
+      Excerpt: htmlContent.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0, 150) };
     const existing = await NOCO.listRecords({ where: `(Path,eq,"${filePath}")`, limit: 1 });
     const existingRow = (existing.list || [])[0];
     if (existingRow) { await NOCO.updateRecord(existingRow.Id, payload); }
@@ -3764,12 +3767,12 @@ async function nocoLoadRecords(where = '') {
       tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted)">Không có bản ghi nào</td></tr>`;
     } else {
       tbody.innerHTML = records.map((row, i) => {
-        // Giải nén để lấy text preview (không hiện chuỗi lz:...)
-        const _c = row.Content || '';
-        const _decoded = _c.startsWith('lz:')
-          ? (LZString.decompressFromBase64(_c.slice(3)) || '')
-          : _c;
-        const preview = _decoded.replace(/<[^>]*>/g,' ').trim().slice(0,50);
+        // Dùng Excerpt (plaintext lưu sẵn) thay vì giải nén Content
+        const preview = row.Excerpt
+          ? row.Excerpt.slice(0, 50)
+          : (row.Content && !row.Content.startsWith('lz:'))
+            ? row.Content.replace(/<[^>]*>/g,' ').trim().slice(0, 50)
+            : '';
         return `<tr>
           <td style="color:var(--text-muted);font-size:12px">${nocoPageIndex*NOCO_LIMIT + i + 1}</td>
           <td><b>${row.Title||'—'}</b></td>
