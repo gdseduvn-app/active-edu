@@ -452,7 +452,7 @@ tr:hover td{background:var(--hover)}
     </div>
 
     <!-- ══ EDITOR (gộp Quản lý tệp + Soạn thảo) ════════ -->
-    <div class="panel panel-fullh" id="panel-editor" style="padding:0;gap:0;box-sizing:border-box;overflow:hidden;display:none">
+    <div class="panel panel-fullh" id="panel-editor" style="padding:0;gap:0;box-sizing:border-box;overflow:hidden">
       <!-- Topbar -->
       <div style="display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:48px;border-bottom:1px solid var(--border);background:var(--card);flex-shrink:0">
         <span id="editor-breadcrumb" style="font-size:13px;color:var(--text-muted);display:flex;align-items:center;gap:6px"><i class="fas fa-file" style="color:var(--primary)"></i> Chưa chọn bài</span>
@@ -538,7 +538,7 @@ tr:hover td{background:var(--hover)}
                   <button class="tb-btn" onclick="richInsertMath()" title="Công thức toán"><i class="fas fa-square-root-variable"></i></button>
                   <button class="tb-btn" onclick="richInsertHR()" title="Đường kẻ ngang"><i class="fas fa-minus"></i></button>
                 </div>
-                <iframe id="rich-iframe" sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-popups-to-escape-sandbox"></iframe>
+                <iframe id="rich-iframe"></iframe>
               </div>
               <div id="wrap-html" style="flex:1;display:none;flex-direction:column;overflow:hidden">
                 <textarea id="html-source" spellcheck="false" placeholder="<!-- HTML tại đây -->"></textarea>
@@ -1118,17 +1118,6 @@ async function doLogin() {
   }
 }
 
-function checkSession() {
-  if (sessionStorage.getItem('ae_auth') === '1' && sessionStorage.getItem('ae_admin_pass')) {
-    document.getElementById('login-screen').style.display = 'none';
-    initAdmin();
-    return true;
-  }
-  // Chưa đăng nhập → hiện login screen
-  document.getElementById('login-screen').style.display = 'flex';
-  return false;
-}
-
 function doLogout() {
   sessionStorage.removeItem('ae_auth');
   sessionStorage.removeItem('ae_admin_pass');
@@ -1138,19 +1127,6 @@ function doLogout() {
 // ═══════════════════════════════════════════════════
 // TREE RENDER
 // ═══════════════════════════════════════════════════
-function renderTree(tree) {
-  const body = document.getElementById('tree-body');
-  if (!body) return;
-  const all = flattenFiles(tree);
-  const countEl = document.getElementById('tree-count');
-  if (countEl) countEl.textContent = `${all.length} bài`;
-  if (!tree || !tree.length) {
-    body.innerHTML = '<div class="tree-empty"><i class="fas fa-database" style="font-size:24px;color:var(--border);display:block;margin-bottom:8px"></i>Kết nối NocoDB<br>để xem danh sách bài</div>';
-    return;
-  }
-  body.innerHTML = '';
-  renderTreeItems(tree, body, '');
-}
 
 function renderTreeItems(items, container, parentPath = '') {
   (items||[]).forEach(item => {
@@ -1425,99 +1401,10 @@ async function rebuildAndPushIndex() {
   // NocoDB is source of truth — no-op
   return;
 }
-
-async function selectFile(item) {
-  selectedFilePath = item.path;
-  document.querySelectorAll('.tree-file').forEach(el => el.classList.toggle('active', el.dataset.path === item.path));
-  document.getElementById('detail-path').innerHTML = `<i class="fas fa-file-lines" style="color:var(--primary)"></i> ${item.folder ? esc(item.folder) + ' / ' + esc(item.name) : esc(item.name)}`;
-  document.getElementById('detail-actions').style.display = 'flex';
-
-  const body = document.getElementById('detail-body');
-  body.innerHTML = '<div style="padding:20px;color:var(--text-muted);font-size:13px"><i class="fas fa-spinner fa-spin"></i> Đang tải từ NocoDB...</div>';
-
-  try {
-    const data = await NOCO.listRecords({ where: `(Path,eq,"${item.path}")`, limit: 1 });
-    const row = (data.list || [])[0];
-    // Giải nén nếu nội dung được nén bằng LZ-String (tiền tố "lz:")
-    let html = '';
-    if (row) {
-      const rawContent = row.Content || '';
-      if (rawContent.startsWith('lz:')) {
-        try {
-          html = LZString.decompressFromBase64(rawContent.slice(3)) || '';
-          if (!html) throw new Error('Giải nén thất bại');
-        } catch(e) {
-          html = '<p style="color:red;padding:20px">Lỗi giải nén: ' + e.message + '</p>';
-        }
-      } else {
-        html = rawContent;
-      }
-    }
-    const size = (html.length / 1024).toFixed(1);
-
-    // Render bằng iframe — giống tab Soạn thảo
-    const isFullPage = html.trim().toLowerCase().startsWith('<!doctype') || html.trim().toLowerCase().startsWith('<html');
-    const katexSnippet = [
-      '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">',
-      '<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"><\\/script>',
-      '<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"><\\/script>',
-      '<script>document.addEventListener("DOMContentLoaded",function(){if(typeof renderMathInElement!=="undefined")renderMathInElement(document.body,{delimiters:[{left:"$$",right:"$$",display:true},{left:"\\\\[",right:"\\\\]",display:true},{left:"$",right:"$",display:false},{left:"\\\\(",right:"\\\\)",display:false}],throwOnError:false});});<\\/script>'
-    ].join('\n');
-
-    let finalHTML;
-    if (!html) {
-      finalHTML = '<p style="color:#94a3b8;padding:40px;text-align:center">Bài học chưa có nội dung</p>';
-    } else if (isFullPage) {
-      finalHTML = html.includes('katex') || html.includes('MathJax') ? html : html.replace('</head>', katexSnippet + '</head>');
-    } else {
-      finalHTML = `<!DOCTYPE html><html><head><meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-${katexSnippet}
-</head><body style="margin:0;padding:0">${html}</body></html>`;
-    }
-
-    body.innerHTML = `
-      <div style="padding:10px 16px;border-bottom:1px solid var(--border);font-size:12.5px;color:var(--text-muted);background:var(--hover);display:flex;align-items:center;gap:12px;flex-shrink:0">
-        <b style="color:var(--text)">${item.name}</b>
-        <span>📁 ${item.folder||'Gốc'}</span>
-        <span>${size} KB</span>
-        <button onclick="editSelectedFile()" class="btn btn-primary btn-sm" style="margin-left:auto"><i class="fas fa-pen"></i> Chỉnh sửa</button>
-      </div>
-      <iframe id="detail-iframe" style="flex:1;border:none;width:100%;min-height:500px" sandbox="allow-same-origin allow-scripts allow-popups allow-forms"></iframe>`;
-
-    const iframe = document.getElementById('detail-iframe');
-    setBlobSrcdoc(iframe, finalHTML);
-    iframe.onload = () => {
-      try {
-        const h = iframe.contentDocument.body.scrollHeight;
-        iframe.style.height = Math.max(h, 400) + 'px';
-      } catch { iframe.style.height = '500px'; }
-    };
-  } catch(e) {
-    body.innerHTML = `<div style="padding:20px;color:var(--danger)">Lỗi tải file: ${e.message}</div>`;
-  }
-}
-
-function editSelectedFile() { if (selectedFilePath) openArticleEditor(selectedFilePath); }
-async function deleteSelectedFile() { if (selectedFilePath) confirmDeleteFile(selectedFilePath); }
-
 // ═══════════════════════════════════════════════════
 // CREATE FOLDER / FILE
 // ═══════════════════════════════════════════════════
 let createMode = 'file';
-
-function selectFolder(path, el) {
-  selectedFolder = path;
-  document.querySelectorAll('.tree-folder-hd').forEach(h => h.style.background = '');
-  if (el) el.style.background = 'var(--hover)';
-  const titleEl = document.getElementById('tree-hd-title');
-  if (titleEl) {
-    const fullPath = 'NocoDB / Bài học' + (path ? ' / ' + path.replace(/\//g, ' / ') : '');
-    const display = fullPath.length > 40 ? '...' + fullPath.slice(-37) : fullPath;
-    titleEl.innerHTML = `<i class="fas fa-database"></i> ${display}`;
-    titleEl.title = fullPath;
-  }
-}
 
 function showNewFolder() {
   createMode = 'folder';
@@ -2560,16 +2447,6 @@ function richWrap(tag) {
   _rCmd('formatBlock', tag);
 }
 
-function richClearFormat() { _rCmd('removeFormat'); }
-
-function richPageColor(what, val) {
-  const d = _getRichIframeDoc();
-  if (!d || !d.body) return;
-  if (what === 'bg') d.body.style.backgroundColor = val;
-  else d.body.style.color = val;
-  _onRichChange();
-}
-
 function richInsertLink() {
   const d = _getRichIframeDoc();
   if (!d) return;
@@ -2669,21 +2546,6 @@ function richInsertEmbed() {
 }
 
 // Backward compat
-function rExec(cmd) { _rCmd(cmd); }
-function rExecVal(cmd, val) { _rCmd(cmd, val); }
-function rInsertLink() { richInsertLink(); }
-function rInsertImage() { richInsertImage(); }
-function rInsertTable() { richInsertTable(); }
-function rInsertHR() {
-  const d = _getRichIframeDoc();
-  if (!d) return;
-  d.execCommand('insertHTML', false, '<hr style="border:none;border-top:2px solid #e2e8f0;margin:16px 0"><p></p>');
-  _onRichChange();
-}
-function rInsertMath() { richInsertMath(); }
-function rInsertEmbed() { richInsertEmbed(); }
-function onRichInput() { _onRichChange(); }
-
 
 function getTinyHTML() {
   const cmVal = cmEditor ? cmEditor.getValue() : '';
@@ -2727,20 +2589,6 @@ function getEditorHTML() {
 
 function setEditorHTML(html) {
   applyHTMLToEditor(html);
-}
-
-function initVisualEditor(html) {
-  // Alias - dùng TinyMCE thay iframe
-  initTinyMCE(html);
-}
-
-
-function initQuill() {
-  // Legacy stub — now using TinyMCE
-  if (editorTab === 'rich') {
-    const html = cmEditor ? cmEditor.getValue() : '';
-    initTinyMCE(html);
-  }
 }
 
 function updateEditorStats() {
@@ -2791,90 +2639,9 @@ function markSaving() {
 // ═══════════════════════════════════════════════════
 let _sbActiveFolderPath = '';
 
-function switchSidebarTab(tab) {
-  const isFolder = tab === 'folder';
-  document.getElementById('sb-panel-folder').style.display   = isFolder ? 'block' : 'none';
-  document.getElementById('sb-panel-articles').style.display = isFolder ? 'none'  : 'block';
-  document.getElementById('sb-tab-folder').style.background   = isFolder ? 'var(--primary)' : 'var(--hover)';
-  document.getElementById('sb-tab-folder').style.color        = isFolder ? '#fff' : 'var(--text-muted)';
-  document.getElementById('sb-tab-articles').style.background = isFolder ? 'var(--hover)' : 'var(--primary)';
-  document.getElementById('sb-tab-articles').style.color      = isFolder ? 'var(--text-muted)' : '#fff';
-}
-
 // Render cây thư mục vào sidebar editor (tái sử dụng indexTree)
-function loadSidebarFolders() {
-  const panel = document.getElementById('sb-panel-folder');
-  if (!panel) return;
-  if (!indexTree || !indexTree.length) {
-    panel.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:12px"><i class="fas fa-plug" style="display:block;font-size:20px;margin-bottom:6px"></i>Kết nối NocoDB để tải</div>';
-    return;
-  }
-  panel.innerHTML = '';
-  renderEditorTreeItems(indexTree, panel, '');
-}
 
 // Render tree cho editor sidebar — giống renderTreeItems của panel quản lý tệp
-function renderEditorTreeItems(items, container, parentPath) {
-  (items||[]).forEach(item => {
-    if (item.type === 'folder') {
-      const folderPath = parentPath ? parentPath + '/' + item.name : item.name;
-      item.folderPath = folderPath;
-      const childCount = (item.children||[]).filter(c => c.type==='file').length;
-      const fAccess = item.access || 'public';
-      const fAccessIcon = fAccess === 'private'
-        ? '<span style="font-size:10px;background:#fee2e2;color:#b91c1c;padding:1px 5px;border-radius:4px;margin-right:4px">🔒</span>'
-        : '<span style="font-size:10px;background:#ccfbf1;color:#0f766e;padding:1px 5px;border-radius:4px;margin-right:4px">🌐</span>';
-      const wrap = document.createElement('div');
-      wrap.className = 'tree-folder';
-      wrap.innerHTML = `
-        <div class="tree-folder-hd" onclick="this.parentElement.classList.toggle('open');document.getElementById('e-folder').value='${folderPath}'">
-          <i class="fas fa-chevron-right"></i>
-          <i class="fas fa-folder" style="color:#60a5fa;font-size:13px"></i>
-          <span style="flex:1">${item.name}</span>
-          ${childCount ? `<span style="font-size:10px;background:#e0e7ff;color:#4338ca;padding:1px 6px;border-radius:10px;margin-right:4px">${childCount}</span>` : ''}
-          ${fAccessIcon}
-          <div class="tree-actions">
-            <button class="tree-act-btn" title="Đổi tên" onclick="event.stopPropagation();renameFolder('${folderPath}','${item.name}')"><i class="fas fa-pen"></i></button>
-            <button class="tree-act-btn" title="Xóa" onclick="event.stopPropagation();confirmDeleteFolder('${folderPath}')"><i class="fas fa-trash"></i></button>
-          </div>
-        </div>
-        <div class="tree-folder-children"></div>`;
-      renderEditorTreeItems(item.children||[], wrap.querySelector('.tree-folder-children'), folderPath);
-      container.appendChild(wrap);
-    } else {
-      const el = document.createElement('div');
-      el.className = 'tree-file';
-      el.dataset.path = item.path;
-      const accessBadge = item.access === 'private'
-        ? '<span style="font-size:10px;background:#fee2e2;color:#b91c1c;padding:1px 5px;border-radius:4px;margin-right:4px">🔒</span>'
-        : '<span style="font-size:10px;background:#ccfbf1;color:#0f766e;padding:1px 5px;border-radius:4px;margin-right:4px">🌐</span>';
-      el.innerHTML = `
-        <i class="fas fa-file-lines"></i>
-        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${item.name}">${item.name}</span>
-        ${accessBadge}
-        <div class="tree-actions">
-          <button class="tree-act-btn edit-btn" title="Sửa" onclick="event.stopPropagation();openArticleEditor('${item.path}')"><i class="fas fa-pen"></i></button>
-          <button class="tree-act-btn" title="Đổi quyền" onclick="event.stopPropagation();toggleFileAccess('${item.path}','${item.access||'public'}')"><i class="fas fa-${(item.access||'public')==='private'?'lock':'unlock'}"></i></button>
-          <button class="tree-act-btn" title="Xóa" onclick="event.stopPropagation();confirmDeleteFile('${item.path}')"><i class="fas fa-trash"></i></button>
-        </div>`;
-      el.onclick = () => {
-        document.querySelectorAll('#sb-panel-folder .tree-file').forEach(f => f.classList.remove('active'));
-        el.classList.add('active');
-        openArticleEditor(item.path);
-      };
-      container.appendChild(el);
-    }
-  });
-}
-
-async function onFolderChange(folder) {}
-async function onArticleSelect(path)  { if (path) await openArticleEditor(path); }
-
-function newArticle() {
-  if (isDirty && !confirm('Bài chưa lưu, tiếp tục?')) return;
-  // Dùng cùng modal với "Tệp mới" của panel Quản lý tệp
-  showNewFile();
-}
 
 // Mở editor với bài cụ thể
 async function openArticleEditor(path) {
@@ -3091,16 +2858,6 @@ async function saveToNoco() {
 }
 async function saveToGitHub() { return saveToNoco(); }
 
-
-function useTemplate(type) {
-  const tpl = {
-    lesson: `<h2>Giới thiệu</h2><p>Nội dung giới thiệu bài học...</p><h2>Nội dung chính</h2><p>Chi tiết bài học...</p><ul><li>Điểm quan trọng 1</li><li>Điểm quan trọng 2</li></ul><h2>Ví dụ</h2><pre><code>// Ví dụ\nconsole.log("Hello!");</code></pre><blockquote>💡 <strong>Mẹo:</strong> Ghi chú quan trọng.</blockquote>`,
-    quiz:   `<h2>Câu hỏi ôn tập</h2><div style="background:#eff6ff;border-left:4px solid #2563eb;padding:14px;border-radius:0 8px 8px 0;margin:14px 0"><strong>Câu 1:</strong> Câu hỏi?</div><details style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin:10px 0"><summary style="padding:10px 14px;background:#f8fafc;cursor:pointer;font-weight:600;color:#2563eb">👁 Xem đáp án</summary><div style="padding:14px">Đáp án: ...</div></details>`,
-    code:   `<h2>Bài tập lập trình</h2><p>Mô tả bài tập...</p><h3>Đề bài</h3><div style="background:#f8fafc;border:1px solid #e2e8f0;padding:14px;border-radius:8px;margin:10px 0">Viết chương trình...</div><h3>Code mẫu</h3><pre><code>function solution(input) {\n  // code\n  return result;\n}</code></pre>`
-  };
-  setEditorHTML(tpl[type]||''); markDirty(); updateEditorStats();
-}
-
 // ═══════════════════════════════════════════════════
 // DASHBOARD & UTILS
 // ═══════════════════════════════════════════════════
@@ -3236,29 +2993,6 @@ function saveSettings() {
   updateNocoStatus(true, 'api.gds.edu.vn');
   document.getElementById('top-repo').textContent = c.nocoUrl ? c.nocoUrl.replace('https://','').split('/')[0] : '';
   showToast('✓ Đã lưu cài đặt!', 'success');
-}
-
-async function testGitHubConnection() {
-  const token = document.getElementById('s-token').value.trim();
-  const repo  = document.getElementById('s-repo').value.trim();
-  const result = document.getElementById('gh-test-result');
-  if (!token || !repo) { result.innerHTML = '<i class="fas fa-triangle-exclamation" style="color:var(--warn)"></i> Nhập token và repo trước'; return; }
-  result.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang kiểm tra...';
-  try {
-    // Temporarily use input values
-    const tmpCfg = { ...cfg(), token, repo };
-    const url = `https://api.github.com/repos/${repo}`;
-    const r = await fetch(url, { headers: { Authorization:`Bearer ${token}`, Accept:'application/vnd.github.v3+json' } });
-    const d = await r.json();
-    if (r.ok) {
-      result.innerHTML = `<i class="fas fa-circle-check" style="color:var(--success)"></i> Kết nối thành công — <b>${esc(d.full_name)}</b> (${d.private?'private':'public'})`;
-      updateGhStatus(true);
-    } else {
-      result.innerHTML = `<i class="fas fa-circle-xmark" style="color:var(--danger)"></i> Lỗi ${r.status}: ${esc(d.message)}`;
-    }
-  } catch(e) {
-    result.innerHTML = `<i class="fas fa-circle-xmark" style="color:var(--danger)"></i> ${e.message}`;
-  }
 }
 
 // ═══════════════════════════════════════════════════
@@ -3822,15 +3556,6 @@ async function nocoLoadRecords(where = '') {
   }
 }
 
-function renderNocoCell(val, key) {
-  if (val === null || val === undefined) return '<span style="color:var(--text-muted);font-style:italic">—</span>';
-  if (typeof val === 'boolean') return val ? '<span class="badge badge-green">✓ Có</span>' : '<span class="badge" style="background:#fee2e2;color:var(--danger)">✗ Không</span>';
-  if (typeof val === 'object') return `<span style="font-size:12px;color:var(--text-muted)">${JSON.stringify(val).slice(0,40)}</span>`;
-  const str = String(val);
-  if (str.startsWith('http')) return `<a href="${str}" target="_blank" style="color:var(--primary)">${str.slice(0,30)}...</a>`;
-  return str.slice(0, 60) + (str.length > 60 ? '…' : '');
-}
-
 function nocoChangePage(dir) {
   const total = Math.ceil(nocoTotalRows / NOCO_LIMIT);
   const next = nocoPageIndex + dir;
@@ -3876,31 +3601,6 @@ function fieldIcon(type) {
 }
 
 // ── Edit record (modal) ──
-async function nocoEditRecord(rowId) {
-  try {
-    const rec = await NOCO.getRecord(rowId);
-    nocoEditRowId = rowId;
-    const keys = Object.keys(rec).filter(k => k !== 'Id' && !k.startsWith('nc_'));
-    const form = keys.map(k => `
-      <div class="form-group" style="margin-bottom:10px">
-        <label style="font-size:12px">${k}</label>
-        <input type="text" id="noco-edit-${k}" value="${String(rec[k]||'').replace(/"/g,'&quot;')}"
-          style="width:100%;border:1px solid var(--border);border-radius:7px;padding:7px 10px;font-size:13px;font-family:inherit;outline:none">
-      </div>`).join('');
-
-    // Use modal-create as edit modal
-    document.getElementById('modal-title').textContent = `Sửa bản ghi #${rowId}`;
-    document.getElementById('modal-label').textContent = '';
-    document.getElementById('modal-name').style.display = 'none';
-    document.getElementById('modal-parent-group').style.display = 'none';
-    document.getElementById('modal-note').innerHTML = form;
-    document.getElementById('modal-confirm').textContent = 'Lưu';
-    document.getElementById('modal-confirm').onclick = () => nocoSaveEdit(rowId, keys);
-    document.getElementById('modal-create').classList.add('show');
-  } catch(e) {
-    showToast('Lỗi tải bản ghi: ' + e.message, 'error');
-  }
-}
 
 async function nocoSaveEdit(rowId, keys) {
   const data = {};
@@ -3960,14 +3660,6 @@ async function nocoAddRecord() {
 }
 
 // ── Delete record ──
-async function nocoDeleteRecord(rowId) {
-  if (!confirm(`Xóa bản ghi #${rowId} khỏi NocoDB?`)) return;
-  try {
-    await NOCO.deleteRecord(rowId);
-    nocoLoadRecords(nocoWhereClause);
-    showToast('✓ Đã xóa bản ghi!', 'success');
-  } catch(e) { showToast('Lỗi xóa: ' + e.message, 'error'); }
-}
 
 // ── Filter / query ──
 function nocoRunFilter() {
@@ -4384,52 +4076,6 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 });
 // ── CONFIG EXPORT / IMPORT ──────────────────────────────
-function exportConfig() {
-  const c = cfg();
-  const exportData = {
-    token:      c.token      || '',
-    repo:       c.repo       || '',
-    branch:     c.branch     || 'main',
-    contentDir: c.contentDir || 'content',
-    title:      c.title      || 'ActiveEdu',
-    url:        c.url        || '',
-    proxyUrl:   c.proxyUrl   || 'https://api.gds.edu.vn',
-    exportedAt: new Date().toISOString(),
-  };
-  const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'activeedu-config.json';
-  a.click();
-  showToast('✓ Đã xuất cấu hình!', 'success');
-}
-
-
-function importConfig() {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = '.json';
-  input.onchange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      try {
-        const data = JSON.parse(ev.target.result);
-        const c = cfg();
-        const fields = ['proxyUrl','token','repo','branch','contentDir','url','title'];
-        fields.forEach(k => { if (data[k] !== undefined) c[k] = data[k]; });
-        saveCfg(c);
-        loadSettings();
-        showToast('✓ Đã nhập cấu hình!', 'success');
-      } catch(e) {
-        showToast('Lỗi: File không hợp lệ', 'error');
-      }
-    };
-    reader.readAsText(file);
-  };
-  input.click();
-}
 
 
 function updatePermCountLabel() {
@@ -4448,33 +4094,6 @@ function syncPermFromUI() {
   });
 }
 
-function permToggleFolder(cb) {
-  // Auto check/uncheck all articles inside folder
-  const folderPath = cb.dataset.path;
-  const checked = cb.checked;
-  document.querySelectorAll(`#perm-tree input[data-type="article"]`).forEach(artCb => {
-    if (artCb.dataset.path?.startsWith(folderPath + '/') || artCb.dataset.path?.startsWith(folderPath)) {
-      artCb.checked = checked;
-    }
-  });
-  updatePermCountLabel();
-}
-
-function permToggleArticle(cb) {
-  updatePermCountLabel();
-  // If all articles in folder are checked → auto check folder
-  const artPath = cb.dataset.path;
-  const folderPath = artPath?.split('/').slice(0,-1).join('/');
-  if (folderPath) {
-    const folderCb = document.querySelector(`#perm-tree input[data-type="folder"][data-path="${folderPath}"]`);
-    if (folderCb) {
-      const allArts = document.querySelectorAll(`#perm-tree input[data-type="article"][data-path^="${folderPath}/"]`);
-      const allChecked = [...allArts].every(a => a.checked);
-      folderCb.checked = allChecked;
-    }
-  }
-}
-
 function permSelectAll() {
   document.querySelectorAll('#perm-tree input[type=checkbox]').forEach(cb => cb.checked = true);
   updatePermCountLabel();
@@ -4486,16 +4105,6 @@ function permClearAll() {
 }
 
 // Save permissions after saving user
-async function savePermissions(userId) {
-  if (!userId) return; // proxy handles permissions
-  syncPermFromUI();
-  try {
-    await NOCO.setPermissions(userId.toString(), currentPermissions);
-    showToast(`✓ Đã lưu ${currentPermissions.length} quyền truy cập!`, 'success');
-  } catch(e) {
-    showToast('Lỗi lưu quyền: ' + e.message, 'error');
-  }
-}
 
 
 // ── Function aliases (tương thích tên cũ với tên mới) ──
@@ -4507,26 +4116,6 @@ const userChangePage   = (dir) => dir > 0 ? userPageNext() : userPagePrev();
 const userSearchRecords= (q) => { if(typeof renderUsersTable==="function") renderUsersTable(); };
 
 // Sidebar resize cho editor panel
-function startSidebarResize(e) {
-  e.preventDefault();
-  const sidebar = document.getElementById('editor-sidebar');
-  if (!sidebar) return;
-  const startX = e.clientX;
-  const startW = sidebar.offsetWidth;
-  function onMove(ev) {
-    const newW = Math.max(160, Math.min(400, startW + ev.clientX - startX));
-    sidebar.style.width = newW + 'px';
-    // Cập nhật grid columns của file-manager
-    const fm = sidebar.closest('.file-manager');
-    if (fm) fm.style.gridTemplateColumns = newW + 'px minmax(0,1fr)';
-  }
-  function onUp() {
-    document.removeEventListener('mousemove', onMove);
-    document.removeEventListener('mouseup', onUp);
-  }
-  document.addEventListener('mousemove', onMove);
-  document.addEventListener('mouseup', onUp);
-}
 
 // ── END CONFIG EXPORT / IMPORT ──────────────────────────
 
