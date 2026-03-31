@@ -676,13 +676,11 @@ const ICONS  = ['fas fa-book','fas fa-shapes','fas fa-calculator','fas fa-code',
 // ── Proxy-first: học sinh không cần config, token lưu trên Cloudflare Worker ──
 const PROXY_URL = 'https://api.gds.edu.vn'; // Cloudflare Worker
 
-// ── Blob URL helper: tránh srcdoc bị nhìn thấy trong DevTools ──
+// ── srcdoc helper: dùng srcdoc thay vì Blob URL (Blob bị chặn bởi CSP frame-src 'self' trên GitHub Pages) ──
 function setBlobSrcdoc(iframe, html) {
+  // Revoke blob cũ nếu có
   if (iframe._blobUrl) { URL.revokeObjectURL(iframe._blobUrl); iframe._blobUrl = null; }
-  const blob = new Blob([html], { type: 'text/html' });
-  const url = URL.createObjectURL(blob);
-  iframe._blobUrl = url;
-  iframe.src = url;
+  iframe.srcdoc = html;
 }
 
 function getNocoCfg() {
