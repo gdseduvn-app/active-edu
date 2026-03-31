@@ -400,7 +400,6 @@ tr:hover td{background:var(--hover)}
   <div class="sb-item active" onclick="showPanel('dashboard',this)"><i class="fas fa-chart-bar"></i> Dashboard</div>
   <div class="sb-item" onclick="showPanel('editor',this)"><i class="fas fa-pen-fancy"></i> Soạn thảo</div>
   <div class="sb-item" onclick="showPanel('users',this)"><i class="fas fa-users"></i> Người dùng</div>
-  <div class="sb-item" onclick="showPanel('nocodb',this)"><i class="fas fa-database"></i> NocoDB</div>
   <div class="sb-item" onclick="showPanel('settings',this)"><i class="fas fa-gear"></i> Cài đặt</div>
 
   <div class="sb-footer">
@@ -725,245 +724,6 @@ tr:hover td{background:var(--hover)}
       </div>
     </div>
 
-    <!-- ══ NOCODB ════════════════════════════════ -->
-    <div class="panel" id="panel-nocodb">
-      <div class="sec-hd">
-        <h3><i class="fas fa-database" style="color:var(--teal)"></i> NocoDB — Cơ sở dữ liệu</h3>
-        <div class="actions">
-          <button class="btn btn-outline btn-sm" onclick="nocoTestConnection()"><i class="fas fa-plug"></i> Kiểm tra</button>
-          <button class="btn btn-teal btn-sm" onclick="nocoSyncAll()"><i class="fas fa-rotate"></i> Đồng bộ tất cả</button>
-        </div>
-      </div>
-
-      <!-- Connected state (always shown via proxy) -->
-      <div id="noco-not-connected" style="display:none"></div>
-      <div id="noco-connected">
-
-        <!-- Status bar -->
-        <div class="sync-bar" id="noco-sync-bar" style="display:none">
-          <i class="fas fa-rotate sync-icon" id="noco-sync-icon"></i>
-          <span class="sync-text" id="noco-sync-text">Đang kết nối NocoDB...</span>
-          <span class="sync-time" id="noco-sync-time"></span>
-        </div>
-
-        <!-- Stats row -->
-        <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
-          <div class="stat-card">
-            <div class="lbl">Bài học</div>
-            <div class="val" id="noco-count">—</div>
-            <div class="sub">trong bảng Articles</div>
-          </div>
-          <div class="stat-card">
-            <div class="lbl">Người dùng</div>
-            <div class="val" id="noco-user-count">—</div>
-            <div class="sub">trong bảng Users</div>
-          </div>
-          <div class="stat-card">
-            <div class="lbl">Đồng bộ cuối</div>
-            <div class="val" id="noco-sync-last" style="font-size:13px;margin-top:6px">—</div>
-          </div>
-          <div class="stat-card" style="cursor:pointer" onclick="nocoOpenTable()">
-            <div class="lbl">Mở trong NocoDB</div>
-            <div class="val" style="font-size:13px;margin-top:6px;color:var(--teal)">
-              <i class="fas fa-arrow-up-right-from-square"></i> Mở bảng
-            </div>
-          </div>
-        </div>
-
-        <!-- Tabs -->
-        <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:16px">
-          <button class="etab active" id="ntab-records" onclick="switchNocoTab('records')"><i class="fas fa-table-list"></i> Bài học</button>
-          <button class="etab" id="ntab-users" onclick="switchNocoTab('users')"><i class="fas fa-users"></i> Người dùng</button>
-          <button class="etab" id="ntab-fields" onclick="switchNocoTab('fields')"><i class="fas fa-columns"></i> Cột / Fields</button>
-          <button class="etab" id="ntab-query" onclick="switchNocoTab('query')"><i class="fas fa-magnifying-glass"></i> Tìm kiếm</button>
-        </div>
-
-        <!-- Records tab -->
-        <div id="noco-tab-records">
-          <div class="card" style="padding:0;overflow:hidden">
-            <div style="padding:10px 14px;border-bottom:1px solid var(--border);background:#f8fafc;display:flex;align-items:center;justify-content:space-between">
-              <span style="font-size:13px;font-weight:600;color:var(--primary)"><i class="fas fa-table"></i> Bảng Articles</span>
-              <div style="display:flex;gap:8px;align-items:center">
-                <input type="text" id="noco-search-input" placeholder="Tìm trong NocoDB..." style="border:1px solid var(--border);border-radius:7px;padding:6px 10px;font-size:12.5px;font-family:inherit;outline:none;width:200px" oninput="nocoSearchRecords(this.value)">
-                <button class="btn btn-primary btn-sm" onclick="nocoAddRecord()"><i class="fas fa-plus"></i> Thêm bản ghi</button>
-              </div>
-            </div>
-            <div class="table-wrap" id="noco-table-wrap">
-              <table id="noco-records-table">
-                <thead id="noco-thead"><tr><th>Đang tải...</th></tr></thead>
-                <tbody id="noco-tbody"><tr><td style="text-align:center;padding:32px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i> Đang tải dữ liệu từ NocoDB...</td></tr></tbody>
-              </table>
-            </div>
-            <div style="padding:10px 14px;border-top:1px solid var(--border);background:#f8fafc;display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--text-muted)">
-              <span id="noco-page-info">—</span>
-              <div style="display:flex;gap:6px">
-                <button class="btn btn-outline btn-sm" id="noco-prev" onclick="nocoChangePage(-1)"><i class="fas fa-chevron-left"></i></button>
-                <button class="btn btn-outline btn-sm" id="noco-next" onclick="nocoChangePage(1)"><i class="fas fa-chevron-right"></i></button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Users tab -->
-        <div id="noco-tab-users" style="display:none">
-          <div class="card" style="padding:0;overflow:hidden;margin-bottom:16px">
-            <div style="padding:10px 14px;border-bottom:1px solid var(--border);background:#f8fafc;display:flex;align-items:center;justify-content:space-between">
-              <span style="font-size:13px;font-weight:600;color:var(--primary)"><i class="fas fa-users"></i> Bảng Users</span>
-              <div style="display:flex;gap:8px;align-items:center">
-                <input type="text" id="user-search-input" placeholder="Tìm người dùng..." style="border:1px solid var(--border);border-radius:7px;padding:6px 10px;font-size:12.5px;font-family:inherit;outline:none;width:200px" oninput="userSearchRecords(this.value)">
-                <button class="btn btn-primary btn-sm" onclick="userAddRecord()"><i class="fas fa-user-plus"></i> Thêm user</button>
-                <button class="btn btn-outline btn-sm" onclick="userLoadRecords()"><i class="fas fa-rotate"></i> Tải lại</button>
-              </div>
-            </div>
-            <div class="table-wrap">
-              <table>
-                <thead id="user-thead"><tr><th>Đang tải...</th></tr></thead>
-                <tbody id="user-tbody"><tr><td style="text-align:center;padding:32px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i> Đang tải...</td></tr></tbody>
-              </table>
-            </div>
-            <div style="padding:10px 14px;border-top:1px solid var(--border);background:#f8fafc;display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--text-muted)">
-              <span id="user-page-info">—</span>
-              <div style="display:flex;gap:6px">
-                <button class="btn btn-outline btn-sm" id="user-prev" onclick="userChangePage(-1)"><i class="fas fa-chevron-left"></i></button>
-                <button class="btn btn-outline btn-sm" id="user-next" onclick="userChangePage(1)"><i class="fas fa-chevron-right"></i></button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Form thêm/sửa user nhanh -->
-          <div class="card" id="user-form-card" style="display:none">
-            <div class="sec-hd" style="margin-bottom:14px">
-              <h3 id="user-form-title">Thêm người dùng mới</h3>
-              <button class="btn btn-outline btn-sm" onclick="userCloseForm()"><i class="fas fa-xmark"></i> Đóng</button>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-              <div class="form-group">
-                <label>Họ và tên <span style="color:var(--danger)">*</span></label>
-                <input type="text" id="uf-name" placeholder="Nguyễn Văn A" style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13.5px;font-family:inherit;outline:none">
-              </div>
-              <div class="form-group">
-                <label>Email <span style="color:var(--danger)">*</span></label>
-                <input type="email" id="uf-email" placeholder="user@example.com" style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13.5px;font-family:inherit;outline:none">
-              </div>
-              <div class="form-group">
-                <label>Vai trò</label>
-                <select id="uf-role" style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13.5px;font-family:inherit;outline:none;background:#fff">
-                  <option value="student">Học sinh</option>
-                  <option value="teacher">Giáo viên</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label>Trạng thái</label>
-                <select id="uf-status" style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13.5px;font-family:inherit;outline:none;background:#fff">
-                  <option value="active">Hoạt động</option>
-                  <option value="inactive">Tạm khóa</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label>Mật khẩu <span style="color:var(--text-muted);font-weight:400;font-size:12px">(để trống = giữ nguyên)</span></label>
-                <input type="text" id="uf-pass" placeholder="Nhập mật khẩu mới..." style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13.5px;font-family:inherit;outline:none">
-              </div>
-              <div class="form-group">
-                <label>Số điện thoại</label>
-                <input type="text" id="uf-phone" placeholder="0912345678" style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13.5px;font-family:inherit;outline:none">
-              </div>
-              <div class="form-group">
-                <label>Ghi chú</label>
-                <input type="text" id="uf-note" placeholder="Ghi chú thêm..." style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13.5px;font-family:inherit;outline:none">
-              </div>
-            </div>
-            <!-- Phân quyền nội dung -->
-            <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:14px">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-                <div style="font-size:13px;font-weight:600;color:var(--text)"><i class="fas fa-shield-halved" style="color:var(--primary);margin-right:6px"></i>Phân quyền nội dung</div>
-                <div style="display:flex;gap:6px">
-                  <button class="btn btn-outline btn-sm" onclick="permSelectAll()">Chọn tất cả</button>
-                  <button class="btn btn-outline btn-sm" onclick="permClearAll()">Bỏ chọn</button>
-                </div>
-              </div>
-              <div id="perm-tree" style="max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:10px;background:#f8fafc;font-size:13px">
-                <div style="color:var(--text-muted);text-align:center;padding:20px"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>
-              </div>
-              <div style="margin-top:8px;font-size:12px;color:var(--text-muted)">
-                <i class="fas fa-info-circle"></i> Tích chọn thư mục sẽ tự động cho phép xem tất cả bài trong đó. Có thể tích từng bài riêng lẻ.
-              </div>
-            </div>
-            <div style="margin-top:14px;display:flex;gap:10px">
-              <button class="btn btn-success" onclick="userSaveForm()"><i class="fas fa-save"></i> Lưu & Phân quyền</button>
-              <button class="btn btn-outline" onclick="userCloseForm()">Hủy</button>
-              <div id="user-form-msg" style="font-size:13px;color:var(--text-muted);display:flex;align-items:center;gap:6px;margin-left:auto"></div>
-            </div>
-          </div>
-
-          <!-- Thống kê nhanh -->
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
-            <div class="card" style="padding:14px">
-              <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Học sinh</div>
-              <div style="font-size:24px;font-weight:700;color:var(--primary)" id="us-student">—</div>
-            </div>
-            <div class="card" style="padding:14px">
-              <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Giáo viên</div>
-              <div style="font-size:24px;font-weight:700;color:var(--teal)" id="us-teacher">—</div>
-            </div>
-            <div class="card" style="padding:14px">
-              <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Đang khóa</div>
-              <div style="font-size:24px;font-weight:700;color:var(--danger)" id="us-inactive">—</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Fields tab -->
-        <div id="noco-tab-fields" style="display:none">
-          <div class="card" style="padding:0;overflow:hidden">
-            <div style="padding:10px 14px;border-bottom:1px solid var(--border);background:#f8fafc">
-              <span style="font-size:13px;font-weight:600;color:var(--primary)"><i class="fas fa-columns"></i> Danh sách Fields</span>
-            </div>
-            <div id="noco-fields-list" style="padding:16px">
-              <div style="text-align:center;color:var(--text-muted);padding:32px"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Query tab -->
-        <div id="noco-tab-query" style="display:none">
-          <div class="card">
-            <div style="font-size:13px;font-weight:600;color:var(--primary);margin-bottom:12px"><i class="fas fa-magnifying-glass"></i> Truy vấn nâng cao</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
-              <div class="form-group">
-                <label>Lọc theo field</label>
-                <select id="noco-filter-field" style="width:100%;border:1px solid var(--border);border-radius:7px;padding:7px 10px;font-size:13px;font-family:inherit;background:#fff;outline:none">
-                  <option value="">— Chọn field —</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label>Điều kiện</label>
-                <select id="noco-filter-op" style="width:100%;border:1px solid var(--border);border-radius:7px;padding:7px 10px;font-size:13px;font-family:inherit;background:#fff;outline:none">
-                  <option value="eq">= Bằng</option>
-                  <option value="neq">≠ Khác</option>
-                  <option value="like">~ Chứa</option>
-                  <option value="nlike">!~ Không chứa</option>
-                  <option value="gt">&gt; Lớn hơn</option>
-                  <option value="lt">&lt; Nhỏ hơn</option>
-                  <option value="empty">Trống</option>
-                  <option value="notempty">Không trống</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label>Giá trị</label>
-                <input type="text" id="noco-filter-val" placeholder="Giá trị..." style="width:100%;border:1px solid var(--border);border-radius:7px;padding:7px 10px;font-size:13px;font-family:inherit;outline:none">
-              </div>
-            </div>
-            <div style="display:flex;gap:8px">
-              <button class="btn btn-primary" onclick="nocoRunFilter()"><i class="fas fa-filter"></i> Lọc</button>
-              <button class="btn btn-outline" onclick="nocoLoadRecords()"><i class="fas fa-xmark"></i> Xóa lọc</button>
-              <button class="btn btn-teal" onclick="nocoExportCSV()"><i class="fas fa-file-csv"></i> Xuất CSV</button>
-            </div>
-            <div id="noco-query-result" style="margin-top:14px"></div>
-          </div>
-        </div>
-      </div>
-    </div>
 
   </div><!-- /content -->
 </div><!-- /main -->
@@ -1234,8 +994,6 @@ function _syncAllPanels() {
   updateDashboard();             // Dashboard
   updateFolderSelects();         // Editor - folder dropdown
   // NocoDB panel: chỉ reload nếu đang active (tránh request thừa)
-  const nocoPanel = document.getElementById('panel-nocodb');
-  if (nocoPanel?.classList.contains('active')) nocoLoadRecords();
 }
 let fileShaMap = {}; // path → sha (for updates)
 let selectedFolder = '';
@@ -1320,7 +1078,7 @@ function fileNameToTitle(fileName) {
 async function syncFromGitHub() {
   if (!cfg().token || !cfg().repo) {
     showToast('Chưa cấu hình GitHub!', 'warn');
-    showPanel('settings', document.querySelectorAll('.sb-item')[4]);
+    showPanel('settings', document.querySelectorAll('.sb-item')[3]);
     return;
   }
   setSyncBar(true, 'Đang đọc cây thư mục từ GitHub...');
@@ -1754,7 +1512,7 @@ async function confirmDeleteById(rowId, label) {
   try {
     await NOCO.deleteRecord(rowId);
     showToast('✓ Đã xóa bản ghi rác!', 'success');
-    await nocoLoadRecords(nocoWhereClause);
+    await syncFromNoco();
   } catch(e) {
     showToast('Lỗi xóa: ' + e.message, 'error');
   } finally { hideLoading(); }
@@ -2336,7 +2094,15 @@ function _onRichChange() {
 }
 
 function _syncRichToCodeMirror() {
-  const html = getFinalHTML();
+  const d = _getRichIframeDoc();
+  if (!d) return;
+  // Chỉ lấy body.innerHTML (nội dung bài thật) — không lấy outerHTML vì sẽ bao gồm
+  // toàn bộ <head> với CSS framework (Tailwind, KaTeX...) làm tăng size lên hàng trăm KB
+  // Ngoại lệ: nếu bài gốc đã là full-page HTML → giữ nguyên full HTML
+  const bodyHTML = d.body ? d.body.innerHTML : '';
+  // Kiểm tra xem bài có phải full-page HTML không bằng CodeMirror value hiện tại
+  const cmVal = cmEditor ? cmEditor.getValue() : '';
+  const html = isFullPageHTML(cmVal) ? getFinalHTML() : bodyHTML;
   if (cmEditor && cmEditor.getValue() !== html) {
     const cursor = cmEditor.getCursor();
     _cmLoading = true;
@@ -2542,7 +2308,12 @@ function switchTab(tab) {
 }
 
 function getEditorHTML() {
-  if (editorTab === 'rich') return getFinalHTML();
+  if (editorTab === 'rich') {
+    // Trả về body.innerHTML để stats/size tính đúng nội dung thật
+    // (không bao gồm <head> CSS của iframe)
+    const d = _getRichIframeDoc();
+    return d?.body ? d.body.innerHTML : '';
+  }
   return cmEditor ? cmEditor.getValue() : (document.getElementById('html-source')?.value || '');
 }
 
@@ -2563,7 +2334,7 @@ function updateEditorStats() {
   if (es) {
     const rawLen = (html || '').length;
     const kb = (rawLen / 1024).toFixed(1);
-    if (rawLen > 100000) {
+    if (rawLen > 20000) {
       es.textContent = `~${kb}KB · sẽ nén LZ`;
       es.style.color = 'var(--warn)';
     } else {
@@ -2618,9 +2389,9 @@ function _activatePanel(id) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.getElementById('panel-' + id)?.classList.add('active');
   document.querySelectorAll('.sb-item').forEach(n => n.classList.remove('active'));
-  const idx = {dashboard:0, editor:1, users:2, nocodb:3, settings:4};
+  const idx = {dashboard:0, editor:1, users:2, settings:3};
   document.querySelectorAll('.sb-item')[idx[id]]?.classList.add('active');
-  const titles = {dashboard:'Dashboard', editor:'Soạn thảo', users:'Người dùng', nocodb:'NocoDB — Cơ sở dữ liệu', settings:'Cài đặt'};
+  const titles = {dashboard:'Dashboard', editor:'Soạn thảo', users:'Người dùng', settings:'Cài đặt'};
   document.getElementById('panel-title').textContent = titles[id] || id;
 }
 
@@ -2755,10 +2526,10 @@ async function saveToNoco() {
       filePath = folder ? folder + '/' + slug : slug;
     }
     // ── Nén nội dung nếu > 100,000 ký tự (LZ-String), dưới ngưỡng lưu thẳng ──
-    const LZ_THRESHOLD = 100000;
+    const LZ_THRESHOLD = 20000; // ~20KB — nén tất cả bài có nội dung vừa trở lên
     let contentValue = htmlContent;
     if (htmlContent.length > LZ_THRESHOLD) {
-      showLoading('Nội dung lớn — đang nén LZ-String...');
+      showLoading('Đang nén nội dung LZ-String...');
       const compressed = LZString.compressToBase64(htmlContent);
       contentValue = 'lz:' + compressed;
       const ratio = Math.round((1 - compressed.length / htmlContent.length) * 100);
@@ -2996,11 +2767,6 @@ function showPanel(id, navEl) {
 
   } else if (id === 'users') {
     loadUsers();
-
-  } else if (id === 'nocodb') {
-    updateNocoStatus(true, 'api.gds.edu.vn');
-    nocoTestConnection();
-    nocoLoadRecords();
   }
 }
 
@@ -3387,29 +3153,26 @@ function esc(str) {
 }
 
 // ── State ──
-let nocoPageIndex = 0;
-const NOCO_LIMIT = 25;
-let nocoTotalRows = 0;
 let nocoFields = [];
-let nocoWhereClause = '';
 let nocoCurrentTab = 'records';
 let nocoEditRowId = null;
 
 function updateNocoStatus(connected, label = '') {
   const bar = document.getElementById('noco-status-bar');
   const txt = document.getElementById('noco-status-text');
-  bar.className = `gh-status ${connected ? 'connected' : 'disconnected'}`;
-  txt.textContent = connected ? (label || 'NocoDB đã kết nối') : 'Chưa kết nối NocoDB';
-  document.getElementById('noco-not-connected').style.display = connected ? 'none' : 'block';
-  document.getElementById('noco-connected').style.display     = connected ? 'block' : 'none';
+  if (bar) bar.className = `gh-status ${connected ? 'connected' : 'disconnected'}`;
+  if (txt) txt.textContent = connected ? (label || 'NocoDB đã kết nối') : 'Chưa kết nối NocoDB';
 }
 
 function setNocoSyncBar(show, text='', time='', err=false) {
   const bar = document.getElementById('noco-sync-bar');
+  if (!bar) return;
   bar.style.display = show ? 'flex' : 'none';
   bar.className = 'sync-bar' + (err ? ' error' : show ? ' syncing' : '');
-  document.getElementById('noco-sync-text').textContent = text;
-  document.getElementById('noco-sync-time').textContent = time;
+  const st = document.getElementById('noco-sync-text');
+  const tm = document.getElementById('noco-sync-time');
+  if (st) st.textContent = text;
+  if (tm) tm.textContent = time;
 }
 
 // ── Test connection button in settings ──
@@ -3428,140 +3191,9 @@ async function nocoTestAndSave() {
   }
 }
 
-async function nocoTestConnection() {
-  // Proxy luôn sẵn sàng - không cần check nocoToken
-  setNocoSyncBar(true, 'Đang kiểm tra kết nối NocoDB...');
-  try {
-    const info = await NOCO.testConnection();
-    const fields = await NOCO.getFields();
-    nocoFields = fields.list || fields;
-    await nocoLoadRecords();
-    // Load user count nếu đã cấu hình
-    if (true) { // proxy handles users
-      try {
-        const ud = await NOCO.listUsers({ limit:1 });
-        document.getElementById('noco-user-count').textContent = ud.pageInfo?.totalRows ?? 0;
-      } catch(e) {}
-    }
-    setNocoSyncBar(false, `✓ Kết nối OK — ${nocoTotalRows} bản ghi`, new Date().toLocaleTimeString('vi-VN'));
-    updateNocoStatus(true, (cfg().nocoUrl||'').replace('https://','').split('/')[0]);
-  } catch(e) {
-    setNocoSyncBar(true, '✗ Lỗi: ' + e.message, '', true);
-    updateNocoStatus(false);
-    showToast('Lỗi NocoDB: ' + e.message, 'error');
-  }
-}
-
 // ── Load records ──
-async function nocoLoadRecords(where = '') {
-  nocoWhereClause = where;
-  const tbody = document.getElementById('noco-tbody');
-  tbody.innerHTML = '<tr><td colspan="99" style="text-align:center;padding:28px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i> Đang tải...</td></tr>';
-
-  try {
-    const data = await NOCO.listRecords({ limit: NOCO_LIMIT, offset: nocoPageIndex * NOCO_LIMIT, where });
-    const records = data.list || [];
-    nocoTotalRows = data.pageInfo?.totalRows || records.length;
-
-    // Fixed columns for Articles table
-    const thead = document.getElementById('noco-thead');
-    thead.innerHTML = `<tr>
-      <th style="width:36px">#</th>
-      <th>Tên bài</th><th>Thư mục</th><th>Path</th>
-      <th>Quyền</th><th>Cập nhật</th><th>Nội dung</th>
-      <th style="width:110px">Thao tác</th>
-    </tr>`;
-
-    if (!records.length) {
-      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted)">Không có bản ghi nào</td></tr>`;
-    } else {
-      tbody.innerHTML = records.map((row, i) => {
-        // Dùng Excerpt (plaintext lưu sẵn) thay vì giải nén Content
-        const preview = row.Excerpt
-          ? row.Excerpt.slice(0, 50)
-          : (row.Content && !row.Content.startsWith('lz:'))
-            ? row.Content.replace(/<[^>]*>/g,' ').trim().slice(0, 50)
-            : '';
-        return `<tr>
-          <td style="color:var(--text-muted);font-size:12px">${nocoPageIndex*NOCO_LIMIT + i + 1}</td>
-          <td><b>${row.Title||'—'}</b></td>
-          <td><span class="badge badge-blue" style="font-size:11px">${row.Folder||'Gốc'}</span></td>
-          <td style="font-size:12px;color:var(--text-muted);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${row.Path||'—'}</td>
-          <td>${row.Access==='private'?'<span class="badge" style="background:#fee2e2;color:#b91c1c">🔒</span>':'<span class="badge badge-green">🌐</span>'}</td>
-          <td style="font-size:12px;color:var(--text-muted)">${row.Updated||'—'}</td>
-          <td style="font-size:12px;color:var(--text-muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
-            ${preview ? preview+'...' : '<i style="color:#94a3b8">Chưa có nội dung</i>'}
-          </td>
-          <td style="white-space:nowrap">
-            ${row.Path
-              ? `<button class="btn btn-outline btn-sm" onclick="openArticleEditor('${row.Path}')" title="Sửa"><i class="fas fa-pen"></i></button>
-                 <button class="btn btn-danger btn-sm" onclick="confirmDeleteById(${row.Id},'${(row.Title||'').replace(/'/g,"\\'")}')" title="Xóa"><i class="fas fa-trash"></i></button>`
-              : `<span style="font-size:11px;color:var(--text-muted)">Không có path</span>
-                 <button class="btn btn-danger btn-sm" onclick="confirmDeleteById(${row.Id},'${(row.Title||'bài rỗng').replace(/'/g,"\\'")}')" title="Xóa bản ghi rác"><i class="fas fa-trash"></i></button>`
-            }
-          </td>
-        </tr>`;
-      }).join('');
-    }
-
-    // Update pagination
-    const total = Math.ceil(nocoTotalRows / NOCO_LIMIT);
-    document.getElementById('noco-page-info').textContent = `Trang ${nocoPageIndex+1}/${total||1} — ${nocoTotalRows} bản ghi`;
-    document.getElementById('noco-prev').disabled = nocoPageIndex === 0;
-    document.getElementById('noco-next').disabled = (nocoPageIndex+1) >= total;
-    document.getElementById('noco-count').textContent = nocoTotalRows;
-    document.getElementById('noco-sync-last').textContent = new Date().toLocaleTimeString('vi-VN');
-
-    // Populate filter field select with fixed columns
-    const fsel = document.getElementById('noco-filter-field');
-    if (fsel) {
-      const fixedKeys = ['Title','Folder','Path','Description','Access','Updated'];
-      fsel.innerHTML = '<option value="">— Chọn field —</option>' + fixedKeys.map(k => `<option value="${k}">${k}</option>`).join('');
-    }
-  } catch(e) {
-    tbody.innerHTML = `<tr><td colspan="99" style="text-align:center;padding:28px;color:var(--danger)"><i class="fas fa-circle-xmark"></i> Lỗi: ${e.message}</td></tr>`;
-    showToast('Lỗi tải NocoDB: ' + e.message, 'error');
-  }
-}
-
-function nocoChangePage(dir) {
-  const total = Math.ceil(nocoTotalRows / NOCO_LIMIT);
-  const next = nocoPageIndex + dir;
-  if (next < 0 || next >= total) return;
-  nocoPageIndex = next;
-  nocoLoadRecords(nocoWhereClause);
-}
-
-async function nocoSearchRecords(q) {
-  nocoPageIndex = 0;
-  if (!q) { nocoLoadRecords(); return; }
-  // Search across all text fields
-  const textFields = nocoFields.filter(f => ['SingleLineText','LongText','Email','URL','PhoneNumber'].includes(f.uidt));
-  if (!textFields.length) { nocoLoadRecords(`(Title,like,%${q}%)`); return; }
-  const where = textFields.slice(0,3).map(f => `(${f.title},like,%${q}%)`).join('~or');
-  nocoLoadRecords(where);
-}
 
 // ── Load fields ──
-async function nocoLoadFields() {
-  const container = document.getElementById('noco-fields-list');
-  try {
-    const data = await NOCO.getFields();
-    const fields = data.list || data;
-    nocoFields = fields;
-    if (!fields.length) { container.innerHTML = '<p style="color:var(--text-muted)">Không có fields</p>'; return; }
-    container.innerHTML = `
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">
-        ${fields.map(f => `
-          <div style="background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:12px">
-            <div style="font-weight:600;font-size:13px;margin-bottom:4px"><i class="fas fa-${fieldIcon(f.uidt)}" style="color:var(--primary);width:16px"></i> ${f.title||f.name}</div>
-            <div style="font-size:11.5px;color:var(--text-muted)">${f.uidt||f.type||'—'} ${f.pk?'· <b>Primary Key</b>':''}</div>
-          </div>`).join('')}
-      </div>`;
-  } catch(e) {
-    container.innerHTML = `<p style="color:var(--danger)">Lỗi: ${e.message}</p>`;
-  }
-}
 
 function fieldIcon(type) {
   const map = { SingleLineText:'font', LongText:'align-left', Number:'hashtag', Decimal:'hashtag', Checkbox:'check-square', Date:'calendar', DateTime:'clock', Email:'envelope', URL:'link', PhoneNumber:'phone', Attachment:'paperclip', MultiSelect:'tags', SingleSelect:'tag', Rating:'star', Currency:'dollar-sign', Percent:'percent', Formula:'calculator', Lookup:'magnifying-glass', Rollup:'layer-group', LinkToAnotherRecord:'table-columns' };
@@ -3570,149 +3202,15 @@ function fieldIcon(type) {
 
 // ── Edit record (modal) ──
 
-async function nocoSaveEdit(rowId, keys) {
-  const data = {};
-  keys.forEach(k => {
-    const el = document.getElementById('noco-edit-' + k);
-    if (el) data[k] = el.value;
-  });
-  try {
-    await NOCO.updateRecord(rowId, data);
-    closeModal();
-    // Reset modal
-    document.getElementById('modal-name').style.display = '';
-    document.getElementById('modal-confirm').textContent = 'Tạo';
-    document.getElementById('modal-confirm').onclick = () => confirmCreate();
-    nocoLoadRecords(nocoWhereClause);
-    showToast('✓ Đã cập nhật bản ghi!', 'success');
-  } catch(e) {
-    showToast('Lỗi cập nhật: ' + e.message, 'error');
-  }
-}
-
 // ── Add record ──
-async function nocoAddRecord() {
-  const keys = nocoFields.filter(f => !f.pk && f.title !== 'Id' && !f.title?.startsWith('nc_')).map(f => f.title||f.name);
-  if (!keys.length) { showToast('Không tìm thấy fields!', 'warn'); return; }
-  nocoEditRowId = null;
-  const form = keys.slice(0,8).map(k => `
-    <div class="form-group" style="margin-bottom:10px">
-      <label style="font-size:12px">${k}</label>
-      <input type="text" id="noco-edit-${k}" placeholder="${k}"
-        style="width:100%;border:1px solid var(--border);border-radius:7px;padding:7px 10px;font-size:13px;font-family:inherit;outline:none">
-    </div>`).join('');
-
-  document.getElementById('modal-title').textContent = 'Thêm bản ghi mới';
-  document.getElementById('modal-label').textContent = '';
-  document.getElementById('modal-name').style.display = 'none';
-  document.getElementById('modal-parent-group').style.display = 'none';
-  document.getElementById('modal-note').innerHTML = form;
-  document.getElementById('modal-confirm').textContent = 'Thêm';
-  document.getElementById('modal-confirm').onclick = async () => {
-    const data = {};
-    keys.slice(0,8).forEach(k => {
-      const el = document.getElementById('noco-edit-' + k);
-      if (el && el.value) data[k] = el.value;
-    });
-    try {
-      await NOCO.createRecord(data);
-      closeModal();
-      document.getElementById('modal-name').style.display = '';
-      document.getElementById('modal-confirm').textContent = 'Tạo';
-      document.getElementById('modal-confirm').onclick = () => confirmCreate();
-      nocoLoadRecords(nocoWhereClause);
-      showToast('✓ Đã thêm bản ghi!', 'success');
-    } catch(e) { showToast('Lỗi: ' + e.message, 'error'); }
-  };
-  document.getElementById('modal-create').classList.add('show');
-}
 
 // ── Delete record ──
 
 // ── Filter / query ──
-function nocoRunFilter() {
-  const field = document.getElementById('noco-filter-field').value;
-  const op    = document.getElementById('noco-filter-op').value;
-  const val   = document.getElementById('noco-filter-val').value;
-  if (!field) { showToast('Chọn field để lọc!', 'warn'); return; }
-  const ops = { empty:'is null', notempty:'is not null' };
-  const where = ['empty','notempty'].includes(op)
-    ? `(${field},${op})`
-    : `(${field},${op},${val})`;
-  nocoPage = 0;
-  nocoLoadRecords(where);
-  switchNocoTab('records');
-}
 
 // ── Export CSV ──
-async function nocoExportCSV() {
-  try {
-    showLoading('Xuất dữ liệu từ NocoDB...');
-    const data = await NOCO.listRecords({ limit: 1000, where: nocoWhereClause });
-    const records = data.list || [];
-    if (!records.length) { showToast('Không có dữ liệu!', 'warn'); return; }
-    const keys = Object.keys(records[0]).filter(k => !k.startsWith('nc_'));
-    const csv  = [keys.join(','), ...records.map(r => keys.map(k => `"${String(r[k]||'').replace(/"/g,'""')}"`).join(','))].join('\n');
-    const blob = new Blob(['\uFEFF' + csv], { type:'text/csv;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `nocodb-export-${Date.now()}.csv`;
-    a.click();
-    showToast('✓ Đã xuất CSV!', 'success');
-  } catch(e) { showToast('Lỗi xuất: ' + e.message, 'error'); }
-  finally { hideLoading(); }
-}
 
 // ── Sync all articles to NocoDB ──
-async function nocoSyncAll() {
-  // Proxy luôn sẵn sàng
-  if (!indexTree.length) { showToast('Chưa có dữ liệu từ GitHub! Đồng bộ GitHub trước.', 'warn'); return; }
-  const files = flattenFiles(indexTree);
-  if (!confirm(`Đồng bộ ${files.length} bài viết từ GitHub lên NocoDB?`)) return;
-
-  showLoading(`Đang đồng bộ ${files.length} bài lên NocoDB...`);
-  setNocoSyncBar(true, `Đang đồng bộ ${files.length} bài...`);
-  let ok = 0, err = 0;
-
-  // Get existing records to avoid duplicates
-  let existing = {};
-  try {
-    const data = await NOCO.listRecords({ limit: 1000 });
-    (data.list||[]).forEach(r => { if (r.Path) existing[r.Path] = r.Id; });
-  } catch {}
-
-  for (const file of files) {
-    try {
-      const metaPayload = {
-        Title:       file.name,
-        Path:        file.path,
-        Folder:      file.folder || '',
-        Description: file.description || '',
-        Access:      file.access || 'public',
-        Updated:     file.updated || '',
-        Status:      'Published'
-      };
-      if (existing[file.path]) {
-        // Chỉ PATCH metadata — KHÔNG ghi đè Content (tránh xóa nội dung bài)
-        await NOCO.updateRecord(existing[file.path], metaPayload);
-      } else {
-        // Bài mới: tạo record với Content rỗng (sẽ điền khi soạn thảo)
-        await NOCO.createRecord(metaPayload);
-      }
-      ok++;
-    } catch { err++; }
-  }
-
-  setNocoSyncBar(false, `✓ Đồng bộ xong: ${ok} thành công${err?' · '+err+' lỗi':''}`, new Date().toLocaleTimeString('vi-VN'), err > 0);
-  await nocoLoadRecords();
-  hideLoading();
-  showToast(`✓ Đồng bộ xong! ${ok} bài`, 'success');
-}
-
-function nocoOpenTable() {
-  const c = cfg();
-  window.open('https://app.nocodb.com', '_blank');
-}
 
 
 function switchNocoTab(tab) {
