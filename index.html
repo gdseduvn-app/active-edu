@@ -652,6 +652,8 @@ function renderUserArea() {
 
 let loginModalCanClose = true;
 let pendingPrivateItem = null;
+let currentArticlePath = null;
+let currentArticleId   = null;
 
 function showLoginModal(canClose) {
   loginModalCanClose = canClose !== false;
@@ -770,12 +772,15 @@ async function init() {
     buildCards(contentTree);
     updateStats();
 
-    // Xử lý deep link: /bai/slug hoặc ?bai=slug
+    // Deep link: /bai/{nocoId} (mới) hoặc /bai/{slug} (backward compat)
     const pathMatch = window.location.pathname.match(/\/bai\/([^/]+)/);
-    const paramSlug = new URLSearchParams(window.location.search).get('bai');
-    const slug = pathMatch ? decodeURIComponent(pathMatch[1]) : (paramSlug ? decodeURIComponent(paramSlug) : null);
-    if (slug) {
-      const item = findItemBySlug(contentTree, slug);
+    const paramId   = new URLSearchParams(window.location.search).get('article');
+    const rawVal    = pathMatch ? decodeURIComponent(pathMatch[1]) : (paramId ? decodeURIComponent(paramId) : null);
+    if (rawVal) {
+      // Thử tìm bằng ID trước (số), fallback slug
+      const item = /^\d+$/.test(rawVal)
+        ? findItemById(contentTree, rawVal)
+        : (findItemBySlug(contentTree, rawVal) || findItemById(contentTree, rawVal));
       if (item) loadArticle(item);
     }
   } catch(e) {
@@ -884,7 +889,8 @@ function renderNavItems(items, container) {
       const a = document.createElement('a');
       a.className = 'nav-item';
       a.href = 'javascript:void(0)';
-      a.dataset.path = item.path;
+      a.dataset.path   = item.path;
+      a.dataset.nocoid = item.nocoId || '';
       const lockIcon = item.access === 'private' ? '<i class="fas fa-lock lock-icon"></i>' : '';
       a.innerHTML = `<i class="fas fa-file-lines icon" style="color:#94a3b8"></i><span>${item.name}</span>${lockIcon}`;
       a.onclick = () => loadArticle(item);
@@ -984,23 +990,23 @@ window.addEventListener('orientationchange', () => {
 });
 
 async function loadArticle(item) {
-  // Cập nhật hash URL (không reload, không lộ đường dẫn thật)
+  // Deep link dùng nocoId — ổn định dù đổi tên/di chuyển bài
   currentArticlePath = item.path;
-  const slug = item.path.split('/').pop().replace(/\.html?$/i, '');
-  history.pushState({slug}, '', `/bai/${encodeURIComponent(slug)}`);
+  currentArticleId   = item.nocoId || null;
+  history.pushState({ id: item.nocoId }, '', `/bai/${item.nocoId}`);
   document.title = `${item.name} — ActiveEdu`;
 
   // Kiểm tra quyền truy cập
   if (item.access === 'private' && !isLoggedIn()) {
-    // Hiện trang gate
     document.getElementById('home-view').style.display = 'none';
     document.getElementById('article-view').style.display = 'none';
     document.getElementById('content-area').classList.remove('article-mode');
     document.getElementById('article-gate').style.display = 'block';
     document.getElementById('gate-title').textContent = item.name;
-    document.getElementById('gate-tags').innerHTML = item.folder ? `<span class="article-hd-tag">${item.folder}</span><span class="article-hd-tag" style="background:#fef2f2;border-color:#fca5a5;color:#b91c1c"><i class="fas fa-lock"></i> Private</span>` : '';
+    document.getElementById('gate-tags').innerHTML = item.folder
+      ? `<span class="article-hd-tag">${item.folder}</span><span class="article-hd-tag" style="background:#fef2f2;border-color:#fca5a5;color:#b91c1c"><i class="fas fa-lock"></i> Private</span>` : '';
     setBreadcrumb(item.name);
-    setActiveNav(item.path);
+    setActiveNav(item.nocoId);
     pendingPrivateItem = item;
     window.scrollTo(0, 0);
     return;
@@ -1016,19 +1022,29 @@ async function loadArticle(item) {
   const accessTag = item.access === 'private'
     ? '<span class="article-hd-tag" style="background:#fef2f2;border-color:#fca5a5;color:#b91c1c"><i class="fas fa-lock"></i> Private</span>'
     : '<span class="article-hd-tag" style="background:#f0fdf4;border-color:#86efac;color:#15803d"><i class="fas fa-globe"></i> Public</span>';
-  document.getElementById('article-meta').innerHTML = `<i class="fas fa-folder" style="color:var(--primary)"></i> ${esc(item.folder||'Gốc')} &nbsp;•&nbsp; <i class="fas fa-calendar-alt"></i> ${esc(item.updated||'')}`;
-  document.getElementById('article-tags').innerHTML = (item.folder ? `<span class="article-hd-tag">${esc(item.folder)}</span>` : '') + accessTag;
+  document.getElementById('article-meta').innerHTML =
+    `<i class="fas fa-folder" style="color:var(--primary)"></i> ${esc(item.folder||'Gốc')} &nbsp;•&nbsp; <i class="fas fa-calendar-alt"></i> ${esc(item.updated||'')}`;
+  document.getElementById('article-tags').innerHTML =
+    (item.folder ? `<span class="article-hd-tag">${esc(item.folder)}</span>` : '') + accessTag;
   setBreadcrumb(item.name);
-  setActiveNav(item.path);
+  setActiveNav(item.nocoId);
   try {
     const iframe = document.getElementById('article-iframe');
     setBlobSrcdoc(iframe, '<div style="padding:40px;text-align:center;color:#64748b"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>');
 
-    // Load from proxy API by Path
+    // Fetch bằng nocoId — trực tiếp, không dùng where=(Path,eq,...)
     const proxyBase = (PROXY_URL || 'https://api.gds.edu.vn').replace(/\/$/, '');
-    const resp = await fetch(`${proxyBase}/api/articles?where=(Path,eq,${encodeURIComponent(item.path)})&limit=1`);
-    const data = await resp.json();
-    const row = (data.list || [])[0];
+    let row = null;
+    if (item.nocoId) {
+      const resp = await fetch(`${proxyBase}/api/articles/${item.nocoId}`, {
+        headers: isLoggedIn() ? { 'Authorization': `Bearer ${getUser()?.token || ''}` } : {}
+      });
+      if (resp.ok) row = await resp.json();
+    }
+    if (!row) {
+      setBlobSrcdoc(iframe, '<p style="color:#ef4444;padding:40px;text-align:center">Không tìm thấy bài học.</p>');
+      return;
+    }
     if (row && row.Content) {
       let content = row.Content;
       if (content.startsWith('lz:')) {
@@ -1389,6 +1405,20 @@ function findItemByPath(tree, path) {
   return null;
 }
 
+// Tìm bài theo nocoId (ưu tiên) — ổn định dù đổi tên/path
+function findItemById(tree, id) {
+  const sid = String(id);
+  for (const node of tree) {
+    if (node.type === 'folder') {
+      const found = findItemById(node.children || [], sid);
+      if (found) return found;
+    } else if (String(node.nocoId) === sid) {
+      return node;
+    }
+  }
+  return null;
+}
+
 function findItemBySlug(tree, slug) {
   for (const node of tree) {
     if (node.type === 'folder') {
@@ -1437,17 +1467,12 @@ function _showCopyBlockedToast() {
 
 
 function shareArticle() {
-  const path = typeof currentArticlePath !== 'undefined' ? currentArticlePath : '';
-  if (!path) { showToast && showToast('Không có bài để chia sẻ', 'warn'); return; }
-  const slug = path.split('/').pop().replace(/\.html?$/i, '');
-  const url  = window.location.origin + window.location.pathname + '?article=' + encodeURIComponent(slug);
+  if (!currentArticleId) { showToast && showToast('Không có bài để chia sẻ', 'warn'); return; }
+  const url = window.location.origin + '/bai/' + currentArticleId;
   if (navigator.clipboard) {
     navigator.clipboard.writeText(url).then(() => {
       const toast = document.getElementById('share-toast');
-      if (toast) {
-        toast.style.display = 'inline';
-        setTimeout(() => toast.style.display = 'none', 2500);
-      }
+      if (toast) { toast.style.display = 'inline'; setTimeout(() => toast.style.display = 'none', 2500); }
     }).catch(() => prompt('Sao chép link này:', url));
   } else {
     prompt('Sao chép link này:', url);
@@ -1471,8 +1496,9 @@ function setBreadcrumb(title) {
     ? `<span class="bc-home" onclick="showHome()"><i class="fas fa-home"></i> Trang chủ</span><span class="bc-sep">›</span><span class="bc-cur">${title}</span>`
     : `<span class="bc-home" onclick="showHome()"><i class="fas fa-home"></i> Trang chủ</span>`;
 }
-function setActiveNav(path) {
-  document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.path === path));
+function setActiveNav(nocoId) {
+  document.querySelectorAll('.nav-item').forEach(el =>
+    el.classList.toggle('active', el.dataset.nocoid === String(nocoId)));
 }
 function countA(items) { return (items||[]).reduce((n,i) => n+(i.type==='file'?1:countA(i.children)),0); }
 function flatA(tree)   { return (tree||[]).flatMap(i => i.type==='file'?[i]:flatA(i.children)); }
@@ -1529,8 +1555,10 @@ init();
 window.addEventListener('popstate', () => {
   const pathMatch = window.location.pathname.match(/\/bai\/([^/]+)/);
   if (pathMatch) {
-    const slug = decodeURIComponent(pathMatch[1]);
-    const item = findItemBySlug(contentTree, slug);
+    const rawVal = decodeURIComponent(pathMatch[1]);
+    const item = /^\d+$/.test(rawVal)
+      ? findItemById(contentTree, rawVal)
+      : findItemBySlug(contentTree, rawVal);
     if (item) { loadArticle(item); return; }
   }
   showHome();
