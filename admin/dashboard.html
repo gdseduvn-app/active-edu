@@ -2174,13 +2174,20 @@ function isFullPageHTML(html) {
   return trimmed.startsWith('<!doctype') || trimmed.startsWith('<html');
 }
 
-// ── Blob URL helper: thay srcdoc → Blob URL (null origin, bypass X-Frame-Options) ──
+// ── Blob URL helper: dùng cho student viewer (index.html style, không cần DOM access) ──
 function setBlobSrcdoc(iframe, html) {
   if (iframe._blobUrl) { URL.revokeObjectURL(iframe._blobUrl); iframe._blobUrl = null; }
   const blob = new Blob([html], { type: 'text/html' });
   const url  = URL.createObjectURL(blob);
   iframe._blobUrl = url;
   iframe.src = url;
+}
+
+// ── srcdoc helper: dùng cho rich-iframe editor (cần DOM access qua contentDocument) ──
+function setIframeSrcdoc(iframe, html) {
+  // Revoke blob nếu có từ trước
+  if (iframe._blobUrl) { URL.revokeObjectURL(iframe._blobUrl); iframe._blobUrl = null; }
+  iframe.srcdoc = html;
 }
 
 // ══ PASTE HANDLER: Smart paste với LaTeX support ══════════════
@@ -2426,7 +2433,7 @@ function setRichHTML(html) {
 </head><body>${html || '<p></p>'}</body></html>`;
   }
 
-  setBlobSrcdoc(iframe, fullHTML);
+  setIframeSrcdoc(iframe, fullHTML);
 
   // Wait for iframe to load then make body editable
   iframe.onload = () => {
