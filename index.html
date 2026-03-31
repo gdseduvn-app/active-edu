@@ -513,7 +513,7 @@
           <div id="article-iframe-wrap">
             <iframe id="article-iframe"
               scrolling="auto"
-              sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-popups-to-escape-sandbox"
+              sandbox="allow-scripts allow-popups allow-forms allow-modals allow-popups-to-escape-sandbox"
             ></iframe>
           </div>
         </div>
@@ -556,9 +556,17 @@ function esc(str) {
 }
 
 function getUser() {
-  try { return JSON.parse(localStorage.getItem(USER_KEY)); } catch { return null; }
+  try {
+    const u = JSON.parse(localStorage.getItem(USER_KEY));
+    if (!u) return null;
+    if (u.expiresAt && Date.now() > u.expiresAt) { clearUser(); return null; }
+    return u;
+  } catch { return null; }
 }
-function setUser(u) { localStorage.setItem(USER_KEY, JSON.stringify(u)); }
+function setUser(u) {
+  u.expiresAt = Date.now() + 8 * 3600 * 1000;
+  localStorage.setItem(USER_KEY, JSON.stringify(u));
+}
 function clearUser() { localStorage.removeItem(USER_KEY); }
 function isLoggedIn() { return !!getUser(); }
 
