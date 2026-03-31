@@ -2815,10 +2815,10 @@ async function syncFromNoco() {
   try {
     // Chỉ lấy metadata — KHÔNG lấy Content (lazy load khi user click bài)
     // fields param: NocoDB sẽ trả đúng các cột này, bỏ Content (~90% bandwidth)
-    const META_FIELDS = 'Id,Title,Path,Folder,Access,Updated,Description';
+    
 
     const [artData, folderData] = await Promise.all([
-      NOCO.listRecords({ limit: 1000, sort: 'Folder', fields: META_FIELDS }),
+      NOCO.listRecords({ limit: 1000, sort: 'Folder' }),
       NOCO.listFolders().catch(() => ({ list: [] }))
     ]);
     const records = artData.list || [];
