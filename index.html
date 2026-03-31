@@ -320,6 +320,7 @@
       transform:translateX(-100%);
       box-shadow:none;
       width:var(--sidebar-w);
+      transition: transform .25s cubic-bezier(.4,0,.2,1), box-shadow .25s;
     }
     #sidebar.open {
       transform:translateX(0);
@@ -1534,7 +1535,6 @@ function filterNav(q) {
 function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('open');
   document.getElementById('overlay').classList.toggle('show');
-  // Ngăn scroll body khi sidebar mở trên mobile
   document.body.style.overflow = document.getElementById('sidebar').classList.contains('open') ? 'hidden' : '';
 }
 function closeSidebar() {
@@ -1542,6 +1542,46 @@ function closeSidebar() {
   document.body.style.overflow = '';
   document.getElementById('overlay').classList.remove('show');
 }
+
+// ── Swipe trái để đóng sidebar (mobile/tablet) ──────────────────
+(function() {
+  var _tx = 0, _ty = 0, _dragging = false;
+  document.addEventListener('touchstart', function(e) {
+    _tx = e.touches[0].clientX;
+    _ty = e.touches[0].clientY;
+    _dragging = false;
+  }, { passive: true });
+  document.addEventListener('touchmove', function(e) {
+    if (!document.getElementById('sidebar').classList.contains('open')) return;
+    var dx = e.touches[0].clientX - _tx;
+    var dy = e.touches[0].clientY - _ty;
+    if (!_dragging && Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 8) _dragging = true;
+    if (_dragging && dx < 0) {
+      var progress = Math.min(1, Math.abs(dx) / 80);
+      document.getElementById('sidebar').style.transform = 'translateX(' + (dx < -280 ? -280 : dx) + 'px)';
+    }
+  }, { passive: true });
+  document.addEventListener('touchend', function(e) {
+    if (!_dragging) return;
+    var dx = e.changedTouches[0].clientX - _tx;
+    document.getElementById('sidebar').style.transform = '';
+    if (dx < -60) closeSidebar();
+    _dragging = false;
+  }, { passive: true });
+})();
+
+// ── Scroll xuống autohide sidebar trên mobile ───────────────────
+(function() {
+  var _lastScroll = 0;
+  window.addEventListener('scroll', function() {
+    if (window.innerWidth > 1024) return;
+    var cur = window.scrollY || document.documentElement.scrollTop;
+    if (cur > _lastScroll + 30 && document.getElementById('sidebar').classList.contains('open')) {
+      closeSidebar();
+    }
+    _lastScroll = cur <= 0 ? 0 : cur;
+  }, { passive: true });
+})();
 function showEmptyState() {
   const c = getNocoCfg();
   document.getElementById('nav-menu').innerHTML = '<div style="padding:20px;text-align:center;color:rgba(255,255,255,.35);font-size:13px">Chưa có bài học nào</div>';
