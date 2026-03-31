@@ -1487,7 +1487,7 @@ async function selectFile(item) {
   body.innerHTML = '<div style="padding:20px;color:var(--text-muted);font-size:13px"><i class="fas fa-spinner fa-spin"></i> Đang tải từ NocoDB...</div>';
 
   try {
-    const data = await NOCO.listRecords({ where: `(Path,eq,${item.path})`, limit: 1 });
+    const data = await NOCO.listRecords({ where: `(Path,eq,"${item.path}")`, limit: 1 });
     const row = (data.list || [])[0];
     // Giải nén nếu nội dung được nén bằng LZ-String (tiền tố "lz:")
     let html = '';
@@ -1890,7 +1890,7 @@ async function toggleFileAccess(filePath, currentAccess) {
 
   // Cập nhật NocoDB Articles table
   try {
-    const data = await NOCO.listRecords({ where: `(Path,eq,${filePath})`, limit: 1 });
+    const data = await NOCO.listRecords({ where: `(Path,eq,"${filePath}")`, limit: 1 });
     const row  = (data.list||[])[0];
     if (row) {
       await NOCO.updateRecord(row.Id, { Access: newAccess });
@@ -1907,7 +1907,7 @@ async function confirmDeleteFile(path) {
   if (!confirm(`Xóa bài "${path}" khỏi NocoDB?`)) return;
   showLoading('Đang xóa trong NocoDB...');
   try {
-    const data = await NOCO.listRecords({ where: `(Path,eq,${path})`, limit: 1 });
+    const data = await NOCO.listRecords({ where: `(Path,eq,"${path}")`, limit: 1 });
     const row = (data.list || [])[0];
     if (!row) { showToast('Bài không tồn tại trong NocoDB', 'warn'); return; }
     await NOCO.deleteRecord(row.Id);
@@ -1915,7 +1915,7 @@ async function confirmDeleteFile(path) {
     if (true) { // proxy handles permissions
       try {
         const perms = await NOCO.call('permissions', '', 'GET', undefined,
-          `where=${encodeURIComponent('(TargetPath,eq,' + path + ')')}&limit=100`);
+          `where=${encodeURIComponent('(TargetPath,eq,"' + path + '")')}&limit=100`);
         for (const p of (perms.list||[])) {
           await NOCO.call('permissions', '', 'DELETE', [{Id: p.Id}]);
         }
@@ -2115,7 +2115,7 @@ Xóa thư mục này?`;
     // Xóa tất cả bài viết trong thư mục khỏi NocoDB
     for (const file of files) {
       try {
-        const data = await NOCO.listRecords({ where: `(Path,eq,${file.path})`, limit: 1 });
+        const data = await NOCO.listRecords({ where: `(Path,eq,"${file.path}")`, limit: 1 });
         const row = (data.list||[])[0];
         if (row) await NOCO.deleteRecord(row.Id);
       } catch(e) { console.warn('Delete article:', file.path, e.message); }
@@ -3211,10 +3211,7 @@ async function editFile(path) {
   showLoading('Tải nội dung từ NocoDB...');
   try {
     // Fetch chỉ 1 record từ NocoDB - không sync toàn bộ
-    const data = await NOCO.listRecords({ where: `(Path,eq,${path})`, limit: 1 });
-    const row = (data.list || [])[0];
-
-    // Lấy metadata - ưu tiên NocoDB, fallback indexTree
+    const data = await NOCO.listRecords({ where: `(Path,eq,"${path}")`, limit: 1 });
     let title = '', folder = '', desc = '', access = 'public', html = '';
     if (row) {
       title  = row.Title       || '';
@@ -3333,7 +3330,7 @@ async function saveToNoco() {
       console.log(`[LZ] ${htmlContent.length} → ${compressed.length} ký tự (nén ${ratio}%)`);
     }
     const payload = { Title:title, Path:filePath, Folder:folder||'', Description:desc||'', Updated:now, Content:contentValue };
-    const existing = await NOCO.listRecords({ where: `(Path,eq,${filePath})`, limit: 1 });
+    const existing = await NOCO.listRecords({ where: `(Path,eq,"${filePath}")`, limit: 1 });
     const existingRow = (existing.list || [])[0];
     if (existingRow) { await NOCO.updateRecord(existingRow.Id, payload); }
     else { payload.NgayTao = now; await NOCO.createRecord(payload); }
