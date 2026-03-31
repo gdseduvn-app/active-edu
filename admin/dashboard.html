@@ -1904,6 +1904,7 @@ async function toggleFileAccess(filePath, currentAccess) {
 }
 
 async function confirmDeleteFile(path) {
+  if (!path) { showToast('Bài này chưa có Path — xóa trực tiếp trong NocoDB.', 'warn'); return; }
   if (!confirm(`Xóa bài "${path}" khỏi NocoDB?`)) return;
   showLoading('Đang xóa trong NocoDB...');
   try {
@@ -1943,6 +1944,19 @@ async function confirmDeleteFile(path) {
       document.getElementById('save-status').textContent = 'Bài đã xóa';
     }
     showToast('✓ Đã xóa bài và quyền liên quan!', 'success');
+  } catch(e) {
+    showToast('Lỗi xóa: ' + e.message, 'error');
+  } finally { hideLoading(); }
+}
+
+// ── Xóa bản ghi NocoDB trực tiếp bằng Id (dùng cho bài không có Path) ──
+async function confirmDeleteById(rowId, label) {
+  if (!confirm(`Xóa bản ghi "${label}" (Id: ${rowId}) khỏi NocoDB?\nBản ghi này không có Path nên không thể sửa.`)) return;
+  showLoading('Đang xóa...');
+  try {
+    await NOCO.deleteRecord(rowId);
+    showToast('✓ Đã xóa bản ghi rác!', 'success');
+    await nocoLoadRecords(nocoWhereClause);
   } catch(e) {
     showToast('Lỗi xóa: ' + e.message, 'error');
   } finally { hideLoading(); }
@@ -2211,56 +2225,8 @@ function isFullPageHTML(html) {
   return trimmed.startsWith('<!doctype') || trimmed.startsWith('<html');
 }
 
-// ── Apply HTML to editor — KHÔNG khóa tab Soạn thảo ──
-function applyHTMLToEditor(html) {
-  // Sync vào CodeMirror
-  if (cmEditor) cmEditor.setValue(html || '');
-  else { const src = document.getElementById('html-source'); if (src) src.value = html || ''; }
-
-  // Luôn enable tab Soạn thảo
-  const richTab = document.getElementById('etab-rich');
-  if (richTab) {
-    richTab.style.opacity = '';
-    richTab.style.cursor = '';
-    richTab.title = '';
-    richTab.onclick = () => switchTab('rich');
-  }
-
-  // Load vào rich editor nếu đang ở tab rich
-  if (editorTab === 'rich') initTinyMCE(html || '');
-}
-
-// ── TinyMCE Init ──
-// ═══════════════════════════════════════════════════
-// RICH EDITOR — Notion/Canvas style
-// Source of truth: HTML source (CodeMirror)
-// Tab Soạn thảo = iframe live preview (body contenteditable)
-// Toolbar → edits DOM in iframe → syncs back to HTML source
-// HTML source change → iframe refreshes
-// ═══════════════════════════════════════════════════
-let richEditor = null;
-let tinyEditor = null;
-let tinyReady  = false;
-let _richHistory = [];
-let _richFuture  = [];
-let _syncing     = false;
-let _refreshTimer = null;
-
-// ── Init ──────────────────────────────────────────
-function initTinyMCE(html, callback) {
-  tinyEditor = { getContent: getRichHTML, setContent: setRichHTML };
-  tinyReady = true;
-  _richHistory = [];
-  _richFuture  = [];
-  _renderIframe(html || '');
-  if (callback) callback();
-}
-
-// ── Core: render HTML into iframe ─────────────────
-
 // ── Blob URL helper: thay srcdoc → Blob URL (null origin, bypass X-Frame-Options) ──
 function setBlobSrcdoc(iframe, html) {
-  // Revoke URL cũ nếu có
   if (iframe._blobUrl) { URL.revokeObjectURL(iframe._blobUrl); iframe._blobUrl = null; }
   const blob = new Blob([html], { type: 'text/html' });
   const url  = URL.createObjectURL(blob);
@@ -2437,58 +2403,8 @@ function _handlePaste(e, doc) {
 }
 
 
-// ── Get/Set HTML ──────────────────────────────────
-function _getIframeDoc() {
-  const f = document.getElementById('rich-iframe');
-  return f ? (f.contentDocument || f.contentWindow?.document) : null;
-}
 
-function _getBodyHTML(doc) {
-  doc = doc || _getIframeDoc();
-  return doc?.body?.innerHTML || '';
-}
 
-function getRichHTML() { return _getBodyHTML(); }
-
-function setRichHTML(html) {
-  if (_syncing) return;
-  _renderIframe(html);
-}
-
-// ── Sync iframe DOM → CodeMirror source ──────────
-function _syncIframeToSource() {
-  if (_syncing) return;
-  _syncing = true;
-  const doc = _getIframeDoc();
-  if (!doc) { _syncing = false; return; }
-
-  // Save undo state
-  const bodyHTML = _getBodyHTML(doc);
-  const last = _richHistory[_richHistory.length-1];
-  if (bodyHTML !== last) {
-    _richHistory.push(bodyHTML);
-    if (_richHistory.length > 100) _richHistory.shift();
-    _richFuture = [];
-  }
-
-  // Build full HTML and sync to CodeMirror
-  const fullHTML = '<!DOCTYPE html>' + doc.documentElement.outerHTML;
-  if (cmEditor && cmEditor.getValue() !== fullHTML) {
-    const cur = cmEditor.getCursor();
-    cmEditor.setValue(fullHTML);
-    try { cmEditor.setCursor(cur); } catch {}
-  }
-  _syncing = false;
-}
-
-// ── Sync CodeMirror → iframe (when HTML tab edited) ──
-function _syncSourceToIframe() {
-  if (_syncing) return;
-  const html = cmEditor ? cmEditor.getValue() : '';
-  _syncing = true;
-  _renderIframe(html);
-  _syncing = false;
-}
 
 // ── getFinalHTML: always use iframe doc ───────────
 function getFinalHTML() {
@@ -2690,7 +2606,14 @@ function applyHTMLToEditor(html) {
 }
 
 // ── TinyMCE Init ──
-// Old duplicate block removed
+function initTinyMCE(html, callback) {
+  tinyEditor = { getContent: getRichHTML, setContent: setRichHTML };
+  tinyReady = true;
+  _richHistory = [];
+  _richFuture  = [];
+  setRichHTML(html || '');
+  if (callback) callback();
+}
 
 function _getRichIframeDoc() {
   const f = document.getElementById('rich-iframe');
@@ -3408,7 +3331,8 @@ function flattenFolders(tree) {
 function updateDashboard() {
   const files   = flattenFiles(indexTree);
   const folders = flattenFolders(indexTree);
-  document.getElementById('d-articles').textContent = files.length;
+  const validFiles = files.filter(f => f.path && f.name && f.name !== '—');
+  document.getElementById('d-articles').textContent = validFiles.length;
   document.getElementById('d-folders').textContent  = folders.length;
   const c = cfg();
   document.getElementById('d-repo').textContent = c.repo || '—';
@@ -3416,11 +3340,11 @@ function updateDashboard() {
   document.getElementById('top-repo').textContent = c.nocoUrl ? c.nocoUrl.replace('https://','').split('/')[0] : '';
 
   const tbody = document.getElementById('dash-table');
-  if (!files.length) {
+  if (!validFiles.length) {
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:28px">Chưa có bài viết. Kết nối NocoDB hoặc tạo bài mới.</td></tr>';
     return;
   }
-  tbody.innerHTML = files.slice(-12).reverse().map(f => `
+  tbody.innerHTML = validFiles.slice(-12).reverse().map(f => `
     <tr>
       <td><i class="fas fa-file-lines" style="color:var(--text-muted)"></i> <b>${f.name}</b></td>
       <td>${f.folder ? `<span class="badge badge-blue">${f.folder}</span>` : '<span style="color:var(--text-muted)">Gốc</span>'}</td>
@@ -4087,8 +4011,12 @@ async function nocoLoadRecords(where = '') {
             ${preview ? preview+'...' : '<i style="color:#94a3b8">Chưa có nội dung</i>'}
           </td>
           <td style="white-space:nowrap">
-            <button class="btn btn-outline btn-sm" onclick="openArticleEditor('${row.Path||''}')" title="Sửa"><i class="fas fa-pen"></i></button>
-            <button class="btn btn-danger btn-sm" onclick="confirmDeleteFile('${row.Path||''}')" title="Xóa"><i class="fas fa-trash"></i></button>
+            ${row.Path
+              ? `<button class="btn btn-outline btn-sm" onclick="openArticleEditor('${row.Path}')" title="Sửa"><i class="fas fa-pen"></i></button>
+                 <button class="btn btn-danger btn-sm" onclick="confirmDeleteById(${row.Id},'${(row.Title||'').replace(/'/g,"\\'")}')" title="Xóa"><i class="fas fa-trash"></i></button>`
+              : `<span style="font-size:11px;color:var(--text-muted)">Không có path</span>
+                 <button class="btn btn-danger btn-sm" onclick="confirmDeleteById(${row.Id},'${(row.Title||'bài rỗng').replace(/'/g,"\\'")}')" title="Xóa bản ghi rác"><i class="fas fa-trash"></i></button>`
+            }
           </td>
         </tr>`;
       }).join('');
