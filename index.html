@@ -1112,6 +1112,31 @@ canvas { display:block !important; }
 body { overflow-x: hidden; }
 img { max-width: 100%; height: auto; }
 
+/* ══ KHOÁ CHỈNH SỬA CSS ══════════════════════════════════ */
+
+/* Tắt con trỏ chỉnh sửa (caret) trên mọi element */
+* {
+  caret-color: transparent !important;
+  -webkit-user-modify: read-only !important;
+}
+
+/* Tắt contenteditable qua CSS (iOS Safari) */
+[contenteditable], [contenteditable="true"], [contenteditable=""] {
+  -webkit-user-modify: read-only !important;
+  pointer-events: none !important;
+}
+
+/* Tắt outline khi focus vào element (iOS tap) */
+*:focus { outline: none !important; }
+
+/* Tắt input method trên mobile — CHỈ block input thường, không block canvas/interactive */
+input[type="text"]:not([data-interactive]),
+input[type="search"],
+textarea:not([data-interactive]) {
+  pointer-events: none !important;
+  -webkit-user-modify: read-only !important;
+}
+
 /* ══ LỚP 1: CHỐNG COPY NỘI DUNG ══════════════════════════ */
 
 /* 1a. Tắt select toàn bộ */
@@ -1305,6 +1330,53 @@ iframe {
   else setTimeout(fixMobileLayout, 400);
   window.addEventListener('load', function(){ setTimeout(fixMobileLayout, 600); });
   window.addEventListener('resize', function(){ setTimeout(fixMobileLayout, 200); });
+
+  /* ══ LỚP 0: KHOÁ CHỈNH SỬA HOÀN TOÀN (iOS/iPad/Android) ══ */
+
+  /* 0a. Tắt designMode và contentEditable trên toàn trang */
+  document.designMode = 'off';
+  function _lockEditing() {
+    document.designMode = 'off';
+    if (document.body) {
+      document.body.contentEditable = 'false';
+      document.body.setAttribute('contenteditable', 'false');
+      /* Xóa contenteditable khỏi tất cả phần tử con */
+      document.querySelectorAll('[contenteditable]').forEach(function(el) {
+        el.removeAttribute('contenteditable');
+        el.contentEditable = 'false';
+      });
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _lockEditing);
+  } else {
+    _lockEditing();
+  }
+  window.addEventListener('load', _lockEditing);
+  /* Chạy lại sau khi JS framework (React/Vue) có thể thêm contenteditable */
+  setTimeout(_lockEditing, 500);
+  setTimeout(_lockEditing, 1500);
+
+  /* 0b. Block tất cả sự kiện input/keypress để không gõ được trên iOS */
+  document.addEventListener('input',     function(e){ e.preventDefault(); e.stopPropagation(); return false; }, true);
+  document.addEventListener('keypress',  function(e){ e.preventDefault(); e.stopPropagation(); return false; }, true);
+  document.addEventListener('keydown',   function(e){
+    /* Chỉ cho phép: Tab, Enter (để GeoGebra/interactive hoạt động), Escape, Arrows, Space */
+    var allowed = ['Tab','Escape','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '];
+    if (allowed.indexOf(e.key) === -1) {
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
+    }
+  }, true);
+
+  /* 0c. Block paste */
+  document.addEventListener('paste', function(e){ e.preventDefault(); e.stopPropagation(); return false; }, true);
+
+  /* 0d. Block iOS long-press callout (chọn text) */
+  document.addEventListener('touchstart', function(e){
+    if (e.touches.length > 1) return; /* Cho phép pinch zoom */
+  }, { passive: true });
 
   /* ══ LỚP 1: CHỐNG COPY JS ══════════════════════════════ */
 
