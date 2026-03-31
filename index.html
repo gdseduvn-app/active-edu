@@ -676,6 +676,15 @@ const ICONS  = ['fas fa-book','fas fa-shapes','fas fa-calculator','fas fa-code',
 // ── Proxy-first: học sinh không cần config, token lưu trên Cloudflare Worker ──
 const PROXY_URL = 'https://api.gds.edu.vn'; // Cloudflare Worker
 
+// ── Blob URL helper: tránh srcdoc bị nhìn thấy trong DevTools ──
+function setBlobSrcdoc(iframe, html) {
+  if (iframe._blobUrl) { URL.revokeObjectURL(iframe._blobUrl); iframe._blobUrl = null; }
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  iframe._blobUrl = url;
+  iframe.src = url;
+}
+
 function getNocoCfg() {
   try { return JSON.parse(localStorage.getItem('ae_config') || '{}'); } catch { return {}; }
 }
@@ -1015,7 +1024,7 @@ async function loadArticle(item) {
   setActiveNav(item.path);
   try {
     const iframe = document.getElementById('article-iframe');
-    iframe.srcdoc = '<div style="padding:40px;text-align:center;color:#64748b"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>';
+    setBlobSrcdoc(iframe, '<div style="padding:40px;text-align:center;color:#64748b"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>');
 
     // Load from proxy API by Path
     const proxyBase = (PROXY_URL || 'https://api.gds.edu.vn').replace(/\/$/, '');
@@ -1296,7 +1305,7 @@ iframe {
     var ctrl = e.ctrlKey || e.metaKey;
     if (!ctrl) return;
     var k = e.key ? e.key.toLowerCase() : '';
-    if (k === 'c' || k === 'a' || k === 'u' || k === 's' || k === 'p' || k === 'x') {
+    if (k === 'c' || k === 'a' || k === 'u' || k === 's' || k === 'p' || k === 'x' || k === 'f') {
       e.preventDefault();
       e.stopPropagation();
       return false;
@@ -1330,12 +1339,41 @@ iframe {
       } else {
         finalContent += _resizeScript;
       }
-      iframe.srcdoc = finalContent;
+
+      // ── Watermark động cho bài PRIVATE ──────────────────────────────────
+      if (item.access === 'private' || item.folderAccess === 'private') {
+        const user = getUser();
+        const wmName  = user ? (user.name  || user.email || 'Học sinh') : 'Học sinh';
+        const wmEmail = user ? (user.email || '') : '';
+        const wmTime  = new Date().toLocaleString('vi-VN', { hour:'2-digit', minute:'2-digit', day:'2-digit', month:'2-digit', year:'numeric' });
+        const wmLine1 = wmName + (wmEmail ? ' · ' + wmEmail : '');
+        const wmLine2 = wmTime;
+        const wmScript = `<style>
+#_ae_wm{position:fixed;inset:0;pointer-events:none;z-index:9999;overflow:hidden;}
+#_ae_wm::before{
+  content:'${wmLine1.replace(/'/g,"\\'")} — ${wmLine2.replace(/'/g,"\\'")}';
+  position:absolute;top:50%;left:50%;
+  transform:translate(-50%,-50%) rotate(-25deg);
+  font-size:14px;font-family:sans-serif;
+  color:rgba(0,0,0,0.07);white-space:nowrap;
+  letter-spacing:1px;user-select:none;pointer-events:none;
+  width:200%;text-align:center;line-height:3;
+  text-shadow:0 0 0 transparent;
+}
+</style><div id="_ae_wm"></div>`;
+        if (finalContent.includes('</body>')) {
+          finalContent = finalContent.replace('</body>', wmScript + '</body>');
+        } else {
+          finalContent += wmScript;
+        }
+      }
+
+      setBlobSrcdoc(iframe, finalContent);
     } else {
-      iframe.srcdoc = '<p style="color:#ef4444;padding:40px;text-align:center">Bài học chưa có nội dung trong NocoDB.</p>';
+      setBlobSrcdoc(iframe, '<p style="color:#ef4444;padding:40px;text-align:center">Bài học chưa có nội dung trong NocoDB.</p>');
     }
   } catch(e) {
-    document.getElementById('article-iframe').srcdoc = `<p style="color:#ef4444;padding:40px;text-align:center">Lỗi tải bài: ${e.message}</p>`;
+    setBlobSrcdoc(document.getElementById('article-iframe'), `<p style="color:#ef4444;padding:40px;text-align:center">Lỗi tải bài: ${e.message}</p>`);
   }
   closeSidebar();
   window.scrollTo(0, 0);
