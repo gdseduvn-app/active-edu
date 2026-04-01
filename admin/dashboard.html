@@ -560,24 +560,52 @@ tr:hover td{background:var(--hover)}
       </div>
     </div>
 
-    <!-- ══ SETTINGS ══════════════════════════════ -->
+    <!-- ══ USERS ══════════════════════════════ -->
     <div class="panel" id="panel-users">
       <div class="panel-hd">
         <div>
           <div class="panel-title"><i class="fas fa-users"></i> Quản lý người dùng</div>
-          <div class="panel-sub">Thêm, sửa, xóa tài khoản học sinh</div>
+          <div class="panel-sub">Thêm, sửa, xóa tài khoản và phân quyền nội dung</div>
         </div>
         <button class="btn btn-primary" onclick="openUserModal()"><i class="fas fa-user-plus"></i> Thêm người dùng</button>
       </div>
 
+      <!-- Stats bar -->
+      <div id="user-stats-bar" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px">
+        <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px">
+          <div style="width:36px;height:36px;background:#eff6ff;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-users" style="color:#2563eb;font-size:15px"></i></div>
+          <div><div style="font-size:20px;font-weight:700;color:#1e293b" id="stat-total-users">—</div><div style="font-size:11px;color:#64748b;margin-top:1px">Tổng người dùng</div></div>
+        </div>
+        <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px">
+          <div style="width:36px;height:36px;background:#f0fdf4;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-graduation-cap" style="color:#15803d;font-size:15px"></i></div>
+          <div><div style="font-size:20px;font-weight:700;color:#1e293b" id="stat-total-students">—</div><div style="font-size:11px;color:#64748b;margin-top:1px">Học sinh</div></div>
+        </div>
+        <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px">
+          <div style="width:36px;height:36px;background:#eff6ff;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-chalkboard-teacher" style="color:#4338ca;font-size:15px"></i></div>
+          <div><div style="font-size:20px;font-weight:700;color:#1e293b" id="stat-total-teachers">—</div><div style="font-size:11px;color:#64748b;margin-top:1px">Giáo viên</div></div>
+        </div>
+        <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px">
+          <div style="width:36px;height:36px;background:#fef2f2;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-user-slash" style="color:#b91c1c;font-size:15px"></i></div>
+          <div><div style="font-size:20px;font-weight:700;color:#1e293b" id="stat-total-inactive">—</div><div style="font-size:11px;color:#64748b;margin-top:1px">Vô hiệu</div></div>
+        </div>
+      </div>
+
       <!-- Search + Filter -->
       <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
-        <input type="text" id="user-search" placeholder="🔍 Tìm theo tên, email..." style="flex:1;min-width:200px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);color:var(--text);font-size:13px" oninput="filterUsers()">
-        <select id="user-role-filter" onchange="filterUsers()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);color:var(--text);font-size:13px">
+        <div style="flex:1;min-width:200px;position:relative">
+          <i class="fas fa-search" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:13px;pointer-events:none"></i>
+          <input type="text" id="user-search" placeholder="Tìm theo tên, email..." style="width:100%;padding:8px 12px 8px 32px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);color:var(--text);font-size:13px;outline:none;transition:border .15s" onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor=''" oninput="filterUsers()">
+        </div>
+        <select id="user-role-filter" onchange="filterUsers()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);color:var(--text);font-size:13px;outline:none">
           <option value="">Tất cả vai trò</option>
-          <option value="student">Học sinh</option>
-          <option value="teacher">Giáo viên</option>
-          <option value="admin">Admin</option>
+          <option value="student">🎓 Học sinh</option>
+          <option value="teacher">👨‍🏫 Giáo viên</option>
+          <option value="admin">⚡ Admin</option>
+        </select>
+        <select id="user-status-filter" onchange="filterUsers()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);color:var(--text);font-size:13px;outline:none">
+          <option value="">Tất cả trạng thái</option>
+          <option value="active">✅ Hoạt động</option>
+          <option value="inactive">⏸ Vô hiệu</option>
         </select>
       </div>
 
@@ -586,26 +614,25 @@ tr:hover td{background:var(--hover)}
         <table style="width:100%;border-collapse:collapse;font-size:13px">
           <thead>
             <tr style="background:var(--hover);border-bottom:1px solid var(--border)">
-              <th style="padding:12px 16px;text-align:left;font-weight:600;color:var(--text-muted)">Họ tên</th>
-              <th style="padding:12px 16px;text-align:left;font-weight:600;color:var(--text-muted)">Email</th>
-              <th style="padding:12px 16px;text-align:left;font-weight:600;color:var(--text-muted)">Vai trò</th>
-              <th style="padding:12px 16px;text-align:left;font-weight:600;color:var(--text-muted)">Trạng thái</th>
-              <th style="padding:12px 16px;text-align:left;font-weight:600;color:var(--text-muted)">Ngày tạo</th>
-              <th style="padding:12px 16px;text-align:center;font-weight:600;color:var(--text-muted)">Thao tác</th>
+              <th style="padding:11px 16px;text-align:left;font-weight:600;color:var(--text-muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.4px">Người dùng</th>
+              <th style="padding:11px 16px;text-align:left;font-weight:600;color:var(--text-muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.4px">Vai trò</th>
+              <th style="padding:11px 16px;text-align:left;font-weight:600;color:var(--text-muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.4px">Trạng thái</th>
+              <th style="padding:11px 16px;text-align:left;font-weight:600;color:var(--text-muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.4px">Ngày tạo</th>
+              <th style="padding:11px 16px;text-align:center;font-weight:600;color:var(--text-muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.4px">Thao tác</th>
             </tr>
           </thead>
           <tbody id="users-tbody">
-            <tr><td colspan="6" style="padding:40px;text-align:center;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i> Đang tải...</td></tr>
+            <tr><td colspan="5" style="padding:40px;text-align:center;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i> Đang tải...</td></tr>
           </tbody>
         </table>
       </div>
 
       <!-- Pagination -->
       <div id="user-pagination" style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;font-size:13px;color:var(--text-muted)">
-        <span id="user-count-label"></span>
-        <div style="display:flex;gap:8px">
+        <span id="user-count-label" style="font-size:13px;color:var(--text-muted)"></span>
+        <div style="display:flex;align-items:center;gap:8px">
           <button id="user-prev-btn" class="btn btn-outline btn-sm" onclick="userPagePrev()" disabled><i class="fas fa-chevron-left"></i> Trước</button>
-          <span id="user-page-label" style="padding:6px 12px;background:var(--hover);border-radius:6px"></span>
+          <span id="user-page-label" style="padding:5px 14px;background:var(--hover);border:1px solid var(--border);border-radius:6px;font-size:13px;font-weight:500;min-width:80px;text-align:center"></span>
           <button id="user-next-btn" class="btn btn-outline btn-sm" onclick="userPageNext()">Sau <i class="fas fa-chevron-right"></i></button>
         </div>
       </div>
@@ -758,6 +785,83 @@ tr:hover td{background:var(--hover)}
   </div>
 </div>
 
+<!-- ── MODAL PHÂN QUYỀN ──────────────────────── -->
+<div id="perm-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.7);z-index:1000;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:18px;width:580px;max-width:96vw;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 32px 80px rgba(0,0,0,.35);border:1px solid #e2e8f0;overflow:hidden">
+
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid #e2e8f0;background:linear-gradient(135deg,#eff6ff,#f0fdf4);flex-shrink:0">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="width:40px;height:40px;border-radius:12px;background:#2563eb;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <i class="fas fa-shield-halved" style="color:#fff;font-size:17px"></i>
+        </div>
+        <div>
+          <div style="font-size:15px;font-weight:700;color:#1e293b">Phân quyền nội dung</div>
+          <div id="perm-modal-sub" style="font-size:12px;color:#64748b;margin-top:2px">Chọn thư mục / bài học được phép truy cập</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div id="perm-user-badge" style="display:flex;align-items:center;gap:7px;padding:5px 12px;background:#fff;border:1px solid #bfdbfe;border-radius:20px;font-size:12.5px;font-weight:600;color:#2563eb">
+          <div id="perm-user-avatar" style="width:22px;height:22px;border-radius:50%;background:#2563eb;color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700"></div>
+          <span id="perm-user-name-badge"></span>
+        </div>
+        <button onclick="closePermModal()" style="width:30px;height:30px;border-radius:8px;background:transparent;border:1px solid #e2e8f0;color:#64748b;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+          <i class="fas fa-times" style="font-size:12px"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 18px;border-bottom:1px solid #e2e8f0;background:#f8fafc;flex-shrink:0;gap:10px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:12.5px;font-weight:600;color:#2563eb;background:#eff6ff;border:1px solid #bfdbfe;padding:4px 10px;border-radius:20px" id="perm-count-label">0 mục được chọn</span>
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:#64748b;cursor:pointer;user-select:none">
+          <input type="checkbox" id="perm-only-private" onchange="renderPermTreeFromCache()" style="accent-color:#2563eb">
+          Chỉ hiện Private
+        </label>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button onclick="permSelectAll()" style="display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:7px;border:1px solid var(--border);background:#fff;color:var(--text);font-size:12px;cursor:pointer;transition:all .15s;font-family:inherit" onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background='#fff'">
+          <i class="fas fa-check-double" style="color:#2563eb"></i> Chọn tất cả
+        </button>
+        <button onclick="permClearAll()" style="display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:7px;border:1px solid var(--border);background:#fff;color:var(--text);font-size:12px;cursor:pointer;transition:all .15s;font-family:inherit" onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background='#fff'">
+          <i class="fas fa-times" style="color:#94a3b8"></i> Bỏ chọn
+        </button>
+      </div>
+    </div>
+
+    <!-- Ghi chú -->
+    <div style="padding:8px 18px;background:#fefce8;border-bottom:1px solid #fde68a;font-size:12px;color:#854d0e;display:flex;align-items:center;gap:7px;flex-shrink:0">
+      <i class="fas fa-circle-info" style="flex-shrink:0"></i>
+      <span>Chỉ cần chọn khi nội dung là <b>Private</b>. Nội dung Public ai cũng xem được. Tích chọn thư mục = cấp quyền toàn bộ bài bên trong.</span>
+    </div>
+
+    <!-- Tree -->
+    <div id="perm-tree" style="flex:1;overflow-y:auto;padding:8px 0;min-height:220px">
+      <div style="text-align:center;padding:50px;color:var(--text-muted);font-size:13px">
+        <i class="fas fa-spinner fa-spin" style="font-size:20px;display:block;margin-bottom:10px;color:var(--primary)"></i>
+        Đang tải nội dung...
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 22px;border-top:1px solid #e2e8f0;background:#f8fafc;flex-shrink:0">
+      <div style="font-size:12px;color:#64748b">
+        <i class="fas fa-info-circle"></i>
+        Quyền được lưu ngay lập tức sau khi nhấn <b>Lưu</b>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button onclick="closePermModal()" style="padding:8px 20px;border-radius:9px;border:1px solid var(--border);background:#fff;color:var(--text);font-size:13.5px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .15s" onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background='#fff'">Hủy</button>
+        <button id="perm-save-btn" onclick="savePermissions()"
+          style="padding:8px 22px;border-radius:9px;border:none;background:#2563eb;color:#fff;font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;display:flex;align-items:center;gap:7px"
+          onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">
+          <i class="fas fa-save"></i> Lưu phân quyền
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ── MODAL DI CHUYỂN ───────────────────────── -->
 <div class="modal-overlay" id="modal-move">
   <div class="modal" style="width:480px">
@@ -831,12 +935,50 @@ function cfg() { return { ...getDefaultCfg(), ...getCfg() }; }
 // ── Auth ──
 const ADMIN_USER = 'admin';
 
+// ── Rate limiting: chống brute-force login ──
+const LOGIN_MAX_ATTEMPTS = 5;
+const LOGIN_LOCKOUT_MS   = 15 * 60 * 1000; // 15 phút
+const LOGIN_ATTEMPT_KEY  = 'ae_login_attempts';
+const LOGIN_LOCKOUT_KEY  = 'ae_login_lockout';
+
+function _getLoginAttempts() {
+  try { return parseInt(sessionStorage.getItem(LOGIN_ATTEMPT_KEY) || '0'); } catch { return 0; }
+}
+function _incLoginAttempts() {
+  const n = _getLoginAttempts() + 1;
+  sessionStorage.setItem(LOGIN_ATTEMPT_KEY, n);
+  if (n >= LOGIN_MAX_ATTEMPTS) {
+    sessionStorage.setItem(LOGIN_LOCKOUT_KEY, Date.now() + LOGIN_LOCKOUT_MS);
+  }
+  return n;
+}
+function _resetLoginAttempts() {
+  sessionStorage.removeItem(LOGIN_ATTEMPT_KEY);
+  sessionStorage.removeItem(LOGIN_LOCKOUT_KEY);
+}
+function _checkLoginLocked() {
+  const until = parseInt(sessionStorage.getItem(LOGIN_LOCKOUT_KEY) || '0');
+  if (!until) return null;
+  const remaining = until - Date.now();
+  if (remaining <= 0) { _resetLoginAttempts(); return null; }
+  return Math.ceil(remaining / 60000); // số phút còn lại
+}
+
 async function doLogin() {
   const u = document.getElementById('login-user').value.trim();
   const p = document.getElementById('login-pass').value.trim();
   const btn = document.querySelector('#login-screen button');
   const errEl = document.getElementById('login-err');
   errEl.style.display = 'none';
+
+  // ── Kiểm tra lockout ──
+  const lockedMinutes = _checkLoginLocked();
+  if (lockedMinutes !== null) {
+    errEl.textContent = `🔒 Tài khoản tạm khóa. Thử lại sau ${lockedMinutes} phút.`;
+    errEl.style.display = 'block';
+    if (btn) btn.disabled = true;
+    return;
+  }
 
   if (!u || !p) {
     errEl.textContent = 'Vui lòng nhập đầy đủ!';
@@ -853,8 +995,23 @@ async function doLogin() {
     });
 
     if (r.status === 401) {
-      errEl.textContent = 'Sai tên đăng nhập hoặc mật khẩu!';
+      const attempts = _incLoginAttempts();
+      const remaining = LOGIN_MAX_ATTEMPTS - attempts;
+      if (remaining <= 0) {
+        errEl.textContent = `🔒 Sai mật khẩu quá nhiều lần. Tài khoản bị khóa 15 phút!`;
+        if (btn) btn.disabled = true;
+      } else {
+        errEl.textContent = `Sai mật khẩu! Còn ${remaining} lần thử.`;
+        if (btn) { btn.disabled = false; btn.textContent = 'Đăng nhập →'; }
+      }
       errEl.style.display = 'block';
+      return;
+    }
+
+    if (r.status === 429) {
+      errEl.textContent = '⏳ Quá nhiều yêu cầu. Vui lòng đợi rồi thử lại!';
+      errEl.style.display = 'block';
+      if (btn) { btn.disabled = false; btn.textContent = 'Đăng nhập →'; }
       return;
     }
 
@@ -864,7 +1021,8 @@ async function doLogin() {
       return;
     }
 
-    // Lưu pass vào sessionStorage (mất khi đóng tab)
+    // Đăng nhập thành công → reset counter
+    _resetLoginAttempts();
     sessionStorage.setItem('ae_auth', '1');
     sessionStorage.setItem('ae_admin_pass', p);
     document.getElementById('login-screen').style.display = 'none';
@@ -874,7 +1032,8 @@ async function doLogin() {
     errEl.textContent = 'Lỗi kết nối: ' + e.message;
     errEl.style.display = 'block';
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Đăng nhập →'; }
+    const stillLocked = _checkLoginLocked() !== null;
+    if (btn && !stillLocked) { btn.disabled = false; btn.textContent = 'Đăng nhập →'; }
   }
 }
 
@@ -890,9 +1049,12 @@ function doLogout() {
 
 
 // ═══════════════════════════════════════════════════
-// GITHUB API — Single Source of Truth
+// GITHUB API — DEPRECATED (không còn dùng)
+// NocoDB là source of truth, rebuildAndPushIndex() là no-op.
+// Giữ lại phòng trường hợp muốn restore tính năng sync GitHub.
+// TODO: Xóa hoàn toàn khi confirm không cần sync GH nữa.
 // ═══════════════════════════════════════════════════
-const GH = {
+/* const GH = {
   base: 'https://api.github.com',
 
   headers() {
@@ -900,7 +1062,6 @@ const GH = {
     return { 'Authorization': `Bearer ${c.token}`, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' };
   },
 
-  // Get file (returns {content, sha})
   async getFile(path) {
     const c = cfg();
     const url = `${this.base}/repos/${c.repo}/contents/${path}?ref=${c.branch}&t=${Date.now()}`;
@@ -915,7 +1076,6 @@ const GH = {
     return { content: decoded, sha: d.sha, path: d.path };
   },
 
-  // Put file (create or update)
   async putFile(path, content, message, sha = null) {
     const c = cfg();
     const url = `${this.base}/repos/${c.repo}/contents/${path}`;
@@ -926,7 +1086,6 @@ const GH = {
     return await r.json();
   },
 
-  // Delete file
   async deleteFile(path, sha, message) {
     const c = cfg();
     const url = `${this.base}/repos/${c.repo}/contents/${path}`;
@@ -936,7 +1095,6 @@ const GH = {
     return true;
   },
 
-  // List directory (returns array of {name, path, type, sha})
   async listDir(path) {
     const c = cfg();
     const url = `${this.base}/repos/${c.repo}/contents/${path}?ref=${c.branch}&t=${Date.now()}`;
@@ -946,19 +1104,16 @@ const GH = {
     return await r.json();
   },
 
-  // Recursively get full tree under content/
   async getTree() {
     const c = cfg();
     const url = `${this.base}/repos/${c.repo}/git/trees/${c.branch}?recursive=1&t=${Date.now()}`;
     const r = await fetch(url, { headers: this.headers() });
     if (!r.ok) throw new Error(`GitHub tree ${r.status}`);
     const d = await r.json();
-    // Filter only content/ files
     const dir = c.contentDir || 'content';
     return d.tree.filter(i => i.path.startsWith(dir + '/') && i.path !== dir + '/index.json');
   },
 
-  // Test connection
   async test() {
     const c = cfg();
     const url = `${this.base}/repos/${c.repo}`;
@@ -966,7 +1121,7 @@ const GH = {
     if (!r.ok) throw new Error(`${r.status}`);
     return await r.json();
   }
-};
+}; */
 
 // ═══════════════════════════════════════════════════
 // TREE STATE — rebuilt from GitHub on every sync
@@ -2344,15 +2499,84 @@ function updateEditorStats() {
   }
 }
 
+// ── Auto-save draft ────────────────────────────────
+const DRAFT_KEY     = 'ae_editor_draft';
+const DRAFT_DELAY   = 30 * 1000; // 30 giây
+let   _autoSaveTimer = null;
+
+function _getEditorContent() {
+  if (typeof editorTab !== 'undefined' && editorTab === 'rich') {
+    try { _syncRichToCodeMirror(); } catch(e) {}
+  }
+  if (typeof cmEditor !== 'undefined' && cmEditor) return cmEditor.getValue();
+  return document.getElementById('html-source')?.value || '';
+}
+
+function _saveDraft() {
+  if (!currentEditPath && !document.getElementById('e-title')?.value?.trim()) return;
+  try {
+    const draft = {
+      path:    currentEditPath || '',
+      title:   document.getElementById('e-title')?.value  || '',
+      folder:  document.getElementById('e-folder')?.value || '',
+      desc:    document.getElementById('e-desc')?.value   || '',
+      access:  document.getElementById('e-access')?.value || 'public',
+      content: _getEditorContent(),
+      ts:      Date.now()
+    };
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    const ss = document.getElementById('save-status');
+    if (ss && isDirty) ss.textContent = '💾 Nháp tự động ' + new Date().toLocaleTimeString('vi-VN', {hour:'2-digit',minute:'2-digit'});
+  } catch(e) { /* quota exceeded — bỏ qua */ }
+}
+
+function _clearDraft() {
+  sessionStorage.removeItem(DRAFT_KEY);
+  _autoSaveTimer && clearTimeout(_autoSaveTimer);
+  _autoSaveTimer = null;
+}
+
+function _scheduleAutoSave() {
+  _autoSaveTimer && clearTimeout(_autoSaveTimer);
+  _autoSaveTimer = setTimeout(_saveDraft, DRAFT_DELAY);
+}
+
+function _restoreDraftIfAny() {
+  try {
+    const raw = sessionStorage.getItem(DRAFT_KEY);
+    if (!raw) return;
+    const draft = JSON.parse(raw);
+    // Chỉ restore nếu draft < 2 tiếng và có nội dung
+    if (!draft.content || (Date.now() - draft.ts) > 2 * 60 * 60 * 1000) { _clearDraft(); return; }
+    const age = Math.round((Date.now() - draft.ts) / 60000);
+    if (confirm(`💾 Tìm thấy bản nháp tự động (${age} phút trước) của bài "${draft.title || draft.path}".\n\nKhôi phục lại không?`)) {
+      if (draft.title)  document.getElementById('e-title').value  = draft.title;
+      if (draft.folder) document.getElementById('e-folder').value = draft.folder;
+      if (draft.desc)   document.getElementById('e-desc').value   = draft.desc;
+      if (draft.access) document.getElementById('e-access').value = draft.access;
+      if (draft.path)   currentEditPath = draft.path;
+      setTimeout(() => {
+        if (typeof applyHTMLToEditor === 'function') applyHTMLToEditor(draft.content);
+        markDirty();
+        showToast('✓ Đã khôi phục bản nháp tự động!', 'success');
+      }, 200);
+    }
+    _clearDraft();
+  } catch(e) { /* parse error */ }
+}
+// ───────────────────────────────────────────────────
+
 function markDirty() {
   isDirty = true;
   const dot = document.getElementById('save-dot');
   if (dot) dot.className = 'save-dot unsaved';
   const s = document.getElementById('save-status');
   if (s) s.textContent = 'Chưa lưu';
+  _scheduleAutoSave(); // kích hoạt auto-save sau 30s
 }
 function markSaved(t) {
   isDirty = false;
+  _clearDraft(); // draft đã lưu thật → xóa bản nháp
   const dot = document.getElementById('save-dot');
   if (dot) dot.className = 'save-dot';
   document.getElementById('save-status').textContent = '✓ ' + t;
@@ -2360,7 +2584,7 @@ function markSaved(t) {
 function markSaving() {
   const dot = document.getElementById('save-dot');
   if (dot) dot.className = 'save-dot saving';
-  document.getElementById('save-status').textContent = 'Đang lưu lên GitHub...';
+  document.getElementById('save-status').textContent = 'Đang lưu vào NocoDB...';
 }
 
 
@@ -2802,6 +3026,8 @@ function initAdmin() {
     syncFromNoco().then(() => {
       updateDashboard();
       updateFolderSelects();
+      // Sau khi tree sẵn sàng, kiểm tra có bản nháp chưa lưu không
+      setTimeout(_restoreDraftIfAny, 500);
     });
   } else {
     showPanel('settings', document.querySelectorAll('.sb-item')[3]);
@@ -2994,46 +3220,62 @@ const NOCO = {
 // ═══════════════════════════════════════════════════
 // QUẢN LÝ NGƯỜI DÙNG
 // ═══════════════════════════════════════════════════
-let allUsers = [];
-let filteredUsers = [];
-let userPageIndex = 0;
-const USER_LIMIT = 20;
-let editingUserId = null;
+// allUsers / filteredUsers đã xóa — thay bằng server-side pagination
+// ── Server-side pagination state ──
+let userPageIndex  = 0;
+let userTotalCount = 0;
+const USER_LIMIT   = 20;
+let editingUserId  = null;
+let _userSearchQ   = '';   // search query hiện tại
+let _userRoleQ     = '';   // role filter hiện tại
+let _userStatusQ   = '';   // status filter hiện tại
+
+// Xây dựng where clause gửi lên server
+function _buildUserWhere(q, role, status) {
+  const parts = [];
+  if (role)   parts.push(`(Role,eq,${role})`);
+  if (status) parts.push(`(Status,eq,${status})`);
+  if (q) {
+    const encoded = encodeURIComponent(q);
+    parts.push(`(Name,like,%${encoded}%)~or(Email,like,%${encoded}%)`);
+  }
+  return parts.length > 1 ? parts.join('~and') : (parts[0] || '');
+}
 
 async function loadUsers() {
   const tbody = document.getElementById('users-tbody');
   tbody.innerHTML = '<tr><td colspan="6" style="padding:40px;text-align:center;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i> Đang tải...</td></tr>';
   try {
-    const data = await NOCO.listUsers({ limit: 1000 });
-    allUsers = data.list || [];
-    filterUsers();
+    const offset = userPageIndex * USER_LIMIT;
+    const where  = _buildUserWhere(_userSearchQ, _userRoleQ, _userStatusQ);
+    const data = await NOCO.listUsers({ limit: USER_LIMIT, offset, where, sort: '-NgayTao' });
+    userTotalCount = data.pageInfo?.totalRows ?? data.pageInfo?.rowCount ?? (data.list?.length ?? 0);
+    renderUsersTable(data.list || []);
+    // Cập nhật stats bar (chỉ khi ở trang đầu và không filter)
+    if (userPageIndex === 0 && !_userSearchQ && !_userRoleQ && !_userStatusQ) updateUserStats();
   } catch(e) {
     tbody.innerHTML = `<tr><td colspan="6" style="padding:40px;text-align:center;color:var(--danger)">${e.message}</td></tr>`;
   }
 }
 
+// filterUsers: cập nhật state filter rồi reload từ server (trang 1)
 function filterUsers() {
-  const q = (document.getElementById('user-search')?.value || '').toLowerCase();
-  const role = document.getElementById('user-role-filter')?.value || '';
-  filteredUsers = allUsers.filter(u => {
-    const name = (u.FullName || u.HoTen || u.Name || '').toLowerCase();
-    const email = (u.Email || '').toLowerCase();
-    const matchQ = !q || name.includes(q) || email.includes(q);
-    const matchRole = !role || (u.Role || u.VaiTro || 'student') === role;
-    return matchQ && matchRole;
-  });
+  _userSearchQ  = (document.getElementById('user-search')?.value || '').trim();
+  _userRoleQ    = document.getElementById('user-role-filter')?.value || '';
+  _userStatusQ  = document.getElementById('user-status-filter')?.value || '';
   userPageIndex = 0;
-  renderUsersTable();
+  loadUsers();
 }
 
-function renderUsersTable() {
+// renderUsersTable: nhận page data trực tiếp từ server
+function renderUsersTable(page) {
   const tbody = document.getElementById('users-tbody');
-  const total = filteredUsers.length;
+  const total = userTotalCount;
   const start = userPageIndex * USER_LIMIT;
-  const page = filteredUsers.slice(start, start + USER_LIMIT);
+  const totalPages = Math.max(1, Math.ceil(total / USER_LIMIT));
 
   document.getElementById('user-count-label').textContent = `${total} người dùng`;
-  document.getElementById('user-page-label').textContent = `Trang ${userPageIndex + 1} / ${Math.max(1, Math.ceil(total / USER_LIMIT))}`;
+  document.getElementById('user-page-label').textContent  = `Trang ${userPageIndex + 1} / ${totalPages}`;
   document.getElementById('user-prev-btn').disabled = userPageIndex === 0;
   document.getElementById('user-next-btn').disabled = start + USER_LIMIT >= total;
 
@@ -3042,31 +3284,70 @@ function renderUsersTable() {
     return;
   }
 
-  const roleLabel = { admin: '<span style="background:#fef2f2;color:#b91c1c;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600">Admin</span>', teacher: '<span style="background:#eff6ff;color:#1d4ed8;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600">Giáo viên</span>', student: '<span style="background:#f0fdf4;color:#15803d;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600">Học sinh</span>' };
-  const statusLabel = { active: '<span style="color:#15803d">● Hoạt động</span>', inactive: '<span style="color:#94a3b8">○ Vô hiệu</span>', banned: '<span style="color:#b91c1c">✕ Bị khóa</span>' };
+  // Màu avatar theo vai trò
+  const avatarColors = { admin:'#ef4444', teacher:'#4338ca', student:'#2563eb' };
+  const roleLabel = {
+    admin:   '<span style="display:inline-flex;align-items:center;gap:5px;background:#fef2f2;color:#b91c1c;padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:600;border:1px solid #fecaca"><i class="fas fa-shield-halved" style="font-size:10px"></i>Admin</span>',
+    teacher: '<span style="display:inline-flex;align-items:center;gap:5px;background:#eff6ff;color:#1d4ed8;padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:600;border:1px solid #bfdbfe"><i class="fas fa-chalkboard-teacher" style="font-size:10px"></i>Giáo viên</span>',
+    student: '<span style="display:inline-flex;align-items:center;gap:5px;background:#f0fdf4;color:#15803d;padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:600;border:1px solid #bbf7d0"><i class="fas fa-graduation-cap" style="font-size:10px"></i>Học sinh</span>',
+  };
+  const statusLabel = {
+    active:   '<span style="display:inline-flex;align-items:center;gap:5px;color:#15803d;font-size:12.5px;font-weight:500"><span style="width:7px;height:7px;background:#22c55e;border-radius:50%;display:inline-block"></span>Hoạt động</span>',
+    inactive: '<span style="display:inline-flex;align-items:center;gap:5px;color:#94a3b8;font-size:12.5px;font-weight:500"><span style="width:7px;height:7px;background:#cbd5e1;border-radius:50%;display:inline-block"></span>Vô hiệu</span>',
+    banned:   '<span style="display:inline-flex;align-items:center;gap:5px;color:#b91c1c;font-size:12.5px;font-weight:500"><span style="width:7px;height:7px;background:#ef4444;border-radius:50%;display:inline-block"></span>Bị khóa</span>',
+  };
 
   tbody.innerHTML = page.map(u => {
-    const name = u.FullName || u.HoTen || u.Name || '(chưa đặt tên)';
-    const email = u.Email || '';
-    const role = u.Role || u.VaiTro || 'student';
-    const status = u.Status || u.TrangThai || 'active';
+    const name    = u.FullName || u.HoTen || u.Name || '(chưa đặt tên)';
+    const email   = u.Email || '';
+    const role    = u.Role || u.VaiTro || 'student';
+    const status  = u.Status || u.TrangThai || 'active';
     const created = u.NgayTao || u.CreatedAt || '';
-    return `<tr style="border-bottom:1px solid var(--border);transition:background .15s" onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background=''">
-      <td style="padding:12px 16px;font-weight:500;color:var(--text)">${esc(name)}</td>
-      <td style="padding:12px 16px;color:var(--text-muted)">${esc(email)}</td>
-      <td style="padding:12px 16px">${roleLabel[role] || roleLabel.student}</td>
-      <td style="padding:12px 16px;font-size:12px">${statusLabel[status] || statusLabel.active}</td>
-      <td style="padding:12px 16px;color:var(--text-muted);font-size:12px">${esc(created)}</td>
-      <td style="padding:12px 16px;text-align:center">
-        <button onclick="editUser(${u.Id})" class="btn btn-outline btn-sm" title="Sửa"><i class="fas fa-pen"></i></button>
-        <button onclick="deleteUser(${u.Id},'${esc(name)}')" class="btn btn-sm" style="background:#fef2f2;color:#b91c1c;border:1px solid #fca5a5;margin-left:4px" title="Xóa"><i class="fas fa-trash"></i></button>
+    const initials = name.trim().split(/\s+/).map(w=>w[0]).slice(-2).join('').toUpperCase() || '?';
+    const avatarColor = avatarColors[role] || '#2563eb';
+    const isInactive = status !== 'active';
+    return `<tr style="border-bottom:1px solid var(--border);transition:background .12s;${isInactive?'opacity:.65':''}" onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background=''">
+      <td style="padding:10px 16px">
+        <div style="display:flex;align-items:center;gap:11px">
+          <div style="width:36px;height:36px;border-radius:50%;background:${avatarColor};color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;letter-spacing:.5px">${initials}</div>
+          <div>
+            <div style="font-weight:600;color:var(--text);font-size:13.5px;line-height:1.3">${esc(name)}</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${esc(email)}</div>
+          </div>
+        </div>
+      </td>
+      <td style="padding:10px 16px">${roleLabel[role] || roleLabel.student}</td>
+      <td style="padding:10px 16px">${statusLabel[status] || statusLabel.active}</td>
+      <td style="padding:10px 16px;color:var(--text-muted);font-size:12px">${esc(created)}</td>
+      <td style="padding:10px 16px">
+        <div style="display:flex;align-items:center;gap:6px;justify-content:center">
+          <button onclick="openPermModal(${u.Id},'${esc(name)}')"
+            style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:7px;border:1px solid #bfdbfe;background:#eff6ff;color:#2563eb;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit"
+            onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#eff6ff'"
+            title="Phân quyền nội dung">
+            <i class="fas fa-shield-halved"></i> Phân quyền
+          </button>
+          <button onclick="editUser(${u.Id})"
+            style="display:inline-flex;align-items:center;padding:5px 9px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-size:12px;cursor:pointer;transition:all .15s;font-family:inherit"
+            onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background='transparent'"
+            title="Sửa thông tin">
+            <i class="fas fa-pen"></i>
+          </button>
+          <button onclick="deleteUser(${u.Id},'${esc(name)}')"
+            style="display:inline-flex;align-items:center;padding:5px 9px;border-radius:7px;border:1px solid #fca5a5;background:#fef2f2;color:#b91c1c;font-size:12px;cursor:pointer;transition:all .15s;font-family:inherit"
+            onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='#fef2f2'"
+            title="Xóa tài khoản">
+            <i class="fas fa-trash"></i>
+          </button>
+        </div>
       </td>
     </tr>`;
   }).join('');
 }
 
-function userPageNext() { userPageIndex++; renderUsersTable(); }
-function userPagePrev() { if (userPageIndex > 0) { userPageIndex--; renderUsersTable(); } }
+// Chuyển trang: fetch lại từ server
+function userPageNext() { userPageIndex++; loadUsers(); }
+function userPagePrev() { if (userPageIndex > 0) { userPageIndex--; loadUsers(); } }
 
 function openUserModal(user) {
   editingUserId = user ? user.Id : null;
@@ -3135,9 +3416,14 @@ async function saveUser() {
   }
 }
 
-function editUser(id) {
-  const user = allUsers.find(u => u.Id === id);
-  if (user) openUserModal(user);
+async function editUser(id) {
+  try {
+    // Fetch trực tiếp từ server thay vì tìm trong allUsers (đã xóa)
+    const user = await NOCO.getUser(id);
+    if (user) openUserModal(user);
+  } catch(e) {
+    showToast('Lỗi tải thông tin user: ' + e.message, 'error');
+  }
 }
 
 async function deleteUser(id, name) {
@@ -3544,21 +3830,222 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 // ── CONFIG EXPORT / IMPORT ──────────────────────────────
 
+// ═══════════════════════════════════════════════════
+// PHÂN QUYỀN NGƯỜI DÙNG
+// ═══════════════════════════════════════════════════
+let currentPermissions = [];
+let permUserId   = null;
+let permUserName = '';
+// Cache cây nội dung với TTL 2 phút — tránh stale data khi admin thêm bài mới
+const PERM_CACHE_TTL = 2 * 60 * 1000;
+let _permTreeCache = { data: [], ts: 0 };
 
-function updatePermCountLabel() {
-  syncPermFromUI();
-  const label = document.getElementById('perm-count-label');
-  if (label) label.textContent = `${currentPermissions.length} mục được chọn`;
+// ── Mở modal phân quyền cho 1 user ──
+async function openPermModal(userId, userName) {
+  permUserId   = userId;
+  permUserName = userName;
+
+  // Cập nhật UI header
+  const initials = userName.trim().split(/\s+/).map(w=>w[0]).slice(-2).join('').toUpperCase() || '?';
+  document.getElementById('perm-user-avatar').textContent = initials;
+  document.getElementById('perm-user-name-badge').textContent = userName;
+  document.getElementById('perm-modal-sub').textContent = `Đang cấu hình quyền cho: ${userName}`;
+  document.getElementById('perm-count-label').textContent = '0 mục được chọn';
+  document.getElementById('perm-tree').innerHTML =
+    '<div style="text-align:center;padding:50px;color:var(--text-muted);font-size:13px"><i class="fas fa-spinner fa-spin" style="font-size:20px;display:block;margin-bottom:10px;color:var(--primary)"></i>Đang tải...</div>';
+  document.getElementById('perm-modal').style.display = 'flex';
+  document.getElementById('perm-only-private').checked = false;
+
+  try {
+    // Tải quyền hiện tại của user này
+    const existing = await NOCO.getUserPermissions(userId);
+    const existingPaths = new Set(existing.map(p => p.TargetPath));
+
+    // Cache cây với TTL: nếu cache cũ hơn 2 phút → lấy lại từ indexTree hiện tại
+    if (!_permTreeCache.data.length || (Date.now() - _permTreeCache.ts) > PERM_CACHE_TTL) {
+      _permTreeCache = { data: indexTree, ts: Date.now() };
+    }
+
+    currentPermissions = existing.map(p => ({
+      type: p.Type || 'article',
+      targetId: p.TargetId || '',
+      targetPath: p.TargetPath || ''
+    }));
+
+    renderPermTreeFromCache();
+  } catch(e) {
+    document.getElementById('perm-tree').innerHTML =
+      `<div style="text-align:center;padding:40px;color:var(--danger)"><i class="fas fa-circle-exclamation" style="font-size:20px;display:block;margin-bottom:10px"></i>${e.message}</div>`;
+    showToast('Lỗi tải phân quyền: ' + e.message, 'error');
+  }
 }
+
+// ── Render cây dựa trên cache ──
+function renderPermTreeFromCache() {
+  const container  = document.getElementById('perm-tree');
+  const onlyPriv   = document.getElementById('perm-only-private')?.checked;
+  const grantedSet = new Set(currentPermissions.map(p => p.targetPath));
+
+  if (!_permTreeCache.data || !_permTreeCache.data.length) {
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)"><i class="fas fa-folder-open" style="font-size:24px;display:block;margin-bottom:10px;opacity:.3"></i>Chưa có nội dung nào.<br><small>Tạo thư mục và bài học trước.</small></div>';
+    return;
+  }
+
+  container.innerHTML = '';
+  _renderPermItems(_permTreeCache.data, container, '', grantedSet, onlyPriv, 0);
+  updatePermCountLabel();
+}
+
+// ── Render đệ quy từng node ──
+function _renderPermItems(items, container, parentPath, grantedSet, onlyPriv, depth) {
+  (items || []).forEach(item => {
+    if (item.type === 'folder') {
+      const folderPath = parentPath ? parentPath + '/' + item.name : item.name;
+      const isPrivate  = item.access === 'private';
+      const isGranted  = grantedSet.has(folderPath);
+      const childFiles = (item.children || []).filter(c => c.type === 'file');
+      const childFolders = (item.children || []).filter(c => c.type === 'folder');
+      const hasPrivateChild = childFiles.some(f => f.access === 'private') || childFolders.length > 0;
+
+      if (onlyPriv && !isPrivate && !hasPrivateChild) return;
+
+      const wrap = document.createElement('div');
+      wrap.style.cssText = `padding-left:${depth * 16}px`;
+
+      const row = document.createElement('label');
+      row.style.cssText = 'display:flex;align-items:center;gap:9px;padding:8px 14px;cursor:pointer;transition:background .1s;border-radius:0;user-select:none';
+      row.onmouseenter = () => row.style.background = '#f1f5f9';
+      row.onmouseleave = () => row.style.background = '';
+
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.dataset.type = 'folder';
+      cb.dataset.path = folderPath;
+      cb.dataset.id   = item.nocoId || '';
+      cb.checked = isGranted;
+      cb.style.cssText = 'width:16px;height:16px;accent-color:#2563eb;flex-shrink:0;cursor:pointer';
+      cb.onchange = () => {
+        // Cascade: check/uncheck toàn bộ bài con
+        const allChildCbs = wrap.querySelectorAll('input[type=checkbox]');
+        allChildCbs.forEach(c => { c.checked = cb.checked; });
+        updatePermCountLabel();
+      };
+
+      const folderIcon = document.createElement('i');
+      folderIcon.className = `fas fa-folder${item.children?.length ? '-open' : ''}`;
+      folderIcon.style.cssText = `color:${isPrivate?'#f87171':'#60a5fa'};font-size:13px;flex-shrink:0`;
+
+      const label = document.createElement('span');
+      label.style.cssText = 'flex:1;font-size:13px;font-weight:600;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+      label.textContent = item.name;
+
+      const meta = document.createElement('div');
+      meta.style.cssText = 'display:flex;align-items:center;gap:6px;flex-shrink:0;margin-left:auto';
+
+      if (isPrivate) {
+        meta.innerHTML += '<span style="font-size:10px;background:#fef2f2;color:#b91c1c;border:1px solid #fca5a5;padding:1px 6px;border-radius:4px;font-weight:600">Private</span>';
+      }
+      const childCount = (item.children || []).filter(c => c.type === 'file').length;
+      if (childCount > 0) {
+        meta.innerHTML += `<span style="font-size:10.5px;color:#94a3b8">${childCount} bài</span>`;
+      }
+
+      // Toggle collapse children
+      const toggle = document.createElement('button');
+      toggle.innerHTML = '<i class="fas fa-chevron-down" style="font-size:9px;transition:transform .2s"></i>';
+      toggle.style.cssText = 'background:none;border:none;padding:2px 4px;cursor:pointer;color:#94a3b8;flex-shrink:0;font-family:inherit';
+      const childrenWrap = document.createElement('div');
+      childrenWrap.style.cssText = 'padding-left:0;border-left:2px solid #e2e8f0;margin-left:' + (depth*16+20) + 'px';
+      let collapsed = false;
+      toggle.onclick = (e) => {
+        e.preventDefault();
+        collapsed = !collapsed;
+        childrenWrap.style.display = collapsed ? 'none' : '';
+        toggle.querySelector('i').style.transform = collapsed ? 'rotate(-90deg)' : '';
+      };
+
+      row.appendChild(cb);
+      row.appendChild(folderIcon);
+      row.appendChild(label);
+      row.appendChild(meta);
+      row.appendChild(toggle);
+
+      wrap.appendChild(row);
+      wrap.appendChild(childrenWrap);
+      container.appendChild(wrap);
+
+      // Render con
+      if (item.children && item.children.length) {
+        _renderPermItems(item.children, childrenWrap, folderPath, grantedSet, onlyPriv, 0);
+      }
+
+    } else {
+      // Article
+      const isPrivate = item.access === 'private' || item.folderAccess === 'private';
+      if (onlyPriv && !isPrivate) return;
+
+      const isGranted = grantedSet.has(item.path);
+      const row = document.createElement('label');
+      row.style.cssText = `display:flex;align-items:center;gap:9px;padding:6px 14px 6px ${depth*16+14}px;cursor:pointer;transition:background .1s;user-select:none`;
+      row.onmouseenter = () => row.style.background = '#f8fafc';
+      row.onmouseleave = () => row.style.background = '';
+
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.dataset.type = 'article';
+      cb.dataset.path = item.path;
+      cb.dataset.id   = item.nocoId || '';
+      cb.checked = isGranted;
+      cb.style.cssText = 'width:15px;height:15px;accent-color:#2563eb;flex-shrink:0;cursor:pointer';
+      cb.onchange = updatePermCountLabel;
+
+      const fileIcon = document.createElement('i');
+      fileIcon.className = 'fas fa-file-lines';
+      fileIcon.style.cssText = 'color:#94a3b8;font-size:12px;flex-shrink:0';
+
+      const label = document.createElement('span');
+      label.style.cssText = 'flex:1;font-size:12.5px;color:#334155;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+      label.textContent = item.name;
+
+      const meta = document.createElement('div');
+      meta.style.cssText = 'margin-left:auto;flex-shrink:0';
+      if (isPrivate) {
+        meta.innerHTML = '<span style="font-size:10px;background:#fef2f2;color:#b91c1c;border:1px solid #fca5a5;padding:1px 6px;border-radius:4px;font-weight:600"><i class="fas fa-lock" style="font-size:8px"></i> Private</span>';
+      } else {
+        meta.innerHTML = '<span style="font-size:10px;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;padding:1px 6px;border-radius:4px;font-weight:600"><i class="fas fa-globe" style="font-size:8px"></i> Public</span>';
+      }
+
+      row.appendChild(cb);
+      row.appendChild(fileIcon);
+      row.appendChild(label);
+      row.appendChild(meta);
+      container.appendChild(row);
+    }
+  });
+}
+
+// ── Đồng bộ state từ checkboxes trong DOM ──
 function syncPermFromUI() {
   currentPermissions = [];
   document.querySelectorAll('#perm-tree input[type=checkbox]:checked').forEach(cb => {
     currentPermissions.push({
-      type: cb.dataset.type,
-      targetId: cb.dataset.id || '',
+      type:       cb.dataset.type || 'article',
+      targetId:   cb.dataset.id   || '',
       targetPath: cb.dataset.path || ''
     });
   });
+}
+
+function updatePermCountLabel() {
+  syncPermFromUI();
+  const label = document.getElementById('perm-count-label');
+  if (label) {
+    const n = currentPermissions.length;
+    label.textContent = n === 0 ? 'Chưa chọn mục nào' : `${n} mục được chọn`;
+    label.style.background = n > 0 ? '#eff6ff' : '#f8fafc';
+    label.style.color       = n > 0 ? '#2563eb' : '#64748b';
+    label.style.borderColor = n > 0 ? '#bfdbfe' : '#e2e8f0';
+  }
 }
 
 function permSelectAll() {
@@ -3569,6 +4056,61 @@ function permSelectAll() {
 function permClearAll() {
   document.querySelectorAll('#perm-tree input[type=checkbox]').forEach(cb => cb.checked = false);
   updatePermCountLabel();
+}
+
+function closePermModal() {
+  document.getElementById('perm-modal').style.display = 'none';
+  permUserId = null;
+  permUserName = '';
+  currentPermissions = [];
+  // Giữ cache lại (có TTL) để mở modal tiếp theo nhanh hơn
+  // _permTreeCache không xóa ở đây — sẽ tự hết hạn sau PERM_CACHE_TTL
+}
+
+// ── Lưu phân quyền ──
+async function savePermissions() {
+  if (!permUserId) { showToast('Lỗi: không xác định được user!', 'error'); return; }
+  syncPermFromUI();
+  const btn = document.getElementById('perm-save-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang lưu...';
+
+  try {
+    await NOCO.setPermissions(permUserId, currentPermissions);
+    const n = currentPermissions.length;
+    showToast(`✓ Đã lưu ${n} quyền cho ${permUserName}!`, 'success');
+    closePermModal();
+  } catch(e) {
+    showToast('Lỗi lưu quyền: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-save"></i> Lưu phân quyền';
+  }
+}
+
+// ── Cập nhật stats bar khi loadUsers trả về data ──
+async function updateUserStats() {
+  try {
+    // Fetch count theo từng role song song
+    const [resAll, resTeacher, resInactive] = await Promise.all([
+      NOCO.listUsers({ limit: 1 }),
+      NOCO.listUsers({ limit: 1, where: '(Role,eq,teacher)' }),
+      NOCO.listUsers({ limit: 1, where: '(Status,eq,inactive)' }),
+    ]);
+    const total    = resAll.pageInfo?.totalRows ?? 0;
+    const teachers = resTeacher.pageInfo?.totalRows ?? 0;
+    const inactive = resInactive.pageInfo?.totalRows ?? 0;
+    // Học sinh = tổng - giáo viên - admin (ước tính)
+    const students = Math.max(0, total - teachers);
+    const elTotal    = document.getElementById('stat-total-users');
+    const elStudents = document.getElementById('stat-total-students');
+    const elTeachers = document.getElementById('stat-total-teachers');
+    const elInactive = document.getElementById('stat-total-inactive');
+    if (elTotal)    elTotal.textContent    = total;
+    if (elStudents) elStudents.textContent = students;
+    if (elTeachers) elTeachers.textContent = teachers;
+    if (elInactive) elInactive.textContent = inactive;
+  } catch(e) { /* stats là optional, lỗi không block UI */ }
 }
 
 // Save permissions after saving user
@@ -3582,7 +4124,68 @@ const userCloseForm    = () => { document.getElementById('user-form-panel').styl
 const userChangePage   = (dir) => dir > 0 ? userPageNext() : userPagePrev();
 const userSearchRecords= (q) => { if(typeof renderUsersTable==="function") renderUsersTable(); };
 
-// Sidebar resize cho editor panel
+// ═══════════════════════════════════════════════════
+// GLOBAL ERROR HANDLER — bắt tất cả lỗi JS không xử lý
+// ═══════════════════════════════════════════════════
+window.addEventListener('unhandledrejection', e => {
+  const msg = e.reason?.message || String(e.reason) || 'Lỗi không xác định';
+  // Bỏ qua lỗi abort (user cancel fetch)
+  if (msg.toLowerCase().includes('aborted') || msg.toLowerCase().includes('abort')) return;
+  console.error('[AE Admin] Unhandled rejection:', e.reason);
+  showToast('⚠️ ' + msg, 'error');
+});
+
+window.addEventListener('error', e => {
+  if (!e.message) return;
+  console.error('[AE Admin] Global error:', e.message, e.filename, e.lineno);
+  // Không spam toast cho lỗi resource load (script/img)
+  if (e.target && (e.target.tagName === 'SCRIPT' || e.target.tagName === 'LINK')) return;
+  showToast('⚠️ JS Error: ' + e.message, 'error');
+}, true);
+
+// ═══════════════════════════════════════════════════
+// API HEALTH CHECK — kiểm tra Worker còn sống không
+// ═══════════════════════════════════════════════════
+let _healthBannerShown = false;
+
+async function checkAPIHealth() {
+  try {
+    const r = await fetch(PROXY + '/admin/articles?limit=1', {
+      signal: AbortSignal.timeout(6000),
+      headers: adminHeaders()
+    });
+    if (r.ok || r.status === 401 || r.status === 404) {
+      _hideHealthBanner();
+    } else {
+      _showHealthBanner('Worker phản hồi lỗi ' + r.status);
+    }
+  } catch(e) {
+    _showHealthBanner('Không kết nối được Worker API');
+  }
+}
+
+function _showHealthBanner(reason) {
+  if (_healthBannerShown) return;
+  _healthBannerShown = true;
+  const banner = document.createElement('div');
+  banner.id = 'health-banner';
+  banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#fef2f2;border-bottom:2px solid #fca5a5;padding:10px 20px;display:flex;align-items:center;gap:10px;font-size:13px;color:#b91c1c;font-family:inherit';
+  banner.innerHTML = `
+    <i class="fas fa-triangle-exclamation" style="font-size:16px;flex-shrink:0"></i>
+    <span><strong>Mất kết nối API:</strong> ${reason}. Một số tính năng có thể không hoạt động.</span>
+    <button onclick="document.getElementById('health-banner').remove();_healthBannerShown=false;"
+      style="margin-left:auto;border:none;background:transparent;cursor:pointer;color:#b91c1c;font-size:18px;padding:0 4px;font-family:inherit" title="Đóng">×</button>
+    <button onclick="checkAPIHealth()" style="padding:4px 12px;background:#b91c1c;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit">Thử lại</button>`;
+  document.body.prepend(banner);
+}
+
+function _hideHealthBanner() {
+  const banner = document.getElementById('health-banner');
+  if (banner) { banner.remove(); _healthBannerShown = false; }
+}
+
+// Kiểm tra health mỗi 3 phút nếu tab đang focus
+setInterval(() => { if (document.visibilityState === 'visible' && sessionStorage.getItem('ae_auth') === '1') checkAPIHealth(); }, 3 * 60 * 1000);
 
 // ── END CONFIG EXPORT / IMPORT ──────────────────────────
 
