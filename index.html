@@ -303,6 +303,27 @@
   .loading { text-align:center;padding:60px;color:var(--text-muted); }
   .spin { font-size:26px;animation:spin 1s linear infinite;display:inline-block;color:var(--primary); }
   @keyframes spin { to { transform:rotate(360deg); } }
+
+  /* ── SKELETON LOADING ── */
+  @keyframes shimmer {
+    0%   { background-position: -600px 0; }
+    100% { background-position: 600px 0; }
+  }
+  .skeleton {
+    background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+    background-size: 1200px 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+    border-radius: 7px;
+  }
+  .skeleton-card { pointer-events:none; }
+  .skeleton-card .card-banner { background:#e2e8f0 !important; }
+  .skeleton-card .card-banner i { display:none; }
+  .sk-line { height:11px; margin-bottom:9px; }
+  .sk-line.w-70 { width:70%; }
+  .sk-line.w-50 { width:50%; }
+  .sk-line.w-85 { width:85%; }
+  .sk-line.w-35 { width:35%; }
+
   .empty-state { text-align:center;padding:60px 20px;color:var(--text-muted); }
   .empty-state .emoji { font-size:48px;margin-bottom:14px; }
   .empty-state h3 { font-size:17px;margin-bottom:6px;color:var(--text);font-weight:600; }
@@ -488,7 +509,13 @@
         <h2>Các bài học</h2>
       </div>
       <div class="cards-grid" id="home-cards">
-        <div class="loading" style="grid-column:1/-1"><i class="fas fa-circle-notch spin"></i><br><br>Đang tải...</div>
+        <!-- Skeleton cards hiển thị ngay khi trang load — JS sẽ thay bằng dữ liệu thật -->
+        <div class="content-card skeleton-card"><div class="card-banner blue"></div><div class="card-body"><div class="skeleton sk-line w-35" style="height:14px;margin-bottom:11px"></div><div class="skeleton sk-line w-85"></div><div class="skeleton sk-line w-70"></div><div class="skeleton sk-line w-50" style="margin-top:18px"></div></div></div>
+        <div class="content-card skeleton-card"><div class="card-banner indigo"></div><div class="card-body"><div class="skeleton sk-line w-35" style="height:14px;margin-bottom:11px"></div><div class="skeleton sk-line w-70"></div><div class="skeleton sk-line w-85"></div><div class="skeleton sk-line w-50" style="margin-top:18px"></div></div></div>
+        <div class="content-card skeleton-card"><div class="card-banner teal"></div><div class="card-body"><div class="skeleton sk-line w-35" style="height:14px;margin-bottom:11px"></div><div class="skeleton sk-line w-85"></div><div class="skeleton sk-line w-50"></div><div class="skeleton sk-line w-70" style="margin-top:18px"></div></div></div>
+        <div class="content-card skeleton-card"><div class="card-banner slate"></div><div class="card-body"><div class="skeleton sk-line w-35" style="height:14px;margin-bottom:11px"></div><div class="skeleton sk-line w-70"></div><div class="skeleton sk-line w-85"></div><div class="skeleton sk-line w-50" style="margin-top:18px"></div></div></div>
+        <div class="content-card skeleton-card"><div class="card-banner blue"></div><div class="card-body"><div class="skeleton sk-line w-35" style="height:14px;margin-bottom:11px"></div><div class="skeleton sk-line w-85"></div><div class="skeleton sk-line w-70"></div><div class="skeleton sk-line w-35" style="margin-top:18px"></div></div></div>
+        <div class="content-card skeleton-card"><div class="card-banner indigo"></div><div class="card-body"><div class="skeleton sk-line w-35" style="height:14px;margin-bottom:11px"></div><div class="skeleton sk-line w-50"></div><div class="skeleton sk-line w-85"></div><div class="skeleton sk-line w-70" style="margin-top:18px"></div></div></div>
       </div>
     </div>
 
@@ -514,8 +541,10 @@
           <div id="article-iframe-wrap">
             <iframe id="article-iframe"
               scrolling="auto"
-              sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-popups-to-escape-sandbox"
+              sandbox="allow-scripts allow-popups allow-forms allow-modals allow-popups-to-escape-sandbox"
             ></iframe>
+            <!-- ⚠️ KHÔNG thêm allow-same-origin: kết hợp allow-same-origin + allow-scripts
+                 phá vỡ sandbox hoàn toàn — script trong iframe có thể đọc localStorage trang cha -->
           </div>
         </div>
       </div>
@@ -574,17 +603,49 @@ function isLoggedIn() { return !!getUser(); }
 // Tài khoản được quản lý qua NocoDB - không hardcode
 const USERS = [];
 
+// ── Rate limiting đăng nhập học sinh ──
+const _STU_MAX_ATTEMPTS = 5;
+const _STU_LOCKOUT_MS   = 10 * 60 * 1000; // 10 phút
+const _STU_ATTEMPT_KEY  = 'ae_stu_login_attempts';
+const _STU_LOCKOUT_KEY  = 'ae_stu_login_lockout';
+
+function _stuGetAttempts() { try { return parseInt(localStorage.getItem(_STU_ATTEMPT_KEY) || '0'); } catch { return 0; } }
+function _stuIncAttempts() {
+  const n = _stuGetAttempts() + 1;
+  localStorage.setItem(_STU_ATTEMPT_KEY, n);
+  if (n >= _STU_MAX_ATTEMPTS) localStorage.setItem(_STU_LOCKOUT_KEY, Date.now() + _STU_LOCKOUT_MS);
+  return n;
+}
+function _stuResetAttempts() { localStorage.removeItem(_STU_ATTEMPT_KEY); localStorage.removeItem(_STU_LOCKOUT_KEY); }
+function _stuCheckLocked() {
+  const until = parseInt(localStorage.getItem(_STU_LOCKOUT_KEY) || '0');
+  if (!until) return null;
+  const remaining = until - Date.now();
+  if (remaining <= 0) { _stuResetAttempts(); return null; }
+  return Math.ceil(remaining / 60000);
+}
+
 async function doUserLogin() {
   const u = (document.getElementById('lm-user').value || '').trim();
   const p = (document.getElementById('lm-pass').value || '').trim();
   const btn = document.querySelector('.lm-btn');
+  const errEl = document.getElementById('lm-err');
+
+  // ── Kiểm tra lockout ──
+  const lockedMin = _stuCheckLocked();
+  if (lockedMin !== null) {
+    errEl.textContent = `🔒 Tạm khóa ${lockedMin} phút do đăng nhập sai quá nhiều lần.`;
+    errEl.style.display = 'block';
+    return;
+  }
+
   if (btn) btn.disabled = true;
 
-  const showErr = () => {
-    const err = document.getElementById('lm-err');
-    err.style.display = 'block';
+  const showErr = (msg) => {
+    errEl.textContent = msg || '❌ Email hoặc mật khẩu không đúng!';
+    errEl.style.display = 'block';
     document.getElementById('lm-pass').value = '';
-    setTimeout(() => err.style.display = 'none', 3000);
+    setTimeout(() => { if (errEl.style.display !== 'none') errEl.style.display = 'none'; }, 4000);
     if (btn) btn.disabled = false;
   };
 
@@ -598,7 +659,8 @@ async function doUserLogin() {
     const data = await resp.json();
 
     if (resp.ok && data.token) {
-      // Lưu token + user info
+      // Đăng nhập thành công → reset counter
+      _stuResetAttempts();
       setUser({
         username: data.user.email,
         displayName: data.user.displayName,
@@ -614,6 +676,19 @@ async function doUserLogin() {
       if (btn) btn.disabled = false;
       return;
     }
+
+    // Sai mật khẩu → tăng counter
+    if (resp.status === 401 || resp.status === 400) {
+      const attempts = _stuIncAttempts();
+      const remaining = _STU_MAX_ATTEMPTS - attempts;
+      if (remaining <= 0) {
+        showErr('🔒 Sai mật khẩu quá nhiều lần! Tài khoản bị tạm khóa 10 phút.');
+      } else {
+        showErr(`❌ Email hoặc mật khẩu không đúng! (còn ${remaining} lần)`);
+      }
+      return;
+    }
+
   } catch(e) { console.warn('Login error:', e); }
 
   showErr();
@@ -1808,6 +1883,47 @@ function showProfileMsg(msg, type) {
 document.addEventListener('click', (e) => {
   if (e.target === document.getElementById('profile-modal')) closeProfile();
 });
+
+// ═══════════════════════════════════════════════════
+// GLOBAL ERROR HANDLER
+// ═══════════════════════════════════════════════════
+window.addEventListener('unhandledrejection', e => {
+  const msg = e.reason?.message || String(e.reason) || '';
+  if (!msg || msg.toLowerCase().includes('aborted') || msg.toLowerCase().includes('abort')) return;
+  console.warn('[AE] Unhandled error:', msg);
+});
+
+// ═══════════════════════════════════════════════════
+// API HEALTH CHECK — kiểm tra Worker sau khi trang load
+// ═══════════════════════════════════════════════════
+(async function checkStudentAPIHealth() {
+  // Chờ 3s sau khi trang load mới kiểm tra
+  await new Promise(r => setTimeout(r, 3000));
+  try {
+    const r = await fetch(PROXY_URL.replace(/\/$/, '') + '/api/articles?limit=1', {
+      signal: AbortSignal.timeout(7000)
+    });
+    if (!r.ok && r.status !== 401 && r.status !== 404) {
+      _showOfflineBanner('Máy chủ phản hồi lỗi ' + r.status);
+    }
+    // Nếu ok → không làm gì (trang bình thường)
+  } catch(e) {
+    if (e.name !== 'AbortError') _showOfflineBanner('Không kết nối được tới máy chủ');
+  }
+})();
+
+function _showOfflineBanner(reason) {
+  if (document.getElementById('offline-banner')) return;
+  const banner = document.createElement('div');
+  banner.id = 'offline-banner';
+  banner.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:9999;background:#1e293b;color:#fff;padding:12px 20px;display:flex;align-items:center;gap:10px;font-size:13px;font-family:inherit;box-shadow:0 -4px 20px rgba(0,0,0,.3)';
+  banner.innerHTML = `
+    <span style="font-size:16px">⚠️</span>
+    <span><strong>Sự cố kết nối:</strong> ${reason}. Nội dung có thể không tải được.</span>
+    <button onclick="this.closest('#offline-banner').remove()"
+      style="margin-left:auto;border:none;background:rgba(255,255,255,.15);color:#fff;padding:4px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-family:inherit">Đóng</button>`;
+  document.body.appendChild(banner);
+}
 
 </script>
 
