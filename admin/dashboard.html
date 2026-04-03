@@ -136,23 +136,52 @@
 
     <!-- ── Course modal ──────────────────────────── -->
     <div id="course-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeCourseModal()">
-      <div class="modal-box" style="max-width:500px">
-        <div class="modal-hd"><h3 id="course-modal-title">Tạo khoá học</h3><button class="modal-close" onclick="closeCourseModal()">✕</button></div>
+      <div class="modal-box" style="max-width:480px">
+        <div class="modal-hd">
+          <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0">
+            <div class="modal-hd-icon">📚</div>
+            <div class="modal-hd-info">
+              <h3 id="course-modal-title">Tạo khoá học</h3>
+              <p id="course-modal-sub">Điền thông tin cơ bản về khoá học mới</p>
+            </div>
+          </div>
+          <button class="modal-close" onclick="closeCourseModal()">✕</button>
+        </div>
         <div class="modal-body">
-          <div class="form-group"><label>Tên khoá học *</label><input id="cm-title" class="inp" placeholder="VD: Toán lớp 10"></div>
-          <div class="form-group"><label>Mô tả</label><textarea id="cm-desc" class="inp" rows="3" placeholder="Mô tả ngắn về khoá học..."></textarea></div>
-          <div class="form-group"><label>Trạng thái</label>
-            <select id="cm-status" class="inp">
-              <option value="draft">📝 Draft</option>
-              <option value="published">✅ Published</option>
-              <option value="archived">📦 Archived</option>
-            </select>
+          <div class="form-group">
+            <label><i class="fas fa-bookmark"></i> Tên khoá học <span class="req">*</span></label>
+            <input id="cm-title" class="inp" placeholder="VD: Toán lớp 10 — Đại số & Hình học">
+          </div>
+          <div class="form-group">
+            <label><i class="fas fa-align-left"></i> Mô tả ngắn</label>
+            <textarea id="cm-desc" class="inp" rows="3" placeholder="Giới thiệu nội dung và mục tiêu khoá học..."></textarea>
+          </div>
+          <div class="form-group">
+            <label><i class="fas fa-circle-dot"></i> Trạng thái</label>
+            <div class="cm-status-wrap">
+              <div class="cm-status-card draft active" data-val="draft" onclick="setCourseStatus('draft')">
+                <div class="cm-sc-icon">📝</div>
+                <div class="cm-sc-label">Draft</div>
+                <div class="cm-sc-sub">Chưa công bố</div>
+              </div>
+              <div class="cm-status-card published" data-val="published" onclick="setCourseStatus('published')">
+                <div class="cm-sc-icon">🌐</div>
+                <div class="cm-sc-label">Published</div>
+                <div class="cm-sc-sub">Đang hiển thị</div>
+              </div>
+              <div class="cm-status-card archived" data-val="archived" onclick="setCourseStatus('archived')">
+                <div class="cm-sc-icon">📦</div>
+                <div class="cm-sc-label">Archived</div>
+                <div class="cm-sc-sub">Đã lưu trữ</div>
+              </div>
+            </div>
+            <input type="hidden" id="cm-status" value="draft">
           </div>
           <input type="hidden" id="cm-id">
         </div>
         <div class="modal-ft">
-          <button class="btn btn-outline" onclick="closeCourseModal()">Huỷ</button>
-          <button class="btn btn-primary" onclick="saveCourse()"><i class="fas fa-floppy-disk"></i> Lưu</button>
+          <button class="btn btn-outline" onclick="closeCourseModal()"><i class="fas fa-xmark"></i> Huỷ</button>
+          <button class="btn btn-primary" onclick="saveCourse()"><i class="fas fa-floppy-disk"></i> Lưu khoá học</button>
         </div>
       </div>
     </div>

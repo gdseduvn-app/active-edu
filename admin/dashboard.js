@@ -4783,13 +4783,22 @@ async function loadCourses() {
 function _esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 // ── Course modal ──
+function setCourseStatus(val) {
+  document.getElementById('cm-status').value = val;
+  document.querySelectorAll('#course-modal .cm-status-card').forEach(c => {
+    c.classList.toggle('active', c.dataset.val === val);
+  });
+}
 function openCourseModal(id) {
   const course = id ? _courses.find(c => c.Id === id) : null;
-  document.getElementById('course-modal-title').textContent = course ? 'Sửa khoá học' : 'Tạo khoá học';
+  const isEdit = !!course;
+  document.getElementById('course-modal-title').textContent = isEdit ? 'Sửa khoá học' : 'Tạo khoá học';
+  const sub = document.getElementById('course-modal-sub');
+  if (sub) sub.textContent = isEdit ? `Chỉnh sửa: ${course.Title}` : 'Điền thông tin cơ bản về khoá học mới';
   document.getElementById('cm-id').value = course?.Id || '';
   document.getElementById('cm-title').value = course?.Title || '';
   document.getElementById('cm-desc').value = course?.Description || '';
-  document.getElementById('cm-status').value = course?.Status || 'draft';
+  setCourseStatus(course?.Status || 'draft');
   document.getElementById('course-modal').style.display = 'flex';
   setTimeout(() => document.getElementById('cm-title').focus(), 100);
 }
