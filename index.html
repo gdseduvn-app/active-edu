@@ -419,6 +419,69 @@
     /* Không giới hạn height iframe → scroll tự nhiên */
     #article-iframe { min-height:50vh; }
   }
+
+  /* ══ ACTIVE LEARNING: PROGRESS + REACTIONS ══════════════ */
+
+  /* Reading timer strip */
+  .reading-timer-bar { height:3px; background:#e0f2fe; width:100%; overflow:hidden; border-radius:0 0 20px 20px; }
+  .reading-timer-fill { height:100%; width:0; background:linear-gradient(90deg,#3b82f6,#10b981); transition:width .8s linear; }
+
+  /* Reaction panel */
+  .reaction-panel { background:var(--card-bg);border-top:1px solid var(--border);padding:16px 24px;border-radius:0 0 20px 20px; }
+  .reaction-label { font-size:12.5px;font-weight:600;color:var(--text-muted);margin-bottom:10px;display:flex;align-items:center;gap:6px; }
+  .reaction-row { display:flex;gap:8px;flex-wrap:wrap; }
+  .reaction-btn { display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:100px;border:1.5px solid var(--border);background:var(--card-bg);cursor:pointer;font-size:13px;font-family:inherit;transition:all .15s;color:var(--text); }
+  .reaction-btn:hover { border-color:#93c5fd;background:var(--hover); }
+  .reaction-btn.selected { border-color:var(--primary);background:#eff6ff;color:var(--primary);font-weight:600; }
+  .reaction-done-msg { color:#16a34a;font-size:12.5px;font-weight:500;margin-top:8px;display:none; }
+  .read-complete-bar { display:flex;align-items:center;gap:8px;padding:10px 24px;background:#f0fdf4;border-top:1px solid #86efac;font-size:12.5px;color:#15803d;font-weight:500; }
+
+  /* Nav read badge */
+  .nav-read-badge { display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;background:#16a34a;border-radius:50%;margin-left:auto;flex-shrink:0; }
+  .nav-read-badge i { font-size:7px;color:#fff; }
+
+  /* Card read overlay */
+  .card-read-chip { display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:#f0fdf4;border:1px solid #86efac;color:#15803d;border-radius:100px;font-size:10.5px;font-weight:600; }
+
+  /* ══ LỘ TRÌNH HỌC PANEL ══════════════════════════════════ */
+  #lo-trinh-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:200; }
+  #lo-trinh-panel { display:none;position:fixed;top:0;right:0;bottom:0;width:360px;background:var(--card-bg);border-left:1px solid var(--border);z-index:201;overflow-y:auto;box-shadow:-6px 0 24px rgba(0,0,0,.12);flex-direction:column; }
+  .lt-header { background:linear-gradient(135deg,#1e3a8a,#2563eb);color:#fff;padding:20px 20px 18px;position:relative;flex-shrink:0; }
+  .lt-header h2 { font-size:16px;font-weight:700;margin-bottom:3px; }
+  .lt-header-sub { font-size:12px;opacity:.75; }
+  .lt-close-btn { position:absolute;top:14px;right:14px;background:rgba(255,255,255,.2);border:none;color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center; }
+  .lt-close-btn:hover { background:rgba(255,255,255,.35); }
+  .lt-summary { display:flex;gap:0;border-bottom:1px solid var(--border); }
+  .lt-stat { flex:1;text-align:center;padding:14px 0; }
+  .lt-stat-val { font-size:22px;font-weight:700;color:var(--primary);line-height:1; }
+  .lt-stat-lbl { font-size:11px;color:var(--text-muted);margin-top:3px; }
+  .lt-stat + .lt-stat { border-left:1px solid var(--border); }
+  .lt-overall-bar-wrap { padding:12px 16px;border-bottom:1px solid var(--border); }
+  .lt-overall-bar-track { height:6px;background:#e2e8f0;border-radius:6px;overflow:hidden; }
+  .lt-overall-bar-fill { height:100%;background:linear-gradient(90deg,#3b82f6,#10b981);border-radius:6px;transition:width .5s; }
+  .lt-folder-section { padding:6px 0; }
+  .lt-folder-hd { padding:10px 16px 4px;display:flex;align-items:center;justify-content:space-between; }
+  .lt-folder-name { font-size:11.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px; }
+  .lt-folder-prog { font-size:11px;color:var(--text-muted); }
+  .lt-folder-bar-wrap { height:3px;background:#e2e8f0;margin:0 16px 6px;border-radius:3px; }
+  .lt-folder-bar-fill { height:100%;background:#3b82f6;border-radius:3px;transition:width .4s; }
+  .lt-article { display:flex;align-items:center;gap:9px;padding:7px 16px;border-radius:8px;cursor:pointer;transition:background .12s;margin:0 4px; }
+  .lt-article:hover { background:var(--hover); }
+  .lt-dot { width:18px;height:18px;border-radius:50%;border:2px solid #cbd5e1;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:8px;background:#fff; }
+  .lt-dot.done { background:#16a34a;border-color:#16a34a;color:#fff; }
+  .lt-article-name { flex:1;font-size:13px;color:var(--text);line-height:1.3; }
+  .lt-article.done .lt-article-name { color:var(--text-muted); }
+
+  /* Sidebar "Lộ trình học" trigger */
+  .lt-trigger { display:none;margin:8px 12px;padding:8px 12px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:10px;cursor:pointer;color:#fff;font-size:13px;font-family:inherit;width:calc(100% - 24px);text-align:left;transition:background .15s; }
+  .lt-trigger:hover { background:rgba(255,255,255,.18); }
+  .lt-trigger-inner { display:flex;align-items:center;gap:8px; }
+  .lt-trigger-pct { margin-left:auto;font-size:11px;background:rgba(255,255,255,.2);padding:2px 7px;border-radius:100px; }
+
+  @media (max-width:600px) {
+    #lo-trinh-panel { width:100%; }
+    .reaction-panel { padding:12px 16px; }
+  }
 </style>
 </head>
 <body>
@@ -462,6 +525,14 @@
   <div id="nav-menu">
     <div class="loading"><i class="fas fa-circle-notch spin"></i><br><br>Đang tải...</div>
   </div>
+  <!-- Lộ trình học (chỉ hiện khi đã đăng nhập) -->
+  <button class="lt-trigger" id="lt-trigger" onclick="showLoTrinh()">
+    <div class="lt-trigger-inner">
+      <i class="fas fa-route"></i>
+      <span>Lộ trình học</span>
+      <span class="lt-trigger-pct" id="lt-trigger-pct">0%</span>
+    </div>
+  </button>
   <div class="sidebar-footer">
     <a href="admin/index.html" class="admin-link" id="admin-link" style="display:none"><i class="fas fa-cog"></i> Quản trị Admin</a>
     <div class="copy">ActiveEdu v2.0 • GitHub Pages</div>
@@ -545,6 +616,23 @@
             ></iframe>
             <!-- ⚠️ KHÔNG thêm allow-same-origin: kết hợp allow-same-origin + allow-scripts
                  phá vỡ sandbox hoàn toàn — script trong iframe có thể đọc localStorage trang cha -->
+          </div>
+          <!-- Reading timer bar -->
+          <div class="reading-timer-bar"><div id="reading-timer-fill" class="reading-timer-fill"></div></div>
+          <!-- Completed banner -->
+          <div class="read-complete-bar" id="read-complete-bar" style="display:none">
+            <i class="fas fa-check-circle" style="color:#16a34a"></i>
+            <span>Bạn đã hoàn thành bài học này!</span>
+          </div>
+          <!-- Reaction panel (chỉ hiện sau khi đọc xong) -->
+          <div class="reaction-panel" id="reaction-panel-wrap" style="display:none">
+            <div class="reaction-label"><i class="fas fa-comment-dots" style="color:#f59e0b"></i> Bài học này thế nào với bạn?</div>
+            <div class="reaction-row">
+              <button class="reaction-btn" id="rb-easy" onclick="sendReaction('easy')">😊 Dễ hiểu</button>
+              <button class="reaction-btn" id="rb-hard" onclick="sendReaction('hard')">🤔 Khó hiểu</button>
+              <button class="reaction-btn" id="rb-example" onclick="sendReaction('example')">💡 Cần ví dụ thêm</button>
+            </div>
+            <div class="reaction-done-msg" id="reaction-done-msg"><i class="fas fa-check-circle"></i> Cảm ơn phản hồi của bạn!</div>
           </div>
         </div>
       </div>
@@ -672,6 +760,7 @@ async function doUserLogin() {
       renderUserArea();
       buildNav(contentTree);
       buildCards(contentTree);
+      loadUserProgress(); // load progress after login
       if (pendingPrivateItem) { loadArticle(pendingPrivateItem); pendingPrivateItem = null; }
       if (btn) btn.disabled = false;
       return;
@@ -696,6 +785,10 @@ async function doUserLogin() {
 
 function doLogout() {
   clearUser();
+  _progressCache = null;
+  _stopProgressTracking();
+  const trigger = document.getElementById('lt-trigger');
+  if (trigger) trigger.style.display = 'none';
   renderUserArea();
   showHome();
 }
@@ -847,6 +940,8 @@ async function init() {
     buildNav(contentTree);
     buildCards(contentTree);
     updateStats();
+    // Load reading progress if already logged in (e.g. page refresh)
+    if (isLoggedIn()) loadUserProgress();
 
     // Deep link: /bai/{nocoId} (mới) hoặc /bai/{slug} (backward compat)
     const pathMatch = window.location.pathname.match(/\/bai\/([^/]+)/);
@@ -1007,6 +1102,7 @@ function buildCards(tree) {
 
     const card = document.createElement('div');
     card.className = 'content-card';
+    card.dataset.nocoid = item.nocoId || '';
     card.innerHTML = `
       <div class="card-banner ${c}"><i class="${ico}"></i></div>
       <div class="card-body">
@@ -1361,7 +1457,7 @@ iframe {
       document.body ? document.body.scrollHeight : 0,
       document.documentElement ? document.documentElement.scrollHeight : 0
     );
-    if (h > 100) window.parent.postMessage({ type: 'ae-iframe-height', height: h }, '*');
+    if (h > 100) window.parent.postMessage({ type: 'ae-iframe-height', height: h }, 'https://activelearning.gds.edu.vn');
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', rh);
   else rh();
@@ -1494,7 +1590,7 @@ iframe {
 
   /* 7. Thông báo nhẹ nhàng khi cố copy */
   document.addEventListener('copy', function() {
-    window.parent.postMessage({ type: 'ae-copy-blocked' }, '*');
+    window.parent.postMessage({ type: 'ae-copy-blocked' }, 'https://activelearning.gds.edu.vn');
   }, true);
 
 })();
@@ -1534,6 +1630,10 @@ iframe {
       }
 
       setBlobSrcdoc(iframe, finalContent);
+      // Start progress tracking after content loads
+      _startProgressTracking(item);
+      // Fire-and-forget: increment view count in Analytics
+      _trackArticleView(item.nocoId);
     } else {
       setBlobSrcdoc(iframe, '<p style="color:#ef4444;padding:40px;text-align:center">Bài học chưa có nội dung trong NocoDB.</p>');
     }
@@ -1631,6 +1731,8 @@ function shareArticle() {
 }
 
 function showHome() {
+  _stopProgressTracking();
+  _resetReactionPanel();
   document.getElementById('home-view').style.display = 'block';
   document.getElementById('article-view').style.display = 'none';
   document.getElementById('article-gate').style.display = 'none';
@@ -1912,6 +2014,311 @@ window.addEventListener('unhandledrejection', e => {
   }
 })();
 
+// ══════════════════════════════════════════════════════════════
+// ACTIVE LEARNING: PROGRESS TRACKING + REACTIONS + LỘ TRÌNH HỌC
+// ══════════════════════════════════════════════════════════════
+
+// ── Progress cache ──────────────────────────────────────────
+let _progressCache = null;   // Map<articleId, {completed, reaction}>
+let _progressLoading = false;
+
+async function loadUserProgress() {
+  if (!isLoggedIn()) return;
+  if (_progressLoading) return;
+  _progressLoading = true;
+  try {
+    const proxyBase = (PROXY_URL || 'https://api.gds.edu.vn').replace(/\/$/, '');
+    const u = getUser();
+    const resp = await fetch(`${proxyBase}/api/progress`, {
+      headers: { 'Authorization': `Bearer ${u.token}` }
+    });
+    if (!resp.ok) return;
+    const data = await resp.json();
+    _progressCache = new Map();
+    for (const row of (data.list || [])) {
+      _progressCache.set(String(row.ArticleId), { completed: !!row.Completed, score: row.Score || null, reaction: row.Reactions || null });
+    }
+    _updateLoTrinh();
+    _updateProgressBadges();
+  } catch { /* silent */ } finally {
+    _progressLoading = false;
+  }
+}
+
+// ── Reading timer ────────────────────────────────────────────
+let _readTimer = null;
+let _readInterval = null;
+let _readProgress = 0;
+const READ_DURATION_MS = 30000; // 30s để đánh dấu đã đọc
+const READ_TICK_MS = 500;
+
+function _startProgressTracking(item) {
+  _stopProgressTracking();
+  if (!isLoggedIn()) return;
+
+  const fill = document.getElementById('reading-timer-fill');
+  const reactionWrap = document.getElementById('reaction-panel-wrap');
+  const completeBanner = document.getElementById('read-complete-bar');
+  if (fill) { fill.style.width = '0%'; fill.style.transition = 'none'; }
+
+  // Check if already completed
+  const cached = _progressCache && _progressCache.get(String(item.nocoId));
+  if (cached && cached.completed) {
+    if (fill) fill.style.width = '100%';
+    if (completeBanner) completeBanner.style.display = 'flex';
+    if (reactionWrap) reactionWrap.style.display = 'block';
+    _applyExistingReaction(cached.reaction);
+    return;
+  }
+
+  _readProgress = 0;
+  const startTs = Date.now();
+  _readInterval = setInterval(() => {
+    const elapsed = Date.now() - startTs;
+    _readProgress = Math.min(elapsed / READ_DURATION_MS, 1);
+    if (fill) {
+      fill.style.transition = `width ${READ_TICK_MS}ms linear`;
+      fill.style.width = (_readProgress * 100).toFixed(1) + '%';
+    }
+    if (_readProgress >= 1) {
+      clearInterval(_readInterval);
+      _readInterval = null;
+      _onArticleCompleted(item);
+    }
+  }, READ_TICK_MS);
+}
+
+function _stopProgressTracking() {
+  if (_readInterval) { clearInterval(_readInterval); _readInterval = null; }
+  if (_readTimer) { clearTimeout(_readTimer); _readTimer = null; }
+  _readProgress = 0;
+}
+
+function _onArticleCompleted(item) {
+  const fill = document.getElementById('reading-timer-fill');
+  const completeBanner = document.getElementById('read-complete-bar');
+  const reactionWrap = document.getElementById('reaction-panel-wrap');
+  if (fill) fill.style.width = '100%';
+  if (completeBanner) completeBanner.style.display = 'flex';
+  if (reactionWrap) reactionWrap.style.display = 'block';
+
+  // POST to worker
+  _markArticleRead(String(item.nocoId));
+
+  // Update local cache
+  if (_progressCache) {
+    const existing = _progressCache.get(String(item.nocoId)) || {};
+    _progressCache.set(String(item.nocoId), { ...existing, completed: true });
+  }
+  _updateLoTrinh();
+  _updateProgressBadges();
+}
+
+async function _markArticleRead(articleId) {
+  try {
+    const proxyBase = (PROXY_URL || 'https://api.gds.edu.vn').replace(/\/$/, '');
+    const u = getUser();
+    await fetch(`${proxyBase}/api/progress`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${u.token}` },
+      body: JSON.stringify({ articleId, completed: true }),
+    });
+  } catch { /* silent */ }
+}
+
+// ── Reactions ───────────────────────────────────────────────
+async function sendReaction(type) {
+  if (!isLoggedIn() || !currentArticleId) return;
+  const btns = { easy: 'rb-easy', hard: 'rb-hard', example: 'rb-example' };
+
+  // Toggle UI immediately
+  Object.values(btns).forEach(id => {
+    const b = document.getElementById(id);
+    if (b) b.classList.remove('selected');
+  });
+  const activeBtn = document.getElementById(btns[type]);
+  if (activeBtn) activeBtn.classList.add('selected');
+
+  const doneMsg = document.getElementById('reaction-done-msg');
+  if (doneMsg) doneMsg.style.display = 'block';
+
+  // Update local cache
+  if (_progressCache && currentArticleId) {
+    const existing = _progressCache.get(String(currentArticleId)) || {};
+    _progressCache.set(String(currentArticleId), { ...existing, reaction: type });
+  }
+
+  // POST to worker
+  try {
+    const proxyBase = (PROXY_URL || 'https://api.gds.edu.vn').replace(/\/$/, '');
+    const u = getUser();
+    await fetch(`${proxyBase}/api/reactions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${u.token}` },
+      body: JSON.stringify({ articleId: String(currentArticleId), reaction: type }),
+    });
+  } catch { /* silent */ }
+}
+
+function _applyExistingReaction(reaction) {
+  const doneMsg = document.getElementById('reaction-done-msg');
+  if (!reaction) return;
+  const btns = { easy: 'rb-easy', hard: 'rb-hard', example: 'rb-example' };
+  const activeBtn = document.getElementById(btns[reaction]);
+  if (activeBtn) activeBtn.classList.add('selected');
+  if (doneMsg) doneMsg.style.display = 'block';
+}
+
+function _resetReactionPanel() {
+  ['rb-easy', 'rb-hard', 'rb-example'].forEach(id => {
+    const b = document.getElementById(id);
+    if (b) b.classList.remove('selected');
+  });
+  const doneMsg = document.getElementById('reaction-done-msg');
+  if (doneMsg) doneMsg.style.display = 'none';
+  const reactionWrap = document.getElementById('reaction-panel-wrap');
+  if (reactionWrap) reactionWrap.style.display = 'none';
+  const completeBanner = document.getElementById('read-complete-bar');
+  if (completeBanner) completeBanner.style.display = 'none';
+  const fill = document.getElementById('reading-timer-fill');
+  if (fill) { fill.style.transition = 'none'; fill.style.width = '0%'; }
+}
+
+// ── Progress badges on nav/cards ─────────────────────────────
+function _updateProgressBadges() {
+  if (!_progressCache) return;
+
+  // Nav items
+  document.querySelectorAll('.nav-item[data-nocoid]').forEach(a => {
+    const id = a.dataset.nocoid;
+    const prog = _progressCache.get(id);
+    // Remove old badge
+    const old = a.querySelector('.nav-read-badge');
+    if (old) old.remove();
+    if (prog && prog.completed) {
+      const badge = document.createElement('span');
+      badge.className = 'nav-read-badge';
+      badge.innerHTML = '<i class="fas fa-check"></i>';
+      a.appendChild(badge);
+    }
+  });
+
+  // Cards: rebuild to show read chips (easier than patching DOM)
+  // Use a lightweight update: add/remove class on card elements
+  document.querySelectorAll('.content-card[data-nocoid]').forEach(card => {
+    const id = card.dataset.nocoid;
+    const prog = _progressCache.get(id);
+    const existing = card.querySelector('.card-read-chip');
+    if (prog && prog.completed && !existing) {
+      const footer = card.querySelector('.card-footer');
+      if (footer) {
+        const chip = document.createElement('span');
+        chip.className = 'card-read-chip';
+        chip.innerHTML = '<i class="fas fa-check"></i> Đã đọc';
+        footer.prepend(chip);
+      }
+    }
+  });
+}
+
+// ── Lộ trình học panel ────────────────────────────────────────
+function showLoTrinh() {
+  document.getElementById('lo-trinh-overlay').style.display = 'block';
+  document.getElementById('lo-trinh-panel').style.display = 'flex';
+  _renderLoTrinh();
+}
+
+function hideLoTrinh() {
+  document.getElementById('lo-trinh-overlay').style.display = 'none';
+  document.getElementById('lo-trinh-panel').style.display = 'none';
+}
+
+function _updateLoTrinh() {
+  if (!_progressCache || !contentTree) return;
+  const allFiles = flatA(contentTree).filter(f => canViewArticle(f));
+  const doneCount = allFiles.filter(f => {
+    const p = _progressCache.get(String(f.nocoId));
+    return p && p.completed;
+  }).length;
+  const total = allFiles.length;
+  const pct = total ? Math.round(doneCount / total * 100) : 0;
+
+  // Update sidebar trigger
+  const trigger = document.getElementById('lt-trigger');
+  const triggerPct = document.getElementById('lt-trigger-pct');
+  if (trigger) trigger.style.display = 'block';
+  if (triggerPct) triggerPct.textContent = pct + '%';
+
+  // Update panel header stats
+  const doneEl = document.getElementById('lt-done-count');
+  const totalEl = document.getElementById('lt-total-count');
+  const pctEl = document.getElementById('lt-pct-val');
+  const barFill = document.getElementById('lt-overall-fill');
+  if (doneEl) doneEl.textContent = doneCount;
+  if (totalEl) totalEl.textContent = total;
+  if (pctEl) pctEl.textContent = pct + '%';
+  if (barFill) barFill.style.width = pct + '%';
+}
+
+function _renderLoTrinh() {
+  _updateLoTrinh();
+  if (!contentTree) return;
+  const container = document.getElementById('lt-content');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const allFiles = flatA(contentTree).filter(f => canViewArticle(f));
+
+  // Group by folder
+  const grouped = new Map(); // folderName → [items]
+  for (const item of allFiles) {
+    const folder = item.folder || '(Gốc)';
+    if (!grouped.has(folder)) grouped.set(folder, []);
+    grouped.get(folder).push(item);
+  }
+
+  grouped.forEach((items, folder) => {
+    const doneInFolder = items.filter(f => {
+      const p = _progressCache && _progressCache.get(String(f.nocoId));
+      return p && p.completed;
+    }).length;
+    const pct = items.length ? Math.round(doneInFolder / items.length * 100) : 0;
+
+    const section = document.createElement('div');
+    section.className = 'lt-folder-section';
+    section.innerHTML = `
+      <div class="lt-folder-hd">
+        <span class="lt-folder-name"><i class="fas fa-folder" style="color:#60a5fa;margin-right:5px"></i>${esc(folder)}</span>
+        <span class="lt-folder-prog">${doneInFolder}/${items.length}</span>
+      </div>
+      <div class="lt-folder-bar-wrap"><div class="lt-folder-bar-fill" style="width:${pct}%"></div></div>`;
+
+    for (const item of items) {
+      const prog = _progressCache && _progressCache.get(String(item.nocoId));
+      const done = prog && prog.completed;
+      const row = document.createElement('div');
+      row.className = 'lt-article' + (done ? ' done' : '');
+      row.innerHTML = `
+        <div class="lt-dot${done ? ' done' : ''}">${done ? '<i class="fas fa-check"></i>' : ''}</div>
+        <span class="lt-article-name">${esc(item.name)}</span>`;
+      row.onclick = () => { hideLoTrinh(); loadArticle(item); };
+      section.appendChild(row);
+    }
+    container.appendChild(section);
+  });
+}
+
+// Fire-and-forget: báo Worker tăng Views trong Analytics
+function _trackArticleView(articleId) {
+  if (!articleId) return;
+  const proxyBase = (PROXY_URL || 'https://api.gds.edu.vn').replace(/\/$/, '');
+  fetch(`${proxyBase}/api/analytics/view`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ articleId: String(articleId) }),
+  }).catch(() => {});
+}
+
 function _showOfflineBanner(reason) {
   if (document.getElementById('offline-banner')) return;
   const banner = document.createElement('div');
@@ -1926,6 +2333,40 @@ function _showOfflineBanner(reason) {
 }
 
 </script>
+
+<!-- ── LỘ TRÌNH HỌC PANEL ── -->
+<div id="lo-trinh-overlay" onclick="hideLoTrinh()"></div>
+<div id="lo-trinh-panel">
+  <div class="lt-header">
+    <button class="lt-close-btn" onclick="hideLoTrinh()"><i class="fas fa-times"></i></button>
+    <h2><i class="fas fa-route"></i> Lộ trình học</h2>
+    <div class="lt-header-sub">Theo dõi tiến độ học tập của bạn</div>
+  </div>
+  <div class="lt-summary">
+    <div class="lt-stat">
+      <div class="lt-stat-val" id="lt-done-count">0</div>
+      <div class="lt-stat-lbl">Bài đã đọc</div>
+    </div>
+    <div class="lt-stat">
+      <div class="lt-stat-val" id="lt-total-count">0</div>
+      <div class="lt-stat-lbl">Tổng bài</div>
+    </div>
+    <div class="lt-stat">
+      <div class="lt-stat-val" id="lt-pct-val">0%</div>
+      <div class="lt-stat-lbl">Hoàn thành</div>
+    </div>
+  </div>
+  <div class="lt-overall-bar-wrap">
+    <div class="lt-overall-bar-track">
+      <div class="lt-overall-bar-fill" id="lt-overall-fill" style="width:0%"></div>
+    </div>
+  </div>
+  <div id="lt-content">
+    <div style="padding:40px;text-align:center;color:var(--text-muted)">
+      <i class="fas fa-circle-notch fa-spin"></i><br><br>Đang tải...
+    </div>
+  </div>
+</div>
 
 <!-- ── PROFILE MODAL ── -->
 <div id="profile-modal">

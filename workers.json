@@ -1,0 +1,513 @@
+/**
+ * ActiveEdu Proxy Worker
+ * - Public: /api/articles, /api/folders, /api/permissions
+ * - Auth:   /api/auth/login (hash-verify password, trả JWT-like token)
+ * - Admin:  /admin/* (yêu cầu Admin-Password header)
+ * Password hash: SHA-256 + SALT (Web Crypto API)
+ */
+
+const PUBLIC_ROUTES = {
+  '/api/articles':    env => `/api/v2/tables/${env.NOCO_ARTICLE}/records`,
+  '/api/folders':     env => `/api/v2/tables/${env.NOCO_FOLDERS}/records`,
+  '/api/permissions': env => `/api/v2/tables/${env.NOCO_PERMS}/records`,
+};
+
+const ADMIN_ROUTES = {
+  '/admin/articles':    env => `/api/v2/tables/${env.NOCO_ARTICLE}/records`,
+  '/admin/users':       env => `/api/v2/tables/${env.NOCO_USERS}/records`,
+  '/admin/folders':     env => `/api/v2/tables/${env.NOCO_FOLDERS}/records`,
+  '/admin/permissions': env => `/api/v2/tables/${env.NOCO_PERMS}/records`,
+  '/admin/fields/articles': env => `/api/v2/tables/${env.NOCO_ARTICLE}/fields`,
+  '/admin/fields/users':    env => `/api/v2/tables/${env.NOCO_USERS}/fields`,
+};
+
+const CACHE_TTL = {
+  '/api/articles':    120,
+  '/api/folders':     300,
+  '/api/permissions': 60,
+};
+
+// ── SHA-256 hash ──
+async function sha256(text) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+// Hash password với salt cố định (PASS_SALT env var)
+async function hashPassword(plain, salt) {
+  return sha256(salt + plain + salt);
+}
+
+// Tạo simple session token (không cần JWT library)
+async function makeToken(userId, email, role, secret) {
+  const payload = `${userId}:${email}:${role}:${Date.now()}`;
+  const sig = await sha256(secret + payload);
+  return btoa(payload) + '.' + sig.slice(0, 16);
+}
+
+async function verifyToken(token, secret) {
+  try {
+    const [b64, sig] = token.split('.');
+    const payload = atob(b64);
+    const expected = (await sha256(secret + payload)).slice(0, 16);
+    if (sig !== expected) return null;
+    const [userId, email, role, ts] = payload.split(':');
+    // Token hết hạn sau 24h
+    if (Date.now() - Number(ts) > 86400000) return null;
+    return { userId, email, role };
+  } catch { return null; }
+}
+
+async function nocoFetch(env, path, method, body) {
+  const r = await fetch(`${env.NOCO_URL}${path}`, {
+    method: method || 'GET',
+    headers: { 'xc-token': env.NOCO_TOKEN, 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  return r;
+}
+
+// Rate Limiter — dùng KV nếu có, fallback in-memory
+const _mem = new Map();
+
+async function checkRateLimit(ip, env, prefix = 'rl') {
+  const key = `${prefix}:${ip || 'unknown'}`;
+  const maxAttempts = 5;
+  const windowSec = 900; // 15 phút
+
+  // Nếu có KV binding (RATE_LIMIT_KV) → dùng persistent
+  if (env.RATE_LIMIT_KV) {
+    try {
+      const raw = await env.RATE_LIMIT_KV.get(key);
+      const data = raw ? JSON.parse(raw) : { count: 0 };
+      data.count++;
+      await env.RATE_LIMIT_KV.put(key, JSON.stringify(data), { expirationTtl: windowSec });
+      if (data.count > maxAttempts) return { allowed: false, count: data.count };
+      return { allowed: true, count: data.count };
+    } catch {}
+  }
+
+  // Fallback: in-memory (resets khi Worker restart)
+  const now = Date.now();
+  const entry = _mem.get(key) || { count: 0, resetAt: now + windowSec * 1000 };
+  if (now > entry.resetAt) { entry.count = 0; entry.resetAt = now + windowSec * 1000; }
+  entry.count++;
+  _mem.set(key, entry);
+  return { allowed: entry.count <= maxAttempts, count: entry.count };
+}
+
+async function clearRateLimit(ip, env, prefix = 'rl') {
+  const key = `${prefix}:${ip || 'unknown'}`;
+  if (env.RATE_LIMIT_KV) {
+    try { await env.RATE_LIMIT_KV.delete(key); } catch {}
+  }
+  _mem.delete(key);
+}
+
+
+// ── Google Drive Service Account helpers ──
+async function getServiceAccountToken(env) {
+  // env.GDRIVE_SA_JSON = JSON string of service account credentials
+  const sa = JSON.parse(env.GDRIVE_SA_JSON || '{}');
+  if (!sa.private_key) throw new Error('GDRIVE_SA_JSON chưa được cấu hình trong Worker env');
+
+  const now = Math.floor(Date.now() / 1000);
+  const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+  const claim = btoa(JSON.stringify({
+    iss: sa.client_email,
+    scope: 'https://www.googleapis.com/auth/drive.file',
+    aud: 'https://oauth2.googleapis.com/token',
+    exp: now + 3600,
+    iat: now,
+  })).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+
+  const sigInput = `${header}.${claim}`;
+  // Import RSA private key
+  const pemBody = sa.private_key.replace(/-----[^-]+-----/g,'').replace(/\s/g,'');
+  const keyData = Uint8Array.from(atob(pemBody), c => c.charCodeAt(0));
+  const cryptoKey = await crypto.subtle.importKey(
+    'pkcs8', keyData,
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false, ['sign']
+  );
+  const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', cryptoKey, new TextEncoder().encode(sigInput));
+  const sigB64 = btoa(String.fromCharCode(...new Uint8Array(sig))).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+  const jwt = `${sigInput}.${sigB64}`;
+
+  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`
+  });
+  const tokenData = await tokenRes.json();
+  if (!tokenData.access_token) throw new Error('Không lấy được Drive token: ' + JSON.stringify(tokenData));
+  return tokenData.access_token;
+}
+
+async function uploadToDrive(env, fileName, htmlContent) {
+  const token = await getServiceAccountToken(env);
+  const folderId = env.GDRIVE_FOLDER_ID || ''; // ID thư mục Drive (tuỳ chọn)
+
+  const metadata = { name: fileName, mimeType: 'text/html' };
+  if (folderId) metadata.parents = [folderId];
+
+  const boundary = '-------314159265358979323846';
+  const body = [
+    `--${boundary}`,
+    'Content-Type: application/json; charset=UTF-8',
+    '',
+    JSON.stringify(metadata),
+    `--${boundary}`,
+    'Content-Type: text/html; charset=UTF-8',
+    '',
+    htmlContent,
+    `--${boundary}--`,
+  ].join('\r\n');
+
+  const uploadRes = await fetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webContentLink',
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': `multipart/related; boundary="${boundary}"`,
+      },
+      body,
+    }
+  );
+  if (!uploadRes.ok) {
+    const err = await uploadRes.text();
+    throw new Error('Drive upload error: ' + err);
+  }
+  const file = await uploadRes.json();
+
+  // Set file public readable
+  await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}/permissions`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ role: 'reader', type: 'anyone' }),
+  });
+
+  return file;
+}
+
+async function fetchFromDrive(env, fileId) {
+  const token = await getServiceAccountToken(env);
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  if (!res.ok) throw new Error('Drive fetch error: ' + res.status);
+  return res.text();
+}
+
+export default {
+  async fetch(request, env) {
+    const cors = {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Admin-Password, Authorization',
+    };
+    // Security headers thêm vào mọi response
+    const securityHeaders = {
+      'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'Referrer-Policy': 'strict-origin-when-cross-origin',
+      'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+    };
+
+    const json = (data, status) => new Response(JSON.stringify(data), {
+      status: status || 200,
+      headers: { ...cors, ...securityHeaders, 'Content-Type': 'application/json' }
+    });
+
+    if (request.method === 'OPTIONS') return new Response(null, { headers: cors });
+
+    const url = new URL(request.url);
+    const path = url.pathname;
+
+    // ── Health ──
+    if (path === '/api/health') return json({ ok: true });
+
+    // ── AUTH: Login ──
+    if (path === '/api/auth/login' && request.method === 'POST') {
+      try {
+        const clientIP = request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || 'unknown';
+        const rl = await checkRateLimit(clientIP, env, 'login');
+        if (!rl.allowed) {
+          return json({ error: 'Quá nhiều lần thử. Vui lòng đợi 1 phút.' }, 429);
+        }
+        const { email, password } = await request.json();
+        if (!email || !password) return json({ error: 'Thiếu email hoặc mật khẩu' }, 400);
+
+        // Tìm user theo email
+        const r = await nocoFetch(env,
+          `/api/v2/tables/${env.NOCO_USERS}/records?where=(Email,eq,${encodeURIComponent(email)})&limit=1`
+        );
+        const data = await r.json();
+        const user = (data.list || [])[0];
+        if (!user) return json({ error: 'Email hoặc mật khẩu không đúng' }, 401);
+
+        // Kiểm tra trạng thái
+        const status = user.Status || user.TrangThai || 'active';
+        if (status === 'inactive' || status === 'banned') {
+          return json({ error: 'Tài khoản đã bị vô hiệu hóa' }, 403);
+        }
+
+        // Verify password — hỗ trợ cả plain text (cũ) và hash (mới)
+        const storedPass = user.Password || user.MatKhau || '';
+        const salt = env.PASS_SALT || 'activeedu_salt';
+        const hashed = await hashPassword(password, salt);
+
+        const isHash = storedPass.length === 64; // SHA-256 hex = 64 chars
+        const valid = isHash
+          ? storedPass === hashed
+          : storedPass === password; // fallback plain text cũ
+
+        if (!valid) return json({ error: 'Email hoặc mật khẩu không đúng' }, 401);
+
+        // Nếu pass vẫn plain text → tự động upgrade lên hash
+        if (!isHash) {
+          await nocoFetch(env,
+            `/api/v2/tables/${env.NOCO_USERS}/records`,
+            'PATCH',
+            [{ Id: user.Id, Password: hashed, MatKhau: hashed }]
+          );
+        }
+
+        // Login thành công → xóa rate limit
+        await clearRateLimit(clientIP, env, 'login');
+        // Tạo session token
+        const secret = env.TOKEN_SECRET || 'activeedu_secret';
+        const token = await makeToken(user.Id, email, user.Role || user.VaiTro || 'student', secret);
+
+        return json({
+          token,
+          user: {
+            id: user.Id,
+            email,
+            displayName: user.FullName || user.HoTen || user.Name || email,
+            role: user.Role || user.VaiTro || 'student',
+          }
+        });
+      } catch(e) {
+        return json({ error: 'Lỗi server: ' + e.message }, 500);
+      }
+    }
+
+    // ── AUTH: Change Password ──
+    if (path === '/api/auth/change-password' && request.method === 'POST') {
+      try {
+        const authHeader = request.headers.get('Authorization') || '';
+        const token = authHeader.replace('Bearer ', '');
+        const secret = env.TOKEN_SECRET || 'activeedu_secret';
+        const session = await verifyToken(token, secret);
+        if (!session) return json({ error: 'Phiên đăng nhập hết hạn' }, 401);
+
+        const { oldPassword, newPassword } = await request.json();
+        if (!oldPassword || !newPassword) return json({ error: 'Thiếu thông tin' }, 400);
+        if (newPassword.length < 6) return json({ error: 'Mật khẩu mới tối thiểu 6 ký tự' }, 400);
+
+        // Lấy user hiện tại
+        const r = await nocoFetch(env, `/api/v2/tables/${env.NOCO_USERS}/records/${session.userId}`);
+        const user = await r.json();
+        const storedPass = user.Password || user.MatKhau || '';
+        const salt = env.PASS_SALT || 'activeedu_salt';
+        const oldHashed = await hashPassword(oldPassword, salt);
+
+        const isHash = storedPass.length === 64;
+        const valid = isHash ? storedPass === oldHashed : storedPass === oldPassword;
+        if (!valid) return json({ error: 'Mật khẩu hiện tại không đúng' }, 401);
+
+        const newHashed = await hashPassword(newPassword, salt);
+        await nocoFetch(env,
+          `/api/v2/tables/${env.NOCO_USERS}/records`,
+          'PATCH',
+          [{ Id: session.userId, Password: newHashed, MatKhau: newHashed }]
+        );
+        return json({ ok: true });
+      } catch(e) {
+        return json({ error: e.message }, 500);
+      }
+    }
+
+    // ── AUTH: Get Profile ──
+    if (path === '/api/auth/me' && request.method === 'GET') {
+      const authHeader = request.headers.get('Authorization') || '';
+      const token = authHeader.replace('Bearer ', '');
+      const secret = env.TOKEN_SECRET || 'activeedu_secret';
+      const session = await verifyToken(token, secret);
+      if (!session) return json({ error: 'Unauthorized' }, 401);
+
+      const r = await nocoFetch(env, `/api/v2/tables/${env.NOCO_USERS}/records/${session.userId}`);
+      if (!r.ok) return json({ error: 'User not found' }, 404);
+      const user = await r.json();
+      // Không trả về password
+      const { Password, MatKhau, ...safeUser } = user;
+      return json(safeUser);
+    }
+
+    // ── ADMIN: Upload HTML to Google Drive ──
+    if (path === '/admin/drive-upload' && request.method === 'POST') {
+      const pwd = request.headers.get('Admin-Password');
+      if (!pwd || pwd !== env.ADMIN_PASSWORD) return json({ error: 'Unauthorized' }, 401);
+      try {
+        const { fileName, content: htmlContent } = await request.json();
+        if (!htmlContent) return json({ error: 'Thiếu content' }, 400);
+        const file = await uploadToDrive(env, (fileName || 'article') + '.html', htmlContent);
+        return json({ fileId: file.id, name: file.name, link: file.webContentLink });
+      } catch(e) {
+        return json({ error: e.message }, 500);
+      }
+    }
+
+    // ── ADMIN: Fetch HTML from Google Drive (proxy tránh CORS) ──
+    if (path === '/admin/drive-fetch' && request.method === 'GET') {
+      const pwd = request.headers.get('Admin-Password');
+      if (!pwd || pwd !== env.ADMIN_PASSWORD) return json({ error: 'Unauthorized' }, 401);
+      try {
+        const fileId = url.searchParams.get('fileId');
+        if (!fileId) return json({ error: 'Thiếu fileId' }, 400);
+        const html = await fetchFromDrive(env, fileId);
+        return new Response(html, { status: 200, headers: { ...cors, 'Content-Type': 'text/html; charset=utf-8' } });
+      } catch(e) {
+        return json({ error: e.message }, 500);
+      }
+    }
+
+    // ── ADMIN ROUTES ──
+    let adminNoco = null;
+    for (const [route, resolver] of Object.entries(ADMIN_ROUTES)) {
+      if (path.startsWith(route)) {
+        adminNoco = resolver(env) + path.slice(route.length);
+        break;
+      }
+    }
+    if (adminNoco !== null) {
+      const clientIP = request.headers.get('CF-Connecting-IP') || 'unknown';
+
+      // Chỉ cho phép quốc gia được phép (nếu có cấu hình ALLOWED_COUNTRIES)
+      const country = request.headers.get('CF-IPCountry') || '';
+      const allowedCountries = (env.ALLOWED_COUNTRIES || 'VN').split(',').map(c => c.trim());
+      if (country && !allowedCountries.includes(country) && !allowedCountries.includes('*')) {
+        return json({ error: 'Access denied from your region' }, 403);
+      }
+
+      // Kiểm tra rate limit admin
+      const adminRl = await checkRateLimit(clientIP, env, 'admin');
+      if (!adminRl.allowed) {
+        return json({ error: `Quá nhiều lần thử (${adminRl.count}). Bị khóa 15 phút.` }, 429);
+      }
+
+      const pwd = request.headers.get('Admin-Password');
+      if (!pwd || pwd !== env.ADMIN_PASSWORD) {
+        return json({ error: 'Unauthorized' }, 401);
+      }
+      // Reset rate limit khi đúng pass
+      await clearRateLimit(clientIP, env, 'admin');
+      const body = ['GET','HEAD'].includes(request.method) ? undefined : await request.text();
+      const r = await fetch(`${env.NOCO_URL}${adminNoco}${url.search}`, {
+        method: request.method,
+        headers: { 'xc-token': env.NOCO_TOKEN, 'Content-Type': 'application/json' },
+        body,
+      });
+      return new Response(await r.text(), {
+        status: r.status,
+        headers: { ...cors, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // ── PUBLIC ROUTES ──
+    let nocoPath = null, matchedRoute = null;
+    for (const [route, resolver] of Object.entries(PUBLIC_ROUTES)) {
+      if (path.startsWith(route)) {
+        nocoPath = resolver(env) + path.slice(route.length);
+        matchedRoute = route;
+        break;
+      }
+    }
+    if (!nocoPath) return json({ error: 'Not found' }, 404);
+
+    // ── Lazy-load: strip Content từ list response của /api/articles ──
+    // Khi client request list (không có /:id), luôn inject fields= để loại Content
+    // Khi client request single record (/api/articles/:id) → trả đủ fields (cần Content)
+    const isArticleList = matchedRoute === '/api/articles' && !path.slice('/api/articles'.length).match(/^\/\d+/);
+    let finalSearch = url.search;
+    if (isArticleList) {
+      const sp = new URLSearchParams(url.search);
+      if (!sp.has('fields')) {
+        sp.set('fields', 'Id,Title,Path,Folder,Access,Updated,Description');
+      } else {
+        // Nếu client đã chỉ định fields, đảm bảo không có Content
+        const reqFields = sp.get('fields').split(',').map(f => f.trim()).filter(f => f !== 'Content');
+        sp.set('fields', reqFields.join(','));
+      }
+      finalSearch = '?' + sp.toString();
+    }
+
+    // ── Server-side auth: bài private single fetch cần token hợp lệ ──
+    // Áp dụng khi /api/articles?where=(Path,eq,...) và bài là private
+    // Kiểm tra đơn giản: nếu có Authorization header → verify token
+    // Worker không query DB để kiểm tra Access của bài (quá nặng) —
+    // thay vào đó: nếu bài là private và token invalid → trả Content rỗng sau khi fetch
+    const isArticleSingleWhere = matchedRoute === '/api/articles' && url.searchParams.get('where');
+    let userSession = null;
+    if (isArticleSingleWhere) {
+      const authHeader = request.headers.get('Authorization') || '';
+      const token = authHeader.replace('Bearer ', '');
+      if (token) {
+        const secret = env.TOKEN_SECRET || 'activeedu_secret';
+        userSession = await verifyToken(token, secret);
+      }
+    }
+
+    const nocoUrl = `${env.NOCO_URL}${nocoPath}${finalSearch}`;
+    const isGet = request.method === 'GET';
+    const ttl = CACHE_TTL[matchedRoute] || 60;
+
+    if (isGet && !isArticleSingleWhere) {
+      // Chỉ cache list requests, không cache single article fetch
+      const cached = await caches.default.match(nocoUrl);
+      if (cached) {
+        return new Response(await cached.text(), {
+          headers: { ...cors, 'Content-Type': 'application/json', 'X-Cache': 'HIT' }
+        });
+      }
+    }
+
+    const body = isGet ? undefined : await request.text();
+    let nocoResp;
+    for (let i = 0; i < 3; i++) {
+      nocoResp = await fetch(nocoUrl, {
+        method: request.method,
+        headers: { 'xc-token': env.NOCO_TOKEN, 'Content-Type': 'application/json' },
+        body,
+      });
+      if (nocoResp.status !== 429) break;
+      await new Promise(r => setTimeout(r, 500 * (i + 1)));
+    }
+
+    let data = await nocoResp.text();
+
+    // ── Strip Content nếu bài private và không có token hợp lệ ──
+    if (isArticleSingleWhere && nocoResp.ok) {
+      try {
+        const parsed = JSON.parse(data);
+        const rows = parsed.list || [];
+        for (const row of rows) {
+          if (row.Access === 'private' && !userSession) {
+            row.Content = null; // Không trả Content cho bài private khi chưa đăng nhập
+          }
+        }
+        data = JSON.stringify(parsed);
+      } catch {}
+    }
+
+    const response = new Response(data, {
+      status: nocoResp.status,
+      headers: { ...cors, 'Content-Type': 'application/json', 'Cache-Control': isGet && !isArticleSingleWhere ? `public, max-age=${ttl}` : 'no-store' }
+    });
+    if (isGet && nocoResp.ok && !isArticleSingleWhere) await caches.default.put(nocoUrl, response.clone());
+    return response;
+  }
+};
