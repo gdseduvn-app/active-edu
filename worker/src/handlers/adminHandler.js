@@ -128,26 +128,25 @@ export async function handleSafeCourseDelete(request, env, { cors, json }) {
 
   try {
     for (const courseId of ids) {
-      const courseSnap = await nocoFetch(env, `/api/v2/tables/${env.NOCO_COURSES}/records/${courseId}`);
-      const courseRecord = courseSnap.ok ? await courseSnap.json() : null;
-
       // 1. Lấy tất cả modules thuộc course
       const moduleIds = await _getChildIds(env, 'NOCO_MODULES', 'CourseId', courseId);
       for (const mod of moduleIds) {
-        // 2. Unlink articles khỏi module
+        // 2. Unlink articles khỏi module (set ModuleId = null)
         const artIds = await _getChildIds(env, 'NOCO_ARTICLE', 'ModuleId', mod.Id);
         if (artIds.length) {
           const unlinkPayload = artIds.map(a => ({ Id: a.Id, ModuleId: null, ItemType: null, Position: null }));
           await nocoFetch(env, `/api/v2/tables/${env.NOCO_ARTICLE}/records`, 'PATCH', unlinkPayload);
         }
-        // 3. Soft-delete module
-        await _softDelete(env, 'NOCO_MODULES', [mod.Id], _adminActor);
-        _audit(env, 'delete', 'Modules', mod.Id, _adminActor, { Id: mod.Id }, null);
+        // 3. Hard-delete module
+        await nocoFetch(env, `/api/v2/tables/${env.NOCO_MODULES}/records`, 'DELETE', [{ Id: mod.Id }]);
         cascadeCount++;
       }
-      // 4. Delete course (soft nếu có DeletedAt, hard nếu không)
-      await _softDelete(env, 'NOCO_COURSES', [courseId], _adminActor);
-      _audit(env, 'delete', 'Courses', courseId, _adminActor, courseRecord, null);
+      // 4. Hard-delete course
+      const dr = await nocoFetch(env, `/api/v2/tables/${env.NOCO_COURSES}/records`, 'DELETE', [{ Id: courseId }]);
+      if (!dr.ok) {
+        const errText = await dr.text().catch(() => '');
+        throw new Error(`NocoDB delete course failed (${dr.status}): ${errText}`);
+      }
     }
   } catch (e) {
     return json({ error: e.message || 'Delete failed' }, 500);
@@ -165,10 +164,7 @@ export async function handleSafeModuleDelete(request, env, { cors, json }) {
   const _modActor = { userId: 0, email: 'admin' };
   try {
     for (const modId of ids) {
-      const modSnap = await nocoFetch(env, `/api/v2/tables/${env.NOCO_MODULES}/records/${modId}`);
-      const modRecord = modSnap.ok ? await modSnap.json() : null;
-
-      // Unlink articles
+      // Unlink articles (set ModuleId = null)
       const artIds = await _getChildIds(env, 'NOCO_ARTICLE', 'ModuleId', modId);
       if (artIds.length) {
         const unlinkPayload = artIds.map(a => ({ Id: a.Id, ModuleId: null, Position: null }));
@@ -182,8 +178,12 @@ export async function handleSafeModuleDelete(request, env, { cors, json }) {
           await nocoFetch(env, `/api/v2/tables/${env.NOCO_EXAMS}/records`, 'PATCH', unlinkExams);
         }
       }
-      await _softDelete(env, 'NOCO_MODULES', [modId], _modActor);
-      _audit(env, 'delete', 'Modules', modId, _modActor, modRecord, null);
+      // Hard-delete module
+      const dr = await nocoFetch(env, `/api/v2/tables/${env.NOCO_MODULES}/records`, 'DELETE', [{ Id: modId }]);
+      if (!dr.ok) {
+        const errText = await dr.text().catch(() => '');
+        throw new Error(`NocoDB delete module failed (${dr.status}): ${errText}`);
+      }
     }
   } catch (e) {
     return json({ error: e.message || 'Delete failed' }, 500);
@@ -242,15 +242,15 @@ export async function handleSafeExamDelete(request, env, { cors, json }) {
   let sectionCount = 0;
   try {
     for (const examId of ids) {
-      const examSnap = await nocoFetch(env, `/api/v2/tables/${env.NOCO_EXAMS}/records/${examId}`);
-      const examRecord = examSnap.ok ? await examSnap.json() : null;
-
-      // Hard-delete sections (children, no soft-delete)
+      // Hard-delete sections trước
       const deleted = await _cascadeDelete(env, 'NOCO_EXAM_SECTIONS', 'ExamId', examId);
       sectionCount += deleted;
-      // Soft-delete exam
-      await _softDelete(env, 'NOCO_EXAMS', [examId], _examActor);
-      _audit(env, 'delete', 'Exams', examId, _examActor, examRecord, null);
+      // Hard-delete exam
+      const dr = await nocoFetch(env, `/api/v2/tables/${env.NOCO_EXAMS}/records`, 'DELETE', [{ Id: examId }]);
+      if (!dr.ok) {
+        const errText = await dr.text().catch(() => '');
+        throw new Error(`NocoDB delete exam failed (${dr.status}): ${errText}`);
+      }
     }
   } catch (e) {
     return json({ error: e.message || 'Delete failed' }, 500);
@@ -274,10 +274,11 @@ export async function handleSafeQuestionBankDelete(request, env, { cors, json })
         }, 409);
       }
     }
-    const _qbActor = { userId: 0, email: 'admin' };
-    await _softDelete(env, 'NOCO_QBANK', ids, _qbActor);
-    for (const bankId of ids) {
-      _audit(env, 'delete', 'QuestionBank', bankId, _qbActor, { Id: bankId }, null);
+    // Hard-delete ngân hàng
+    const dr = await nocoFetch(env, `/api/v2/tables/${env.NOCO_QBANK}/records`, 'DELETE', ids.map(id => ({ Id: id })));
+    if (!dr.ok) {
+      const errText = await dr.text().catch(() => '');
+      throw new Error(`NocoDB delete qbank failed (${dr.status}): ${errText}`);
     }
   } catch (e) {
     return json({ error: e.message || 'Delete failed' }, 500);
