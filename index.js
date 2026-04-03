@@ -96,6 +96,11 @@ async function doUserLogin() {
       buildCards(contentTree);
       loadUserProgress(); // load progress after login
       if (pendingPrivateItem) { loadArticle(pendingPrivateItem); pendingPrivateItem = null; }
+      else if (currentArticleId) {
+        // Restart reading timer for article already loaded before login
+        const _cur = findItemById(contentTree, currentArticleId);
+        if (_cur) _startProgressTracking(_cur);
+      }
       if (btn) btn.disabled = false;
       return;
     }
