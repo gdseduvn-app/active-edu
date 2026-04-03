@@ -1,36 +1,34 @@
 /**
- * ActiveEdu Proxy Worker
- * ─────────────────────────────────────────────────────────────
- * Architecture: GitHub Pages (static) → Cloudflare Worker → NocoDB
- *
- * ENV VARS required (set via Wrangler secrets or dashboard):
- *   NOCO_URL          NocoDB base URL (e.g. https://noco.yourserver.com)
- *   NOCO_TOKEN        NocoDB API token (xc-token)
- *   NOCO_ARTICLE      NocoDB table ID for Articles
- *   NOCO_USERS        NocoDB table ID for Users
- *   NOCO_FOLDERS      NocoDB table ID for Folders
- *   NOCO_PERMS        NocoDB table ID for Permissions
- *   NOCO_PROGRESS     NocoDB table ID for Progress (UserId, ArticleId, Completed, Score, CompletedAt, Reactions)
- *   NOCO_QUIZ         NocoDB table ID for Quiz     (ArticleId, Questions[JSON], CreatedAt)
- *   NOCO_ANALYTICS    NocoDB table ID for Analytics(ArticleId, Views, AvgScore, FeedbackCounts[JSON])
- *   ADMIN_PASSWORD    Admin password (checked on every /admin/* request)
- *   PASS_SALT         Salt for SHA-256 password hashing
- *   TOKEN_SECRET      Secret for signing session tokens
- *   ALLOWED_COUNTRIES Comma-separated ISO country codes, or '*' (default: VN)
- *
- * OPTIONAL ENV:
- *   RATE_LIMIT_KV     KV namespace binding for persistent rate limiting
- *   GDRIVE_SA_JSON    Google Drive Service Account JSON (for Drive upload)
- *   GDRIVE_FOLDER_ID  Google Drive folder ID
- *
- * Password hashing strategy:
- *   - New passwords: SHA-256(PASS_SALT + plain + PASS_SALT)
- *   - Stored as 64-char hex string
- *   - Legacy plain-text passwords auto-upgraded on first login
- *   - Admin creating/updating users: Worker hashes before writing to NocoDB
+ * ActiveEdu Proxy Worker — thin router
+ * All business logic lives in src/handlers/*.js and src/*.js
  */
 
-// ── Route tables ─────────────────────────────────────────────
+import { getTokenSecret, verifyToken, verifyAdminAuth } from './src/auth.js';
+import { nocoFetch, fetchAll } from './src/db.js';
+import { checkRateLimit, idempotencyCheck, idempotencyStore, getCors, SEC_HEADERS, makeJson } from './src/middleware.js';
+import { _audit } from './src/integrity.js';
+import { checkModuleUnlock, checkPrerequisites } from './src/prerequisites.js';
+
+// Handler imports
+import { handleAdminAuth, handleLogin, handleChangePassword, handleMe, handleForgotPassword, handleResetPassword } from './src/handlers/authHandler.js';
+import { handleProgressGet, handleProgressPost, handleReactions, handleAnalyticsView } from './src/handlers/progressHandler.js';
+import { handleQuizGet, handleQuizSubmit } from './src/handlers/quizHandler.js';
+import { handleExamList, handleQBankList, handleExamGet, handleExamSubmit } from './src/handlers/examHandler.js';
+import { handlePrereqCheck, handleModuleUnlock, handleCourseUnlockStatus } from './src/handlers/courseHandler.js';
+import { handleSocratic } from './src/handlers/aiHandler.js';
+import { handleDriveUpload, handleDriveFetch } from './src/handlers/driveHandler.js';
+import {
+  handleAdminUsers,
+  handleModuleItemToggle,
+  handleSafeModuleCreate,
+  handleSafeCourseDelete,
+  handleSafeModuleDelete,
+  handleSafeExamSectionCreate,
+  handleSafeExamDelete,
+  handleSafeQuestionBankDelete,
+} from './src/handlers/adminHandler.js';
+
+// ── Route tables ──────────────────────────────────────────────
 
 const PUBLIC_ROUTES = {
   '/api/articles':    env => `/api/v2/tables/${env.NOCO_ARTICLE}/records`,
@@ -40,7 +38,6 @@ const PUBLIC_ROUTES = {
   '/api/modules':     env => `/api/v2/tables/${env.NOCO_MODULES}/records`,
 };
 
-/** Admin routes that proxy directly to NocoDB (after auth check) */
 const ADMIN_PROXY_ROUTES = {
   '/admin/articles':        env => `/api/v2/tables/${env.NOCO_ARTICLE}/records`,
   '/admin/folders':         env => `/api/v2/tables/${env.NOCO_FOLDERS}/records`,
@@ -57,495 +54,23 @@ const ADMIN_PROXY_ROUTES = {
   '/admin/fields/users':    env => `/api/v2/tables/${env.NOCO_USERS}/fields`,
 };
 
-/** Cache TTL in seconds for public GET routes */
 const CACHE_TTL = {
-  '/api/articles':    120,
-  '/api/folders':     300,
-  '/api/permissions': 60,
-  '/api/courses':     120,
-  '/api/modules':     60,
+  '/api/articles':       120,
+  '/api/folders':        300,
+  '/api/permissions':    60,
+  '/api/courses':        120,
+  '/api/modules':        60,
+  '/api/exams':          300,
+  '/api/question-banks': 600,
 };
-
-// ── Crypto helpers ────────────────────────────────────────────
-
-async function sha256(text) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-/** Hash password: SHA-256(salt + plain + salt) → 64-char hex */
-async function hashPassword(plain, salt) {
-  return sha256(salt + plain + salt);
-}
-
-function isHashed(storedPass) {
-  return typeof storedPass === 'string' && storedPass.length === 64 && /^[0-9a-f]+$/.test(storedPass);
-}
-
-// ── Session token ─────────────────────────────────────────────
-
-/** Create a signed session token (8h expiry) */
-async function makeToken(userId, email, role, secret) {
-  const payload = `${userId}:${email}:${role}:${Date.now()}`;
-  const sig = await sha256(secret + payload);
-  return btoa(payload) + '.' + sig.slice(0, 32);
-}
-
-/** Verify token; returns { userId, email, role } or null */
-async function verifyToken(token, secret) {
-  try {
-    const [b64, sig] = token.split('.');
-    if (!b64 || !sig) return null;
-    const payload = atob(b64);
-    const expected = (await sha256(secret + payload)).slice(0, 32);
-    if (sig !== expected) return null;
-    const [userId, email, role, ts] = payload.split(':');
-    if (Date.now() - Number(ts) > 8 * 60 * 60 * 1000) return null; // 8h
-    return { userId, email, role };
-  } catch { return null; }
-}
-
-// ── Admin session token (8h, HMAC-signed) ────────────────────
-
-/** Tạo admin token có hạn 8h */
-async function makeAdminToken(secret) {
-  const payload = `admin:${Date.now()}`;
-  const sig = await sha256(secret + payload);
-  return btoa(payload) + '.' + sig.slice(0, 40);
-}
-
-/** Xác minh admin token; trả true nếu hợp lệ */
-async function verifyAdminToken(token, secret) {
-  try {
-    const [b64, sig] = token.split('.');
-    if (!b64 || !sig) return false;
-    const payload = atob(b64);
-    const expected = (await sha256(secret + payload)).slice(0, 40);
-    if (sig !== expected) return false;
-    const [, ts] = payload.split(':');
-    return Date.now() - Number(ts) < 8 * 60 * 60 * 1000; // 8h
-  } catch { return false; }
-}
-
-/**
- * Xác thực admin request.
- * Chấp nhận: Admin-Token (session token) HOẶC Admin-Password (legacy).
- * Trả true nếu hợp lệ.
- */
-async function verifyAdminAuth(request, env) {
-  const adminToken = request.headers.get('Admin-Token');
-  if (adminToken) {
-    const secret = env.TOKEN_SECRET || 'activeedu_secret_2024';
-    return verifyAdminToken(adminToken, secret + ':admin');
-  }
-  // Legacy fallback: plain-text password
-  return request.headers.get('Admin-Password') === env.ADMIN_PASSWORD;
-}
-
-// ── NocoDB fetch helper ───────────────────────────────────────
-
-async function nocoFetch(env, path, method = 'GET', body) {
-  return fetch(`${env.NOCO_URL}${path}`, {
-    method,
-    headers: { 'xc-token': env.NOCO_TOKEN, 'Content-Type': 'application/json' },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
-}
-
-// ── Rate limiter ──────────────────────────────────────────────
-
-const _memRateLimit = new Map();
-
-async function checkRateLimit(ip, env, prefix = 'rl', maxAttempts = 5, windowSec = 900) {
-  const key = `${prefix}:${ip || 'unknown'}`;
-
-  if (env.RATE_LIMIT_KV) {
-    try {
-      const raw = await env.RATE_LIMIT_KV.get(key);
-      const data = raw ? JSON.parse(raw) : { count: 0 };
-      data.count++;
-      await env.RATE_LIMIT_KV.put(key, JSON.stringify(data), { expirationTtl: windowSec });
-      return { allowed: data.count <= maxAttempts, count: data.count };
-    } catch { /* fall through to in-memory */ }
-  }
-
-  const now = Date.now();
-  const entry = _memRateLimit.get(key) || { count: 0, resetAt: now + windowSec * 1000 };
-  if (now > entry.resetAt) { entry.count = 0; entry.resetAt = now + windowSec * 1000; }
-  entry.count++;
-  _memRateLimit.set(key, entry);
-  return { allowed: entry.count <= maxAttempts, count: entry.count };
-}
-
-async function clearRateLimit(ip, env, prefix = 'rl') {
-  const key = `${prefix}:${ip || 'unknown'}`;
-  if (env.RATE_LIMIT_KV) {
-    try { await env.RATE_LIMIT_KV.delete(key); } catch { }
-  }
-  _memRateLimit.delete(key);
-}
-
-// ── Google Drive helpers ──────────────────────────────────────
-
-async function getServiceAccountToken(env) {
-  const sa = JSON.parse(env.GDRIVE_SA_JSON || '{}');
-  if (!sa.private_key) throw new Error('GDRIVE_SA_JSON chưa được cấu hình');
-
-  const now = Math.floor(Date.now() / 1000);
-  const toB64Url = s => btoa(s).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-  const header = toB64Url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
-  const claim = toB64Url(JSON.stringify({
-    iss: sa.client_email,
-    scope: 'https://www.googleapis.com/auth/drive.file',
-    aud: 'https://oauth2.googleapis.com/token',
-    exp: now + 3600, iat: now,
-  }));
-
-  const sigInput = `${header}.${claim}`;
-  const pemBody = sa.private_key.replace(/-----[^-]+-----/g, '').replace(/\s/g, '');
-  const keyData = Uint8Array.from(atob(pemBody), c => c.charCodeAt(0));
-  const cryptoKey = await crypto.subtle.importKey(
-    'pkcs8', keyData,
-    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-    false, ['sign']
-  );
-  const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', cryptoKey, new TextEncoder().encode(sigInput));
-  const sigB64 = btoa(String.fromCharCode(...new Uint8Array(sig))).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-
-  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${sigInput}.${sigB64}`,
-  });
-  const tokenData = await tokenRes.json();
-  if (!tokenData.access_token) throw new Error('Drive token error: ' + JSON.stringify(tokenData));
-  return tokenData.access_token;
-}
-
-async function uploadToDrive(env, fileName, htmlContent) {
-  const token = await getServiceAccountToken(env);
-  const folderId = env.GDRIVE_FOLDER_ID || '';
-  const metadata = { name: fileName, mimeType: 'text/html' };
-  if (folderId) metadata.parents = [folderId];
-
-  const boundary = '-------activeedu314159265';
-  const body = [
-    `--${boundary}`,
-    'Content-Type: application/json; charset=UTF-8', '',
-    JSON.stringify(metadata),
-    `--${boundary}`,
-    'Content-Type: text/html; charset=UTF-8', '',
-    htmlContent,
-    `--${boundary}--`,
-  ].join('\r\n');
-
-  const uploadRes = await fetch(
-    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webContentLink',
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': `multipart/related; boundary="${boundary}"`,
-      },
-      body,
-    }
-  );
-  if (!uploadRes.ok) throw new Error('Drive upload error: ' + await uploadRes.text());
-  const file = await uploadRes.json();
-
-  // Make file publicly readable
-  await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}/permissions`, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ role: 'reader', type: 'anyone' }),
-  });
-  return file;
-}
-
-async function fetchFromDrive(env, fileId) {
-  const token = await getServiceAccountToken(env);
-  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
-    headers: { 'Authorization': `Bearer ${token}` },
-  });
-  if (!res.ok) throw new Error('Drive fetch error: ' + res.status);
-  return res.text();
-}
-
-// ── Admin user helpers (with server-side password hashing) ────
-
-/**
- * Hash Password/MatKhau fields in a user payload before writing to NocoDB.
- * Called for both POST (create) and PATCH (update) on /admin/users.
- */
-async function hashUserPayload(payload, env) {
-  const salt = env.PASS_SALT || 'activeedu_salt_2024';
-  const plain = payload.Password || payload.MatKhau;
-  if (!plain) return payload;
-  if (isHashed(plain)) return payload; // already hashed, skip
-
-  const hashed = await hashPassword(plain, salt);
-  return { ...payload, Password: hashed, MatKhau: hashed };
-}
-
-// ── Prerequisites & Unlock helpers (AURA Phase 1) ────────────
-
-/**
- * Parse chuỗi prerequisites thành mảng articleId.
- * VD: "12,34,56" → ["12","34","56"]
- */
-function parsePrerequisites(raw) {
-  if (!raw) return [];
-  return String(raw).split(',').map(s => s.trim()).filter(Boolean);
-}
-
-/**
- * Lấy điểm cao nhất của user cho một articleId (từ Progress).
- * Trả về số hoặc null nếu chưa có record.
- */
-async function _getUserScore(env, userId, articleId) {
-  if (!env.NOCO_PROGRESS) return null;
-  const r = await nocoFetch(env,
-    `/api/v2/tables/${env.NOCO_PROGRESS}/records?where=(UserId,eq,${userId})~and(ArticleId,eq,${encodeURIComponent(articleId)})&limit=1&fields=Completed,Score`
-  );
-  if (!r.ok) return null;
-  const data = await r.json();
-  const row = (data.list || [])[0];
-  return row ? { completed: !!row.Completed, score: row.Score || 0 } : null;
-}
-
-/**
- * Kiểm tra xem user đã đáp ứng prerequisite chưa.
- * Mặc định: bài phải được đánh dấu Completed.
- * Nếu có format "id:score>=N" thì kiểm tra điểm.
- */
-async function checkPrerequisites(env, userId, prerequisiteRaw) {
-  const prereqs = parsePrerequisites(prerequisiteRaw);
-  if (!prereqs.length) return { ok: true };
-
-  for (const p of prereqs) {
-    // Format: "articleId" hoặc "articleId:score>=N"
-    const [articleId, condition] = p.split(':');
-    const progress = await _getUserScore(env, userId, articleId);
-
-    if (!progress) {
-      return { ok: false, missing: articleId, reason: 'Chưa học bài này' };
-    }
-
-    if (condition) {
-      // Parse condition: "score>=80", "score>=60"
-      const m = condition.match(/^score([><=!]+)(\d+)$/);
-      if (m) {
-        const [, op, val] = m;
-        const threshold = parseInt(val);
-        const score = progress.score || 0;
-        let passed = false;
-        if (op === '>=') passed = score >= threshold;
-        else if (op === '>') passed = score > threshold;
-        else if (op === '<=') passed = score <= threshold;
-        else if (op === '<') passed = score < threshold;
-        else if (op === '==' || op === '=') passed = score === threshold;
-        if (!passed) {
-          return { ok: false, missing: articleId, reason: `Cần đạt ${threshold}% ở bài #${articleId} (hiện tại: ${score}%)` };
-        }
-      }
-    } else {
-      // Không có condition → chỉ cần Completed
-      if (!progress.completed) {
-        return { ok: false, missing: articleId, reason: `Chưa hoàn thành bài #${articleId}` };
-      }
-    }
-  }
-  return { ok: true };
-}
-
-/**
- * Kiểm tra điều kiện mở khoá module.
- * Format: "module:{moduleId}:score>={N}" hoặc null/empty = luôn mở.
- * Cần Progress records của user, dùng ArticleId = "exam_{examId}" hoặc ArticleId thực.
- */
-async function checkModuleUnlock(env, userId, unlockCondition) {
-  if (!unlockCondition || !unlockCondition.trim()) return { ok: true };
-
-  // Format: module:{moduleId}:score>={N}
-  const m = unlockCondition.match(/^module:(\d+):score([><=!]+)(\d+)$/);
-  if (!m) return { ok: true }; // format không nhận diện → cho qua
-
-  const [, refModuleId, op, val] = m;
-  const threshold = parseInt(val);
-
-  // Lấy tất cả bài trong module đó → tính average score
-  if (!env.NOCO_ARTICLE) return { ok: true };
-  const artR = await nocoFetch(env,
-    `/api/v2/tables/${env.NOCO_ARTICLE}/records?where=(ModuleId,eq,${refModuleId})&fields=Id&limit=200`
-  );
-  if (!artR.ok) return { ok: true };
-  const artData = await artR.json();
-  const articleIds = (artData.list || []).map(a => String(a.Id));
-  if (!articleIds.length) return { ok: true };
-
-  // Lấy progress của user cho các bài này
-  if (!env.NOCO_PROGRESS) return { ok: true };
-  const scores = [];
-  for (const aid of articleIds) {
-    const p = await _getUserScore(env, userId, aid);
-    if (p && p.score) scores.push(p.score);
-  }
-
-  const avgScore = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
-  let passed = false;
-  if (op === '>=') passed = avgScore >= threshold;
-  else if (op === '>') passed = avgScore > threshold;
-  else passed = avgScore >= threshold; // fallback
-
-  if (!passed) {
-    return {
-      ok: false,
-      reason: `Module ${refModuleId}: cần điểm trung bình ${op}${threshold}% (hiện tại: ${avgScore}%)`,
-      avgScore,
-    };
-  }
-  return { ok: true };
-}
-
-// ── Referential integrity helpers ────────────────────────────
-
-/**
- * Kiểm tra record có tồn tại không.
- * Trả về record nếu có, null nếu không.
- */
-async function _assertExists(env, tableEnvKey, id, label) {
-  if (!id || !env[tableEnvKey]) return { ok: false, error: `${label}: table chưa cấu hình` };
-  const r = await nocoFetch(env, `/api/v2/tables/${env[tableEnvKey]}/records/${id}`);
-  if (!r.ok) return { ok: false, error: `${label} #${id} không tồn tại` };
-  const data = await r.json();
-  if (!data || !data.Id) return { ok: false, error: `${label} #${id} không tồn tại` };
-  return { ok: true, record: data };
-}
-
-/**
- * Đếm số records con đang tham chiếu đến cha.
- * Dùng để chặn xoá cha khi còn con.
- */
-async function _countChildren(env, tableEnvKey, fkField, parentId) {
-  if (!env[tableEnvKey]) return 0;
-  const r = await nocoFetch(env,
-    `/api/v2/tables/${env[tableEnvKey]}/records?where=(${fkField},eq,${parentId})&limit=1&fields=Id`
-  );
-  if (!r.ok) return 0;
-  const data = await r.json();
-  return data.pageInfo?.totalRows ?? (data.list?.length ?? 0);
-}
-
-/**
- * Lấy toàn bộ Id của records con, dùng cho cascade delete.
- */
-async function _getChildIds(env, tableEnvKey, fkField, parentId) {
-  if (!env[tableEnvKey]) return [];
-  const r = await nocoFetch(env,
-    `/api/v2/tables/${env[tableEnvKey]}/records?where=(${fkField},eq,${parentId})&limit=500&fields=Id`
-  );
-  if (!r.ok) return [];
-  const data = await r.json();
-  return (data.list || []).map(row => ({ Id: row.Id }));
-}
-
-/**
- * Cascade delete: xoá tất cả records con của một cha.
- * Trả về số lượng đã xoá.
- */
-async function _cascadeDelete(env, tableEnvKey, fkField, parentId) {
-  const ids = await _getChildIds(env, tableEnvKey, fkField, parentId);
-  if (!ids.length) return 0;
-  // NocoDB bulk delete nhận array of { Id }
-  await nocoFetch(env, `/api/v2/tables/${env[tableEnvKey]}/records`, 'DELETE', ids);
-  return ids.length;
-}
-
-// ── Analytics helpers (fire-and-forget, called from handlers) ─
-
-async function _getOrCreateAnalytics(env, articleId) {
-  const r = await nocoFetch(env,
-    `/api/v2/tables/${env.NOCO_ANALYTICS}/records?where=(ArticleId,eq,${encodeURIComponent(articleId)})&limit=1`
-  );
-  const data = await r.json();
-  return (data.list || [])[0] || null;
-}
-
-async function _updateAnalyticsViews(env, articleId) {
-  const row = await _getOrCreateAnalytics(env, articleId);
-  if (row) {
-    await nocoFetch(env, `/api/v2/tables/${env.NOCO_ANALYTICS}/records`, 'PATCH',
-      [{ Id: row.Id, Views: (row.Views || 0) + 1 }]);
-  } else {
-    await nocoFetch(env, `/api/v2/tables/${env.NOCO_ANALYTICS}/records`, 'POST',
-      { ArticleId: articleId, Views: 1, AvgScore: null, FeedbackCounts: '{"easy":0,"hard":0,"example":0}' });
-  }
-}
-
-async function _updateAnalyticsScore(env, articleId, newScore) {
-  // Recalculate AvgScore from all Progress records for this article
-  const r = await nocoFetch(env,
-    `/api/v2/tables/${env.NOCO_PROGRESS}/records?where=(ArticleId,eq,${encodeURIComponent(articleId)})~and(Score,gt,0)&limit=500&fields=Score`
-  );
-  const data = await r.json();
-  const scores = (data.list || []).map(s => s.Score).filter(s => typeof s === 'number');
-  if (!scores.length) return;
-  const avg = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
-
-  const row = await _getOrCreateAnalytics(env, articleId);
-  if (row) {
-    await nocoFetch(env, `/api/v2/tables/${env.NOCO_ANALYTICS}/records`, 'PATCH',
-      [{ Id: row.Id, AvgScore: avg }]);
-  } else {
-    await nocoFetch(env, `/api/v2/tables/${env.NOCO_ANALYTICS}/records`, 'POST',
-      { ArticleId: articleId, Views: 0, AvgScore: avg, FeedbackCounts: '{"easy":0,"hard":0,"example":0}' });
-  }
-}
-
-async function _updateAnalyticsFeedback(env, articleId, newReaction, oldReaction) {
-  const row = await _getOrCreateAnalytics(env, articleId);
-  let counts = { easy: 0, hard: 0, example: 0 };
-
-  if (row) {
-    try { counts = { ...counts, ...JSON.parse(row.FeedbackCounts || '{}') }; } catch { }
-    // If user changed reaction, decrement old one
-    if (oldReaction && oldReaction !== newReaction && counts[oldReaction] > 0) {
-      counts[oldReaction]--;
-    }
-    counts[newReaction] = (counts[newReaction] || 0) + (oldReaction ? 0 : 1);
-    // If switching reactions, always increment new
-    if (oldReaction && oldReaction !== newReaction) counts[newReaction]++;
-
-    await nocoFetch(env, `/api/v2/tables/${env.NOCO_ANALYTICS}/records`, 'PATCH',
-      [{ Id: row.Id, FeedbackCounts: JSON.stringify(counts) }]);
-  } else {
-    counts[newReaction] = 1;
-    await nocoFetch(env, `/api/v2/tables/${env.NOCO_ANALYTICS}/records`, 'POST',
-      { ArticleId: articleId, Views: 0, AvgScore: null, FeedbackCounts: JSON.stringify(counts) });
-  }
-}
 
 // ── Main fetch handler ────────────────────────────────────────
 
 export default {
   async fetch(request, env) {
-    const cors = {
-      'Access-Control-Allow-Origin': env.ALLOWED_ORIGIN || '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Admin-Password, Admin-Token, Authorization',
-    };
-    const secHeaders = {
-      'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
-      'X-Content-Type-Options': 'nosniff',
-      'X-Frame-Options': 'DENY',
-      'Referrer-Policy': 'strict-origin-when-cross-origin',
-      'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
-    };
-
-    const json = (data, status = 200) => new Response(JSON.stringify(data), {
-      status,
-      headers: { ...cors, ...secHeaders, 'Content-Type': 'application/json' },
-    });
+    const cors = getCors(env);
+    const secHeaders = SEC_HEADERS;
+    const json = makeJson(cors);
 
     if (request.method === 'OPTIONS') return new Response(null, { headers: cors });
 
@@ -555,871 +80,112 @@ export default {
       || request.headers.get('X-Forwarded-For')
       || 'unknown';
 
-    // ── Health check ──────────────────────────────────────────
+    // Shared ctx object passed to handlers
+    const ctx = { path, url, cors, secHeaders, json, clientIP };
+
+    // ── Health check ────────────────────────────────────────
     if (path === '/api/health') return json({ ok: true, ts: Date.now() });
 
-    // ── Admin login → trả session token ─────────────────────
-    if (path === '/admin/auth' && request.method === 'POST') {
-      const rl = await checkRateLimit(clientIP, env, 'admin');
-      if (!rl.allowed) return json({ error: 'Quá nhiều lần thử. Vui lòng đợi 15 phút.' }, 429);
-      const { password } = await request.json().catch(() => ({}));
-      if (!password || password !== env.ADMIN_PASSWORD) {
-        await checkRateLimit(clientIP, env, 'admin'); // tính thêm attempt
-        return json({ error: 'Sai mật khẩu' }, 401);
-      }
-      await clearRateLimit(clientIP, env, 'admin');
-      const secret = env.TOKEN_SECRET || 'activeedu_secret_2024';
-      const token = await makeAdminToken(secret + ':admin');
-      return json({ token, expiresIn: 8 * 3600 });
-    }
+    // ── Auth endpoints ──────────────────────────────────────
+    if (path === '/admin/auth' && request.method === 'POST')
+      return handleAdminAuth(request, env, ctx);
 
-    // ── Student login ─────────────────────────────────────────
-    if (path === '/api/auth/login' && request.method === 'POST') {
-      try {
-        const rl = await checkRateLimit(clientIP, env, 'login');
-        if (!rl.allowed) return json({ error: 'Quá nhiều lần thử. Vui lòng chờ 15 phút.' }, 429);
+    if (path === '/api/auth/login' && request.method === 'POST')
+      return handleLogin(request, env, ctx);
 
-        const { email, password } = await request.json();
-        if (!email || !password) return json({ error: 'Thiếu email hoặc mật khẩu' }, 400);
+    if (path === '/api/auth/change-password' && request.method === 'POST')
+      return handleChangePassword(request, env, ctx);
 
-        const r = await nocoFetch(env,
-          `/api/v2/tables/${env.NOCO_USERS}/records?where=(Email,eq,${encodeURIComponent(email)})&limit=1`
-        );
-        const data = await r.json();
-        const user = (data.list || [])[0];
-        if (!user) return json({ error: 'Email hoặc mật khẩu không đúng' }, 401);
+    if (path === '/api/auth/me' && request.method === 'GET')
+      return handleMe(request, env, ctx);
 
-        const statusVal = user.Status || user.TrangThai || 'active';
-        if (statusVal === 'inactive' || statusVal === 'banned') {
-          return json({ error: 'Tài khoản đã bị vô hiệu hóa' }, 403);
-        }
+    if (path === '/api/auth/forgot-password' && request.method === 'POST')
+      return handleForgotPassword(request, env, ctx);
 
-        const storedPass = user.Password || user.MatKhau || '';
-        const salt = env.PASS_SALT || 'activeedu_salt_2024';
-        const hashed = await hashPassword(password, salt);
+    if (path === '/api/auth/reset-password' && request.method === 'POST')
+      return handleResetPassword(request, env, ctx);
 
-        const valid = isHashed(storedPass) ? storedPass === hashed : storedPass === password;
-        if (!valid) return json({ error: 'Email hoặc mật khẩu không đúng' }, 401);
+    // ── Progress & reactions ────────────────────────────────
+    if (path === '/api/progress' && request.method === 'GET')
+      return handleProgressGet(request, env, ctx);
 
-        // Auto-upgrade legacy plain-text password
-        if (!isHashed(storedPass)) {
-          await nocoFetch(env, `/api/v2/tables/${env.NOCO_USERS}/records`, 'PATCH',
-            [{ Id: user.Id, Password: hashed, MatKhau: hashed }]);
-        }
+    if (path === '/api/progress' && request.method === 'POST')
+      return handleProgressPost(request, env, ctx);
 
-        await clearRateLimit(clientIP, env, 'login');
-        const secret = env.TOKEN_SECRET || 'activeedu_secret_2024';
-        const token = await makeToken(user.Id, email, user.Role || user.VaiTro || 'student', secret);
+    if (path === '/api/reactions' && request.method === 'POST')
+      return handleReactions(request, env, ctx);
 
-        return json({
-          token,
-          user: {
-            id: user.Id,
-            email,
-            displayName: user.FullName || user.HoTen || user.Name || email,
-            role: user.Role || user.VaiTro || 'student',
-          },
-        });
-      } catch (e) {
-        return json({ error: 'Lỗi server' }, 500);
-      }
-    }
+    if (path === '/api/analytics/view' && request.method === 'POST')
+      return handleAnalyticsView(request, env, ctx);
 
-    // ── Change password ───────────────────────────────────────
-    if (path === '/api/auth/change-password' && request.method === 'POST') {
-      try {
-        const authHeader = request.headers.get('Authorization') || '';
-        const secret = env.TOKEN_SECRET || 'activeedu_secret_2024';
-        const session = await verifyToken(authHeader.replace('Bearer ', ''), secret);
-        if (!session) return json({ error: 'Phiên đăng nhập hết hạn' }, 401);
+    // ── Quiz ────────────────────────────────────────────────
+    if (path.startsWith('/api/quiz/') && path !== '/api/quiz/submit' && request.method === 'GET')
+      return handleQuizGet(request, env, ctx);
 
-        const { oldPassword, newPassword } = await request.json();
-        if (!oldPassword || !newPassword) return json({ error: 'Thiếu thông tin' }, 400);
-        if (newPassword.length < 6) return json({ error: 'Mật khẩu mới tối thiểu 6 ký tự' }, 400);
+    if (path === '/api/quiz/submit' && request.method === 'POST')
+      return handleQuizSubmit(request, env, ctx);
 
-        const r = await nocoFetch(env, `/api/v2/tables/${env.NOCO_USERS}/records/${session.userId}`);
-        const user = await r.json();
-        const storedPass = user.Password || user.MatKhau || '';
-        const salt = env.PASS_SALT || 'activeedu_salt_2024';
-        const oldHashed = await hashPassword(oldPassword, salt);
-        const valid = isHashed(storedPass) ? storedPass === oldHashed : storedPass === oldPassword;
-        if (!valid) return json({ error: 'Mật khẩu hiện tại không đúng' }, 401);
+    // ── Exam ────────────────────────────────────────────────
+    if (path === '/api/question-banks' && request.method === 'GET')
+      return handleQBankList(request, env, ctx);
 
-        const newHashed = await hashPassword(newPassword, salt);
-        await nocoFetch(env, `/api/v2/tables/${env.NOCO_USERS}/records`, 'PATCH',
-          [{ Id: session.userId, Password: newHashed, MatKhau: newHashed }]);
-        return json({ ok: true });
-      } catch (e) {
-        return json({ error: e.message }, 500);
-      }
-    }
+    if (path === '/api/exams' && request.method === 'GET')
+      return handleExamList(request, env, ctx);
 
-    // ── Get current user profile ──────────────────────────────
-    if (path === '/api/auth/me' && request.method === 'GET') {
-      const authHeader = request.headers.get('Authorization') || '';
-      const secret = env.TOKEN_SECRET || 'activeedu_secret_2024';
-      const session = await verifyToken(authHeader.replace('Bearer ', ''), secret);
-      if (!session) return json({ error: 'Unauthorized' }, 401);
+    if (path.startsWith('/api/exam/') && path.endsWith('/submit') && request.method === 'POST')
+      return handleExamSubmit(request, env, ctx);
 
-      const r = await nocoFetch(env, `/api/v2/tables/${env.NOCO_USERS}/records/${session.userId}`);
-      if (!r.ok) return json({ error: 'User not found' }, 404);
-      const user = await r.json();
-      const { Password, MatKhau, ...safeUser } = user;
-      return json(safeUser);
-    }
+    if (path.startsWith('/api/exam/') && !path.includes('/submit') && request.method === 'GET')
+      return handleExamGet(request, env, ctx);
 
-    // ── Student: Get reading progress list ───────────────────
-    if (path === '/api/progress' && request.method === 'GET') {
-      const authHeader = request.headers.get('Authorization') || '';
-      const secret = env.TOKEN_SECRET || 'activeedu_secret_2024';
-      const session = await verifyToken(authHeader.replace('Bearer ', ''), secret);
-      if (!session) return json({ error: 'Unauthorized' }, 401);
+    // ── Course / module unlock ──────────────────────────────
+    if (path.startsWith('/api/prereq/') && request.method === 'GET')
+      return handlePrereqCheck(request, env, ctx);
 
-      const r = await nocoFetch(env,
-        `/api/v2/tables/${env.NOCO_PROGRESS}/records?where=(UserId,eq,${session.userId})&limit=500&fields=ArticleId,Completed,Score,CompletedAt,Reactions`
-      );
-      if (!r.ok) return json({ list: [] });
-      const data = await r.json();
-      return json({ list: data.list || [] });
-    }
+    if (path.startsWith('/api/module-unlock/') && request.method === 'GET')
+      return handleModuleUnlock(request, env, ctx);
 
-    // ── Student: Upsert reading progress (with optional Score) ──
-    if (path === '/api/progress' && request.method === 'POST') {
-      const authHeader = request.headers.get('Authorization') || '';
-      const secret = env.TOKEN_SECRET || 'activeedu_secret_2024';
-      const session = await verifyToken(authHeader.replace('Bearer ', ''), secret);
-      if (!session) return json({ error: 'Unauthorized' }, 401);
+    if (path.match(/^\/api\/course\/\d+\/unlock-status$/) && request.method === 'GET')
+      return handleCourseUnlockStatus(request, env, ctx);
 
-      const { articleId, completed, score } = await request.json();
-      if (!articleId) return json({ error: 'Thiếu articleId' }, 400);
+    // ── AI tutor ────────────────────────────────────────────
+    if (path === '/api/ai/socratic' && request.method === 'POST')
+      return handleSocratic(request, env, ctx);
 
-      const existing = await nocoFetch(env,
-        `/api/v2/tables/${env.NOCO_PROGRESS}/records?where=(UserId,eq,${session.userId})~and(ArticleId,eq,${encodeURIComponent(articleId)})&limit=1&fields=Id,Completed,Score`
-      );
-      const existData = await existing.json();
-      const existRow = (existData.list || [])[0];
+    // ── Admin: Drive ────────────────────────────────────────
+    if (path === '/admin/drive-upload' && request.method === 'POST')
+      return handleDriveUpload(request, env, ctx);
 
-      if (existRow) {
-        const patch = {};
-        if (completed && !existRow.Completed) {
-          patch.Completed = true;
-          patch.CompletedAt = new Date().toISOString();
-        }
-        // Only update score if new score is higher (keep best attempt)
-        if (typeof score === 'number' && score > (existRow.Score || 0)) {
-          patch.Score = score;
-        }
-        if (Object.keys(patch).length) {
-          await nocoFetch(env, `/api/v2/tables/${env.NOCO_PROGRESS}/records`, 'PATCH',
-            [{ Id: existRow.Id, ...patch }]);
-        }
-      } else {
-        await nocoFetch(env, `/api/v2/tables/${env.NOCO_PROGRESS}/records`, 'POST', {
-          UserId: session.userId,
-          ArticleId: String(articleId),
-          Completed: !!completed,
-          Score: typeof score === 'number' ? score : null,
-          CompletedAt: completed ? new Date().toISOString() : null,
-        });
-      }
+    if (path === '/admin/drive-fetch' && request.method === 'GET')
+      return handleDriveFetch(request, env, ctx);
 
-      // Fire-and-forget: update Analytics AvgScore if score provided
-      if (typeof score === 'number' && env.NOCO_ANALYTICS) {
-        _updateAnalyticsScore(env, String(articleId), score).catch(() => {});
-      }
-      return json({ ok: true });
-    }
+    // ── Admin: Users ────────────────────────────────────────
+    if (path.startsWith('/admin/users'))
+      return handleAdminUsers(request, env, ctx);
 
-    // ── Student: Save reaction → Progress.Reactions + Analytics.FeedbackCounts ──
-    if (path === '/api/reactions' && request.method === 'POST') {
-      const authHeader = request.headers.get('Authorization') || '';
-      const secret = env.TOKEN_SECRET || 'activeedu_secret_2024';
-      const session = await verifyToken(authHeader.replace('Bearer ', ''), secret);
-      if (!session) return json({ error: 'Unauthorized' }, 401);
+    // ── Admin: safe constraint-aware endpoints ──────────────
+    if (path === '/admin/modules/safe' && request.method === 'POST')
+      return handleSafeModuleCreate(request, env, ctx);
 
-      const { articleId, reaction } = await request.json();
-      if (!articleId || !reaction) return json({ error: 'Thiếu thông tin' }, 400);
-      const allowed = ['easy', 'hard', 'example'];
-      if (!allowed.includes(reaction)) return json({ error: 'Reaction không hợp lệ' }, 400);
+    if (path === '/admin/courses/safe' && request.method === 'DELETE')
+      return handleSafeCourseDelete(request, env, ctx);
 
-      const existing = await nocoFetch(env,
-        `/api/v2/tables/${env.NOCO_PROGRESS}/records?where=(UserId,eq,${session.userId})~and(ArticleId,eq,${encodeURIComponent(articleId)})&limit=1&fields=Id,Reactions`
-      );
-      const existData = await existing.json();
-      const existRow = (existData.list || [])[0];
+    if (path === '/admin/modules/safe' && request.method === 'DELETE')
+      return handleSafeModuleDelete(request, env, ctx);
 
-      if (existRow) {
-        await nocoFetch(env, `/api/v2/tables/${env.NOCO_PROGRESS}/records`, 'PATCH',
-          [{ Id: existRow.Id, Reactions: reaction }]);
-      } else {
-        await nocoFetch(env, `/api/v2/tables/${env.NOCO_PROGRESS}/records`, 'POST', {
-          UserId: session.userId, ArticleId: String(articleId), Reactions: reaction,
-        });
-      }
+    if (path === '/admin/exam-sections/safe' && request.method === 'POST')
+      return handleSafeExamSectionCreate(request, env, ctx);
 
-      // Fire-and-forget: update Analytics.FeedbackCounts
-      if (env.NOCO_ANALYTICS) {
-        _updateAnalyticsFeedback(env, String(articleId), reaction, existRow?.Reactions || null).catch(() => {});
-      }
-      return json({ ok: true });
-    }
+    if (path === '/admin/exams/safe' && request.method === 'DELETE')
+      return handleSafeExamDelete(request, env, ctx);
 
-    // ── Student: Increment article view count ─────────────────
-    if (path === '/api/analytics/view' && request.method === 'POST') {
-      // No auth required — public view tracking
-      const { articleId } = await request.json().catch(() => ({}));
-      if (!articleId || !env.NOCO_ANALYTICS) return json({ ok: true });
-      _updateAnalyticsViews(env, String(articleId)).catch(() => {});
-      return json({ ok: true });
-    }
+    if (path === '/admin/question-banks/safe' && request.method === 'DELETE')
+      return handleSafeQuestionBankDelete(request, env, ctx);
 
-    // ── Student: Get quiz for article ─────────────────────────
-    if (path.startsWith('/api/quiz/') && request.method === 'GET') {
-      const articleId = path.slice('/api/quiz/'.length);
-      if (!articleId || !env.NOCO_QUIZ) return json({ questions: [] });
+    if (path.startsWith('/admin/module-item/') && request.method === 'PATCH')
+      return handleModuleItemToggle(request, env, ctx);
 
-      const r = await nocoFetch(env,
-        `/api/v2/tables/${env.NOCO_QUIZ}/records?where=(ArticleId,eq,${encodeURIComponent(articleId)})&limit=1&fields=Id,Questions`
-      );
-      if (!r.ok) return json({ questions: [] });
-      const data = await r.json();
-      const row = (data.list || [])[0];
-      if (!row || !row.Questions) return json({ questions: [] });
-
-      let questions;
-      try { questions = JSON.parse(row.Questions); } catch { return json({ questions: [] }); }
-
-      // Strip `correct` flag — client only sees options without answer
-      const sanitized = questions.map((q, qi) => ({
-        id: qi,
-        question: q.question,
-        options: (q.options || []).map((o, oi) => ({
-          id: oi,
-          text: typeof o === 'string' ? o : o.text,
-        })),
-        explanation: q.explanation || null,
-      }));
-      return json({ quizId: row.Id, questions: sanitized });
-    }
-
-    // ── Student: Submit quiz answers → return score ───────────
-    if (path === '/api/quiz/submit' && request.method === 'POST') {
-      const authHeader = request.headers.get('Authorization') || '';
-      const secret = env.TOKEN_SECRET || 'activeedu_secret_2024';
-      const session = await verifyToken(authHeader.replace('Bearer ', ''), secret);
-      if (!session) return json({ error: 'Đăng nhập để nộp bài' }, 401);
-      if (!env.NOCO_QUIZ) return json({ error: 'Quiz chưa được cấu hình' }, 503);
-
-      const { articleId, answers } = await request.json();
-      // answers: [{ questionId, optionId }]
-      if (!articleId || !Array.isArray(answers)) return json({ error: 'Dữ liệu không hợp lệ' }, 400);
-
-      const r = await nocoFetch(env,
-        `/api/v2/tables/${env.NOCO_QUIZ}/records?where=(ArticleId,eq,${encodeURIComponent(articleId)})&limit=1&fields=Questions`
-      );
-      if (!r.ok) return json({ error: 'Không tìm thấy quiz' }, 404);
-      const data = await r.json();
-      const row = (data.list || [])[0];
-      if (!row) return json({ error: 'Không tìm thấy quiz' }, 404);
-
-      let questions;
-      try { questions = JSON.parse(row.Questions); } catch { return json({ error: 'Quiz lỗi dữ liệu' }, 500); }
-
-      // Grade answers
-      let correct = 0;
-      const results = questions.map((q, qi) => {
-        const submitted = answers.find(a => a.questionId === qi);
-        const correctOption = (q.options || []).findIndex(o =>
-          typeof o === 'object' ? o.correct : false
-        );
-        const isCorrect = submitted !== undefined && submitted.optionId === correctOption;
-        if (isCorrect) correct++;
-        return {
-          questionId: qi,
-          correctOptionId: correctOption,
-          isCorrect,
-          explanation: q.explanation || null,
-        };
-      });
-
-      const score = Math.round(correct / questions.length * 100);
-
-      // Save score to Progress (fire-and-forget)
-      nocoFetch(env,
-        `/api/v2/tables/${env.NOCO_PROGRESS}/records?where=(UserId,eq,${session.userId})~and(ArticleId,eq,${encodeURIComponent(articleId)})&limit=1&fields=Id,Score`,
-      ).then(async er => {
-        const ed = await er.json();
-        const existRow = (ed.list || [])[0];
-        if (existRow) {
-          if (score > (existRow.Score || 0)) {
-            await nocoFetch(env, `/api/v2/tables/${env.NOCO_PROGRESS}/records`, 'PATCH',
-              [{ Id: existRow.Id, Score: score }]);
-          }
-        } else {
-          await nocoFetch(env, `/api/v2/tables/${env.NOCO_PROGRESS}/records`, 'POST', {
-            UserId: session.userId, ArticleId: String(articleId), Score: score,
-          });
-        }
-        if (env.NOCO_ANALYTICS) _updateAnalyticsScore(env, String(articleId), score).catch(() => {});
-      }).catch(() => {});
-
-      return json({ score, correct, total: questions.length, results });
-    }
-
-    // ════════════════════════════════════════════════════════════
-    // CONSTRAINT-AWARE ENDPOINTS
-    // Các endpoint này thay thế proxy thô để đảm bảo toàn vẹn FK
-    // ════════════════════════════════════════════════════════════
-
-    // ── Admin: tạo Module (validate CourseId tồn tại) ─────────
-    if (path === '/admin/modules/safe' && request.method === 'POST') {
-      if (!await verifyAdminAuth(request, env)) return json({ error: 'Unauthorized' }, 401);
-      const body = await request.json().catch(() => ({}));
-
-      // FK check: CourseId phải tồn tại
-      if (body.CourseId) {
-        const check = await _assertExists(env, 'NOCO_COURSES', body.CourseId, 'Khoá học');
-        if (!check.ok) return json({ error: check.error }, 422);
-      } else {
-        return json({ error: 'CourseId bắt buộc' }, 422);
-      }
-      // Unique check: không trùng Position trong cùng Course
-      if (body.Position && env.NOCO_MODULES) {
-        const dup = await nocoFetch(env,
-          `/api/v2/tables/${env.NOCO_MODULES}/records?where=(CourseId,eq,${body.CourseId})~and(Position,eq,${body.Position})&limit=1&fields=Id`
-        );
-        const dupData = await dup.json();
-        if ((dupData.list || []).length) {
-          return json({ error: `Vị trí ${body.Position} đã có module khác trong khoá học này` }, 422);
-        }
-      }
-      const r = await nocoFetch(env, `/api/v2/tables/${env.NOCO_MODULES}/records`, 'POST', body);
-      return new Response(await r.text(), { status: r.status, headers: { ...cors, 'Content-Type': 'application/json' } });
-    }
-
-    // ── Admin: xoá Course → cascade delete Modules + Articles unlink ──
-    if (path === '/admin/courses/safe' && request.method === 'DELETE') {
-      if (!await verifyAdminAuth(request, env)) return json({ error: 'Unauthorized' }, 401);
-      const body = await request.json().catch(() => ([]));
-      const ids = Array.isArray(body) ? body.map(r => r.Id) : [body.Id];
-      if (!ids.length) return json({ error: 'Thiếu Id' }, 400);
-
-      let cascadeCount = 0;
-      for (const courseId of ids) {
-        // 1. Lấy tất cả modules thuộc course
-        const moduleIds = await _getChildIds(env, 'NOCO_MODULES', 'CourseId', courseId);
-        for (const mod of moduleIds) {
-          // 2. Unlink articles khỏi module (set ModuleId = null)
-          const artIds = await _getChildIds(env, 'NOCO_ARTICLE', 'ModuleId', mod.Id);
-          if (artIds.length) {
-            const unlinkPayload = artIds.map(a => ({ Id: a.Id, ModuleId: null, ItemType: null, Position: null }));
-            await nocoFetch(env, `/api/v2/tables/${env.NOCO_ARTICLE}/records`, 'PATCH', unlinkPayload);
-          }
-          // 3. Xoá module
-          await nocoFetch(env, `/api/v2/tables/${env.NOCO_MODULES}/records`, 'DELETE', [{ Id: mod.Id }]);
-          cascadeCount++;
-        }
-        // 4. Xoá course
-        await nocoFetch(env, `/api/v2/tables/${env.NOCO_COURSES}/records`, 'DELETE', [{ Id: courseId }]);
-      }
-      return json({ ok: true, cascadeModulesDeleted: cascadeCount });
-    }
-
-    // ── Admin: xoá Module → cascade unlink Articles + xoá Exams liên quan ──
-    if (path === '/admin/modules/safe' && request.method === 'DELETE') {
-      if (!await verifyAdminAuth(request, env)) return json({ error: 'Unauthorized' }, 401);
-      const body = await request.json().catch(() => ([]));
-      const ids = Array.isArray(body) ? body.map(r => r.Id) : [body.Id];
-
-      for (const modId of ids) {
-        // Unlink articles
-        const artIds = await _getChildIds(env, 'NOCO_ARTICLE', 'ModuleId', modId);
-        if (artIds.length) {
-          const unlinkPayload = artIds.map(a => ({ Id: a.Id, ModuleId: null, Position: null }));
-          await nocoFetch(env, `/api/v2/tables/${env.NOCO_ARTICLE}/records`, 'PATCH', unlinkPayload);
-        }
-        // Unlink exams (set ModuleId = null, không xoá exam)
-        if (env.NOCO_EXAMS) {
-          const examIds = await _getChildIds(env, 'NOCO_EXAMS', 'ModuleId', modId);
-          if (examIds.length) {
-            const unlinkExams = examIds.map(e => ({ Id: e.Id, ModuleId: null }));
-            await nocoFetch(env, `/api/v2/tables/${env.NOCO_EXAMS}/records`, 'PATCH', unlinkExams);
-          }
-        }
-        // Xoá module
-        await nocoFetch(env, `/api/v2/tables/${env.NOCO_MODULES}/records`, 'DELETE', [{ Id: modId }]);
-      }
-      return json({ ok: true });
-    }
-
-    // ── Admin: tạo ExamSection (validate ExamId + BankId tồn tại, validate count ≤ bank size) ──
-    if (path === '/admin/exam-sections/safe' && request.method === 'POST') {
-      if (!await verifyAdminAuth(request, env)) return json({ error: 'Unauthorized' }, 401);
-      const body = await request.json().catch(() => ({}));
-
-      // FK check: ExamId
-      const examCheck = await _assertExists(env, 'NOCO_EXAMS', body.ExamId, 'Đề thi');
-      if (!examCheck.ok) return json({ error: examCheck.error }, 422);
-
-      // FK check: BankId
-      const bankCheck = await _assertExists(env, 'NOCO_QBANK', body.BankId, 'Ngân hàng câu hỏi');
-      if (!bankCheck.ok) return json({ error: bankCheck.error }, 422);
-
-      // Business rule: QuestionCount ≤ số câu trong ngân hàng
-      let bankSize = 0;
-      try { bankSize = JSON.parse(bankCheck.record.Questions || '[]').length; } catch {}
-      if (bankSize > 0 && (body.QuestionCount || 0) > bankSize) {
-        return json({ error: `Ngân hàng chỉ có ${bankSize} câu, không thể lấy ${body.QuestionCount}` }, 422);
-      }
-      if ((body.QuestionCount || 0) < 1) return json({ error: 'Số câu phải ≥ 1' }, 422);
-      if ((body.PointsPerQuestion || 0) <= 0) return json({ error: 'Điểm/câu phải > 0' }, 422);
-
-      // Duplicate check: cùng exam không lấy cùng 1 bank 2 lần
-      const dupCheck = await nocoFetch(env,
-        `/api/v2/tables/${env.NOCO_EXAM_SECTIONS}/records?where=(ExamId,eq,${body.ExamId})~and(BankId,eq,${body.BankId})&limit=1&fields=Id`
-      );
-      const dupData = await dupCheck.json();
-      if ((dupData.list || []).length) {
-        return json({ error: 'Ngân hàng này đã có trong đề. Mỗi ngân hàng chỉ dùng 1 lần/đề.' }, 422);
-      }
-
-      const r = await nocoFetch(env, `/api/v2/tables/${env.NOCO_EXAM_SECTIONS}/records`, 'POST', body);
-      return new Response(await r.text(), { status: r.status, headers: { ...cors, 'Content-Type': 'application/json' } });
-    }
-
-    // ── Admin: xoá Exam → cascade delete ExamSections ─────────
-    if (path === '/admin/exams/safe' && request.method === 'DELETE') {
-      if (!await verifyAdminAuth(request, env)) return json({ error: 'Unauthorized' }, 401);
-      const body = await request.json().catch(() => ([]));
-      const ids = Array.isArray(body) ? body.map(r => r.Id) : [body.Id];
-
-      let sectionCount = 0;
-      for (const examId of ids) {
-        // Cascade delete sections trước
-        const deleted = await _cascadeDelete(env, 'NOCO_EXAM_SECTIONS', 'ExamId', examId);
-        sectionCount += deleted;
-        // Xoá exam
-        await nocoFetch(env, `/api/v2/tables/${env.NOCO_EXAMS}/records`, 'DELETE', [{ Id: examId }]);
-      }
-      return json({ ok: true, sectionsDeleted: sectionCount });
-    }
-
-    // ── Admin: xoá QuestionBank → chặn nếu đang dùng trong ExamSection ──
-    if (path === '/admin/question-banks/safe' && request.method === 'DELETE') {
-      if (!await verifyAdminAuth(request, env)) return json({ error: 'Unauthorized' }, 401);
-      const body = await request.json().catch(() => ([]));
-      const ids = Array.isArray(body) ? body.map(r => r.Id) : [body.Id];
-
-      for (const bankId of ids) {
-        // Referential integrity: chặn xoá nếu bank đang được dùng
-        const usedCount = await _countChildren(env, 'NOCO_EXAM_SECTIONS', 'BankId', bankId);
-        if (usedCount > 0) {
-          return json({
-            error: `Không thể xoá: Ngân hàng #${bankId} đang được dùng trong ${usedCount} đề thi. Xoá phần thi liên quan trước.`
-          }, 409); // 409 Conflict
-        }
-      }
-      // An toàn → xoá
-      const r = await nocoFetch(env, `/api/v2/tables/${env.NOCO_QBANK}/records`, 'DELETE',
-        ids.map(id => ({ Id: id })));
-      return new Response(await r.text(), { status: r.status, headers: { ...cors, 'Content-Type': 'application/json' } });
-    }
-
-    // ── Admin: toggle module item Published state ─────────────
-    if (path.startsWith('/admin/module-item/') && request.method === 'PATCH') {
-      if (!await verifyAdminAuth(request, env))
-        return json({ error: 'Unauthorized' }, 401);
-      const articleId = path.slice('/admin/module-item/'.length);
-      if (!articleId || !env.NOCO_ARTICLE) return json({ error: 'Thiếu articleId' }, 400);
-      const body = await request.json().catch(() => ({}));
-      const r = await nocoFetch(env, `/api/v2/tables/${env.NOCO_ARTICLE}/records`, 'PATCH',
-        [{ Id: parseInt(articleId), Published: body.published }]);
-      return new Response(await r.text(), { status: r.status, headers: { ...cors, 'Content-Type': 'application/json' } });
-    }
-
-    // ── Student: check prerequisites for an article ───────────
-    // GET /api/prereq/{articleId} → { ok, reason, missing }
-    if (path.startsWith('/api/prereq/') && request.method === 'GET') {
-      const articleId = path.slice('/api/prereq/'.length);
-      if (!articleId) return json({ ok: true });
-
-      const authHeader = request.headers.get('Authorization') || '';
-      const secret = env.TOKEN_SECRET || 'activeedu_secret_2024';
-      const session = await verifyToken(authHeader.replace('Bearer ', ''), secret);
-      if (!session) return json({ ok: false, reason: 'Chưa đăng nhập', requireLogin: true });
-
-      // Lấy Prerequisites field của bài
-      if (!env.NOCO_ARTICLE) return json({ ok: true });
-      const artR = await nocoFetch(env,
-        `/api/v2/tables/${env.NOCO_ARTICLE}/records/${articleId}?fields=Id,Prerequisites,ModuleId`
-      );
-      if (!artR.ok) return json({ ok: true }); // không tìm thấy → cho qua
-      const art = await artR.json();
-      if (!art?.Prerequisites) return json({ ok: true });
-
-      const check = await checkPrerequisites(env, session.userId, art.Prerequisites);
-      return json(check);
-    }
-
-    // ── Student: check module unlock condition ─────────────────
-    // GET /api/module-unlock/{moduleId} → { ok, reason }
-    if (path.startsWith('/api/module-unlock/') && request.method === 'GET') {
-      const moduleId = path.slice('/api/module-unlock/'.length);
-      if (!moduleId || !env.NOCO_MODULES) return json({ ok: true });
-
-      const authHeader = request.headers.get('Authorization') || '';
-      const secret = env.TOKEN_SECRET || 'activeedu_secret_2024';
-      const session = await verifyToken(authHeader.replace('Bearer ', ''), secret);
-      if (!session) return json({ ok: false, reason: 'Chưa đăng nhập', requireLogin: true });
-
-      const modR = await nocoFetch(env,
-        `/api/v2/tables/${env.NOCO_MODULES}/records/${moduleId}?fields=Id,UnlockCondition`
-      );
-      if (!modR.ok) return json({ ok: true });
-      const mod = await modR.json();
-      if (!mod?.UnlockCondition) return json({ ok: true });
-
-      const check = await checkModuleUnlock(env, session.userId, mod.UnlockCondition);
-      return json(check);
-    }
-
-    // ── Student: GET question bank list (public, no questions exposed) ──
-    if (path === '/api/question-banks' && request.method === 'GET') {
-      if (!env.NOCO_QBANK) return json({ list: [] });
-      const r = await nocoFetch(env,
-        `/api/v2/tables/${env.NOCO_QBANK}/records?fields=Id,Title,GroupName,Description,QuestionCount&limit=200${url.search ? '&' + url.search.slice(1) : ''}`
-      );
-      const data = await r.json();
-      return json(data);
-    }
-
-    // ── Student: GET exam list (public metadata, no questions) ──
-    if (path === '/api/exams' && request.method === 'GET') {
-      if (!env.NOCO_EXAMS) return json({ list: [] });
-      const r = await nocoFetch(env,
-        `/api/v2/tables/${env.NOCO_EXAMS}/records?where=(Status,eq,published)&fields=Id,Title,Description,ModuleId,TimeLimit,PassScore,TotalPoints&limit=200${url.search ? '&' + url.search.slice(1) : ''}`
-      );
-      const data = await r.json();
-      return json(data);
-    }
-
-    // ── Student: GET single exam → sample questions from banks ──
-    if (path.startsWith('/api/exam/') && !path.includes('/submit') && request.method === 'GET') {
-      const examId = path.slice('/api/exam/'.length);
-      if (!examId || !env.NOCO_EXAMS || !env.NOCO_EXAM_SECTIONS || !env.NOCO_QBANK)
-        return json({ error: 'Exam chưa được cấu hình' }, 503);
-
-      // Lấy thông tin đề thi
-      const examR = await nocoFetch(env, `/api/v2/tables/${env.NOCO_EXAMS}/records/${examId}`);
-      if (!examR.ok) return json({ error: 'Không tìm thấy đề thi' }, 404);
-      const exam = await examR.json();
-      if (exam.Status !== 'published') return json({ error: 'Đề thi chưa công bố' }, 403);
-
-      // Lấy các sections
-      const secR = await nocoFetch(env,
-        `/api/v2/tables/${env.NOCO_EXAM_SECTIONS}/records?where=(ExamId,eq,${examId})&sort=Position&limit=50`
-      );
-      const secData = await secR.json();
-      const sections = secData.list || [];
-      if (!sections.length) return json({ error: 'Đề thi chưa có phần nào' }, 400);
-
-      // Với mỗi section, lấy ngân hàng câu hỏi và sample ngẫu nhiên
-      const resultSections = [];
-      let totalPoints = 0;
-
-      for (const sec of sections) {
-        const bankR = await nocoFetch(env, `/api/v2/tables/${env.NOCO_QBANK}/records/${sec.BankId}`);
-        if (!bankR.ok) continue;
-        const bank = await bankR.json();
-        let allQuestions = [];
-        try { allQuestions = JSON.parse(bank.Questions || '[]'); } catch { continue; }
-
-        // Fisher-Yates shuffle & take N
-        const count = Math.min(sec.QuestionCount || 1, allQuestions.length);
-        const shuffled = [...allQuestions];
-        for (let i = shuffled.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-        }
-        const sampled = shuffled.slice(0, count);
-        totalPoints += count * (sec.PointsPerQuestion || 1);
-
-        // Strip correct answers trước khi trả về client
-        const sanitized = sampled.map((q, qi) => ({
-          id: `${sec.Id}_${qi}`,
-          sectionId: sec.Id,
-          bankId: sec.BankId,
-          origIdx: allQuestions.indexOf(q),
-          question: q.question,
-          type: q.type || 'mcq',
-          options: (q.options || []).map((o, oi) => ({
-            id: oi,
-            text: typeof o === 'string' ? o : o.text,
-          })),
-          points: sec.PointsPerQuestion || 1,
-        }));
-
-        resultSections.push({
-          sectionId: sec.Id,
-          bankTitle: bank.Title || sec.BankTitle || '',
-          pointsPerQuestion: sec.PointsPerQuestion || 1,
-          questions: sanitized,
-        });
-      }
-
-      return json({
-        examId: exam.Id,
-        title: exam.Title,
-        description: exam.Description || '',
-        timeLimit: exam.TimeLimit || 0,
-        passScore: exam.PassScore || 60,
-        totalPoints,
-        sections: resultSections,
-      });
-    }
-
-    // ── Student: POST /api/exam/{id}/submit → grade & save ────
-    if (path.startsWith('/api/exam/') && path.endsWith('/submit') && request.method === 'POST') {
-      const authHeader = request.headers.get('Authorization') || '';
-      const secret = env.TOKEN_SECRET || 'activeedu_secret_2024';
-      const session = await verifyToken(authHeader.replace('Bearer ', ''), secret);
-      if (!session) return json({ error: 'Đăng nhập để nộp bài' }, 401);
-
-      const examId = path.slice('/api/exam/'.length).replace('/submit', '');
-      const body = await request.json().catch(() => ({}));
-      // answers: [{ questionId: "sectionId_qi", sectionId, bankId, origIdx, optionId }]
-      const { answers, totalPoints } = body;
-      if (!Array.isArray(answers)) return json({ error: 'Dữ liệu không hợp lệ' }, 400);
-
-      if (!env.NOCO_QBANK || !env.NOCO_EXAM_SECTIONS)
-        return json({ error: 'Server chưa cấu hình' }, 503);
-
-      // Group answers by sectionId
-      const bySection = {};
-      for (const ans of answers) {
-        if (!bySection[ans.sectionId]) bySection[ans.sectionId] = [];
-        bySection[ans.sectionId].push(ans);
-      }
-
-      let earnedPoints = 0;
-      const sectionResults = [];
-
-      for (const [sectionId, sectionAnswers] of Object.entries(bySection)) {
-        // Lấy section để biết bankId, pointsPerQuestion
-        const secR = await nocoFetch(env,
-          `/api/v2/tables/${env.NOCO_EXAM_SECTIONS}/records?where=(Id,eq,${sectionId})&limit=1`
-        );
-        const secData = await secR.json();
-        const sec = (secData.list || [])[0];
-        if (!sec) continue;
-
-        const bankR = await nocoFetch(env, `/api/v2/tables/${env.NOCO_QBANK}/records/${sec.BankId}`);
-        if (!bankR.ok) continue;
-        const bank = await bankR.json();
-        let allQ = [];
-        try { allQ = JSON.parse(bank.Questions || '[]'); } catch { continue; }
-
-        let sectionCorrect = 0;
-        const qResults = [];
-        for (const ans of sectionAnswers) {
-          const q = allQ[ans.origIdx];
-          if (!q) continue;
-          const correctIdx = (q.options || []).findIndex(o =>
-            typeof o === 'object' ? o.correct : false
-          );
-          const isCorrect = ans.optionId === correctIdx;
-          if (isCorrect) {
-            sectionCorrect++;
-            earnedPoints += sec.PointsPerQuestion || 1;
-          }
-          qResults.push({
-            questionId: ans.questionId,
-            correctOptionId: correctIdx,
-            isCorrect,
-            explanation: q.explanation || null,
-          });
-        }
-        sectionResults.push({ sectionId, correct: sectionCorrect, results: qResults });
-      }
-
-      const possible = totalPoints || 100;
-      const scorePercent = Math.round((earnedPoints / possible) * 100);
-
-      // Lưu vào Progress (fire-and-forget)
-      if (env.NOCO_PROGRESS) {
-        (async () => {
-          const key = `exam_${examId}`;
-          const ex = await nocoFetch(env,
-            `/api/v2/tables/${env.NOCO_PROGRESS}/records?where=(UserId,eq,${session.userId})~and(ArticleId,eq,${key})&limit=1&fields=Id,Score`
-          );
-          const ed = await ex.json();
-          const row = (ed.list || [])[0];
-          if (row) {
-            if (scorePercent > (row.Score || 0))
-              await nocoFetch(env, `/api/v2/tables/${env.NOCO_PROGRESS}/records`, 'PATCH',
-                [{ Id: row.Id, Score: scorePercent, Completed: scorePercent >= 60 }]);
-          } else {
-            await nocoFetch(env, `/api/v2/tables/${env.NOCO_PROGRESS}/records`, 'POST', {
-              UserId: session.userId, ArticleId: key,
-              Score: scorePercent, Completed: scorePercent >= 60,
-              CompletedAt: new Date().toISOString(),
-            });
-          }
-        })().catch(() => {});
-      }
-
-      return json({ score: scorePercent, earnedPoints, totalPoints: possible, sectionResults });
-    }
-
-    // ── Student: Socratic AI tutor (Claude Haiku) ────────────
-    if (path === '/api/ai/socratic' && request.method === 'POST') {
-      const authHeader = request.headers.get('Authorization') || '';
-      const secret = env.TOKEN_SECRET || 'activeedu_secret_2024';
-      const session = await verifyToken(authHeader.replace('Bearer ', ''), secret);
-      if (!session) return json({ error: 'Đăng nhập để dùng AI tutor' }, 401);
-
-      if (!env.ANTHROPIC_API_KEY) return json({ error: 'AI chưa được cấu hình' }, 503);
-
-      let body;
-      try { body = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
-      const { message, articleTitle, wordCount } = body;
-      if (!message || typeof message !== 'string' || message.trim().length === 0)
-        return json({ error: 'Thiếu nội dung câu hỏi' }, 400);
-
-      // Zero-draft validator: học sinh phải viết ít nhất 50 từ trước
-      if (!wordCount || wordCount < 50)
-        return json({ error: 'Hãy viết ít nhất 50 từ suy nghĩ của mình trước khi hỏi AI' }, 400);
-
-      const systemPrompt = `Bạn là gia sư Socratic cho bài học: "${(articleTitle || 'bài học').slice(0, 100)}".
-KHÔNG bao giờ cho đáp án trực tiếp. Chỉ đặt câu hỏi dẫn dắt để học sinh tự tìm ra.
-Nếu học sinh hỏi đáp án, hỏi ngược lại: "Em nghĩ bước tiếp theo là gì?"
-Trả lời bằng tiếng Việt, ngắn gọn, tối đa 3 câu.`;
-
-      try {
-        const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: {
-            'x-api-key': env.ANTHROPIC_API_KEY,
-            'anthropic-version': '2023-06-01',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'claude-haiku-4-5-20251001',
-            max_tokens: 300,
-            system: systemPrompt,
-            messages: [{ role: 'user', content: message.slice(0, 1000) }],
-          }),
-        });
-
-        if (!claudeRes.ok) {
-          const errText = await claudeRes.text();
-          console.error('Claude API error:', errText);
-          return json({ error: 'AI tạm thời không khả dụng' }, 502);
-        }
-
-        const claudeData = await claudeRes.json();
-        const reply = claudeData.content?.[0]?.text || '';
-        return json({ reply });
-      } catch (e) {
-        return json({ error: 'Lỗi kết nối AI' }, 500);
-      }
-    }
-
-    // ── Admin: Google Drive upload ────────────────────────────
-    if (path === '/admin/drive-upload' && request.method === 'POST') {
-      if (!await verifyAdminAuth(request, env))
-        return json({ error: 'Unauthorized' }, 401);
-      try {
-        const { fileName, content: htmlContent } = await request.json();
-        if (!htmlContent) return json({ error: 'Thiếu content' }, 400);
-        const file = await uploadToDrive(env, (fileName || 'article') + '.html', htmlContent);
-        return json({ fileId: file.id, name: file.name, link: file.webContentLink });
-      } catch (e) {
-        return json({ error: e.message }, 500);
-      }
-    }
-
-    // ── Admin: Google Drive fetch proxy ──────────────────────
-    if (path === '/admin/drive-fetch' && request.method === 'GET') {
-      if (!await verifyAdminAuth(request, env))
-        return json({ error: 'Unauthorized' }, 401);
-      try {
-        const fileId = url.searchParams.get('fileId');
-        if (!fileId) return json({ error: 'Thiếu fileId' }, 400);
-        const html = await fetchFromDrive(env, fileId);
-        return new Response(html, {
-          status: 200,
-          headers: { ...cors, 'Content-Type': 'text/html; charset=utf-8' },
-        });
-      } catch (e) {
-        return json({ error: e.message }, 500);
-      }
-    }
-
-    // ── Admin: Users (with server-side password hashing) ──────
-    if (path.startsWith('/admin/users')) {
-      // Common admin auth
-      const country = request.headers.get('CF-IPCountry') || '';
-      const allowed = (env.ALLOWED_COUNTRIES || 'VN').split(',').map(c => c.trim());
-      if (country && !allowed.includes('*') && !allowed.includes(country))
-        return json({ error: 'Access denied from your region' }, 403);
-
-      if (!await verifyAdminAuth(request, env)) {
-        const adminRl = await checkRateLimit(clientIP, env, 'admin');
-        if (!adminRl.allowed) return json({ error: 'Quá nhiều yêu cầu. Thử lại sau 15 phút.' }, 429);
-        return json({ error: 'Unauthorized' }, 401);
-      }
-
-      const nocoBase = `/api/v2/tables/${env.NOCO_USERS}/records`;
-      const suffix = path.slice('/admin/users'.length); // e.g. '' or '/<id>'
-
-      // GET: list or single — pass through
-      if (request.method === 'GET') {
-        const r = await nocoFetch(env, `${nocoBase}${suffix}${url.search}`);
-        const text = await r.text();
-        // Strip password fields from response
-        try {
-          const parsed = JSON.parse(text);
-          const strip = u => { if (u && typeof u === 'object') { delete u.Password; delete u.MatKhau; } return u; };
-          if (parsed.list) parsed.list = parsed.list.map(strip);
-          else strip(parsed);
-          return json(parsed, r.status);
-        } catch {
-          return new Response(text, { status: r.status, headers: { ...cors, 'Content-Type': 'application/json' } });
-        }
-      }
-
-      // DELETE: pass through
-      if (request.method === 'DELETE') {
-        const body = await request.text();
-        const r = await nocoFetch(env, `${nocoBase}${suffix}${url.search}`, 'DELETE',
-          body ? JSON.parse(body) : undefined);
-        return new Response(await r.text(), { status: r.status, headers: { ...cors, 'Content-Type': 'application/json' } });
-      }
-
-      // POST (create) / PATCH (update): hash password before saving
-      if (request.method === 'POST' || request.method === 'PATCH') {
-        let rawBody;
-        try { rawBody = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
-
-        // rawBody có thể là object hoặc array (NocoDB PATCH dùng array)
-        const processOne = async (item) => hashUserPayload(item, env);
-
-        let hashedBody;
-        if (Array.isArray(rawBody)) {
-          hashedBody = await Promise.all(rawBody.map(processOne));
-        } else {
-          hashedBody = await processOne(rawBody);
-        }
-
-        const r = await nocoFetch(env, `${nocoBase}${suffix}${url.search}`, request.method, hashedBody);
-        return new Response(await r.text(), { status: r.status, headers: { ...cors, 'Content-Type': 'application/json' } });
-      }
-
-      return json({ error: 'Method not allowed' }, 405);
-    }
-
-    // ── Admin: other proxy routes ─────────────────────────────
+    // ── Admin: generic proxy routes ─────────────────────────
     let adminNoco = null;
     for (const [route, resolver] of Object.entries(ADMIN_PROXY_ROUTES)) {
       if (path.startsWith(route)) {
@@ -1445,7 +211,19 @@ Trả lời bằng tiếng Việt, ngắn gọn, tối đa 3 câu.`;
         headers: { 'xc-token': env.NOCO_TOKEN, 'Content-Type': 'application/json' },
         body,
       });
-      return new Response(await r.text(), {
+      const respText = await r.text();
+
+      // Audit log for write operations (fire-and-forget)
+      if (env.NOCO_AUDIT && r.ok && ['POST', 'PATCH', 'DELETE'].includes(request.method)) {
+        try {
+          const tableName = Object.keys(ADMIN_PROXY_ROUTES).find(k => path.startsWith(k)) || path;
+          let bodyObj = null;
+          try { bodyObj = body ? JSON.parse(body) : null; } catch {}
+          _audit(env, request.method.toLowerCase(), tableName, null, { userId: 0, email: 'admin' }, null, bodyObj);
+        } catch {}
+      }
+
+      return new Response(respText, {
         status: r.status,
         headers: { ...cors, ...secHeaders, 'Content-Type': 'application/json' },
       });
@@ -1483,9 +261,19 @@ Trả lời bằng tiếng Việt, ngắn gọn, tối đa 3 câu.`;
       const authHeader = request.headers.get('Authorization') || '';
       const token = authHeader.replace('Bearer ', '');
       if (token) {
-        const secret = env.TOKEN_SECRET || 'activeedu_secret_2024';
+        const secret = getTokenSecret(env);
         userSession = await verifyToken(token, secret);
       }
+    }
+
+    // Soft-delete filter: exclude records where DeletedAt is set
+    const SOFT_DELETE_PUBLIC = new Set(['/api/courses', '/api/modules', '/api/articles']);
+    if (SOFT_DELETE_PUBLIC.has(matchedRoute)) {
+      const sp = new URLSearchParams(finalSearch.startsWith('?') ? finalSearch.slice(1) : '');
+      const existing = sp.get('where');
+      const sdFilter = '(DeletedAt,is,null)';
+      sp.set('where', existing ? `(${existing})~and${sdFilter}` : sdFilter);
+      finalSearch = '?' + sp.toString();
     }
 
     const nocoUrl = `${env.NOCO_URL}${nocoPath}${finalSearch}`;
@@ -1517,7 +305,7 @@ Trả lời bằng tiếng Việt, ngắn gọn, tối đa 3 câu.`;
 
     let responseData = await nocoResp.text();
 
-    // Strip Content + enforce prerequisites for single article fetches
+    // Strip Content + enforce prerequisites + module lock for single article fetches
     if (isArticleSingleWhere && nocoResp.ok) {
       try {
         const parsed = JSON.parse(responseData);
@@ -1527,8 +315,25 @@ Trả lời bằng tiếng Việt, ngắn gọn, tối đa 3 câu.`;
             row.Content = null;
             continue;
           }
-          // 2) Prerequisites check — chỉ áp dụng khi đã đăng nhập
-          if (row.Prerequisites && userSession) {
+          // 2) Module lock check
+          if (row.ModuleId && userSession && env.NOCO_MODULES) {
+            const modR = await nocoFetch(env,
+              `/api/v2/tables/${env.NOCO_MODULES}/records/${row.ModuleId}?fields=Id,UnlockCondition`
+            );
+            if (modR.ok) {
+              const mod = await modR.json();
+              if (mod?.UnlockCondition) {
+                const lockCheck = await checkModuleUnlock(env, userSession.userId, mod.UnlockCondition);
+                if (!lockCheck.ok) {
+                  row.Content = null;
+                  row._moduleBlocked = true;
+                  row._moduleReason = lockCheck.reason;
+                }
+              }
+            }
+          }
+          // 3) Prerequisites check
+          if (row.Prerequisites && userSession && !row._moduleBlocked) {
             const check = await checkPrerequisites(env, userSession.userId, row.Prerequisites);
             if (!check.ok) {
               row.Content = null;
@@ -1538,7 +343,7 @@ Trả lời bằng tiếng Việt, ngắn gọn, tối đa 3 câu.`;
           }
         }
         responseData = JSON.stringify(parsed);
-      } catch { }
+      } catch {}
     }
 
     const cacheControl = isGet && !isArticleSingleWhere ? `public, max-age=${ttl}` : 'no-store';

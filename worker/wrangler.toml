@@ -32,6 +32,10 @@ compatibility_flags = ["nodejs_compat"]
 #   wrangler secret put TOKEN_SECRET
 #   wrangler secret put ANTHROPIC_API_KEY  (Claude Haiku Socratic AI)
 #   wrangler secret put GDRIVE_SA_JSON   (optional)
+#   wrangler secret put NOCO_AUDIT        (AuditLog table ID)
+#   wrangler secret put RESEND_API_KEY    (Resend.com API key — email gửi reset password)
+#   wrangler secret put EMAIL_FROM        (optional: "ActiveEdu <no-reply@gds.edu.vn>")
+#   wrangler secret put APP_URL           (optional: "https://activelearning.gds.edu.vn")
 
 # ── Custom Domain ─────────────────────────────────────────────
 routes = [
@@ -39,10 +43,16 @@ routes = [
 ]
 
 # ── KV namespace for persistent rate limiting (optional) ──────
-# Create with: wrangler kv:namespace create RATE_LIMIT_KV
+# Create with: wrangler kv namespace create RATE_LIMIT_KV
 # [[kv_namespaces]]
 # binding = "RATE_LIMIT_KV"
 # id = "YOUR_KV_NAMESPACE_ID"
+
+# ── KV namespace for Idempotency-Key deduplication ────────────
+[[kv_namespaces]]
+binding = "IDEMPOTENCY_KV"
+id = "1f074e4f56d848d2b9a8b521daee6e4a"
+preview_id = "993796eebb2e45ed9c6586c6d02e4670"
 
 # ── Environments ──────────────────────────────────────────────
 [env.staging]

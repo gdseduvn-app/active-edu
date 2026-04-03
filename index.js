@@ -53,26 +53,54 @@ async function doUserLogin() {
   const btn = document.querySelector('.lm-btn');
   const errEl = document.getElementById('lm-err');
 
-  // ── Kiểm tra lockout ──
-  const lockedMin = _stuCheckLocked();
-  if (lockedMin !== null) {
-    errEl.textContent = `🔒 Tạm khóa ${lockedMin} phút do đăng nhập sai quá nhiều lần.`;
-    errEl.style.display = 'block';
-    return;
-  }
-
   if (btn) btn.disabled = true;
 
   const showErr = (msg) => {
-    errEl.textContent = msg || '❌ Email hoặc mật khẩu không đúng!';
+    errEl.textContent = msg || '❌ Sai tài khoản hoặc mật khẩu!';
     errEl.style.display = 'block';
     document.getElementById('lm-pass').value = '';
-    setTimeout(() => { if (errEl.style.display !== 'none') errEl.style.display = 'none'; }, 4000);
+    setTimeout(() => { if (errEl.style.display !== 'none') errEl.style.display = 'none'; }, 5000);
     if (btn) btn.disabled = false;
   };
 
-  // Dùng /api/auth/login — Worker tự hash & verify
+  // ── Detect admin vs student ──────────────────────────────────
+  // Không có "@" → admin path (/admin/auth, rate-limit phía server)
+  // Có "@"       → student path (/api/auth/login, NocoDB)
+  const isAdminAttempt = !u.includes('@');
+
   try {
+    if (isAdminAttempt) {
+      // ── Admin path — server tự rate-limit, không dùng lockout client ──
+      const r = await fetch(`${PROXY_URL}/admin/auth`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: p }),
+      });
+
+      if (r.ok) {
+        const data = await r.json();
+        // Clear student lockout nếu có (từ lần thử trước)
+        _stuResetAttempts();
+        sessionStorage.setItem('ae_auth', '1');
+        sessionStorage.setItem('ae_admin_token', data.token || '');
+        setUser({ username: 'admin', displayName: 'Admin', role: 'admin', token: data.token });
+        if (btn) btn.disabled = false;
+        window.location.href = 'admin/dashboard.html';
+        return;
+      }
+
+      if (r.status === 429) { showErr('⏳ Quá nhiều lần thử. Vui lòng đợi 15 phút.'); return; }
+      showErr('❌ Sai mật khẩu admin!');
+      return;
+    }
+
+    // ── Student path — có client-side lockout ────────────────────
+    const lockedMin = _stuCheckLocked();
+    if (lockedMin !== null) {
+      showErr(`🔒 Tạm khóa ${lockedMin} phút do đăng nhập sai quá nhiều lần.`);
+      return;
+    }
+
     const resp = await fetch(`${PROXY_URL}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -81,7 +109,6 @@ async function doUserLogin() {
     const data = await resp.json();
 
     if (resp.ok && data.token) {
-      // Đăng nhập thành công → reset counter
       _stuResetAttempts();
       setUser({
         username: data.user.email,
@@ -89,15 +116,24 @@ async function doUserLogin() {
         role: data.user.role,
         token: data.token,
       });
+
+      // Student có role=admin trong NocoDB → redirect dashboard
+      if (data.user.role === 'admin') {
+        sessionStorage.setItem('ae_auth', '1');
+        sessionStorage.setItem('ae_admin_token', data.token);
+        if (btn) btn.disabled = false;
+        window.location.href = 'admin/dashboard.html';
+        return;
+      }
+
       await loadUserPerms();
       closeLoginModal();
       renderUserArea();
       buildNav(contentTree);
       buildCards(contentTree);
-      loadUserProgress(); // load progress after login
+      loadUserProgress();
       if (pendingPrivateItem) { loadArticle(pendingPrivateItem); pendingPrivateItem = null; }
       else if (currentArticleId) {
-        // Restart reading timer for article already loaded before login
         const _cur = findItemById(contentTree, currentArticleId);
         if (_cur) _startProgressTracking(_cur);
       }
@@ -105,15 +141,11 @@ async function doUserLogin() {
       return;
     }
 
-    // Sai mật khẩu → tăng counter
     if (resp.status === 401 || resp.status === 400) {
       const attempts = _stuIncAttempts();
       const remaining = _STU_MAX_ATTEMPTS - attempts;
-      if (remaining <= 0) {
-        showErr('🔒 Sai mật khẩu quá nhiều lần! Tài khoản bị tạm khóa 10 phút.');
-      } else {
-        showErr(`❌ Email hoặc mật khẩu không đúng! (còn ${remaining} lần)`);
-      }
+      if (remaining <= 0) showErr('🔒 Sai mật khẩu quá nhiều lần! Tài khoản bị tạm khóa 10 phút.');
+      else showErr(`❌ Email hoặc mật khẩu không đúng! (còn ${remaining} lần)`);
       return;
     }
 
@@ -163,12 +195,29 @@ let pendingPrivateItem = null;
 let currentArticlePath = null;
 let currentArticleId   = null;
 
+// ── Login modal view switching ────────────────────────────────
+
+function _lmShowView(id) {
+  ['lm-view-login', 'lm-view-forgot', 'lm-view-reset'].forEach(v => {
+    document.getElementById(v).style.display = v === id ? '' : 'none';
+  });
+}
+
+function showLoginView() { _lmShowView('lm-view-login'); }
+function showForgotView() {
+  _lmShowView('lm-view-forgot');
+  document.getElementById('lm-forgot-err').style.display = 'none';
+  document.getElementById('lm-forgot-email').value = '';
+  setTimeout(() => document.getElementById('lm-forgot-email').focus(), 100);
+}
+
 function showLoginModal(canClose) {
   loginModalCanClose = canClose !== false;
   document.getElementById('lm-close').style.display = loginModalCanClose ? 'block' : 'none';
   document.getElementById('lm-err').style.display = 'none';
   document.getElementById('lm-user').value = '';
   document.getElementById('lm-pass').value = '';
+  _lmShowView('lm-view-login');
   document.getElementById('login-modal').classList.add('show');
   setTimeout(() => document.getElementById('lm-user').focus(), 100);
 }
@@ -176,6 +225,128 @@ function showLoginModal(canClose) {
 function closeLoginModal() {
   document.getElementById('login-modal').classList.remove('show');
 }
+
+// ── Forgot password ───────────────────────────────────────────
+
+async function doForgotPassword() {
+  const email = (document.getElementById('lm-forgot-email').value || '').trim();
+  const btn   = document.getElementById('lm-forgot-btn');
+  const errEl = document.getElementById('lm-forgot-err');
+
+  errEl.style.display = 'none';
+  if (!email || !email.includes('@')) {
+    errEl.textContent = '❌ Vui lòng nhập email hợp lệ.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Đang gửi...';
+
+  try {
+    const r = await fetch(`${PROXY_URL}/api/auth/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    const data = await r.json();
+
+    if (r.status === 429) {
+      errEl.textContent = '⏳ Quá nhiều yêu cầu. Thử lại sau 15 phút.';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    // Luôn hiện thông báo thành công (không lộ email có tồn tại hay không)
+    errEl.style.color = '#16a34a';
+    errEl.textContent = '✅ Nếu email tồn tại, link đặt lại đã được gửi. Vui lòng kiểm tra hộp thư (kể cả Spam).';
+    errEl.style.display = 'block';
+    btn.innerHTML = '<i class="fas fa-check"></i> Đã gửi';
+
+  } catch(e) {
+    errEl.style.color = '#ef4444';
+    errEl.textContent = '❌ Lỗi kết nối. Thử lại sau.';
+    errEl.style.display = 'block';
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Gửi link đặt lại';
+  }
+}
+
+// ── Reset password (từ link email ?reset=TOKEN) ───────────────
+
+async function doResetPassword() {
+  const token = window._resetToken;
+  const p1    = (document.getElementById('lm-reset-pass').value  || '').trim();
+  const p2    = (document.getElementById('lm-reset-pass2').value || '').trim();
+  const btn   = document.getElementById('lm-reset-btn');
+  const errEl = document.getElementById('lm-reset-err');
+
+  errEl.style.display = 'none';
+  if (!p1 || p1.length < 6) {
+    errEl.style.color = '#ef4444';
+    errEl.textContent = '❌ Mật khẩu tối thiểu 6 ký tự.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (p1 !== p2) {
+    errEl.style.color = '#ef4444';
+    errEl.textContent = '❌ Hai mật khẩu không khớp.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Đang cập nhật...';
+
+  try {
+    const r = await fetch(`${PROXY_URL}/api/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, newPassword: p1 }),
+    });
+    const data = await r.json();
+
+    if (r.ok) {
+      errEl.style.color = '#16a34a';
+      errEl.textContent = '✅ Đặt lại mật khẩu thành công! Đang chuyển về đăng nhập...';
+      errEl.style.display = 'block';
+      // Xoá ?reset= khỏi URL
+      window.history.replaceState({}, '', window.location.pathname);
+      window._resetToken = null;
+      setTimeout(() => {
+        showLoginView();
+        // Điền sẵn email nếu server trả về
+        if (data.email) document.getElementById('lm-user').value = data.email;
+      }, 2000);
+    } else {
+      errEl.style.color = '#ef4444';
+      errEl.textContent = '❌ ' + (data.error || 'Link không hợp lệ hoặc đã hết hạn.');
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-check"></i> Xác nhận đặt lại';
+    }
+  } catch(e) {
+    errEl.style.color = '#ef4444';
+    errEl.textContent = '❌ Lỗi kết nối. Thử lại sau.';
+    errEl.style.display = 'block';
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check"></i> Xác nhận đặt lại';
+  }
+}
+
+// Kiểm tra URL có ?reset=TOKEN → tự mở modal reset
+(function _checkResetToken() {
+  const params = new URLSearchParams(window.location.search);
+  const token  = params.get('reset');
+  if (!token) return;
+  window._resetToken = token;
+  // Mở modal ở view reset sau khi DOM sẵn sàng
+  window.addEventListener('DOMContentLoaded', () => {
+    _lmShowView('lm-view-reset');
+    document.getElementById('login-modal').classList.add('show');
+    setTimeout(() => document.getElementById('lm-reset-pass').focus(), 150);
+  }, { once: true });
+})();
 
 // ── CONTENT ──
 let contentTree = [];
@@ -1809,18 +1980,18 @@ async function showCourseDetail(courseId) {
     const allItems = (artData.list || []).filter(a => a.Published !== false);
     const allExams = (examData.list || []).filter(e => e.Status === 'published');
 
-    // Kiểm tra unlock condition từng module (parallel, best-effort)
+    // Kiểm tra unlock condition — 1 request batch thay vì N requests (perf fix)
     const unlockResults = {};
-    if (isLoggedIn()) {
-      await Promise.all(modules.map(async mod => {
-        if (!mod.UnlockCondition) { unlockResults[mod.Id] = { ok: true }; return; }
-        try {
-          const r = await fetch(`${proxyBase}/api/module-unlock/${mod.Id}`, {
-            headers: { 'Authorization': `Bearer ${getUser()?.token || ''}` }
-          });
-          unlockResults[mod.Id] = r.ok ? await r.json() : { ok: true };
-        } catch { unlockResults[mod.Id] = { ok: true }; }
-      }));
+    if (isLoggedIn() && modules.some(m => m.UnlockCondition)) {
+      try {
+        const batchR = await fetch(`${proxyBase}/api/course/${courseId}/unlock-status`, {
+          headers: { 'Authorization': `Bearer ${getUser()?.token || ''}` }
+        });
+        if (batchR.ok) {
+          const batchData = await batchR.json();
+          Object.assign(unlockResults, batchData.statuses || {});
+        }
+      } catch { /* best-effort */ }
     }
 
     container.innerHTML = '';
@@ -2033,7 +2204,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 let _examTimer = null;
 let _examData = null;
-let _examAnswers = {}; // { questionId: { sectionId, bankId, origIdx, optionId } }
+let _examAnswers = {}; // { questionId: { sectionId, qToken, optionId } }
 let _examStartedFrom = 'home'; // để quay lại đúng chỗ
 
 async function openExamView(examId) {
@@ -2128,8 +2299,8 @@ function _renderExamQuestions() {
           ${(q.options || []).map(opt => `
             <label class="exam-option" id="eo-${q.id}-${opt.id}">
               <input type="radio" name="eq-${q.id}" value="${opt.id}"
-                data-qid="${q.id}" data-sid="${sec.sectionId}" data-bid="${sec.bankId || ''}" data-origidx="${q.origIdx}"
-                onchange="_recordAnswer('${q.id}', ${opt.id}, '${sec.sectionId}', ${q.origIdx})">
+                data-qid="${q.id}" data-sid="${sec.sectionId}"
+                onchange="_recordAnswer('${q.id}', ${opt.id}, '${sec.sectionId}', '${q.qToken || ''}')">
               <span>${esc(opt.text)}</span>
             </label>`).join('')}
         </div>
@@ -2147,8 +2318,8 @@ function _renderExamQuestions() {
   body.innerHTML = html;
 }
 
-function _recordAnswer(questionId, optionId, sectionId, origIdx) {
-  _examAnswers[questionId] = { questionId, optionId, sectionId: parseInt(sectionId), origIdx };
+function _recordAnswer(questionId, optionId, sectionId, qToken) {
+  _examAnswers[questionId] = { questionId, optionId, sectionId: parseInt(sectionId), qToken };
   // Highlight selected option
   document.querySelectorAll(`[name="eq-${questionId}"]`).forEach(inp => {
     inp.closest('.exam-option')?.classList.toggle('selected', inp.value == optionId);

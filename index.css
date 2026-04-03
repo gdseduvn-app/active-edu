@@ -47,6 +47,9 @@
   .lm-err { color:#ef4444;font-size:13px;text-align:center;margin-top:8px;display:none; }
   .lm-close { display:block;text-align:center;margin-top:14px;font-size:13px;color:var(--text-muted);cursor:pointer; }
   .lm-close:hover { color:var(--primary); }
+  .lm-link { font-size:13px;color:var(--primary);cursor:pointer;text-decoration:underline;text-underline-offset:2px; }
+  .lm-link:hover { opacity:.75; }
+  .lm-ok { color:#16a34a;font-size:13px;text-align:center;margin-top:8px;display:none; }
   .lm-divider { display:flex;align-items:center;gap:10px;margin:14px 0; }
   .lm-divider::before,.lm-divider::after { content:'';flex:1;border-top:1px solid var(--border); }
   .lm-divider span { font-size:12px;color:var(--text-muted); }

@@ -30,119 +30,12 @@ function cfg() { return { ...getDefaultCfg(), ...getCfg() }; }
 // ── Auth ──
 const ADMIN_USER = 'admin';
 
-// ── Rate limiting: chống brute-force login ──
-const LOGIN_MAX_ATTEMPTS = 5;
-const LOGIN_LOCKOUT_MS   = 15 * 60 * 1000; // 15 phút
-const LOGIN_ATTEMPT_KEY  = 'ae_login_attempts';
-const LOGIN_LOCKOUT_KEY  = 'ae_login_lockout';
-
-function _getLoginAttempts() {
-  try { return parseInt(sessionStorage.getItem(LOGIN_ATTEMPT_KEY) || '0'); } catch { return 0; }
-}
-function _incLoginAttempts() {
-  const n = _getLoginAttempts() + 1;
-  sessionStorage.setItem(LOGIN_ATTEMPT_KEY, n);
-  if (n >= LOGIN_MAX_ATTEMPTS) {
-    sessionStorage.setItem(LOGIN_LOCKOUT_KEY, Date.now() + LOGIN_LOCKOUT_MS);
-  }
-  return n;
-}
-function _resetLoginAttempts() {
-  sessionStorage.removeItem(LOGIN_ATTEMPT_KEY);
-  sessionStorage.removeItem(LOGIN_LOCKOUT_KEY);
-}
-function _checkLoginLocked() {
-  const until = parseInt(sessionStorage.getItem(LOGIN_LOCKOUT_KEY) || '0');
-  if (!until) return null;
-  const remaining = until - Date.now();
-  if (remaining <= 0) { _resetLoginAttempts(); return null; }
-  return Math.ceil(remaining / 60000); // số phút còn lại
-}
-
-async function doLogin() {
-  const u = document.getElementById('login-user').value.trim();
-  const p = document.getElementById('login-pass').value.trim();
-  const btn = document.querySelector('#login-screen button');
-  const errEl = document.getElementById('login-err');
-  errEl.style.display = 'none';
-
-  // ── Kiểm tra lockout ──
-  const lockedMinutes = _checkLoginLocked();
-  if (lockedMinutes !== null) {
-    errEl.textContent = `🔒 Tài khoản tạm khóa. Thử lại sau ${lockedMinutes} phút.`;
-    errEl.style.display = 'block';
-    if (btn) btn.disabled = true;
-    return;
-  }
-
-  if (!u || !p) {
-    errEl.textContent = 'Vui lòng nhập đầy đủ!';
-    errEl.style.display = 'block';
-    return;
-  }
-
-  if (btn) { btn.disabled = true; btn.textContent = 'Đang xác thực...'; }
-
-  try {
-    // Xác thực qua /admin/auth → nhận session token (8h)
-    const proxyUrl = cfg().proxyUrl || 'https://api.gds.edu.vn';
-    const r = await fetch(`${proxyUrl}/admin/auth`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: p }),
-    });
-
-    if (r.status === 401) {
-      const attempts = _incLoginAttempts();
-      const remaining = LOGIN_MAX_ATTEMPTS - attempts;
-      if (remaining <= 0) {
-        errEl.textContent = `🔒 Sai mật khẩu quá nhiều lần. Tài khoản bị khóa 15 phút!`;
-        if (btn) btn.disabled = true;
-      } else {
-        errEl.textContent = `Sai mật khẩu! Còn ${remaining} lần thử.`;
-        if (btn) { btn.disabled = false; btn.textContent = 'Đăng nhập →'; }
-      }
-      errEl.style.display = 'block';
-      return;
-    }
-
-    if (r.status === 429) {
-      errEl.textContent = '⏳ Quá nhiều yêu cầu. Vui lòng đợi rồi thử lại!';
-      errEl.style.display = 'block';
-      if (btn) { btn.disabled = false; btn.textContent = 'Đăng nhập →'; }
-      return;
-    }
-
-    if (!r.ok) {
-      errEl.textContent = 'Lỗi kết nối Worker. Thử lại sau!';
-      errEl.style.display = 'block';
-      return;
-    }
-
-    const authData = await r.json();
-    // Đăng nhập thành công → lưu token (không lưu password)
-    _resetLoginAttempts();
-    sessionStorage.setItem('ae_auth', '1');
-    sessionStorage.setItem('ae_admin_token', authData.token || '');
-    // Giữ password tạm để fallback nếu worker cũ chưa có /admin/auth
-    sessionStorage.setItem('ae_admin_pass', p);
-    document.getElementById('login-screen').style.display = 'none';
-    initAdmin();
-
-  } catch(e) {
-    errEl.textContent = 'Lỗi kết nối: ' + e.message;
-    errEl.style.display = 'block';
-  } finally {
-    const stillLocked = _checkLoginLocked() !== null;
-    if (btn && !stillLocked) { btn.disabled = false; btn.textContent = 'Đăng nhập →'; }
-  }
-}
-
 function doLogout() {
   sessionStorage.removeItem('ae_auth');
-  sessionStorage.removeItem('ae_admin_pass');
+  sessionStorage.removeItem('ae_admin_pass'); // legacy cleanup
   sessionStorage.removeItem('ae_admin_token');
-  location.reload();
+  localStorage.removeItem('ae_user');
+  window.location.href = '../index.html';
 }
 
 // ═══════════════════════════════════════════════════
@@ -2082,14 +1975,13 @@ async function loadAnalytics() {
 
   try {
     // Fetch all progress rows (admin)
-    const adminPass = sessionStorage.getItem('ae_admin_pass') || '';
     const proxyBase = (cfg().proxyUrl || 'https://api.gds.edu.vn').replace(/\/$/, '');
     let allRows = [];
     let offset = 0;
     const pageSize = 200;
     while (true) {
       const resp = await fetch(`${proxyBase}/admin/progress?limit=${pageSize}&offset=${offset}`, {
-        headers: { 'Admin-Password': adminPass }
+        headers: adminHeaders()
       });
       if (!resp.ok) throw new Error('Lỗi tải dữ liệu tiến độ');
       const data = await resp.json();
@@ -2590,14 +2482,19 @@ async function syncFromNoco() {
 const PROXY = 'https://api.gds.edu.vn';
 
 function adminHeaders() {
+  // 1. sessionStorage token (từ unified login hoặc /admin/auth cũ)
   const token = sessionStorage.getItem('ae_admin_token') || '';
   if (token) {
-    // Dùng session token (không lộ password)
-    return { 'Content-Type': 'application/json', 'Admin-Token': token };
+    return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
   }
-  // Fallback legacy: plain-text password (cho worker cũ chưa update)
-  const pass = sessionStorage.getItem('ae_admin_pass') || '';
-  return { 'Content-Type': 'application/json', 'Admin-Password': pass };
+  // 2. localStorage ae_user với role=admin (unified login flow)
+  try {
+    const u = JSON.parse(localStorage.getItem('ae_user') || 'null');
+    if (u && u.token && u.role === 'admin' && u.expiresAt > Date.now()) {
+      return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${u.token}` };
+    }
+  } catch {}
+  return { 'Content-Type': 'application/json' };
 }
 
 const NOCO = {
@@ -3338,16 +3235,30 @@ async function doRenameFile(oldPath, currentName, newName) {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  const hasAuth = sessionStorage.getItem('ae_auth') === '1';
-  const hasPass = !!sessionStorage.getItem('ae_admin_pass');
   const loginScreen = document.getElementById('login-screen');
-  if (hasAuth && hasPass) {
+
+  // Kiểm tra sessionStorage token (từ unified login hoặc /admin/auth)
+  if (sessionStorage.getItem('ae_admin_token')) {
     loginScreen.style.display = 'none';
     initAdmin();
-  } else {
-    sessionStorage.removeItem('ae_auth');
-    loginScreen.style.display = 'flex';
+    return;
   }
+
+  // Kiểm tra localStorage ae_user với role=admin (đăng nhập từ trang chính)
+  try {
+    const u = JSON.parse(localStorage.getItem('ae_user') || 'null');
+    if (u && u.role === 'admin' && u.token && u.expiresAt > Date.now()) {
+      sessionStorage.setItem('ae_auth', '1');
+      sessionStorage.setItem('ae_admin_token', u.token);
+      loginScreen.style.display = 'none';
+      initAdmin();
+      return;
+    }
+  } catch {}
+
+  // Không có session hợp lệ → hiện màn hình redirect
+  sessionStorage.removeItem('ae_auth');
+  loginScreen.style.display = 'flex';
 });
 // ── CONFIG EXPORT / IMPORT ──────────────────────────────
 
@@ -4075,11 +3986,10 @@ function closeQuizEditor() {
 async function _qmLoadExisting() {
   if (!_qmArticleId || !cfg().proxyUrl) return;
   try {
-    const adminPass = sessionStorage.getItem('ae_admin_pass') || '';
     const base = (cfg().proxyUrl || 'https://api.gds.edu.vn').replace(/\/$/, '');
     const r = await fetch(
       `${base}/admin/quiz?where=(ArticleId,eq,${_qmArticleId})&limit=1&fields=Id,Questions`,
-      { headers: { 'Admin-Password': adminPass } }
+      { headers: adminHeaders() }
     );
     if (!r.ok) { _qmQuestions = []; _qmRender(); return; }
     const data = await r.json();
@@ -4364,15 +4274,14 @@ async function saveQuiz() {
   }
   if (!_qmArticleId) { showToast('Không xác định được bài học. Lưu bài vào NocoDB trước.', 'error'); return; }
 
-  const adminPass = sessionStorage.getItem('ae_admin_pass') || '';
-  const base      = (cfg().proxyUrl || 'https://api.gds.edu.vn').replace(/\/$/, '');
-  const payload   = JSON.stringify(_qmQuestions);
+  const base    = (cfg().proxyUrl || 'https://api.gds.edu.vn').replace(/\/$/, '');
+  const payload = JSON.stringify(_qmQuestions);
 
   try {
     // Check if quiz already exists
     const check = await fetch(
       `${base}/admin/quiz?where=(ArticleId,eq,${_qmArticleId})&limit=1&fields=Id`,
-      { headers: { 'Admin-Password': adminPass } }
+      { headers: adminHeaders() }
     );
     const checkData = await check.json();
     const existing  = (checkData.list || [])[0];
@@ -4380,13 +4289,13 @@ async function saveQuiz() {
     if (existing) {
       await fetch(`${base}/admin/quiz`, {
         method: 'PATCH',
-        headers: { 'Admin-Password': adminPass, 'Content-Type': 'application/json' },
+        headers: adminHeaders(),
         body: JSON.stringify([{ Id: existing.Id, Questions: payload }]),
       });
     } else {
       await fetch(`${base}/admin/quiz`, {
         method: 'POST',
-        headers: { 'Admin-Password': adminPass, 'Content-Type': 'application/json' },
+        headers: adminHeaders(),
         body: JSON.stringify({ ArticleId: String(_qmArticleId), Questions: payload, CreatedAt: new Date().toISOString() }),
       });
     }
@@ -4910,6 +4819,7 @@ async function saveCourse() {
     if (!r.ok) throw new Error(await r.text());
     closeCourseModal();
     showToast(id ? 'Đã cập nhật khoá học!' : 'Đã tạo khoá học!', 'success');
+    _moduleOptionsCache = null;
     await loadCourses();
   } catch(e) {
     showToast('Lỗi: ' + e.message, 'error');
@@ -4929,6 +4839,7 @@ async function deleteCourse(id, title) {
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || await r.text());
     showToast(`Đã xoá khoá học (${data.cascadeModulesDeleted || 0} modules)`, 'success');
+    _moduleOptionsCache = null;
     await loadCourses();
   } catch(e) {
     showToast('Lỗi: ' + e.message, 'error');
@@ -5091,6 +5002,7 @@ async function saveModule() {
     if (!r.ok) throw new Error(await r.text());
     closeModuleModal();
     showToast(id ? 'Đã cập nhật module!' : 'Đã thêm module!', 'success');
+    _moduleOptionsCache = null;
     await loadModules(_activeCourseId);
   } catch(e) {
     showToast('Lỗi: ' + e.message, 'error');
@@ -5110,6 +5022,7 @@ async function deleteModule(id, title) {
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || await r.text());
     showToast('Đã xoá module!', 'success');
+    _moduleOptionsCache = null;
     await loadModules(_activeCourseId);
   } catch(e) {
     showToast('Lỗi: ' + e.message, 'error');

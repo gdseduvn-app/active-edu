@@ -46,22 +46,70 @@
 <!-- ── LOGIN MODAL ── -->
 <div id="login-modal">
   <div class="lm-box">
-    <div class="lm-logo">
-      <div class="lm-logo-icon"><i class="fas fa-bolt"></i></div>
-      <div class="lm-logo-name">Active<span>Edu</span></div>
-      <div class="lm-sub">Đăng nhập để xem bài học</div>
+
+    <!-- ── VIEW 1: Đăng nhập ── -->
+    <div id="lm-view-login">
+      <div class="lm-logo">
+        <div class="lm-logo-icon"><i class="fas fa-bolt"></i></div>
+        <div class="lm-logo-name">Active<span>Edu</span></div>
+        <div class="lm-sub">Đăng nhập để xem bài học</div>
+      </div>
+      <div class="lm-field">
+        <label>Email / Tài khoản</label>
+        <input type="text" id="lm-user" placeholder="Email học sinh hoặc tên tài khoản" autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('lm-pass').focus()">
+      </div>
+      <div class="lm-field">
+        <label>Mật khẩu</label>
+        <input type="password" id="lm-pass" placeholder="Nhập mật khẩu" autocomplete="current-password" onkeydown="if(event.key==='Enter')doUserLogin()">
+      </div>
+      <button class="lm-btn" onclick="doUserLogin()"><i class="fas fa-sign-in-alt"></i> Đăng nhập</button>
+      <div class="lm-err" id="lm-err"></div>
+      <div style="text-align:center;margin-top:10px">
+        <span class="lm-link" onclick="showForgotView()">Quên mật khẩu?</span>
+      </div>
+      <span class="lm-close" id="lm-close" onclick="closeLoginModal()" style="display:none">Tiếp tục xem bài public →</span>
     </div>
-    <div class="lm-field">
-      <label>Email</label>
-      <input type="email" id="lm-user" placeholder="Nhập email của bạn" autocomplete="email" onkeydown="if(event.key==='Enter')document.getElementById('lm-pass').focus()">
+
+    <!-- ── VIEW 2: Quên mật khẩu ── -->
+    <div id="lm-view-forgot" style="display:none">
+      <div class="lm-logo">
+        <div class="lm-logo-icon"><i class="fas fa-envelope"></i></div>
+        <div class="lm-logo-name">Active<span>Edu</span></div>
+        <div class="lm-sub">Đặt lại mật khẩu</div>
+      </div>
+      <p style="font-size:13px;color:#64748b;text-align:center;margin:0 0 16px;line-height:1.6">
+        Nhập email đã đăng ký. Chúng tôi sẽ gửi link đặt lại mật khẩu có hiệu lực <strong>1 giờ</strong>.
+      </p>
+      <div class="lm-field">
+        <label>Email</label>
+        <input type="email" id="lm-forgot-email" placeholder="your@email.com" autocomplete="email" onkeydown="if(event.key==='Enter')doForgotPassword()">
+      </div>
+      <button class="lm-btn" id="lm-forgot-btn" onclick="doForgotPassword()"><i class="fas fa-paper-plane"></i> Gửi link đặt lại</button>
+      <div class="lm-err" id="lm-forgot-err"></div>
+      <div style="text-align:center;margin-top:12px">
+        <span class="lm-link" onclick="showLoginView()">← Quay lại đăng nhập</span>
+      </div>
     </div>
-    <div class="lm-field">
-      <label>Mật khẩu</label>
-      <input type="password" id="lm-pass" placeholder="Nhập mật khẩu" autocomplete="current-password" onkeydown="if(event.key==='Enter')doUserLogin()">
+
+    <!-- ── VIEW 3: Đặt mật khẩu mới (từ link email) ── -->
+    <div id="lm-view-reset" style="display:none">
+      <div class="lm-logo">
+        <div class="lm-logo-icon"><i class="fas fa-key"></i></div>
+        <div class="lm-logo-name">Active<span>Edu</span></div>
+        <div class="lm-sub">Tạo mật khẩu mới</div>
+      </div>
+      <div class="lm-field">
+        <label>Mật khẩu mới</label>
+        <input type="password" id="lm-reset-pass" placeholder="Tối thiểu 6 ký tự" autocomplete="new-password" onkeydown="if(event.key==='Enter')document.getElementById('lm-reset-pass2').focus()">
+      </div>
+      <div class="lm-field">
+        <label>Xác nhận mật khẩu</label>
+        <input type="password" id="lm-reset-pass2" placeholder="Nhập lại mật khẩu mới" autocomplete="new-password" onkeydown="if(event.key==='Enter')doResetPassword()">
+      </div>
+      <button class="lm-btn" id="lm-reset-btn" onclick="doResetPassword()"><i class="fas fa-check"></i> Xác nhận đặt lại</button>
+      <div class="lm-err" id="lm-reset-err"></div>
     </div>
-    <button class="lm-btn" onclick="doUserLogin()"><i class="fas fa-sign-in-alt"></i> Đăng nhập</button>
-    <div class="lm-err" id="lm-err"><i class="fas fa-circle-xmark"></i> Sai tài khoản hoặc mật khẩu!</div>
-    <span class="lm-close" id="lm-close" onclick="closeLoginModal()" style="display:none">Tiếp tục xem bài public →</span>
+
   </div>
 </div>
 

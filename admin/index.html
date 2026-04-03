@@ -9,99 +9,43 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Be Vietnam Pro',sans-serif;background:linear-gradient(135deg,#2563eb,#4338ca);min-height:100vh;display:flex;align-items:center;justify-content:center}
-.box{background:#fff;border-radius:20px;padding:44px;width:380px;box-shadow:0 24px 80px rgba(0,0,0,.3)}
-.logo{text-align:center;margin-bottom:28px}
+.box{background:#fff;border-radius:20px;padding:44px;width:380px;box-shadow:0 24px 80px rgba(0,0,0,.3);text-align:center}
 .logo-icon{width:48px;height:48px;background:#2563eb;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;margin:0 auto 12px}
-.logo-name{font-size:22px;font-weight:700;color:#1e293b}
+.logo-name{font-size:22px;font-weight:700;color:#1e293b;margin-bottom:4px}
 .logo-name span{color:#2563eb}
-.logo-sub{font-size:11px;color:#64748b;letter-spacing:2px;text-transform:uppercase;margin-top:2px}
-label{display:block;font-size:13px;font-weight:500;color:#64748b;margin-bottom:5px}
-input{width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none;margin-bottom:14px;transition:border .15s}
-input:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.08)}
-.btn{width:100%;padding:12px;background:#2563eb;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;transition:background .15s}
+.logo-sub{font-size:11px;color:#64748b;letter-spacing:2px;text-transform:uppercase}
+p{color:#64748b;font-size:14px;margin:24px 0 20px;line-height:1.6}
+.btn{display:inline-block;padding:12px 28px;background:#2563eb;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:none;transition:background .15s}
 .btn:hover{background:#1d4ed8}
-.btn:disabled{opacity:.6;cursor:not-allowed}
-.err{color:#ef4444;font-size:13px;text-align:center;margin-top:10px;display:none}
-.hint{text-align:center;font-size:12px;color:#94a3b8;margin-top:14px}
-code{background:#f1f5f9;padding:1px 5px;border-radius:3px}
 </style>
 </head>
 <body>
 <div class="box">
-  <div class="logo">
-    <div class="logo-icon">⚡</div>
-    <div class="logo-name">Active<span>Edu</span></div>
-    <div class="logo-sub">Admin Dashboard</div>
-  </div>
-  <label>Tài khoản</label>
-  <input type="text" id="u" value="admin" autocomplete="off">
-  <label>Mật khẩu</label>
-  <input type="password" id="p" autocomplete="off" placeholder="Nhập mật khẩu"
-         onkeydown="if(event.key==='Enter')login()">
-  <button class="btn" id="btn" onclick="login()">Đăng nhập →</button>
-  <div class="err" id="err">❌ Sai tài khoản hoặc mật khẩu!</div>
-  <div class="hint">Mật khẩu quản lý trong <code>Cloudflare Worker</code></div>
+  <div class="logo-icon">⚡</div>
+  <div class="logo-name">Active<span>Edu</span></div>
+  <div class="logo-sub">Admin Dashboard</div>
+  <p>Đăng nhập bằng tài khoản admin từ trang chính để truy cập dashboard.</p>
+  <a href="../index.html" class="btn">Đến trang đăng nhập →</a>
 </div>
 
 <script>
-const PROXY = 'https://api.gds.edu.vn';
-
-async function login() {
-  var u = document.getElementById('u').value.trim();
-  var p = document.getElementById('p').value.trim();
-  var btn = document.getElementById('btn');
-  var err = document.getElementById('err');
-  btn.disabled = true;
-  btn.textContent = 'Đang xác thực...';
-  err.style.display = 'none';
-
-  if (!u || !p) {
-    err.textContent = 'Vui lòng nhập đầy đủ!';
-    err.style.display = 'block';
-    btn.disabled = false;
-    btn.textContent = 'Đăng nhập →';
+// Nếu đã có session admin hợp lệ → chuyển thẳng vào dashboard
+(function() {
+  // Kiểm tra sessionStorage (token từ /admin/auth hoặc unified login)
+  if (sessionStorage.getItem('ae_admin_token')) {
+    window.location.replace('dashboard.html');
     return;
   }
-
+  // Kiểm tra localStorage ae_user với role=admin
   try {
-    // Xác thực qua Cloudflare Worker — không dùng localStorage
-    var r = await fetch(PROXY + '/admin/articles?limit=1', {
-      headers: { 'Content-Type': 'application/json', 'Admin-Password': p }
-    });
-
-    if (r.status === 401) {
-      err.textContent = 'Sai tài khoản hoặc mật khẩu!';
-      err.style.display = 'block';
-      btn.disabled = false;
-      btn.textContent = 'Đăng nhập →';
-      return;
+    var u = JSON.parse(localStorage.getItem('ae_user') || 'null');
+    if (u && u.role === 'admin' && u.token && u.expiresAt > Date.now()) {
+      sessionStorage.setItem('ae_auth', '1');
+      sessionStorage.setItem('ae_admin_token', u.token);
+      window.location.replace('dashboard.html');
     }
-
-    if (r.status === 429) {
-      err.textContent = 'Quá nhiều lần thử. Vui lòng đợi 15 phút.';
-      err.style.display = 'block';
-      btn.disabled = false;
-      btn.textContent = 'Đăng nhập →';
-      return;
-    }
-
-    // Thành công — lưu vào sessionStorage
-    sessionStorage.setItem('ae_auth', '1');
-    sessionStorage.setItem('ae_admin_pass', p);
-    window.location.href = 'dashboard.html';
-
-  } catch(e) {
-    err.textContent = 'Lỗi kết nối. Thử lại sau!';
-    err.style.display = 'block';
-    btn.disabled = false;
-    btn.textContent = 'Đăng nhập →';
-  }
-}
-
-// Nếu đã login rồi thì redirect luôn
-if (sessionStorage.getItem('ae_auth') === '1' && sessionStorage.getItem('ae_admin_pass')) {
-  window.location.href = 'dashboard.html';
-}
+  } catch(e) {}
+})();
 </script>
 </body>
 </html>
