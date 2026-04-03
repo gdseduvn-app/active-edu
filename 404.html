@@ -7,7 +7,7 @@
 const path = window.location.pathname;
 const m = path.match(/\/bai\/([^/]+)/);
 if (m) {
-  window.location.replace('/?bai=' + encodeURIComponent(m[1]));
+  window.location.replace('/?article=' + encodeURIComponent(m[1]));
 } else {
   window.location.replace('/');
 }

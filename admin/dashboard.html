@@ -5412,22 +5412,46 @@ function _qmUpdateFooter() {
     total ? `${complete}/${total} câu đầy đủ` : 'Chưa có câu hỏi';
 }
 
+// ── Render text + code blocks + LaTeX ──────────────────────────
+function _qmRenderContent(text) {
+  if (!text || !text.trim()) return '<span style="color:#94a3b8;font-size:13px">Preview sẽ hiển thị ở đây...</span>';
+  const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const parts = [];
+  const codeRe = /```(\w*)\n?([\s\S]*?)```/g;
+  let last = 0, m;
+  while ((m = codeRe.exec(text)) !== null) {
+    if (m.index > last) parts.push({ type: 'text', content: text.slice(last, m.index) });
+    parts.push({ type: 'code', lang: m[1] || '', content: m[2] });
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) parts.push({ type: 'text', content: text.slice(last) });
+
+  return parts.map(p => {
+    if (p.type === 'code') {
+      const lang = p.lang ? `<span style="font-size:10px;color:#94a3b8;float:right">${esc(p.lang)}</span>` : '';
+      return `<pre style="background:#1e293b;color:#e2e8f0;padding:10px 14px;border-radius:8px;font-size:12px;font-family:'Courier New',monospace;overflow-x:auto;margin:6px 0;white-space:pre-wrap">${lang}<code>${esc(p.content)}</code></pre>`;
+    }
+    return `<span class="qm-txt-seg">${esc(p.content).replace(/\n/g,'<br>')}</span>`;
+  }).join('');
+}
+
 // ── LaTeX preview ──────────────────────────────────────────────
 function qmUpdatePreview(srcId, tgtId) {
   const text = document.getElementById(srcId).value;
   const box  = document.getElementById(tgtId);
-  if (!text.trim()) { box.innerHTML = '<span style="color:#94a3b8;font-size:13px">Preview sẽ hiển thị ở đây...</span>'; return; }
-  box.textContent = text;
+  box.innerHTML = _qmRenderContent(text);
   if (typeof renderMathInElement !== 'undefined') {
     try {
-      renderMathInElement(box, {
-        delimiters: [
-          { left: '$$', right: '$$', display: true },
-          { left: '$',  right: '$',  display: false },
-          { left: '\\[', right: '\\]', display: true },
-          { left: '\\(', right: '\\)', display: false },
-        ],
-        throwOnError: false,
+      box.querySelectorAll('.qm-txt-seg').forEach(el => {
+        renderMathInElement(el, {
+          delimiters: [
+            { left: '$$', right: '$$', display: true },
+            { left: '$',  right: '$',  display: false },
+            { left: '\\[', right: '\\]', display: true },
+            { left: '\\(', right: '\\)', display: false },
+          ],
+          throwOnError: false,
+        });
       });
     } catch { /* silent */ }
   }
@@ -5459,7 +5483,7 @@ function qmPreviewAll() {
     return `
       <div style="border:1px solid var(--border);border-radius:12px;padding:16px;background:var(--bg)">
         <div style="font-weight:700;color:var(--primary);font-size:13px;margin-bottom:8px">Câu ${qi + 1}</div>
-        <div class="qm-latex-render" style="font-size:14.5px;margin-bottom:12px;line-height:1.7">${_qmEsc(q.question || '')}</div>
+        <div style="font-size:14.5px;margin-bottom:12px;line-height:1.7">${_qmRenderContent(q.question || '')}</div>
         <div style="display:flex;flex-direction:column;gap:4px">${opts}</div>
         ${q.explanation ? `<div style="margin-top:12px;padding:10px 12px;background:#fffbeb;border-radius:8px;font-size:13px;color:#92400e">
           <i class="fas fa-lightbulb" style="color:#f59e0b;margin-right:5px"></i><span class="qm-latex-render">${_qmEsc(q.explanation)}</span>
@@ -5468,10 +5492,9 @@ function qmPreviewAll() {
   }).join('');
 
   overlay.style.display = 'block';
-  // Render LaTeX in all .qm-latex-render nodes
   if (typeof renderMathInElement !== 'undefined') {
     setTimeout(() => {
-      content.querySelectorAll('.qm-latex-render').forEach(el => {
+      content.querySelectorAll('.qm-latex-render, .qm-txt-seg').forEach(el => {
         try {
           renderMathInElement(el, {
             delimiters: [
@@ -5630,8 +5653,86 @@ async function _extractPDF(file) {
 async function _extractDOCX(file) {
   if (typeof mammoth === 'undefined') throw new Error('mammoth.js chưa tải. Tải lại trang và thử lại.');
   const arrayBuffer = await file.arrayBuffer();
-  const result = await mammoth.extractRawText({ arrayBuffer });
-  return result.value;
+
+  // Dùng convertToHtml để giữ cấu trúc bảng (4-col answer tables)
+  const result = await mammoth.convertToHtml({ arrayBuffer });
+  return _docxHtmlToText(result.value);
+}
+
+// Chuyển HTML của mammoth → text quiz chuẩn
+function _docxHtmlToText(html) {
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  const lines = [];
+
+  const esc = s => s; // giữ nguyên text, không encode
+
+  for (const node of div.childNodes) {
+    const tag = node.nodeName;
+
+    if (tag === 'TABLE') {
+      // Bảng 4 cột = đáp án A B C D trên 1 hàng
+      for (const row of node.querySelectorAll('tr')) {
+        const cells = [...row.querySelectorAll('td,th')];
+        if (cells.length >= 2) {
+          // Mỗi cell là 1 đáp án
+          for (const cell of cells) {
+            const t = cell.textContent.trim();
+            if (t) lines.push(t);
+          }
+        } else if (cells.length === 1) {
+          const t = cells[0].textContent.trim();
+          if (t) lines.push(t);
+        }
+      }
+    } else if (tag === 'P') {
+      const t = node.textContent.trim();
+      if (t) lines.push(t);
+    } else if (tag === 'PRE' || tag === 'CODE') {
+      lines.push('```');
+      lines.push(node.textContent);
+      lines.push('```');
+    } else if (node.nodeType === 1) {
+      const t = node.textContent.trim();
+      if (t) lines.push(t);
+    }
+  }
+  return lines.join('\n');
+}
+
+// ── Detect và wrap code block HTML trong text câu hỏi ──────────
+function _wrapInlineCodeBlocks(text) {
+  const lines = text.split('\n');
+  const out = [];
+  let codeLines = [];
+  let inCode = false;
+
+  const isHtmlLine = l => /^\s*<[!\/a-zA-Z]/.test(l) || /^\s*<!/.test(l);
+  const isKetCau   = l => /^--\s*kết câu\s*--$/i.test(l.trim());
+
+  for (const line of lines) {
+    if (isKetCau(line)) {
+      if (inCode && codeLines.length) {
+        out.push('```html'); out.push(...codeLines); out.push('```');
+        inCode = false; codeLines = [];
+      }
+      out.push(line); continue;
+    }
+    if (isHtmlLine(line)) {
+      if (!inCode) inCode = true;
+      codeLines.push(line);
+    } else {
+      if (inCode) {
+        out.push('```html'); out.push(...codeLines); out.push('```');
+        inCode = false; codeLines = [];
+      }
+      out.push(line);
+    }
+  }
+  if (inCode && codeLines.length) {
+    out.push('```html'); out.push(...codeLines); out.push('```');
+  }
+  return out.join('\n');
 }
 
 // ── Universal quiz text parser ─────────────────────────────────
@@ -5642,6 +5743,14 @@ function _parseQuizText(text) {
     .replace(/[\u200B\u200C\u200D\uFEFF]/g, '')
     .replace(/[ \t]+/g, ' ')
     .trim();
+
+  // Wrap inline HTML code blocks trước khi parse
+  text = _wrapInlineCodeBlocks(text);
+
+  // Nếu có --Kết câu-- thì dùng parser chuyên biệt
+  if (/--\s*kết câu\s*--/i.test(text)) {
+    return _parseKetCauFormat(text);
+  }
 
   const lines = text.split('\n').map(l => l.trim());
   const questions = [];
@@ -5740,6 +5849,104 @@ function _parseQuizText(text) {
     });
   }
 
+  return questions;
+}
+
+// ── Parser cho định dạng --Kết câu-- (chuẩn BGD/HTML quiz) ─────
+function _parseKetCauFormat(text) {
+  const questions = [];
+  const lines = text.split('\n');
+
+  // Regex nhận diện đầu câu hỏi
+  const reQStart  = /^(?:câu\s*)?(\d+)[.:)\s]\s*(.+)/i;
+  // Regex nhận diện đáp án (hỗ trợ [A.] và A.)
+  const reOption  = /^(?:\[([A-Fa-f])[.\]]\]?|\(?([A-Fa-f])\)?[.)]\s*)(.+)/;
+  const reKetCau  = /^--\s*kết câu\s*--$/i;
+  const reAnswer  = /^(?:đáp\s*án|answer|key|ans|da)[:\s]+([A-Fa-f])/i;
+  const reExpl    = /^(?:giải(?:\s*thích)?|explanation|hd|hướng\s*dẫn)[:\s]+(.+)/i;
+
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i].trim();
+    if (!line) { i++; continue; }
+
+    const qMatch = reQStart.exec(line);
+    if (!qMatch) { i++; continue; }
+
+    // Thu thập text câu hỏi (có thể nhiều dòng, kể cả code block)
+    let questionText = qMatch[2].trim();
+    i++;
+    // Đọc tiếp cho đến khi gặp --Kết câu-- hoặc đáp án trực tiếp
+    const qExtraLines = [];
+    let inCodeBlock = false;
+    while (i < lines.length) {
+      const l = lines[i].trim();
+      if (reKetCau.exec(l)) { i++; break; }      // gặp --Kết câu--
+      if (!inCodeBlock && reOption.exec(l)) break; // gặp đáp án trực tiếp
+      if (l === '```html' || l === '```') { inCodeBlock = !inCodeBlock; }
+      qExtraLines.push(lines[i]);
+      i++;
+    }
+    if (qExtraLines.length) {
+      questionText += '\n' + qExtraLines.join('\n');
+    }
+
+    // Thu thập đáp án
+    const options = [];
+    let answerLetter = null;
+    let explanation  = '';
+
+    while (i < lines.length) {
+      const l = lines[i].trim();
+      if (!l) { i++; continue; }
+      if (reQStart.exec(l) && options.length >= 2) break; // câu tiếp theo
+
+      const oMatch = reOption.exec(l);
+      const aMatch = reAnswer.exec(l);
+      const eMatch = reExpl.exec(l);
+
+      if (oMatch) {
+        const isBracket = !!oMatch[1];
+        const letter = (oMatch[1] || oMatch[2]).toUpperCase();
+        let optText = oMatch[3].trim();
+        i++;
+        // Multi-line option
+        while (i < lines.length) {
+          const nl = lines[i].trim();
+          if (!nl || reOption.exec(nl) || reAnswer.exec(nl) ||
+              reKetCau.exec(nl) || reQStart.exec(nl)) break;
+          optText += ' ' + nl;
+          i++;
+        }
+        let isMarked = isBracket;
+        optText = optText.replace(/\s*[*✓✔]\s*$/, () => { isMarked = true; return ''; });
+        optText = optText.replace(/\s*\(đúng\)\s*$/i, () => { isMarked = true; return ''; });
+        options.push({ text: optText.trim(), correct: isMarked });
+      } else if (aMatch) {
+        answerLetter = aMatch[1].toUpperCase();
+        i++;
+      } else if (eMatch) {
+        explanation = eMatch[1].trim();
+        i++;
+      } else {
+        i++;
+      }
+    }
+
+    if (!options.length) continue;
+
+    // Áp dụng answerLetter nếu không có bracket
+    const finalOpts = options.map((o, idx) => ({
+      text: o.text,
+      correct: o.correct || (answerLetter && String.fromCharCode(65 + idx) === answerLetter),
+    }));
+
+    questions.push({
+      question:    questionText.trim(),
+      options:     finalOpts,
+      explanation: explanation.trim(),
+    });
+  }
   return questions;
 }
 

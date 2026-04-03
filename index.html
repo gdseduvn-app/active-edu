@@ -945,7 +945,8 @@ async function init() {
 
     // Deep link: /bai/{nocoId} (mới) hoặc /bai/{slug} (backward compat)
     const pathMatch = window.location.pathname.match(/\/bai\/([^/]+)/);
-    const paramId   = new URLSearchParams(window.location.search).get('article');
+    const params    = new URLSearchParams(window.location.search);
+    const paramId   = params.get('article') || params.get('bai');
     const rawVal    = pathMatch ? decodeURIComponent(pathMatch[1]) : (paramId ? decodeURIComponent(paramId) : null);
     if (rawVal) {
       // Thử tìm bằng ID trước (số), fallback slug
