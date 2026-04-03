@@ -645,3 +645,7 @@ tr:hover td{background:var(--hover)}
 .esi-hd{display:flex;align-items:flex-start;gap:12px}
 .esi-num{font-weight:700;font-size:12px;color:var(--primary);background:#eff6ff;padding:4px 10px;border-radius:100px;flex-shrink:0;margin-top:2px}
 .esi-info{flex:1}
+
+/* ── EDITOR META ROW 2 ──────────────────────── */
+.editor-meta-row2{background:#f0f9ff;border-bottom:1px solid #bae6fd;font-size:12px;padding:7px 14px;gap:8px;flex-wrap:wrap}
+.editor-meta-row2 input,.editor-meta-row2 select{font-size:12px;padding:5px 9px}

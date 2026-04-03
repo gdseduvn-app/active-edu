@@ -1809,41 +1809,62 @@ async function showCourseDetail(courseId) {
     const allItems = (artData.list || []).filter(a => a.Published !== false);
     const allExams = (examData.list || []).filter(e => e.Status === 'published');
 
+    // Kiểm tra unlock condition từng module (parallel, best-effort)
+    const unlockResults = {};
+    if (isLoggedIn()) {
+      await Promise.all(modules.map(async mod => {
+        if (!mod.UnlockCondition) { unlockResults[mod.Id] = { ok: true }; return; }
+        try {
+          const r = await fetch(`${proxyBase}/api/module-unlock/${mod.Id}`, {
+            headers: { 'Authorization': `Bearer ${getUser()?.token || ''}` }
+          });
+          unlockResults[mod.Id] = r.ok ? await r.json() : { ok: true };
+        } catch { unlockResults[mod.Id] = { ok: true }; }
+      }));
+    }
+
     container.innerHTML = '';
+    const typeLabel = { article: 'Bài đọc', interactive: 'Tương tác', quiz: 'Trắc nghiệm' };
+
     modules.forEach((mod, idx) => {
       const items = allItems.filter(a => String(a.ModuleId) === String(mod.Id))
         .sort((a, b) => (a.Position || 0) - (b.Position || 0));
       const exams = allExams.filter(e => String(e.ModuleId) === String(mod.Id));
+      const unlock = unlockResults[mod.Id] || { ok: !mod.UnlockCondition };
+      const isLocked = !unlock.ok;
 
       const block = document.createElement('div');
-      block.className = 'module-block';
-      const typeLabel = { article: 'Bài đọc', interactive: 'Tương tác', quiz: 'Trắc nghiệm' };
+      block.className = `module-block${isLocked ? ' module-locked' : ''}`;
       block.innerHTML = `
         <div class="module-block-hd">
-          <div class="module-block-num">${mod.Position || idx + 1}</div>
+          <div class="module-block-num" style="${isLocked ? 'background:#94a3b8' : ''}">${isLocked ? '🔒' : (mod.Position || idx + 1)}</div>
           <div class="module-block-title">${esc(mod.Title)}</div>
-          ${mod.UnlockCondition ? '<span style="margin-left:auto;font-size:11px;color:#64748b"><i class="fas fa-lock"></i> Có điều kiện</span>' : ''}
+          ${isLocked
+            ? `<span class="module-lock-badge" title="${esc(unlock.reason || 'Cần hoàn thành module trước')}"><i class="fas fa-lock"></i> Chưa mở khoá</span>`
+            : (mod.UnlockCondition ? '<span style="margin-left:auto;font-size:11px;color:#16a34a"><i class="fas fa-lock-open"></i> Đã mở</span>' : '')}
         </div>
-        <div class="module-block-items">
-          ${items.map(item => {
-            const type = item.ItemType || 'article';
-            const isPrivate = item.Access === 'private';
-            return `<div class="module-item-row" onclick="_openModuleItem(${item.Id})">
-              <span class="module-item-type type-${type}">${typeLabel[type] || type}</span>
-              <span style="flex:1;font-size:13px">${esc(item.Title || `Bài ${item.Id}`)}</span>
-              ${isPrivate ? '<i class="fas fa-lock" style="color:#94a3b8;font-size:11px"></i>' : ''}
-              <i class="fas fa-chevron-right" style="color:#94a3b8;font-size:11px"></i>
-            </div>`;
-          }).join('')}
-          ${exams.map(exam => `
-            <div class="module-item-row" onclick="openExamView(${exam.Id})">
-              <span class="module-item-type type-quiz">📝 Đề thi</span>
-              <span style="flex:1;font-size:13px">${esc(exam.Title)}</span>
-              ${exam.TimeLimit ? `<span style="font-size:11px;color:#64748b"><i class="fas fa-clock"></i> ${exam.TimeLimit} phút</span>` : ''}
-              <i class="fas fa-chevron-right" style="color:#94a3b8;font-size:11px"></i>
-            </div>`).join('')}
-          ${!items.length && !exams.length ? '<div style="padding:12px 18px;font-size:13px;color:#94a3b8">Module này chưa có bài học.</div>' : ''}
-        </div>`;
+        ${isLocked
+          ? `<div class="module-lock-overlay"><i class="fas fa-lock"></i> ${esc(unlock.reason || 'Hoàn thành module trước để mở khoá')}</div>`
+          : `<div class="module-block-items">
+              ${items.map(item => {
+                const type = item.ItemType || 'article';
+                const isPrivate = item.Access === 'private';
+                return `<div class="module-item-row" onclick="_openModuleItemWithPrereqCheck(${item.Id}, '${esc(item.Title || '')}')">
+                  <span class="module-item-type type-${type}">${typeLabel[type] || type}</span>
+                  <span style="flex:1;font-size:13px">${esc(item.Title || `Bài ${item.Id}`)}</span>
+                  ${isPrivate ? '<i class="fas fa-lock" style="color:#94a3b8;font-size:11px" title="Cần đăng nhập"></i>' : ''}
+                  <i class="fas fa-chevron-right" style="color:#94a3b8;font-size:11px"></i>
+                </div>`;
+              }).join('')}
+              ${exams.map(exam => `
+                <div class="module-item-row" onclick="openExamView(${exam.Id})">
+                  <span class="module-item-type type-quiz">📝 Đề thi</span>
+                  <span style="flex:1;font-size:13px">${esc(exam.Title)}</span>
+                  ${exam.TimeLimit ? `<span style="font-size:11px;color:#64748b"><i class="fas fa-clock"></i> ${exam.TimeLimit} phút</span>` : ''}
+                  <i class="fas fa-chevron-right" style="color:#94a3b8;font-size:11px"></i>
+                </div>`).join('')}
+              ${!items.length && !exams.length ? '<div style="padding:12px 18px;font-size:13px;color:#94a3b8">Module này chưa có bài học.</div>' : ''}
+            </div>`}`;
       container.appendChild(block);
     });
   } catch(e) {
@@ -1858,10 +1879,49 @@ function _openModuleItem(articleId) {
   if (item) {
     loadArticle(item);
   } else {
-    // Item có thể chưa có trong tree (nếu access=private) — thử load trực tiếp
     const synth = { nocoId: String(articleId), name: 'Bài học', path: '', folder: '', access: 'public' };
     loadArticle(synth);
   }
+}
+
+async function _openModuleItemWithPrereqCheck(articleId, title) {
+  // Không cần check prereq nếu chưa login (loadArticle sẽ tự hiện gate)
+  if (!isLoggedIn()) {
+    _openModuleItem(articleId);
+    return;
+  }
+  const proxyBase = (PROXY_URL || 'https://api.gds.edu.vn').replace(/\/$/, '');
+  try {
+    const r = await fetch(`${proxyBase}/api/prereq/${articleId}`, {
+      headers: { 'Authorization': `Bearer ${getUser()?.token || ''}` }
+    });
+    const check = r.ok ? await r.json() : { ok: true };
+    if (!check.ok) {
+      _showPrereqGate(title, check.reason, check.missing);
+      return;
+    }
+  } catch { /* network error → cho qua */ }
+  _openModuleItem(articleId);
+}
+
+function _showPrereqGate(title, reason, missingId) {
+  // Hiển thị toast + inline message thay vì block hoàn toàn
+  const msg = reason || 'Bạn cần hoàn thành bài học trước đó';
+  // Tạo overlay thông báo nhẹ
+  const existing = document.getElementById('prereq-toast');
+  if (existing) existing.remove();
+  const div = document.createElement('div');
+  div.id = 'prereq-toast';
+  div.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:9999;background:#1e293b;color:#fff;padding:14px 22px;border-radius:12px;font-size:14px;box-shadow:0 8px 30px rgba(0,0,0,.3);display:flex;align-items:center;gap:12px;max-width:420px;text-align:left';
+  div.innerHTML = `
+    <i class="fas fa-lock-keyhole" style="font-size:20px;color:#f59e0b;flex-shrink:0"></i>
+    <div>
+      <div style="font-weight:600;margin-bottom:3px">🔒 ${esc(title)}</div>
+      <div style="font-size:12px;color:#94a3b8">${esc(msg)}</div>
+    </div>
+    <button onclick="this.closest('#prereq-toast').remove()" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:16px;padding:0 0 0 8px;flex-shrink:0">✕</button>`;
+  document.body.appendChild(div);
+  setTimeout(() => div.remove(), 5000);
 }
 
 // ═══════════════════════════════════════════════════

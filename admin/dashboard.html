@@ -388,6 +388,23 @@
                 <option value="">📁 Chọn thư mục...</option>
               </select>
             </div>
+            <!-- ── Row 2: Module assignment ── -->
+            <div class="editor-meta editor-meta-row2" id="editor-meta-row2">
+              <select id="e-module" title="Gán bài vào module" style="border:1px solid var(--border);border-radius:7px;padding:6px 10px;font-size:12px;font-family:inherit;outline:none;background:#fff;min-width:180px;color:var(--text)">
+                <option value="">📦 Không thuộc module</option>
+              </select>
+              <select id="e-itemtype" title="Loại item trong module" style="border:1px solid var(--border);border-radius:7px;padding:6px 10px;font-size:12px;font-family:inherit;outline:none;background:#fff">
+                <option value="article">📄 Bài đọc</option>
+                <option value="interactive">🎮 Tương tác</option>
+                <option value="quiz">📊 Trắc nghiệm</option>
+              </select>
+              <input id="e-position" type="number" min="1" placeholder="Vị trí #" title="Thứ tự trong module" style="border:1px solid var(--border);border-radius:7px;padding:6px 10px;font-size:12px;font-family:inherit;outline:none;background:#fff;width:90px">
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text);cursor:pointer;padding:4px 8px;background:#f8fafc;border:1px solid var(--border);border-radius:7px" title="Công bố cho học sinh">
+                <input type="checkbox" id="e-published" checked style="accent-color:#16a34a;width:14px;height:14px">
+                <span>Công bố</span>
+              </label>
+              <input id="e-prerequisites" type="text" placeholder="🔗 Điều kiện: articleId1,articleId2" title="ID các bài cần hoàn thành trước (phân cách bằng dấu phẩy)" style="border:1px solid var(--border);border-radius:7px;padding:6px 10px;font-size:12px;font-family:inherit;outline:none;background:#fff;flex:1;min-width:200px">
+            </div>
             <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0">
               <div class="editor-tabs">
                 <button class="etab active" id="etab-rich" onclick="switchTab('rich')"><i class="fas fa-eye"></i> Soạn thảo</button>

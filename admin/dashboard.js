@@ -1815,11 +1815,17 @@ async function editFile(path) {
       row = (data.list || [])[0];
     }
     let title = '', folder = '', desc = '', access = 'public', html = '';
+    let moduleId = '', itemType = 'article', position = '', published = true, prerequisites = '';
     if (row) {
       title  = row.Title       || '';
       folder = row.Folder      || '';
       desc   = row.Description || '';
       access = row.Access      || 'public';
+      moduleId     = row.ModuleId      ? String(row.ModuleId) : '';
+      itemType     = row.ItemType      || 'article';
+      position     = row.Position      ? String(row.Position) : '';
+      published    = row.Published !== false; // default true
+      prerequisites = row.Prerequisites || '';
       // Giải nén nếu Content được nén bằng LZ-String
       const _raw = row.Content || '';
       if (_raw.startsWith('lz:')) {
@@ -1851,6 +1857,13 @@ async function editFile(path) {
     document.getElementById('e-title').value  = title;
     document.getElementById('e-desc').value   = desc;
     document.getElementById('e-access').value = access;
+    document.getElementById('e-itemtype').value   = itemType;
+    document.getElementById('e-position').value   = position;
+    document.getElementById('e-published').checked = published;
+    document.getElementById('e-prerequisites').value = prerequisites;
+
+    // Load module dropdown (async, không block)
+    loadModuleOptions(moduleId);
 
     // Folder dropdown: update options trước, set value sau
     updateFolderSelects();
@@ -1941,8 +1954,24 @@ async function saveToNoco() {
       const ratio = Math.round((1 - compressed.length / htmlContent.length) * 100);
       console.log(`[LZ] ${htmlContent.length} → ${compressed.length} ký tự (nén ${ratio}%)`);
     }
-    const payload = { Title:title, Path:filePath, Folder:folder||'', Description:desc||'', Access:access, Updated:now, Content:contentValue,
-      Excerpt: htmlContent.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0, 150) };
+    // Module assignment fields
+    const moduleIdVal  = parseInt(document.getElementById('e-module')?.value || '0') || null;
+    const itemTypeVal  = document.getElementById('e-itemtype')?.value || 'article';
+    const positionVal  = parseInt(document.getElementById('e-position')?.value || '0') || null;
+    const publishedVal = document.getElementById('e-published')?.checked !== false;
+    const prereqsVal   = document.getElementById('e-prerequisites')?.value.trim() || null;
+
+    const payload = {
+      Title: title, Path: filePath, Folder: folder||'', Description: desc||'',
+      Access: access, Updated: now, Content: contentValue,
+      Excerpt: htmlContent.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0, 150),
+      // Module assignment
+      ModuleId:      moduleIdVal,
+      ItemType:      itemTypeVal,
+      Position:      positionVal,
+      Published:     publishedVal,
+      Prerequisites: prereqsVal,
+    };
 
     // Ưu tiên dùng nocoId từ indexTree để tránh query by path với Unicode
     const _treeItem = flattenFiles(indexTree).find(f => f.path === filePath);
@@ -2212,6 +2241,67 @@ function _anShowEmpty(msg = 'Chưa có dữ liệu tiến độ học sinh') {
 
 function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Load module dropdown cho article editor ──
+let _moduleOptionsCache = null; // { ts, list }
+const MODULE_CACHE_TTL = 60000; // 60s
+
+async function loadModuleOptions(selectedModuleId = '') {
+  const sel = document.getElementById('e-module');
+  if (!sel) return;
+
+  // Dùng cache nếu còn mới
+  const now = Date.now();
+  if (!_moduleOptionsCache || now - _moduleOptionsCache.ts > MODULE_CACHE_TTL) {
+    try {
+      // Lấy modules, group theo course để dễ chọn
+      const [modResp, courseResp] = await Promise.all([
+        fetch(`${PROXY}/admin/modules?limit=500&sort=Position&fields=Id,Title,CourseId,Position`, { headers: adminHeaders() }),
+        fetch(`${PROXY}/admin/courses?limit=200&fields=Id,Title`, { headers: adminHeaders() }),
+      ]);
+      const mods    = modResp.ok    ? (await modResp.json()).list    || [] : [];
+      const courses = courseResp.ok ? (await courseResp.json()).list || [] : [];
+      _moduleOptionsCache = { ts: now, mods, courses };
+    } catch {
+      _moduleOptionsCache = { ts: now, mods: [], courses: [] };
+    }
+  }
+
+  const { mods, courses } = _moduleOptionsCache;
+  const courseMap = Object.fromEntries(courses.map(c => [String(c.Id), c.Title]));
+
+  // Group modules theo course
+  const byCourse = {};
+  mods.forEach(m => {
+    const cid = String(m.CourseId || 0);
+    if (!byCourse[cid]) byCourse[cid] = [];
+    byCourse[cid].push(m);
+  });
+
+  sel.innerHTML = '<option value="">📦 Không thuộc module</option>';
+  Object.entries(byCourse).forEach(([cid, modList]) => {
+    const courseName = courseMap[cid] || `Khoá #${cid}`;
+    const grp = document.createElement('optgroup');
+    grp.label = `📚 ${courseName}`;
+    modList.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m.Id;
+      opt.textContent = `  ${m.Position || '?'}. ${m.Title}`;
+      if (String(m.Id) === String(selectedModuleId)) opt.selected = true;
+      grp.appendChild(opt);
+    });
+    sel.appendChild(grp);
+  });
+
+  // Nếu selectedModuleId không có trong list (module bị xoá) → báo warn
+  if (selectedModuleId && !mods.find(m => String(m.Id) === String(selectedModuleId))) {
+    const opt = document.createElement('option');
+    opt.value = selectedModuleId;
+    opt.textContent = `⚠️ Module #${selectedModuleId} (không tìm thấy)`;
+    opt.selected = true;
+    sel.appendChild(opt);
+  }
 }
 
 function updateFolderSelects() {

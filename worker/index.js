@@ -287,6 +287,126 @@ async function hashUserPayload(payload, env) {
   return { ...payload, Password: hashed, MatKhau: hashed };
 }
 
+// ── Prerequisites & Unlock helpers (AURA Phase 1) ────────────
+
+/**
+ * Parse chuỗi prerequisites thành mảng articleId.
+ * VD: "12,34,56" → ["12","34","56"]
+ */
+function parsePrerequisites(raw) {
+  if (!raw) return [];
+  return String(raw).split(',').map(s => s.trim()).filter(Boolean);
+}
+
+/**
+ * Lấy điểm cao nhất của user cho một articleId (từ Progress).
+ * Trả về số hoặc null nếu chưa có record.
+ */
+async function _getUserScore(env, userId, articleId) {
+  if (!env.NOCO_PROGRESS) return null;
+  const r = await nocoFetch(env,
+    `/api/v2/tables/${env.NOCO_PROGRESS}/records?where=(UserId,eq,${userId})~and(ArticleId,eq,${encodeURIComponent(articleId)})&limit=1&fields=Completed,Score`
+  );
+  if (!r.ok) return null;
+  const data = await r.json();
+  const row = (data.list || [])[0];
+  return row ? { completed: !!row.Completed, score: row.Score || 0 } : null;
+}
+
+/**
+ * Kiểm tra xem user đã đáp ứng prerequisite chưa.
+ * Mặc định: bài phải được đánh dấu Completed.
+ * Nếu có format "id:score>=N" thì kiểm tra điểm.
+ */
+async function checkPrerequisites(env, userId, prerequisiteRaw) {
+  const prereqs = parsePrerequisites(prerequisiteRaw);
+  if (!prereqs.length) return { ok: true };
+
+  for (const p of prereqs) {
+    // Format: "articleId" hoặc "articleId:score>=N"
+    const [articleId, condition] = p.split(':');
+    const progress = await _getUserScore(env, userId, articleId);
+
+    if (!progress) {
+      return { ok: false, missing: articleId, reason: 'Chưa học bài này' };
+    }
+
+    if (condition) {
+      // Parse condition: "score>=80", "score>=60"
+      const m = condition.match(/^score([><=!]+)(\d+)$/);
+      if (m) {
+        const [, op, val] = m;
+        const threshold = parseInt(val);
+        const score = progress.score || 0;
+        let passed = false;
+        if (op === '>=') passed = score >= threshold;
+        else if (op === '>') passed = score > threshold;
+        else if (op === '<=') passed = score <= threshold;
+        else if (op === '<') passed = score < threshold;
+        else if (op === '==' || op === '=') passed = score === threshold;
+        if (!passed) {
+          return { ok: false, missing: articleId, reason: `Cần đạt ${threshold}% ở bài #${articleId} (hiện tại: ${score}%)` };
+        }
+      }
+    } else {
+      // Không có condition → chỉ cần Completed
+      if (!progress.completed) {
+        return { ok: false, missing: articleId, reason: `Chưa hoàn thành bài #${articleId}` };
+      }
+    }
+  }
+  return { ok: true };
+}
+
+/**
+ * Kiểm tra điều kiện mở khoá module.
+ * Format: "module:{moduleId}:score>={N}" hoặc null/empty = luôn mở.
+ * Cần Progress records của user, dùng ArticleId = "exam_{examId}" hoặc ArticleId thực.
+ */
+async function checkModuleUnlock(env, userId, unlockCondition) {
+  if (!unlockCondition || !unlockCondition.trim()) return { ok: true };
+
+  // Format: module:{moduleId}:score>={N}
+  const m = unlockCondition.match(/^module:(\d+):score([><=!]+)(\d+)$/);
+  if (!m) return { ok: true }; // format không nhận diện → cho qua
+
+  const [, refModuleId, op, val] = m;
+  const threshold = parseInt(val);
+
+  // Lấy tất cả bài trong module đó → tính average score
+  if (!env.NOCO_ARTICLE) return { ok: true };
+  const artR = await nocoFetch(env,
+    `/api/v2/tables/${env.NOCO_ARTICLE}/records?where=(ModuleId,eq,${refModuleId})&fields=Id&limit=200`
+  );
+  if (!artR.ok) return { ok: true };
+  const artData = await artR.json();
+  const articleIds = (artData.list || []).map(a => String(a.Id));
+  if (!articleIds.length) return { ok: true };
+
+  // Lấy progress của user cho các bài này
+  if (!env.NOCO_PROGRESS) return { ok: true };
+  const scores = [];
+  for (const aid of articleIds) {
+    const p = await _getUserScore(env, userId, aid);
+    if (p && p.score) scores.push(p.score);
+  }
+
+  const avgScore = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
+  let passed = false;
+  if (op === '>=') passed = avgScore >= threshold;
+  else if (op === '>') passed = avgScore > threshold;
+  else passed = avgScore >= threshold; // fallback
+
+  if (!passed) {
+    return {
+      ok: false,
+      reason: `Module ${refModuleId}: cần điểm trung bình ${op}${threshold}% (hiện tại: ${avgScore}%)`,
+      avgScore,
+    };
+  }
+  return { ok: true };
+}
+
 // ── Referential integrity helpers ────────────────────────────
 
 /**
@@ -917,6 +1037,52 @@ export default {
       return new Response(await r.text(), { status: r.status, headers: { ...cors, 'Content-Type': 'application/json' } });
     }
 
+    // ── Student: check prerequisites for an article ───────────
+    // GET /api/prereq/{articleId} → { ok, reason, missing }
+    if (path.startsWith('/api/prereq/') && request.method === 'GET') {
+      const articleId = path.slice('/api/prereq/'.length);
+      if (!articleId) return json({ ok: true });
+
+      const authHeader = request.headers.get('Authorization') || '';
+      const secret = env.TOKEN_SECRET || 'activeedu_secret_2024';
+      const session = await verifyToken(authHeader.replace('Bearer ', ''), secret);
+      if (!session) return json({ ok: false, reason: 'Chưa đăng nhập', requireLogin: true });
+
+      // Lấy Prerequisites field của bài
+      if (!env.NOCO_ARTICLE) return json({ ok: true });
+      const artR = await nocoFetch(env,
+        `/api/v2/tables/${env.NOCO_ARTICLE}/records/${articleId}?fields=Id,Prerequisites,ModuleId`
+      );
+      if (!artR.ok) return json({ ok: true }); // không tìm thấy → cho qua
+      const art = await artR.json();
+      if (!art?.Prerequisites) return json({ ok: true });
+
+      const check = await checkPrerequisites(env, session.userId, art.Prerequisites);
+      return json(check);
+    }
+
+    // ── Student: check module unlock condition ─────────────────
+    // GET /api/module-unlock/{moduleId} → { ok, reason }
+    if (path.startsWith('/api/module-unlock/') && request.method === 'GET') {
+      const moduleId = path.slice('/api/module-unlock/'.length);
+      if (!moduleId || !env.NOCO_MODULES) return json({ ok: true });
+
+      const authHeader = request.headers.get('Authorization') || '';
+      const secret = env.TOKEN_SECRET || 'activeedu_secret_2024';
+      const session = await verifyToken(authHeader.replace('Bearer ', ''), secret);
+      if (!session) return json({ ok: false, reason: 'Chưa đăng nhập', requireLogin: true });
+
+      const modR = await nocoFetch(env,
+        `/api/v2/tables/${env.NOCO_MODULES}/records/${moduleId}?fields=Id,UnlockCondition`
+      );
+      if (!modR.ok) return json({ ok: true });
+      const mod = await modR.json();
+      if (!mod?.UnlockCondition) return json({ ok: true });
+
+      const check = await checkModuleUnlock(env, session.userId, mod.UnlockCondition);
+      return json(check);
+    }
+
     // ── Student: GET question bank list (public, no questions exposed) ──
     if (path === '/api/question-banks' && request.method === 'GET') {
       if (!env.NOCO_QBANK) return json({ list: [] });
@@ -1351,12 +1517,25 @@ Trả lời bằng tiếng Việt, ngắn gọn, tối đa 3 câu.`;
 
     let responseData = await nocoResp.text();
 
-    // Strip Content for private articles when user not authenticated
+    // Strip Content + enforce prerequisites for single article fetches
     if (isArticleSingleWhere && nocoResp.ok) {
       try {
         const parsed = JSON.parse(responseData);
         for (const row of (parsed.list || [])) {
-          if (row.Access === 'private' && !userSession) row.Content = null;
+          // 1) Access=private → strip content nếu chưa đăng nhập
+          if (row.Access === 'private' && !userSession) {
+            row.Content = null;
+            continue;
+          }
+          // 2) Prerequisites check — chỉ áp dụng khi đã đăng nhập
+          if (row.Prerequisites && userSession) {
+            const check = await checkPrerequisites(env, userSession.userId, row.Prerequisites);
+            if (!check.ok) {
+              row.Content = null;
+              row._prereqBlocked = true;
+              row._prereqReason = check.reason;
+            }
+          }
         }
         responseData = JSON.stringify(parsed);
       } catch { }
