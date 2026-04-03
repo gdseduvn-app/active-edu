@@ -4283,22 +4283,25 @@ async function saveQuiz() {
       `${base}/admin/quiz?where=(ArticleId,eq,${_qmArticleId})&limit=1&fields=Id`,
       { headers: adminHeaders() }
     );
+    if (!check.ok) throw new Error(`Kiểm tra quiz thất bại: HTTP ${check.status}`);
     const checkData = await check.json();
     const existing  = (checkData.list || [])[0];
 
+    let r;
     if (existing) {
-      await fetch(`${base}/admin/quiz`, {
+      r = await fetch(`${base}/admin/quiz`, {
         method: 'PATCH',
-        headers: adminHeaders(),
+        headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify([{ Id: existing.Id, Questions: payload }]),
       });
     } else {
-      await fetch(`${base}/admin/quiz`, {
+      r = await fetch(`${base}/admin/quiz`, {
         method: 'POST',
-        headers: adminHeaders(),
-        body: JSON.stringify({ ArticleId: String(_qmArticleId), Questions: payload, CreatedAt: new Date().toISOString() }),
+        headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ArticleId: String(_qmArticleId), Questions: payload }),
       });
     }
+    if (!r.ok) throw new Error(await r.text());
     showToast(`✓ Đã lưu quiz (${_qmQuestions.length} câu hỏi)`, 'success');
     closeQuizEditor();
   } catch(e) {
@@ -5028,8 +5031,9 @@ async function deleteModule(id, title) {
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify([{ Id: id }]),
     });
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.error || await r.text());
+    const text = await r.text();
+    const data = (() => { try { return JSON.parse(text); } catch { return {}; } })();
+    if (!r.ok) throw new Error(data.error || text || `HTTP ${r.status}`);
     showToast('Đã xoá module!', 'success');
     _moduleOptionsCache = null;
     await loadModules(_activeCourseId);
@@ -5099,7 +5103,6 @@ async function saveQBank() {
     Title: title,
     GroupName: document.getElementById('qbm-group').value.trim(),
     Description: document.getElementById('qbm-desc').value.trim(),
-    UpdatedAt: new Date().toISOString(),
   };
   try {
     showLoading(id ? 'Đang cập nhật...' : 'Đang tạo...');
@@ -5126,8 +5129,9 @@ async function deleteQBank(id, title) {
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify([{ Id: id }]),
     });
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.error || await r.text());
+    const text = await r.text();
+    const data = (() => { try { return JSON.parse(text); } catch { return {}; } })();
+    if (!r.ok) throw new Error(data.error || text || `HTTP ${r.status}`);
     showToast('Đã xoá ngân hàng!', 'success');
     await loadQBanks();
   } catch(e) { showToast('Lỗi: ' + e.message, 'error'); } finally { hideLoading(); }
@@ -5340,7 +5344,6 @@ async function saveExam() {
     TimeLimit: parseInt(document.getElementById('em-time').value) || 0,
     PassScore: parseInt(document.getElementById('em-pass').value) || 60,
     Status: document.getElementById('em-status').value,
-    UpdatedAt: new Date().toISOString(),
   };
   try {
     showLoading(id ? 'Đang cập nhật...' : 'Đang tạo...');
@@ -5367,8 +5370,9 @@ async function deleteExam(id, title) {
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify([{ Id: id }]),
     });
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.error || await r.text());
+    const text = await r.text();
+    const data = (() => { try { return JSON.parse(text); } catch { return {}; } })();
+    if (!r.ok) throw new Error(data.error || text || `HTTP ${r.status}`);
     showToast(`Đã xoá đề (${data.sectionsDeleted || 0} phần thi)`, 'success');
     await loadExams();
   } catch(e) { showToast('Lỗi: ' + e.message, 'error'); } finally { hideLoading(); }
@@ -5516,8 +5520,9 @@ async function saveExamSection() {
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.error || await r.text());
+    const text = await r.text();
+    const data = (() => { try { return JSON.parse(text); } catch { return {}; } })();
+    if (!r.ok) throw new Error(data.error || text || `HTTP ${r.status}`);
     closeExamSectionModal();
     showToast('Đã thêm phần!', 'success');
     await loadExamSections(_activeExamId);

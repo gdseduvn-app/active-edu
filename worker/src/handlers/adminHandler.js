@@ -163,26 +163,30 @@ export async function handleSafeModuleDelete(request, env, { cors, json }) {
   const ids = Array.isArray(body) ? body.map(r => r.Id) : [body.Id];
 
   const _modActor = { userId: 0, email: 'admin' };
-  for (const modId of ids) {
-    const modSnap = await nocoFetch(env, `/api/v2/tables/${env.NOCO_MODULES}/records/${modId}`);
-    const modRecord = modSnap.ok ? await modSnap.json() : null;
+  try {
+    for (const modId of ids) {
+      const modSnap = await nocoFetch(env, `/api/v2/tables/${env.NOCO_MODULES}/records/${modId}`);
+      const modRecord = modSnap.ok ? await modSnap.json() : null;
 
-    // Unlink articles
-    const artIds = await _getChildIds(env, 'NOCO_ARTICLE', 'ModuleId', modId);
-    if (artIds.length) {
-      const unlinkPayload = artIds.map(a => ({ Id: a.Id, ModuleId: null, Position: null }));
-      await nocoFetch(env, `/api/v2/tables/${env.NOCO_ARTICLE}/records`, 'PATCH', unlinkPayload);
-    }
-    // Unlink exams (set ModuleId = null, không xoá exam)
-    if (env.NOCO_EXAMS) {
-      const examIds = await _getChildIds(env, 'NOCO_EXAMS', 'ModuleId', modId);
-      if (examIds.length) {
-        const unlinkExams = examIds.map(e => ({ Id: e.Id, ModuleId: null }));
-        await nocoFetch(env, `/api/v2/tables/${env.NOCO_EXAMS}/records`, 'PATCH', unlinkExams);
+      // Unlink articles
+      const artIds = await _getChildIds(env, 'NOCO_ARTICLE', 'ModuleId', modId);
+      if (artIds.length) {
+        const unlinkPayload = artIds.map(a => ({ Id: a.Id, ModuleId: null, Position: null }));
+        await nocoFetch(env, `/api/v2/tables/${env.NOCO_ARTICLE}/records`, 'PATCH', unlinkPayload);
       }
+      // Unlink exams (set ModuleId = null, không xoá exam)
+      if (env.NOCO_EXAMS) {
+        const examIds = await _getChildIds(env, 'NOCO_EXAMS', 'ModuleId', modId);
+        if (examIds.length) {
+          const unlinkExams = examIds.map(e => ({ Id: e.Id, ModuleId: null }));
+          await nocoFetch(env, `/api/v2/tables/${env.NOCO_EXAMS}/records`, 'PATCH', unlinkExams);
+        }
+      }
+      await _softDelete(env, 'NOCO_MODULES', [modId], _modActor);
+      _audit(env, 'delete', 'Modules', modId, _modActor, modRecord, null);
     }
-    await _softDelete(env, 'NOCO_MODULES', [modId], _modActor);
-    _audit(env, 'delete', 'Modules', modId, _modActor, modRecord, null);
+  } catch (e) {
+    return json({ error: e.message || 'Delete failed' }, 500);
   }
   return json({ ok: true });
 }
@@ -211,13 +215,17 @@ export async function handleSafeExamSectionCreate(request, env, { cors, json }) 
   if ((body.PointsPerQuestion || 0) <= 0) return json({ error: 'Điểm/câu phải > 0' }, 422);
 
   // Duplicate check: cùng exam không lấy cùng 1 bank 2 lần
-  const dupCheck = await nocoFetch(env,
-    `/api/v2/tables/${env.NOCO_EXAM_SECTIONS}/records?where=(ExamId,eq,${body.ExamId})~and(BankId,eq,${body.BankId})&limit=1&fields=Id`
-  );
-  const dupData = await dupCheck.json();
-  if ((dupData.list || []).length) {
-    return json({ error: 'Ngân hàng này đã có trong đề. Mỗi ngân hàng chỉ dùng 1 lần/đề.' }, 422);
-  }
+  try {
+    const dupCheck = await nocoFetch(env,
+      `/api/v2/tables/${env.NOCO_EXAM_SECTIONS}/records?where=(ExamId,eq,${body.ExamId})~and(BankId,eq,${body.BankId})&limit=1&fields=Id`
+    );
+    if (dupCheck.ok) {
+      const dupData = await dupCheck.json();
+      if ((dupData.list || []).length) {
+        return json({ error: 'Ngân hàng này đã có trong đề. Mỗi ngân hàng chỉ dùng 1 lần/đề.' }, 422);
+      }
+    }
+  } catch {}
 
   const r = await nocoFetch(env, `/api/v2/tables/${env.NOCO_EXAM_SECTIONS}/records`, 'POST', body);
   return new Response(await r.text(), { status: r.status, headers: { ...cors, 'Content-Type': 'application/json' } });
@@ -232,16 +240,20 @@ export async function handleSafeExamDelete(request, env, { cors, json }) {
 
   const _examActor = { userId: 0, email: 'admin' };
   let sectionCount = 0;
-  for (const examId of ids) {
-    const examSnap = await nocoFetch(env, `/api/v2/tables/${env.NOCO_EXAMS}/records/${examId}`);
-    const examRecord = examSnap.ok ? await examSnap.json() : null;
+  try {
+    for (const examId of ids) {
+      const examSnap = await nocoFetch(env, `/api/v2/tables/${env.NOCO_EXAMS}/records/${examId}`);
+      const examRecord = examSnap.ok ? await examSnap.json() : null;
 
-    // Hard-delete sections (children, no soft-delete)
-    const deleted = await _cascadeDelete(env, 'NOCO_EXAM_SECTIONS', 'ExamId', examId);
-    sectionCount += deleted;
-    // Soft-delete exam
-    await _softDelete(env, 'NOCO_EXAMS', [examId], _examActor);
-    _audit(env, 'delete', 'Exams', examId, _examActor, examRecord, null);
+      // Hard-delete sections (children, no soft-delete)
+      const deleted = await _cascadeDelete(env, 'NOCO_EXAM_SECTIONS', 'ExamId', examId);
+      sectionCount += deleted;
+      // Soft-delete exam
+      await _softDelete(env, 'NOCO_EXAMS', [examId], _examActor);
+      _audit(env, 'delete', 'Exams', examId, _examActor, examRecord, null);
+    }
+  } catch (e) {
+    return json({ error: e.message || 'Delete failed' }, 500);
   }
   return json({ ok: true, sectionsDeleted: sectionCount });
 }
@@ -253,19 +265,22 @@ export async function handleSafeQuestionBankDelete(request, env, { cors, json })
   const body = await request.json().catch(() => ([]));
   const ids = Array.isArray(body) ? body.map(r => r.Id) : [body.Id];
 
-  for (const bankId of ids) {
-    const usedCount = await _countChildren(env, 'NOCO_EXAM_SECTIONS', 'BankId', bankId);
-    if (usedCount > 0) {
-      return json({
-        error: `Không thể xoá: Ngân hàng #${bankId} đang được dùng trong ${usedCount} đề thi. Xoá phần thi liên quan trước.`
-      }, 409);
+  try {
+    for (const bankId of ids) {
+      const usedCount = await _countChildren(env, 'NOCO_EXAM_SECTIONS', 'BankId', bankId);
+      if (usedCount > 0) {
+        return json({
+          error: `Không thể xoá: Ngân hàng #${bankId} đang được dùng trong ${usedCount} đề thi. Xoá phần thi liên quan trước.`
+        }, 409);
+      }
     }
-  }
-
-  const _qbActor = { userId: 0, email: 'admin' };
-  await _softDelete(env, 'NOCO_QBANK', ids, _qbActor);
-  for (const bankId of ids) {
-    _audit(env, 'delete', 'QuestionBank', bankId, _qbActor, { Id: bankId }, null);
+    const _qbActor = { userId: 0, email: 'admin' };
+    await _softDelete(env, 'NOCO_QBANK', ids, _qbActor);
+    for (const bankId of ids) {
+      _audit(env, 'delete', 'QuestionBank', bankId, _qbActor, { Id: bankId }, null);
+    }
+  } catch (e) {
+    return json({ error: e.message || 'Delete failed' }, 500);
   }
   return json({ ok: true, deleted: ids.length });
 }
