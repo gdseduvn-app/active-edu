@@ -1756,7 +1756,7 @@ function markSaved(t) {
 function markSaving() {
   const dot = document.getElementById('save-dot');
   if (dot) dot.className = 'save-dot saving';
-  document.getElementById('save-status').textContent = 'Đang lưu vào NocoDB...';
+  document.getElementById('save-status').textContent = 'Đang lưu...';
 }
 
 
@@ -1888,6 +1888,7 @@ async function editFile(path) {
         if (dot) dot.className = 'save-dot';
         const ss = document.getElementById('save-status');
         if (ss) ss.textContent = `Đã tải: ${title}`;
+        _updatePreviewBtn();
       }, 300);
     }, 100);
 
@@ -1931,7 +1932,7 @@ async function saveToNoco() {
       filePath = folder ? folder + '/' + slug : slug;
     }
     // ── Nén nội dung nếu > 100,000 ký tự (LZ-String), dưới ngưỡng lưu thẳng ──
-    const LZ_THRESHOLD = 20000; // ~20KB — nén tất cả bài có nội dung vừa trở lên
+    const LZ_THRESHOLD = 50000; // ~50KB — chỉ nén bài lớn, tránh overhead với bài nhỏ
     let contentValue = htmlContent;
     if (htmlContent.length > LZ_THRESHOLD) {
       showLoading('Đang nén nội dung LZ-String...');
@@ -1990,7 +1991,8 @@ async function saveToNoco() {
       `<i class="fas fa-file-lines" style="color:var(--primary)"></i> ${filePath}`;
 
     markSaved(new Date().toLocaleTimeString('vi-VN'));
-    showToast('✓ Đã lưu vào NocoDB!', 'success');
+    _updatePreviewBtn();
+    showToast('✓ Đã lưu!', 'success');
   } catch(e) {
     showToast('Lỗi NocoDB: ' + e.message, 'error');
     markDirty();
@@ -2912,9 +2914,31 @@ function switchNocoTab(tab) {
   if (tab === 'fields') nocoLoadFields();
 }
 
+// Preview bài viết trong tab mới
+function previewArticle() {
+  const item = currentEditPath ? flattenFiles(indexTree).find(f => f.path === currentEditPath) : null;
+  const nocoId = item?.nocoId;
+  if (nocoId) {
+    window.open(`${window.location.origin}/bai/${nocoId}`, '_blank');
+  } else if (currentEditPath) {
+    showToast('Lưu bài trước để xem trước!', 'warn');
+  } else {
+    showToast('Chưa chọn bài nào', 'warn');
+  }
+}
+
+// Hiện/ẩn nút Preview tùy theo bài có nocoId chưa
+function _updatePreviewBtn() {
+  const btn = document.getElementById('btn-preview');
+  if (!btn) return;
+  const item = currentEditPath ? flattenFiles(indexTree).find(f => f.path === currentEditPath) : null;
+  btn.style.display = (item?.nocoId) ? '' : 'none';
+}
+
 // Keyboard shortcuts
 document.addEventListener('keydown', e => {
   if ((e.ctrlKey||e.metaKey) && e.key==='s') { e.preventDefault(); saveToNoco(); }
+  if ((e.ctrlKey||e.metaKey) && e.key==='p') { e.preventDefault(); previewArticle(); }
   if (e.key === 'Escape') closeModal();
 });
 

@@ -325,6 +325,9 @@ function canViewArticle(item) {
   // Admin sees everything
   if (user?.role === 'admin') return true;
 
+  // Draft chỉ admin xem được
+  if (item.access === 'draft') return false;
+
   const isPrivate = item.access === 'private';
   const folderPrivate = item.folderAccess === 'private'; // set during tree build
 

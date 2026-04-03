@@ -156,7 +156,8 @@
           <button class="btn btn-outline btn-sm" onclick="showNewFolder()"><i class="fas fa-folder-plus"></i> Thư mục</button>
           <button class="btn btn-outline btn-sm" onclick="showNewFile()"><i class="fas fa-file-circle-plus"></i> Bài mới</button>
           <button class="btn btn-outline btn-sm" id="btn-quiz" onclick="openQuizEditor()" title="Soạn quiz cho bài này"><i class="fas fa-circle-question"></i> Quiz</button>
-          <button class="btn btn-success btn-sm" id="btn-save" onclick="saveToNoco()"><i class="fas fa-database"></i> Lưu vào NocoDB</button>
+          <button class="btn btn-outline btn-sm" id="btn-preview" onclick="previewArticle()" title="Xem trước bài (Ctrl+P)" style="display:none"><i class="fas fa-eye"></i> Xem trước</button>
+          <button class="btn btn-success btn-sm" id="btn-save" onclick="saveToNoco()" title="Lưu bài (Ctrl+S)"><i class="fas fa-floppy-disk"></i> Lưu</button>
         </div>
       </div>
       <!-- Body: sidebar + editor -->
@@ -180,6 +181,7 @@
               <select id="e-access" style="border:1px solid var(--border);border-radius:7px;padding:7px 11px;font-size:13px;font-family:inherit;outline:none;background:#fff;min-width:120px">
                 <option value="public">🌐 Public</option>
                 <option value="private">🔒 Private</option>
+                <option value="draft">📝 Draft</option>
               </select>
               <input type="hidden" id="e-desc" value="">
               <select id="e-folder" style="border:1px solid var(--border);border-radius:7px;padding:7px 11px;font-size:13px;font-family:inherit;outline:none;background:#fff;min-width:160px;max-width:220px;color:var(--text)">
