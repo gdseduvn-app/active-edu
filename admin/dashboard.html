@@ -10,6 +10,14 @@
 <!-- Custom Rich Editor (no external dependencies) -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
 
+<!-- KaTeX — LaTeX rendering trong quiz editor -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<!-- PDF.js — extract text từ PDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<!-- mammoth.js — extract text từ DOCX -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
@@ -377,6 +385,282 @@ tr:hover td{background:var(--hover)}
 .loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,.8);z-index:400;display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px}
 .loading-overlay.show{display:flex}
 .spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite}
+
+/* ══ USER MANAGEMENT — PROFESSIONAL STYLES ══════════════════════════ */
+
+/* Panel header */
+.panel-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;gap:12px;flex-wrap:wrap}
+.panel-title{font-size:16px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px}
+.panel-title i{color:var(--primary)}
+.panel-sub{font-size:12.5px;color:var(--text-muted);margin-top:3px}
+
+/* Stats cards */
+.ustat-card{
+  background:#fff;border:1px solid var(--border);border-radius:12px;
+  padding:16px 18px;display:flex;align-items:center;gap:13px;
+  cursor:pointer;transition:all .18s;user-select:none;
+}
+.ustat-card:hover{border-color:#93c5fd;box-shadow:0 2px 12px rgba(37,99,235,.1);transform:translateY(-1px)}
+.ustat-card.ustat-active{border-color:#2563eb;background:#eff6ff}
+.ustat-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px}
+.ustat-val{font-size:22px;font-weight:700;color:#1e293b;line-height:1}
+.ustat-lbl{font-size:11.5px;color:#64748b;margin-top:3px}
+.ustat-delta{font-size:10.5px;margin-top:4px;font-weight:600}
+
+/* Bulk actions bar */
+.bulk-bar{
+  display:none;align-items:center;gap:10px;
+  padding:9px 16px;background:#eff6ff;border:1px solid #bfdbfe;
+  border-radius:10px;margin-bottom:12px;font-size:13px;color:#1e40af;
+}
+.bulk-bar.show{display:flex}
+
+/* User table rows */
+.urow{border-bottom:1px solid var(--border);transition:background .12s}
+.urow:hover td{background:var(--hover)}
+.urow.urow-selected td{background:#eff6ff!important}
+.urow.urow-selected td:first-child{border-left:3px solid #2563eb}
+.urow.urow-inactive{opacity:.7}
+
+/* Quick status toggle */
+.status-chip{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;
+  border:none;font-family:inherit;cursor:pointer;transition:all .15s;
+}
+.status-chip.active{background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0}
+.status-chip.active:hover{background:#dcfce7}
+.status-chip.inactive{background:#f8fafc;color:#94a3b8;border:1px solid #e2e8f0}
+.status-chip.inactive:hover{background:#f1f5f9;color:#64748b}
+.status-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.status-chip.active .status-dot{background:#22c55e}
+.status-chip.inactive .status-dot{background:#cbd5e1}
+
+/* Perm count badge */
+.perm-chip{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:3px 9px;border-radius:10px;font-size:11.5px;font-weight:600;
+  border:none;font-family:inherit;cursor:pointer;transition:all .15s;
+}
+.perm-chip.has-perms{background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe}
+.perm-chip.has-perms:hover{background:#dbeafe}
+.perm-chip.no-perms{background:#f8fafc;color:#94a3b8;border:1px solid #e2e8f0}
+.perm-chip.no-perms:hover{background:#f1f5f9}
+
+/* User modal — two-column layout */
+.um-layout{display:flex;border-radius:16px;overflow:hidden}
+.um-sidebar{
+  width:156px;flex-shrink:0;background:linear-gradient(160deg,#2563eb,#4338ca);
+  padding:24px 16px;display:flex;flex-direction:column;align-items:center;gap:14px;
+}
+.um-avatar-wrap{
+  width:72px;height:72px;border-radius:50%;
+  background:rgba(255,255,255,.2);
+  display:flex;align-items:center;justify-content:center;
+  font-size:26px;font-weight:700;color:#fff;
+  border:3px solid rgba(255,255,255,.4);
+  letter-spacing:.5px;
+}
+.um-sidebar-name{font-size:12.5px;font-weight:600;color:#fff;text-align:center;word-break:break-word;line-height:1.4}
+.um-sidebar-role{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)}
+.um-body{flex:1;display:flex;flex-direction:column;min-width:0;background:#fff}
+.um-header{padding:16px 20px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.um-form{padding:18px 20px;display:grid;grid-template-columns:1fr 1fr;gap:13px;flex:1;overflow-y:auto}
+.um-footer{padding:14px 20px;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:9px;background:#f8fafc;flex-shrink:0}
+
+/* Password field */
+.pw-wrap{position:relative}
+.pw-wrap input{padding-right:38px!important}
+.pw-eye{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#94a3b8;padding:2px;transition:color .15s;font-size:14px}
+.pw-eye:hover{color:#2563eb}
+.pw-strength-bar{height:3px;border-radius:2px;margin-top:5px;background:#e2e8f0;overflow:hidden}
+.pw-strength-fill{height:100%;border-radius:2px;transition:width .3s,background .3s}
+.pw-hint{font-size:11px;margin-top:3px}
+
+/* Permission modal — professional */
+.perm-modal-inner{
+  background:#fff;border-radius:18px;width:680px;max-width:97vw;
+  max-height:92vh;display:flex;flex-direction:column;
+  box-shadow:0 32px 80px rgba(0,0,0,.3);border:1px solid #e2e8f0;overflow:hidden;
+}
+.perm-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 22px;border-bottom:1px solid #e2e8f0;
+  background:linear-gradient(135deg,#1e40af,#2563eb);flex-shrink:0;
+}
+.perm-user-info{display:flex;align-items:center;gap:12px}
+.perm-user-avatar-lg{
+  width:44px;height:44px;border-radius:50%;
+  background:rgba(255,255,255,.25);
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;font-weight:700;color:#fff;
+  border:2px solid rgba(255,255,255,.4);flex-shrink:0;
+}
+.perm-toolbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 16px;border-bottom:1px solid #e2e8f0;
+  background:#f8fafc;flex-shrink:0;gap:8px;flex-wrap:wrap;
+}
+.perm-search-bar{
+  display:flex;align-items:center;gap:8px;
+  padding:9px 14px;border-bottom:1px solid #e2e8f0;
+  background:#fff;flex-shrink:0;
+}
+.perm-search-input{
+  flex:1;border:1.5px solid #e2e8f0;border-radius:8px;
+  padding:7px 10px;font-size:13px;font-family:inherit;outline:none;transition:border .15s;
+}
+.perm-search-input:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.08)}
+.perm-info-banner{
+  padding:8px 16px;background:#fefce8;border-bottom:1px solid #fde68a;
+  font-size:12px;color:#854d0e;display:flex;align-items:center;gap:7px;flex-shrink:0;
+}
+.perm-tree-body{flex:1;overflow-y:auto;min-height:0}
+
+/* Perm tree nodes */
+.pt-folder-wrap{border-bottom:1px solid #f1f5f9}
+.pt-folder-row{
+  display:flex;align-items:center;gap:0;
+  padding:9px 14px;cursor:pointer;transition:background .1s;
+  background:#fff;user-select:none;
+}
+.pt-folder-row:hover{background:#f8fafc}
+.pt-folder-row.pt-checked{background:#f0f9ff}
+.pt-indent{display:flex;align-items:center;flex-shrink:0}
+.pt-toggle{
+  width:20px;height:20px;display:flex;align-items:center;justify-content:center;
+  border:none;background:none;cursor:pointer;color:#94a3b8;flex-shrink:0;
+  transition:transform .2s;border-radius:4px;
+}
+.pt-toggle:hover{background:#e2e8f0;color:#64748b}
+.pt-toggle.open i{transform:rotate(90deg)}
+.pt-toggle i{transition:transform .2s;font-size:9px}
+.pt-cb{width:16px;height:16px;accent-color:#2563eb;cursor:pointer;flex-shrink:0;margin:0 9px 0 4px}
+.pt-folder-icon{font-size:13px;flex-shrink:0;margin-right:8px}
+.pt-folder-label{flex:1;font-size:13px;font-weight:600;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pt-folder-meta{display:flex;align-items:center;gap:8px;flex-shrink:0;margin-left:8px}
+.pt-prog{display:flex;align-items:center;gap:5px}
+.pt-prog-bar{width:44px;height:4px;background:#e2e8f0;border-radius:2px;overflow:hidden}
+.pt-prog-fill{height:100%;border-radius:2px;background:#2563eb;transition:width .3s}
+.pt-prog-text{font-size:10.5px;color:#94a3b8;white-space:nowrap;min-width:28px}
+.pt-badge{font-size:10px;padding:2px 7px;border-radius:4px;font-weight:600}
+.pt-badge-priv{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca}
+.pt-badge-pub{background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0}
+.pt-children{border-left:2px solid #e2e8f0}
+.pt-file-row{
+  display:flex;align-items:center;gap:0;
+  padding:7px 14px;cursor:pointer;transition:background .1s;user-select:none;
+}
+.pt-file-row:hover{background:#fafafa}
+.pt-file-row.pt-checked{background:#f0f9ff}
+.pt-hidden{display:none}
+
+/* Perm footer */
+.perm-footer{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:13px 20px;border-top:1px solid #e2e8f0;background:#f8fafc;flex-shrink:0;
+}
+.perm-summary-chips{display:flex;gap:6px;flex-wrap:wrap}
+.perm-summary-chip{padding:3px 10px;border-radius:12px;font-size:11.5px;font-weight:600}
+
+/* Skeleton pulse */
+@keyframes skeleton-pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.sk{background:#e2e8f0;border-radius:4px;animation:skeleton-pulse 1.4s ease infinite}
+
+/* ══ END USER MANAGEMENT STYLES ═════════════════════════════════════ */
+
+/* ══ QUIZ EDITOR MODAL ═══════════════════════════════════════════════ */
+#quiz-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto}
+#quiz-modal-overlay.show{display:flex}
+.qm-box{background:var(--card);border-radius:18px;width:100%;max-width:1020px;margin:auto;box-shadow:0 24px 80px rgba(0,0,0,.3);display:flex;flex-direction:column;max-height:92vh;overflow:hidden}
+
+/* Header */
+.qm-header{background:linear-gradient(135deg,#1e3a8a,#2563eb);color:#fff;padding:16px 22px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.qm-header-icon{width:38px;height:38px;background:rgba(255,255,255,.15);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.qm-header-title{flex:1}
+.qm-header-title h2{font-size:16px;font-weight:700;margin:0}
+.qm-header-title p{font-size:12px;opacity:.75;margin:2px 0 0}
+.qm-header-actions{display:flex;gap:8px}
+.qm-btn{padding:7px 16px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-family:inherit;font-weight:600;transition:all .15s}
+.qm-btn-ghost{background:rgba(255,255,255,.15);color:#fff}.qm-btn-ghost:hover{background:rgba(255,255,255,.25)}
+.qm-btn-primary{background:#fff;color:#1e40af}.qm-btn-primary:hover{background:#eff6ff}
+.qm-btn-danger{background:#fee2e2;color:#b91c1c}.qm-btn-danger:hover{background:#fecaca}
+.qm-btn-success{background:#dcfce7;color:#15803d}.qm-btn-success:hover{background:#bbf7d0}
+.qm-btn-import{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.3)}.qm-btn-import:hover{background:rgba(255,255,255,.22)}
+
+/* Import bar */
+.qm-import-bar{background:#1e3a8a;padding:8px 22px;display:flex;align-items:center;gap:10px;flex-shrink:0;flex-wrap:wrap;border-top:1px solid rgba(255,255,255,.1)}
+.qm-import-label{font-size:12px;color:rgba(255,255,255,.7);margin-right:4px}
+.qm-import-hint{font-size:11px;color:rgba(255,255,255,.45);margin-left:auto}
+
+/* Body layout */
+.qm-body{display:grid;grid-template-columns:230px 1fr;flex:1;min-height:0;overflow:hidden}
+
+/* Left: question list */
+.qm-list{border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
+.qm-list-header{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.qm-list-title{font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px}
+.qm-add-btn{background:var(--primary);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit}
+.qm-add-btn:hover{background:var(--primary-dark)}
+.qm-question-list{flex:1;overflow-y:auto;padding:6px}
+.qm-q-item{padding:8px 10px;border-radius:8px;cursor:pointer;font-size:12.5px;display:flex;align-items:flex-start;gap:7px;border:1.5px solid transparent;transition:all .12s;margin-bottom:3px}
+.qm-q-item:hover{background:var(--hover)}
+.qm-q-item.active{background:#eff6ff;border-color:#93c5fd}
+.qm-q-item.has-error{border-color:#fca5a5;background:#fef2f2}
+.qm-q-num{font-weight:700;color:var(--primary);min-width:22px;font-size:12px;padding-top:1px}
+.qm-q-text{flex:1;color:var(--text);line-height:1.4;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.qm-q-ok{color:#16a34a;font-size:11px;flex-shrink:0;padding-top:2px}
+.qm-list-empty{padding:28px 16px;text-align:center;color:var(--text-muted);font-size:13px}
+
+/* Right: editor */
+.qm-editor{overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:16px}
+.qm-empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text-muted);gap:10px;font-size:14px}
+.qm-empty-state i{font-size:40px;opacity:.3}
+
+/* Field groups */
+.qm-field-label{font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px;display:flex;align-items:center;gap:6px}
+.qm-textarea{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 13px;font-size:14px;font-family:inherit;resize:vertical;min-height:72px;outline:none;background:var(--card);color:var(--text);box-sizing:border-box;transition:border-color .15s}
+.qm-textarea:focus{border-color:var(--primary)}
+.qm-latex-hint{font-size:11px;color:var(--text-muted);margin-top:4px}
+.qm-latex-hint code{background:#f1f5f9;padding:1px 5px;border-radius:4px;font-size:10.5px}
+
+/* LaTeX preview */
+.qm-preview-box{background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:12px 16px;min-height:44px;font-size:14.5px;line-height:1.8;color:var(--text)}
+.qm-preview-label{font-size:11px;color:var(--text-muted);margin-bottom:4px;display:flex;align-items:center;gap:5px}
+
+/* Options */
+.qm-options-wrap{display:flex;flex-direction:column;gap:8px}
+.qm-option-row{display:flex;align-items:center;gap:8px}
+.qm-option-radio{width:18px;height:18px;cursor:pointer;accent-color:#16a34a;flex-shrink:0}
+.qm-option-letter{font-weight:700;color:var(--text-muted);font-size:13px;width:18px;flex-shrink:0}
+.qm-option-input{flex:1;border:1.5px solid var(--border);border-radius:8px;padding:8px 11px;font-size:13.5px;font-family:inherit;outline:none;background:var(--card);color:var(--text);transition:border-color .15s}
+.qm-option-input:focus{border-color:var(--primary)}
+.qm-option-row.is-correct .qm-option-input{border-color:#86efac;background:#f0fdf4}
+.qm-option-del{background:none;border:none;color:#94a3b8;cursor:pointer;padding:4px 6px;border-radius:5px;font-size:13px}
+.qm-option-del:hover{color:#ef4444;background:#fef2f2}
+.qm-add-option-btn{background:none;border:1.5px dashed var(--border);border-radius:8px;padding:7px;font-size:12.5px;color:var(--text-muted);cursor:pointer;width:100%;font-family:inherit;transition:all .15s}
+.qm-add-option-btn:hover{border-color:var(--primary);color:var(--primary)}
+
+/* Footer */
+.qm-footer{padding:12px 22px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;flex-wrap:wrap;gap:8px}
+.qm-q-count{font-size:12.5px;color:var(--text-muted)}
+.qm-footer-actions{display:flex;gap:8px}
+
+/* Progress overlay for import */
+.qm-import-progress{display:none;position:absolute;inset:0;background:rgba(255,255,255,.92);border-radius:18px;z-index:10;flex-direction:column;align-items:center;justify-content:center;gap:12px}
+.qm-import-progress.show{display:flex}
+.qm-import-progress p{font-size:14px;color:var(--text-muted);font-weight:500}
+.qm-import-bar-wrap{width:260px;height:6px;background:#e2e8f0;border-radius:6px;overflow:hidden}
+.qm-import-bar-fill{height:100%;background:var(--primary);border-radius:6px;transition:width .3s}
+
+/* Correct answer badge */
+.qm-correct-badge{font-size:11px;font-weight:700;color:#16a34a;background:#dcfce7;padding:2px 8px;border-radius:100px}
+
+@media(max-width:680px){
+  .qm-body{grid-template-columns:1fr}
+  .qm-list{max-height:200px;border-right:none;border-bottom:1px solid var(--border)}
+}
+/* ══ END QUIZ EDITOR ════════════════════════════════════════════════ */
 </style>
 </head>
 <body>
@@ -400,6 +684,7 @@ tr:hover td{background:var(--hover)}
   <div class="sb-item active" onclick="showPanel('dashboard',this)"><i class="fas fa-chart-bar"></i> Dashboard</div>
   <div class="sb-item" onclick="showPanel('editor',this)"><i class="fas fa-pen-fancy"></i> Soạn thảo</div>
   <div class="sb-item" onclick="showPanel('users',this)"><i class="fas fa-users"></i> Người dùng</div>
+  <div class="sb-item" onclick="showPanel('analytics',this)"><i class="fas fa-graduation-cap"></i> Học tập</div>
   <div class="sb-item" onclick="showPanel('settings',this)"><i class="fas fa-gear"></i> Cài đặt</div>
 
   <div class="sb-footer">
@@ -450,6 +735,52 @@ tr:hover td{background:var(--hover)}
       </div>
     </div>
 
+    <!-- ══ ANALYTICS ════════════════════════════ -->
+    <div class="panel" id="panel-analytics">
+      <div class="stats-grid" id="an-stats-grid">
+        <div class="stat-card"><div class="lbl">Tổng lượt hoàn thành</div><div class="val" id="an-total-done">—</div><div class="sub">bài đã đọc xong</div></div>
+        <div class="stat-card"><div class="lbl">Học sinh tham gia</div><div class="val" id="an-total-students">—</div><div class="sub">có tiến độ ghi nhận</div></div>
+        <div class="stat-card"><div class="lbl">Phản hồi tích cực</div><div class="val" id="an-easy-pct">—</div><div class="sub">Dễ hiểu / tổng reaction</div></div>
+        <div class="stat-card"><div class="lbl">Cần cải thiện</div><div class="val" id="an-improve-pct">—</div><div class="sub">Khó / Cần ví dụ thêm</div></div>
+      </div>
+
+      <!-- Reactions chart -->
+      <div class="card" style="margin-bottom:18px">
+        <div class="sec-hd"><h3>💬 Phân tích phản hồi học sinh</h3>
+          <button class="btn btn-outline btn-sm" onclick="loadAnalytics()"><i class="fas fa-rotate"></i> Làm mới</button>
+        </div>
+        <div id="an-reaction-wrap" style="padding:16px 0">
+          <div id="an-reaction-bars" style="display:flex;flex-direction:column;gap:10px;padding:0 8px">
+            <div style="text-align:center;color:var(--text-muted);padding:24px"><i class="fas fa-circle-notch fa-spin"></i> Đang tải...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Top articles by reads -->
+      <div class="card" style="margin-bottom:18px">
+        <div class="sec-hd"><h3>🔥 Bài học được đọc nhiều nhất</h3></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Bài học</th><th>Lượt hoàn thành</th><th>Dễ hiểu</th><th>Khó hiểu</th><th>Cần ví dụ</th></tr></thead>
+            <tbody id="an-top-articles"><tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:28px"><i class="fas fa-circle-notch fa-spin"></i> Đang tải...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Students with least progress -->
+      <div class="card">
+        <div class="sec-hd"><h3>📋 Tiến độ học sinh</h3>
+          <span id="an-student-note" style="font-size:12px;color:var(--text-muted)"></span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Học sinh (ID)</th><th>Bài đã đọc</th><th>Tổng bài</th><th>Tiến độ</th><th>Phản hồi</th></tr></thead>
+            <tbody id="an-students"><tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:28px"><i class="fas fa-circle-notch fa-spin"></i> Đang tải...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <!-- ══ EDITOR (gộp Quản lý tệp + Soạn thảo) ════════ -->
     <div class="panel panel-fullh" id="panel-editor" style="padding:0;gap:0;box-sizing:border-box;overflow:hidden">
       <!-- Topbar -->
@@ -458,6 +789,7 @@ tr:hover td{background:var(--hover)}
         <div style="display:flex;gap:8px;align-items:center">
           <button class="btn btn-outline btn-sm" onclick="showNewFolder()"><i class="fas fa-folder-plus"></i> Thư mục</button>
           <button class="btn btn-outline btn-sm" onclick="showNewFile()"><i class="fas fa-file-circle-plus"></i> Bài mới</button>
+          <button class="btn btn-outline btn-sm" id="btn-quiz" onclick="openQuizEditor()" title="Soạn quiz cho bài này"><i class="fas fa-circle-question"></i> Quiz</button>
           <button class="btn btn-success btn-sm" id="btn-save" onclick="saveToNoco()"><i class="fas fa-database"></i> Lưu vào NocoDB</button>
         </div>
       </div>
@@ -562,137 +894,258 @@ tr:hover td{background:var(--hover)}
 
     <!-- ══ USERS ══════════════════════════════ -->
     <div class="panel" id="panel-users">
+      <!-- ── Header ── -->
       <div class="panel-hd">
         <div>
           <div class="panel-title"><i class="fas fa-users"></i> Quản lý người dùng</div>
-          <div class="panel-sub">Thêm, sửa, xóa tài khoản và phân quyền nội dung</div>
+          <div class="panel-sub">Thêm, sửa, xóa tài khoản · Phân quyền truy cập nội dung</div>
         </div>
-        <button class="btn btn-primary" onclick="openUserModal()"><i class="fas fa-user-plus"></i> Thêm người dùng</button>
-      </div>
-
-      <!-- Stats bar -->
-      <div id="user-stats-bar" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px">
-        <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px">
-          <div style="width:36px;height:36px;background:#eff6ff;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-users" style="color:#2563eb;font-size:15px"></i></div>
-          <div><div style="font-size:20px;font-weight:700;color:#1e293b" id="stat-total-users">—</div><div style="font-size:11px;color:#64748b;margin-top:1px">Tổng người dùng</div></div>
-        </div>
-        <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px">
-          <div style="width:36px;height:36px;background:#f0fdf4;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-graduation-cap" style="color:#15803d;font-size:15px"></i></div>
-          <div><div style="font-size:20px;font-weight:700;color:#1e293b" id="stat-total-students">—</div><div style="font-size:11px;color:#64748b;margin-top:1px">Học sinh</div></div>
-        </div>
-        <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px">
-          <div style="width:36px;height:36px;background:#eff6ff;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-chalkboard-teacher" style="color:#4338ca;font-size:15px"></i></div>
-          <div><div style="font-size:20px;font-weight:700;color:#1e293b" id="stat-total-teachers">—</div><div style="font-size:11px;color:#64748b;margin-top:1px">Giáo viên</div></div>
-        </div>
-        <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px">
-          <div style="width:36px;height:36px;background:#fef2f2;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-user-slash" style="color:#b91c1c;font-size:15px"></i></div>
-          <div><div style="font-size:20px;font-weight:700;color:#1e293b" id="stat-total-inactive">—</div><div style="font-size:11px;color:#64748b;margin-top:1px">Vô hiệu</div></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn btn-outline btn-sm" onclick="exportUsersCSV()" title="Xuất danh sách CSV">
+            <i class="fas fa-file-csv" style="color:#15803d"></i> Xuất CSV
+          </button>
+          <button class="btn btn-primary" onclick="openUserModal()">
+            <i class="fas fa-user-plus"></i> Thêm người dùng
+          </button>
         </div>
       </div>
 
-      <!-- Search + Filter -->
-      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
-        <div style="flex:1;min-width:200px;position:relative">
+      <!-- ── Stats Bar ── -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px" id="user-stats-bar">
+        <div class="ustat-card" id="ustat-all" onclick="quickFilterStat('')" title="Hiện tất cả">
+          <div class="ustat-icon" style="background:#eff6ff"><i class="fas fa-users" style="color:#2563eb"></i></div>
+          <div>
+            <div class="ustat-val" id="stat-total-users">
+              <span class="sk" style="display:inline-block;width:32px;height:20px"></span>
+            </div>
+            <div class="ustat-lbl">Tổng cộng</div>
+          </div>
+        </div>
+        <div class="ustat-card" id="ustat-student" onclick="quickFilterStat('student')" title="Lọc học sinh">
+          <div class="ustat-icon" style="background:#f0fdf4"><i class="fas fa-graduation-cap" style="color:#15803d"></i></div>
+          <div>
+            <div class="ustat-val" id="stat-total-students">
+              <span class="sk" style="display:inline-block;width:28px;height:20px"></span>
+            </div>
+            <div class="ustat-lbl">Học sinh</div>
+          </div>
+        </div>
+        <div class="ustat-card" id="ustat-teacher" onclick="quickFilterStat('teacher')" title="Lọc giáo viên">
+          <div class="ustat-icon" style="background:#f5f3ff"><i class="fas fa-chalkboard-teacher" style="color:#4338ca"></i></div>
+          <div>
+            <div class="ustat-val" id="stat-total-teachers">
+              <span class="sk" style="display:inline-block;width:28px;height:20px"></span>
+            </div>
+            <div class="ustat-lbl">Giáo viên</div>
+          </div>
+        </div>
+        <div class="ustat-card" id="ustat-inactive" onclick="quickFilterStat('inactive')" title="Lọc tài khoản vô hiệu">
+          <div class="ustat-icon" style="background:#fef2f2"><i class="fas fa-user-slash" style="color:#b91c1c"></i></div>
+          <div>
+            <div class="ustat-val" id="stat-total-inactive">
+              <span class="sk" style="display:inline-block;width:28px;height:20px"></span>
+            </div>
+            <div class="ustat-lbl">Vô hiệu hóa</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Bulk Actions Bar ── -->
+      <div class="bulk-bar" id="bulk-bar">
+        <i class="fas fa-check-square" style="color:#2563eb;font-size:15px"></i>
+        <span id="bulk-count-label" style="font-weight:600">0 đã chọn</span>
+        <div style="height:16px;width:1px;background:#bfdbfe;margin:0 4px"></div>
+        <button class="btn btn-sm" onclick="bulkSetStatus('active')"
+          style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;padding:4px 11px">
+          <i class="fas fa-check"></i> Kích hoạt
+        </button>
+        <button class="btn btn-sm" onclick="bulkSetStatus('inactive')"
+          style="background:#f8fafc;color:#64748b;border:1px solid #e2e8f0;padding:4px 11px">
+          <i class="fas fa-ban"></i> Vô hiệu
+        </button>
+        <button class="btn btn-sm btn-danger" onclick="bulkDeleteUsers()" style="padding:4px 11px">
+          <i class="fas fa-trash"></i> Xóa
+        </button>
+        <button class="btn btn-sm btn-outline" onclick="clearBulkSelect()" style="margin-left:auto;padding:4px 11px">
+          <i class="fas fa-times"></i> Bỏ chọn tất cả
+        </button>
+      </div>
+
+      <!-- ── Search + Filter ── -->
+      <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center;flex-wrap:wrap">
+        <div style="flex:1;min-width:220px;position:relative">
           <i class="fas fa-search" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:13px;pointer-events:none"></i>
-          <input type="text" id="user-search" placeholder="Tìm theo tên, email..." style="width:100%;padding:8px 12px 8px 32px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);color:var(--text);font-size:13px;outline:none;transition:border .15s" onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor=''" oninput="filterUsers()">
+          <input type="text" id="user-search"
+            placeholder="Tìm theo tên hoặc email..."
+            style="width:100%;padding:8px 36px 8px 32px;border:1.5px solid var(--border);border-radius:9px;background:#fff;font-size:13px;font-family:inherit;outline:none;transition:border .15s"
+            onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor=''"
+            oninput="filterUsers();updateClearFilterBtn()">
+          <button id="user-search-clear" onclick="clearUserSearch()" title="Xóa tìm kiếm"
+            style="display:none;position:absolute;right:9px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#94a3b8;padding:2px;font-size:14px">
+            <i class="fas fa-times-circle"></i>
+          </button>
         </div>
-        <select id="user-role-filter" onchange="filterUsers()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);color:var(--text);font-size:13px;outline:none">
+        <select id="user-role-filter" onchange="filterUsers();updateClearFilterBtn()"
+          style="padding:8px 12px;border:1.5px solid var(--border);border-radius:9px;background:#fff;color:var(--text);font-size:13px;font-family:inherit;outline:none;min-width:140px">
           <option value="">Tất cả vai trò</option>
           <option value="student">🎓 Học sinh</option>
           <option value="teacher">👨‍🏫 Giáo viên</option>
           <option value="admin">⚡ Admin</option>
         </select>
-        <select id="user-status-filter" onchange="filterUsers()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);color:var(--text);font-size:13px;outline:none">
+        <select id="user-status-filter" onchange="filterUsers();updateClearFilterBtn()"
+          style="padding:8px 12px;border:1.5px solid var(--border);border-radius:9px;background:#fff;color:var(--text);font-size:13px;font-family:inherit;outline:none;min-width:140px">
           <option value="">Tất cả trạng thái</option>
           <option value="active">✅ Hoạt động</option>
           <option value="inactive">⏸ Vô hiệu</option>
         </select>
+        <button id="clear-filter-btn" onclick="clearUserFilters()"
+          style="display:none;padding:8px 12px;border:1.5px solid #fca5a5;border-radius:9px;background:#fef2f2;color:#b91c1c;font-size:13px;font-family:inherit;cursor:pointer;white-space:nowrap;transition:all .15s"
+          onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='#fef2f2'">
+          <i class="fas fa-filter-circle-xmark"></i> Xóa bộ lọc
+        </button>
       </div>
 
-      <!-- Users Table -->
-      <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+      <!-- ── Users Table ── -->
+      <div style="background:#fff;border:1px solid var(--border);border-radius:13px;overflow:hidden">
         <table style="width:100%;border-collapse:collapse;font-size:13px">
           <thead>
-            <tr style="background:var(--hover);border-bottom:1px solid var(--border)">
-              <th style="padding:11px 16px;text-align:left;font-weight:600;color:var(--text-muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.4px">Người dùng</th>
-              <th style="padding:11px 16px;text-align:left;font-weight:600;color:var(--text-muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.4px">Vai trò</th>
-              <th style="padding:11px 16px;text-align:left;font-weight:600;color:var(--text-muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.4px">Trạng thái</th>
-              <th style="padding:11px 16px;text-align:left;font-weight:600;color:var(--text-muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.4px">Ngày tạo</th>
-              <th style="padding:11px 16px;text-align:center;font-weight:600;color:var(--text-muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.4px">Thao tác</th>
+            <tr style="background:#f8fafc;border-bottom:1.5px solid var(--border)">
+              <th style="padding:10px 14px;width:38px">
+                <input type="checkbox" id="select-all-users" onchange="toggleSelectAllUsers(this)"
+                  style="width:15px;height:15px;accent-color:#2563eb;cursor:pointer" title="Chọn tất cả">
+              </th>
+              <th style="padding:10px 16px;text-align:left;font-weight:600;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.5px">Người dùng</th>
+              <th style="padding:10px 14px;text-align:left;font-weight:600;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.5px">Vai trò</th>
+              <th style="padding:10px 14px;text-align:left;font-weight:600;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.5px">Trạng thái</th>
+              <th style="padding:10px 14px;text-align:center;font-weight:600;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.5px">Phân quyền</th>
+              <th style="padding:10px 14px;text-align:left;font-weight:600;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.5px">Ngày tạo</th>
+              <th style="padding:10px 14px;text-align:center;font-weight:600;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.5px">Thao tác</th>
             </tr>
           </thead>
           <tbody id="users-tbody">
-            <tr><td colspan="5" style="padding:40px;text-align:center;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i> Đang tải...</td></tr>
+            <tr><td colspan="7" style="padding:48px;text-align:center;color:#94a3b8">
+              <i class="fas fa-spinner fa-spin" style="font-size:18px;display:block;margin-bottom:10px;color:#2563eb"></i>Đang tải...
+            </td></tr>
           </tbody>
         </table>
       </div>
 
-      <!-- Pagination -->
-      <div id="user-pagination" style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;font-size:13px;color:var(--text-muted)">
-        <span id="user-count-label" style="font-size:13px;color:var(--text-muted)"></span>
+      <!-- ── Pagination ── -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;flex-wrap:wrap;gap:10px">
+        <span id="user-count-label" style="font-size:12.5px;color:#64748b"></span>
         <div style="display:flex;align-items:center;gap:8px">
-          <button id="user-prev-btn" class="btn btn-outline btn-sm" onclick="userPagePrev()" disabled><i class="fas fa-chevron-left"></i> Trước</button>
-          <span id="user-page-label" style="padding:5px 14px;background:var(--hover);border:1px solid var(--border);border-radius:6px;font-size:13px;font-weight:500;min-width:80px;text-align:center"></span>
-          <button id="user-next-btn" class="btn btn-outline btn-sm" onclick="userPageNext()">Sau <i class="fas fa-chevron-right"></i></button>
+          <button id="user-prev-btn" class="btn btn-outline btn-sm" onclick="userPagePrev()" disabled>
+            <i class="fas fa-chevron-left"></i> Trước
+          </button>
+          <span id="user-page-label"
+            style="padding:5px 16px;background:#f8fafc;border:1px solid var(--border);border-radius:7px;font-size:13px;font-weight:600;min-width:90px;text-align:center;color:#1e293b">
+          </span>
+          <button id="user-next-btn" class="btn btn-outline btn-sm" onclick="userPageNext()">
+            Sau <i class="fas fa-chevron-right"></i>
+          </button>
         </div>
       </div>
     </div>
 
-    <!-- User Modal -->
-    <div id="user-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.65);z-index:999;align-items:center;justify-content:center">
-      <div style="background:#fff;border-radius:16px;width:500px;max-width:95vw;max-height:92vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.3);border:1px solid #e2e8f0">
-        <!-- Header -->
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 22px;border-bottom:1px solid #e2e8f0;background:#eff6ff;border-radius:16px 16px 0 0">
-          <div style="display:flex;align-items:center;gap:10px">
-            <div style="width:32px;height:32px;background:#2563eb;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px"><i class="fas fa-user-plus"></i></div>
+    <!-- ══ USER MODAL — add / edit ══════════════════════════════════ -->
+    <div id="user-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.7);z-index:999;align-items:center;justify-content:center;padding:16px">
+      <div class="um-layout" style="width:580px;max-width:98vw;max-height:95vh;box-shadow:0 28px 72px rgba(0,0,0,.35);border-radius:16px;overflow:hidden;border:1px solid #e2e8f0">
+
+        <!-- Left sidebar: avatar preview -->
+        <div class="um-sidebar">
+          <div class="um-avatar-wrap" id="um-avatar-preview">?</div>
+          <div class="um-sidebar-name" id="um-sidebar-name">Người dùng mới</div>
+          <div class="um-sidebar-role" id="um-sidebar-role">—</div>
+          <div style="margin-top:auto;text-align:center;font-size:11px;color:rgba(255,255,255,.5);line-height:1.5">
+            Avatar được<br>tạo tự động<br>từ tên
+          </div>
+        </div>
+
+        <!-- Right: form -->
+        <div class="um-body">
+          <!-- Header -->
+          <div class="um-header">
             <h3 id="user-modal-title" style="font-size:15px;font-weight:700;color:#1e293b;margin:0">Thêm người dùng</h3>
+            <button onclick="closeUserModal()"
+              style="width:28px;height:28px;border-radius:7px;background:transparent;border:1px solid #e2e8f0;color:#64748b;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s"
+              onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+              <i class="fas fa-times" style="font-size:12px"></i>
+            </button>
           </div>
-          <button onclick="closeUserModal()" style="width:28px;height:28px;border-radius:6px;background:transparent;border:1px solid #e2e8f0;color:#64748b;cursor:pointer;display:flex;align-items:center;justify-content:center" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'"><i class="fas fa-times" style="font-size:12px"></i></button>
-        </div>
-        <!-- Body -->
-        <div style="padding:20px 22px;display:grid;grid-template-columns:1fr 1fr;gap:14px;background:#fff">
-          <div class="form-group" style="grid-column:1/-1">
-            <label style="color:#475569">Họ tên <span style="color:#ef4444">*</span></label>
-            <input type="text" id="um-name" placeholder="Nguyễn Văn A" style="background:#fff;color:#1e293b;border-color:#e2e8f0">
+
+          <!-- Form fields -->
+          <div class="um-form" style="overflow-y:auto">
+            <!-- Họ tên -->
+            <div class="form-group" style="grid-column:1/-1">
+              <label>Họ và tên <span style="color:#ef4444">*</span></label>
+              <input type="text" id="um-name" placeholder="Nguyễn Văn A"
+                oninput="updateUMAvatarPreview()"
+                style="background:#fff;color:#1e293b">
+            </div>
+            <!-- Email -->
+            <div class="form-group">
+              <label>Email <span style="color:#ef4444">*</span></label>
+              <input type="email" id="um-email" placeholder="example@gmail.com"
+                style="background:#fff;color:#1e293b">
+            </div>
+            <!-- Số điện thoại -->
+            <div class="form-group">
+              <label>Số điện thoại</label>
+              <input type="text" id="um-phone" placeholder="0912 345 678"
+                style="background:#fff;color:#1e293b">
+            </div>
+            <!-- Mật khẩu -->
+            <div class="form-group">
+              <label>Mật khẩu <span id="um-pass-hint" style="color:#94a3b8;font-size:11px;font-weight:400">(bắt buộc)</span></label>
+              <div class="pw-wrap">
+                <input type="password" id="um-pass" placeholder="Tối thiểu 6 ký tự"
+                  oninput="updatePasswordStrength()"
+                  style="background:#fff;color:#1e293b;width:100%">
+                <button type="button" class="pw-eye" onclick="togglePwVisibility('um-pass',this)" tabindex="-1">
+                  <i class="fas fa-eye"></i>
+                </button>
+              </div>
+              <div class="pw-strength-bar"><div class="pw-strength-fill" id="pw-strength-fill" style="width:0%"></div></div>
+              <div id="pw-hint" class="pw-hint" style="color:#94a3b8"></div>
+            </div>
+            <!-- Vai trò -->
+            <div class="form-group">
+              <label>Vai trò</label>
+              <select id="um-role" onchange="updateUMAvatarPreview()"
+                style="width:100%;padding:9px 10px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#1e293b;font-size:13px;font-family:inherit;outline:none">
+                <option value="student">🎓 Học sinh</option>
+                <option value="teacher">👨‍🏫 Giáo viên</option>
+                <option value="admin">⚡ Admin</option>
+              </select>
+            </div>
+            <!-- Trạng thái -->
+            <div class="form-group">
+              <label>Trạng thái</label>
+              <select id="um-status"
+                style="width:100%;padding:9px 10px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#1e293b;font-size:13px;font-family:inherit;outline:none">
+                <option value="active">✅ Hoạt động</option>
+                <option value="inactive">⏸ Vô hiệu hóa</option>
+              </select>
+            </div>
+            <!-- Ghi chú -->
+            <div class="form-group" style="grid-column:1/-1">
+              <label>Ghi chú <span style="color:#94a3b8;font-size:11px;font-weight:400">(tuỳ chọn)</span></label>
+              <textarea id="um-note" rows="2" placeholder="Ghi chú thêm về người dùng này..."
+                style="width:100%;padding:9px 10px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#1e293b;font-size:13px;resize:vertical;font-family:inherit;outline:none;transition:border .15s"
+                onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#e2e8f0'"></textarea>
+            </div>
           </div>
-          <div class="form-group">
-            <label style="color:#475569">Email <span style="color:#ef4444">*</span></label>
-            <input type="email" id="um-email" placeholder="example@gmail.com" style="background:#fff;color:#1e293b;border-color:#e2e8f0">
+
+          <!-- Message -->
+          <div id="um-msg" style="padding:0 20px 2px;font-size:13px;min-height:20px"></div>
+
+          <!-- Footer -->
+          <div class="um-footer">
+            <button onclick="closeUserModal()" class="btn btn-outline" style="padding:8px 20px">Hủy</button>
+            <button onclick="saveUser()" class="btn btn-primary" id="um-save-btn" style="padding:8px 22px">
+              <i class="fas fa-save"></i> Lưu
+            </button>
           </div>
-          <div class="form-group">
-            <label style="color:#475569">Mật khẩu <span id="um-pass-hint" style="color:#94a3b8;font-weight:400;font-size:11px">(bắt buộc khi tạo mới)</span></label>
-            <input type="password" id="um-pass" placeholder="Tối thiểu 6 ký tự" style="background:#fff;color:#1e293b;border-color:#e2e8f0">
-          </div>
-          <div class="form-group">
-            <label style="color:#475569">Vai trò</label>
-            <select id="um-role" style="width:100%;padding:9px 10px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#1e293b;font-size:13px;font-family:inherit;outline:none">
-              <option value="student">🎓 Học sinh</option>
-              <option value="teacher">👨‍🏫 Giáo viên</option>
-              <option value="admin">⚡ Admin</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label style="color:#475569">Trạng thái</label>
-            <select id="um-status" style="width:100%;padding:9px 10px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#1e293b;font-size:13px;font-family:inherit;outline:none">
-              <option value="active">✅ Hoạt động</option>
-              <option value="inactive">⏸ Vô hiệu hóa</option>
-            </select>
-          </div>
-          <div class="form-group" style="grid-column:1/-1">
-            <label style="color:#475569">Số điện thoại</label>
-            <input type="text" id="um-phone" placeholder="0912 345 678" style="background:#fff;color:#1e293b;border-color:#e2e8f0">
-          </div>
-          <div class="form-group" style="grid-column:1/-1">
-            <label style="color:#475569">Ghi chú</label>
-            <textarea id="um-note" rows="2" placeholder="Ghi chú thêm..." style="width:100%;padding:9px 10px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#1e293b;font-size:13px;resize:vertical;font-family:inherit;outline:none"></textarea>
-          </div>
-        </div>
-        <!-- Message -->
-        <div id="um-msg" style="margin:0 22px;font-size:13px;min-height:18px;background:#fff"></div>
-        <!-- Footer -->
-        <div style="display:flex;gap:10px;padding:16px 22px;border-top:1px solid #e2e8f0;justify-content:flex-end;background:#f8fafc;border-radius:0 0 16px 16px">
-          <button onclick="closeUserModal()" class="btn btn-outline">Hủy</button>
-          <button onclick="saveUser()" class="btn btn-primary" id="um-save-btn"><i class="fas fa-save"></i> Lưu</button>
         </div>
       </div>
     </div>
@@ -785,77 +1238,97 @@ tr:hover td{background:var(--hover)}
   </div>
 </div>
 
-<!-- ── MODAL PHÂN QUYỀN ──────────────────────── -->
-<div id="perm-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.7);z-index:1000;align-items:center;justify-content:center">
-  <div style="background:#fff;border-radius:18px;width:580px;max-width:96vw;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 32px 80px rgba(0,0,0,.35);border:1px solid #e2e8f0;overflow:hidden">
+<!-- ══ MODAL PHÂN QUYỀN — PROFESSIONAL ══════════════════════════════ -->
+<div id="perm-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.75);z-index:1000;align-items:center;justify-content:center;padding:16px">
+  <div class="perm-modal-inner">
 
-    <!-- Header -->
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid #e2e8f0;background:linear-gradient(135deg,#eff6ff,#f0fdf4);flex-shrink:0">
-      <div style="display:flex;align-items:center;gap:12px">
-        <div style="width:40px;height:40px;border-radius:12px;background:#2563eb;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-          <i class="fas fa-shield-halved" style="color:#fff;font-size:17px"></i>
-        </div>
+    <!-- ── Header ── -->
+    <div class="perm-header">
+      <div class="perm-user-info">
+        <div class="perm-user-avatar-lg" id="perm-user-avatar"></div>
         <div>
-          <div style="font-size:15px;font-weight:700;color:#1e293b">Phân quyền nội dung</div>
-          <div id="perm-modal-sub" style="font-size:12px;color:#64748b;margin-top:2px">Chọn thư mục / bài học được phép truy cập</div>
+          <div style="font-size:15px;font-weight:700;color:#fff" id="perm-user-name-badge">—</div>
+          <div id="perm-modal-sub" style="font-size:12px;color:rgba(255,255,255,.7);margin-top:2px">Phân quyền truy cập nội dung</div>
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:10px">
-        <div id="perm-user-badge" style="display:flex;align-items:center;gap:7px;padding:5px 12px;background:#fff;border:1px solid #bfdbfe;border-radius:20px;font-size:12.5px;font-weight:600;color:#2563eb">
-          <div id="perm-user-avatar" style="width:22px;height:22px;border-radius:50%;background:#2563eb;color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700"></div>
-          <span id="perm-user-name-badge"></span>
+        <div id="perm-count-label"
+          style="padding:5px 14px;border-radius:20px;font-size:12.5px;font-weight:700;background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)">
+          0 mục
         </div>
-        <button onclick="closePermModal()" style="width:30px;height:30px;border-radius:8px;background:transparent;border:1px solid #e2e8f0;color:#64748b;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
-          <i class="fas fa-times" style="font-size:12px"></i>
+        <button onclick="closePermModal()"
+          style="width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s"
+          onmouseover="this.style.background='rgba(255,255,255,.25)'" onmouseout="this.style.background='rgba(255,255,255,.15)'">
+          <i class="fas fa-times" style="font-size:13px"></i>
         </button>
       </div>
     </div>
 
-    <!-- Toolbar -->
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 18px;border-bottom:1px solid #e2e8f0;background:#f8fafc;flex-shrink:0;gap:10px;flex-wrap:wrap">
-      <div style="display:flex;align-items:center;gap:8px">
-        <span style="font-size:12.5px;font-weight:600;color:#2563eb;background:#eff6ff;border:1px solid #bfdbfe;padding:4px 10px;border-radius:20px" id="perm-count-label">0 mục được chọn</span>
-        <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:#64748b;cursor:pointer;user-select:none">
-          <input type="checkbox" id="perm-only-private" onchange="renderPermTreeFromCache()" style="accent-color:#2563eb">
-          Chỉ hiện Private
-        </label>
-      </div>
-      <div style="display:flex;gap:6px">
-        <button onclick="permSelectAll()" style="display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:7px;border:1px solid var(--border);background:#fff;color:var(--text);font-size:12px;cursor:pointer;transition:all .15s;font-family:inherit" onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background='#fff'">
-          <i class="fas fa-check-double" style="color:#2563eb"></i> Chọn tất cả
+    <!-- ── Toolbar ── -->
+    <div class="perm-toolbar">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <button onclick="permSelectAll()" class="btn btn-sm"
+          style="background:#fff;border:1px solid #e2e8f0;color:#2563eb;font-size:12px;padding:5px 12px">
+          <i class="fas fa-check-double"></i> Chọn tất cả
         </button>
-        <button onclick="permClearAll()" style="display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:7px;border:1px solid var(--border);background:#fff;color:var(--text);font-size:12px;cursor:pointer;transition:all .15s;font-family:inherit" onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background='#fff'">
-          <i class="fas fa-times" style="color:#94a3b8"></i> Bỏ chọn
+        <button onclick="permClearAll()" class="btn btn-sm"
+          style="background:#fff;border:1px solid #e2e8f0;color:#64748b;font-size:12px;padding:5px 12px">
+          <i class="fas fa-square"></i> Bỏ chọn
+        </button>
+        <button onclick="permSelectAllPrivate()" class="btn btn-sm"
+          style="background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;font-size:12px;padding:5px 12px"
+          title="Cấp quyền toàn bộ nội dung Private">
+          <i class="fas fa-lock"></i> Chọn tất cả Private
         </button>
       </div>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:#64748b;cursor:pointer;user-select:none;white-space:nowrap">
+        <input type="checkbox" id="perm-only-private" onchange="renderPermTreeFromCache()" style="accent-color:#2563eb;width:14px;height:14px">
+        Chỉ hiện nội dung Private
+      </label>
     </div>
 
-    <!-- Ghi chú -->
-    <div style="padding:8px 18px;background:#fefce8;border-bottom:1px solid #fde68a;font-size:12px;color:#854d0e;display:flex;align-items:center;gap:7px;flex-shrink:0">
+    <!-- ── Search bar ── -->
+    <div class="perm-search-bar">
+      <i class="fas fa-search" style="color:#94a3b8;font-size:13px;flex-shrink:0"></i>
+      <input type="text" class="perm-search-input" id="perm-search-input"
+        placeholder="Tìm thư mục hoặc bài học..."
+        oninput="filterPermTree(this.value)">
+      <button onclick="clearPermSearch()"
+        style="background:none;border:none;cursor:pointer;color:#94a3b8;padding:2px 4px;border-radius:5px;font-size:13px;transition:color .15s;flex-shrink:0"
+        title="Xóa tìm kiếm" onmouseover="this.style.color='#64748b'" onmouseout="this.style.color='#94a3b8'">
+        <i class="fas fa-times-circle"></i>
+      </button>
+    </div>
+
+    <!-- ── Info banner ── -->
+    <div class="perm-info-banner">
       <i class="fas fa-circle-info" style="flex-shrink:0"></i>
-      <span>Chỉ cần chọn khi nội dung là <b>Private</b>. Nội dung Public ai cũng xem được. Tích chọn thư mục = cấp quyền toàn bộ bài bên trong.</span>
+      <span><b>Chỉ cần phân quyền nội dung Private.</b> Nội dung Public ai cũng xem được tự do. Tích chọn thư mục để cấp quyền cho toàn bộ bài bên trong.</span>
     </div>
 
-    <!-- Tree -->
-    <div id="perm-tree" style="flex:1;overflow-y:auto;padding:8px 0;min-height:220px">
-      <div style="text-align:center;padding:50px;color:var(--text-muted);font-size:13px">
-        <i class="fas fa-spinner fa-spin" style="font-size:20px;display:block;margin-bottom:10px;color:var(--primary)"></i>
-        Đang tải nội dung...
+    <!-- ── Tree ── -->
+    <div id="perm-tree" class="perm-tree-body">
+      <div style="text-align:center;padding:60px 40px;color:#94a3b8">
+        <i class="fas fa-spinner fa-spin" style="font-size:24px;display:block;margin-bottom:12px;color:#2563eb"></i>
+        <div style="font-size:13.5px">Đang tải nội dung...</div>
       </div>
     </div>
 
-    <!-- Footer -->
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 22px;border-top:1px solid #e2e8f0;background:#f8fafc;flex-shrink:0">
-      <div style="font-size:12px;color:#64748b">
-        <i class="fas fa-info-circle"></i>
-        Quyền được lưu ngay lập tức sau khi nhấn <b>Lưu</b>
+    <!-- ── Footer ── -->
+    <div class="perm-footer">
+      <div class="perm-summary-chips" id="perm-summary-chips">
+        <span style="font-size:12px;color:#64748b"><i class="fas fa-info-circle"></i> Chưa có thay đổi</span>
       </div>
       <div style="display:flex;gap:10px">
-        <button onclick="closePermModal()" style="padding:8px 20px;border-radius:9px;border:1px solid var(--border);background:#fff;color:var(--text);font-size:13.5px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .15s" onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background='#fff'">Hủy</button>
+        <button onclick="closePermModal()"
+          style="padding:9px 22px;border-radius:9px;border:1px solid #e2e8f0;background:#fff;color:#374151;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .15s"
+          onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'">
+          Hủy
+        </button>
         <button id="perm-save-btn" onclick="savePermissions()"
-          style="padding:8px 22px;border-radius:9px;border:none;background:#2563eb;color:#fff;font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;display:flex;align-items:center;gap:7px"
+          style="padding:9px 24px;border-radius:9px;border:none;background:#2563eb;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;display:inline-flex;align-items:center;gap:7px"
           onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">
-          <i class="fas fa-save"></i> Lưu phân quyền
+          <i class="fas fa-shield-halved"></i> Lưu phân quyền
         </button>
       </div>
     </div>
@@ -2856,6 +3329,181 @@ function updateDashboard() {
     </tr>`).join('');
 }
 
+// ═══════════════════════════════════════════════════
+// ANALYTICS — Learning Progress
+// ═══════════════════════════════════════════════════
+async function loadAnalytics() {
+  // Reset loading state
+  ['an-reaction-bars','an-top-articles','an-students'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:28px"><i class="fas fa-circle-notch fa-spin"></i> Đang tải...</td></tr>';
+  });
+  const reactionBars = document.getElementById('an-reaction-bars');
+  if (reactionBars) reactionBars.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:24px"><i class="fas fa-circle-notch fa-spin"></i> Đang tải...</div>';
+
+  try {
+    // Fetch all progress rows (admin)
+    const adminPass = sessionStorage.getItem('ae_admin_pass') || '';
+    const proxyBase = (cfg().proxyUrl || 'https://api.gds.edu.vn').replace(/\/$/, '');
+    let allRows = [];
+    let offset = 0;
+    const pageSize = 200;
+    while (true) {
+      const resp = await fetch(`${proxyBase}/admin/progress?limit=${pageSize}&offset=${offset}`, {
+        headers: { 'Admin-Password': adminPass }
+      });
+      if (!resp.ok) throw new Error('Lỗi tải dữ liệu tiến độ');
+      const data = await resp.json();
+      const rows = data.list || [];
+      allRows = allRows.concat(rows);
+      if (rows.length < pageSize) break;
+      offset += pageSize;
+    }
+
+    if (!allRows.length) {
+      _anShowEmpty();
+      return;
+    }
+
+    // ── Tính toán tổng quan ──
+    const completedRows = allRows.filter(r => r.Completed);
+    const studentIds = new Set(allRows.map(r => r.UserId).filter(Boolean));
+    const reactions = allRows.filter(r => r.Reaction);
+    const easyCount    = reactions.filter(r => r.Reaction === 'easy').length;
+    const hardCount    = reactions.filter(r => r.Reaction === 'hard').length;
+    const exampleCount = reactions.filter(r => r.Reaction === 'example').length;
+    const totalReact   = reactions.length || 1;
+
+    document.getElementById('an-total-done').textContent = completedRows.length;
+    document.getElementById('an-total-students').textContent = studentIds.size;
+    document.getElementById('an-easy-pct').textContent = Math.round(easyCount / totalReact * 100) + '%';
+    document.getElementById('an-improve-pct').textContent = Math.round((hardCount + exampleCount) / totalReact * 100) + '%';
+
+    // ── Reaction bars ──
+    const bars = [
+      { label: '😊 Dễ hiểu',       count: easyCount,    color: '#16a34a', bg: '#f0fdf4' },
+      { label: '🤔 Khó hiểu',       count: hardCount,    color: '#dc2626', bg: '#fef2f2' },
+      { label: '💡 Cần ví dụ thêm', count: exampleCount, color: '#d97706', bg: '#fffbeb' },
+    ];
+    const maxBar = Math.max(...bars.map(b => b.count), 1);
+    if (reactionBars) {
+      reactionBars.innerHTML = bars.map(b => `
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="width:160px;font-size:13px;flex-shrink:0">${b.label}</span>
+          <div style="flex:1;height:22px;background:#f1f5f9;border-radius:100px;overflow:hidden">
+            <div style="height:100%;width:${Math.round(b.count/maxBar*100)}%;background:${b.color};border-radius:100px;transition:width .5s;display:flex;align-items:center;justify-content:flex-end;padding-right:8px">
+              ${b.count > 0 ? `<span style="font-size:11px;color:#fff;font-weight:700">${b.count}</span>` : ''}
+            </div>
+          </div>
+          <span style="width:32px;text-align:right;font-size:13px;color:var(--text-muted)">${b.count}</span>
+        </div>`).join('');
+    }
+
+    // ── Top articles ──
+    const byArticle = new Map();
+    for (const row of allRows) {
+      const aid = String(row.ArticleId || '');
+      if (!aid) continue;
+      if (!byArticle.has(aid)) byArticle.set(aid, { done: 0, easy: 0, hard: 0, example: 0 });
+      const e = byArticle.get(aid);
+      if (row.Completed) e.done++;
+      if (row.Reaction === 'easy') e.easy++;
+      if (row.Reaction === 'hard') e.hard++;
+      if (row.Reaction === 'example') e.example++;
+    }
+    const sortedArticles = [...byArticle.entries()].sort((a, b) => b[1].done - a[1].done).slice(0, 15);
+
+    // Try to get article names from indexTree
+    const nameMap = new Map();
+    const flatFiles = flattenFiles(indexTree);
+    for (const f of flatFiles) {
+      if (f.nocoId) nameMap.set(String(f.nocoId), f.name);
+    }
+
+    const tbody = document.getElementById('an-top-articles');
+    if (tbody) {
+      if (!sortedArticles.length) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px">Chưa có dữ liệu</td></tr>';
+      } else {
+        tbody.innerHTML = sortedArticles.map(([aid, s], i) => `
+          <tr>
+            <td style="color:var(--text-muted);width:32px">${i + 1}</td>
+            <td><b>${nameMap.get(aid) ? escHtml(nameMap.get(aid)) : `ID: ${aid}`}</b></td>
+            <td><span class="badge badge-blue">${s.done} lượt</span></td>
+            <td style="color:#16a34a">${s.easy > 0 ? '😊 ' + s.easy : '—'}</td>
+            <td style="color:#dc2626">${s.hard > 0 ? '🤔 ' + s.hard : '—'}</td>
+            <td style="color:#d97706">${s.example > 0 ? '💡 ' + s.example : '—'}</td>
+          </tr>`).join('');
+      }
+    }
+
+    // ── Students progress ──
+    const totalArticles = flatFiles.length || 1;
+    document.getElementById('an-student-note').textContent = `(tổng ${flatFiles.length} bài học)`;
+
+    const byStudent = new Map();
+    for (const row of allRows) {
+      const uid = String(row.UserId || '');
+      if (!uid) continue;
+      if (!byStudent.has(uid)) byStudent.set(uid, { done: 0, reactions: [] });
+      const e = byStudent.get(uid);
+      if (row.Completed) e.done++;
+      if (row.Reaction) e.reactions.push(row.Reaction);
+    }
+    const sortedStudents = [...byStudent.entries()].sort((a, b) => b[1].done - a[1].done);
+
+    const stbody = document.getElementById('an-students');
+    if (stbody) {
+      if (!sortedStudents.length) {
+        stbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:24px">Chưa có dữ liệu</td></tr>';
+      } else {
+        stbody.innerHTML = sortedStudents.map(([uid, s]) => {
+          const pct = Math.round(s.done / flatFiles.length * 100);
+          const reactionEmoji = s.reactions.length
+            ? (s.reactions.filter(r=>r==='easy').length > s.reactions.length/2 ? '😊' : '🤔')
+            : '—';
+          return `<tr>
+            <td style="font-size:12px;color:var(--text-muted)">UID ${uid}</td>
+            <td><b>${s.done}</b></td>
+            <td>${flatFiles.length}</td>
+            <td>
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="flex:1;height:6px;background:#e2e8f0;border-radius:6px;min-width:60px">
+                  <div style="height:100%;width:${pct}%;background:${pct>=80?'#16a34a':pct>=40?'#3b82f6':'#f59e0b'};border-radius:6px"></div>
+                </div>
+                <span style="font-size:12px;color:var(--text-muted);width:34px">${pct}%</span>
+              </div>
+            </td>
+            <td>${reactionEmoji}</td>
+          </tr>`;
+        }).join('');
+      }
+    }
+
+  } catch(e) {
+    showToast('Lỗi tải analytics: ' + e.message, 'error');
+    _anShowEmpty('Lỗi: ' + e.message);
+  }
+}
+
+function _anShowEmpty(msg = 'Chưa có dữ liệu tiến độ học sinh') {
+  const empty = `<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:28px">${msg}</td></tr>`;
+  ['an-top-articles','an-students'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = empty;
+  });
+  const reactionBars = document.getElementById('an-reaction-bars');
+  if (reactionBars) reactionBars.innerHTML = `<div style="text-align:center;color:var(--text-muted);padding:20px">${msg}</div>`;
+  ['an-total-done','an-total-students','an-easy-pct','an-improve-pct'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = '0';
+  });
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 function updateFolderSelects() {
   function collectOpts(items, prefix = '') {
     let opts = [];
@@ -2991,6 +3639,8 @@ function showPanel(id, navEl) {
 
   } else if (id === 'users') {
     loadUsers();
+  } else if (id === 'analytics') {
+    loadAnalytics();
   }
 }
 
@@ -3267,6 +3917,9 @@ function filterUsers() {
   loadUsers();
 }
 
+// ── Bulk select state ──
+let _selectedUserIds = new Set();
+
 // renderUsersTable: nhận page data trực tiếp từ server
 function renderUsersTable(page) {
   const tbody = document.getElementById('users-tbody');
@@ -3274,75 +3927,98 @@ function renderUsersTable(page) {
   const start = userPageIndex * USER_LIMIT;
   const totalPages = Math.max(1, Math.ceil(total / USER_LIMIT));
 
-  document.getElementById('user-count-label').textContent = `${total} người dùng`;
+  document.getElementById('user-count-label').textContent =
+    total ? `${start + 1}–${Math.min(start + page.length, total)} / ${total} người dùng` : '';
   document.getElementById('user-page-label').textContent  = `Trang ${userPageIndex + 1} / ${totalPages}`;
   document.getElementById('user-prev-btn').disabled = userPageIndex === 0;
   document.getElementById('user-next-btn').disabled = start + USER_LIMIT >= total;
+  // Reset select-all checkbox
+  const selAll = document.getElementById('select-all-users');
+  if (selAll) selAll.checked = false;
+  _selectedUserIds.clear();
+  updateBulkBar();
 
   if (page.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" style="padding:40px;text-align:center;color:var(--text-muted)">Không có người dùng nào</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="padding:56px;text-align:center;color:#94a3b8"><i class="fas fa-users-slash" style="font-size:28px;display:block;margin-bottom:12px;opacity:.4"></i>Không tìm thấy người dùng nào</td></tr>';
     return;
   }
 
-  // Màu avatar theo vai trò
   const avatarColors = { admin:'#ef4444', teacher:'#4338ca', student:'#2563eb' };
   const roleLabel = {
-    admin:   '<span style="display:inline-flex;align-items:center;gap:5px;background:#fef2f2;color:#b91c1c;padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:600;border:1px solid #fecaca"><i class="fas fa-shield-halved" style="font-size:10px"></i>Admin</span>',
-    teacher: '<span style="display:inline-flex;align-items:center;gap:5px;background:#eff6ff;color:#1d4ed8;padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:600;border:1px solid #bfdbfe"><i class="fas fa-chalkboard-teacher" style="font-size:10px"></i>Giáo viên</span>',
-    student: '<span style="display:inline-flex;align-items:center;gap:5px;background:#f0fdf4;color:#15803d;padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:600;border:1px solid #bbf7d0"><i class="fas fa-graduation-cap" style="font-size:10px"></i>Học sinh</span>',
-  };
-  const statusLabel = {
-    active:   '<span style="display:inline-flex;align-items:center;gap:5px;color:#15803d;font-size:12.5px;font-weight:500"><span style="width:7px;height:7px;background:#22c55e;border-radius:50%;display:inline-block"></span>Hoạt động</span>',
-    inactive: '<span style="display:inline-flex;align-items:center;gap:5px;color:#94a3b8;font-size:12.5px;font-weight:500"><span style="width:7px;height:7px;background:#cbd5e1;border-radius:50%;display:inline-block"></span>Vô hiệu</span>',
-    banned:   '<span style="display:inline-flex;align-items:center;gap:5px;color:#b91c1c;font-size:12.5px;font-weight:500"><span style="width:7px;height:7px;background:#ef4444;border-radius:50%;display:inline-block"></span>Bị khóa</span>',
+    admin:   `<span style="display:inline-flex;align-items:center;gap:4px;background:#fef2f2;color:#b91c1c;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;border:1px solid #fecaca"><i class="fas fa-shield-halved" style="font-size:9px"></i>Admin</span>`,
+    teacher: `<span style="display:inline-flex;align-items:center;gap:4px;background:#f5f3ff;color:#4338ca;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;border:1px solid #c4b5fd"><i class="fas fa-chalkboard-teacher" style="font-size:9px"></i>Giáo viên</span>`,
+    student: `<span style="display:inline-flex;align-items:center;gap:4px;background:#f0fdf4;color:#15803d;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;border:1px solid #bbf7d0"><i class="fas fa-graduation-cap" style="font-size:9px"></i>Học sinh</span>`,
   };
 
   tbody.innerHTML = page.map(u => {
     const name    = u.FullName || u.HoTen || u.Name || '(chưa đặt tên)';
     const email   = u.Email || '';
-    const role    = u.Role || u.VaiTro || 'student';
-    const status  = u.Status || u.TrangThai || 'active';
-    const created = u.NgayTao || u.CreatedAt || '';
-    const initials = name.trim().split(/\s+/).map(w=>w[0]).slice(-2).join('').toUpperCase() || '?';
+    const role    = u.Role  || u.VaiTro    || 'student';
+    const status  = u.Status|| u.TrangThai || 'active';
+    const phone   = u.Phone || u.SDT       || '';
+    const created = u.NgayTao || '';
+    const uid     = u.Id;
+
+    const initials    = name.trim().split(/\s+/).map(w=>w[0]).slice(-2).join('').toUpperCase() || '?';
     const avatarColor = avatarColors[role] || '#2563eb';
-    const isInactive = status !== 'active';
-    return `<tr style="border-bottom:1px solid var(--border);transition:background .12s;${isInactive?'opacity:.65':''}" onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background=''">
+    const isInactive  = status !== 'active';
+    const isSelected  = _selectedUserIds.has(uid);
+
+    // Status chip (clickable quick-toggle)
+    const statusChip = status === 'active'
+      ? `<button class="status-chip active" onclick="quickToggleStatus(${uid},'${esc(name)}','active')" title="Nhấn để vô hiệu hóa">
+           <span class="status-dot"></span> Hoạt động
+         </button>`
+      : `<button class="status-chip inactive" onclick="quickToggleStatus(${uid},'${esc(name)}','inactive')" title="Nhấn để kích hoạt">
+           <span class="status-dot"></span> Vô hiệu
+         </button>`;
+
+    // Perm badge (will be lazy-loaded)
+    const permBadge = `<button class="perm-chip no-perms" id="perm-chip-${uid}"
+        onclick="openPermModal(${uid},'${esc(name)}')" title="Quản lý quyền truy cập">
+        <i class="fas fa-shield-halved" style="font-size:10px"></i>
+        <span id="perm-chip-val-${uid}">···</span>
+      </button>`;
+
+    return `<tr class="urow${isInactive?' urow-inactive':''}${isSelected?' urow-selected':''}" id="urow-${uid}">
+      <td style="padding:10px 14px">
+        <input type="checkbox" class="user-row-cb" data-id="${uid}"
+          ${isSelected?'checked':''}
+          onchange="onUserRowCheck(this,${uid})"
+          style="width:15px;height:15px;accent-color:#2563eb;cursor:pointer">
+      </td>
       <td style="padding:10px 16px">
         <div style="display:flex;align-items:center;gap:11px">
-          <div style="width:36px;height:36px;border-radius:50%;background:${avatarColor};color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;letter-spacing:.5px">${initials}</div>
-          <div>
-            <div style="font-weight:600;color:var(--text);font-size:13.5px;line-height:1.3">${esc(name)}</div>
-            <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${esc(email)}</div>
+          <div style="width:38px;height:38px;border-radius:50%;background:${avatarColor};color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;letter-spacing:.5px;box-shadow:0 2px 6px ${avatarColor}55">${initials}</div>
+          <div style="min-width:0">
+            <div style="font-weight:600;color:#1e293b;font-size:13.5px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(name)}</div>
+            <div style="font-size:11.5px;color:#64748b;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(email)}</div>
+            ${phone ? `<div style="font-size:11px;color:#94a3b8;margin-top:1px"><i class="fas fa-phone" style="font-size:9px"></i> ${esc(phone)}</div>` : ''}
           </div>
         </div>
       </td>
-      <td style="padding:10px 16px">${roleLabel[role] || roleLabel.student}</td>
-      <td style="padding:10px 16px">${statusLabel[status] || statusLabel.active}</td>
-      <td style="padding:10px 16px;color:var(--text-muted);font-size:12px">${esc(created)}</td>
-      <td style="padding:10px 16px">
-        <div style="display:flex;align-items:center;gap:6px;justify-content:center">
-          <button onclick="openPermModal(${u.Id},'${esc(name)}')"
-            style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:7px;border:1px solid #bfdbfe;background:#eff6ff;color:#2563eb;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit"
-            onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#eff6ff'"
-            title="Phân quyền nội dung">
-            <i class="fas fa-shield-halved"></i> Phân quyền
-          </button>
-          <button onclick="editUser(${u.Id})"
-            style="display:inline-flex;align-items:center;padding:5px 9px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-size:12px;cursor:pointer;transition:all .15s;font-family:inherit"
-            onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background='transparent'"
-            title="Sửa thông tin">
-            <i class="fas fa-pen"></i>
-          </button>
-          <button onclick="deleteUser(${u.Id},'${esc(name)}')"
-            style="display:inline-flex;align-items:center;padding:5px 9px;border-radius:7px;border:1px solid #fca5a5;background:#fef2f2;color:#b91c1c;font-size:12px;cursor:pointer;transition:all .15s;font-family:inherit"
+      <td style="padding:10px 14px">${roleLabel[role] || roleLabel.student}</td>
+      <td style="padding:10px 14px">${statusChip}</td>
+      <td style="padding:10px 14px;text-align:center">${permBadge}</td>
+      <td style="padding:10px 14px;color:#94a3b8;font-size:12px;white-space:nowrap">${esc(created)}</td>
+      <td style="padding:10px 14px">
+        <div style="display:flex;align-items:center;gap:5px;justify-content:center">
+          <button onclick="editUser(${uid})"
+            style="width:30px;height:30px;border-radius:7px;border:1px solid #e2e8f0;background:#fff;color:#64748b;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s"
+            onmouseover="this.style.background='#eff6ff';this.style.color='#2563eb';this.style.borderColor='#bfdbfe'"
+            onmouseout="this.style.background='#fff';this.style.color='#64748b';this.style.borderColor='#e2e8f0'"
+            title="Sửa thông tin"><i class="fas fa-pen"></i></button>
+          <button onclick="deleteUser(${uid},'${esc(name)}')"
+            style="width:30px;height:30px;border-radius:7px;border:1px solid #fca5a5;background:#fef2f2;color:#b91c1c;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s"
             onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='#fef2f2'"
-            title="Xóa tài khoản">
-            <i class="fas fa-trash"></i>
-          </button>
+            title="Xóa tài khoản"><i class="fas fa-trash"></i></button>
         </div>
       </td>
     </tr>`;
   }).join('');
+
+  // Lazy load perm counts sau khi render xong
+  _lazyLoadPermCounts(page.map(u => u.Id));
 }
 
 // Chuyển trang: fetch lại từ server
@@ -3352,15 +4028,26 @@ function userPagePrev() { if (userPageIndex > 0) { userPageIndex--; loadUsers();
 function openUserModal(user) {
   editingUserId = user ? user.Id : null;
   document.getElementById('user-modal-title').textContent = user ? 'Sửa người dùng' : 'Thêm người dùng';
-  document.getElementById('um-name').value  = user ? (user.FullName || user.HoTen || user.Name || '') : '';
-  document.getElementById('um-email').value = user ? (user.Email || '') : '';
-  document.getElementById('um-pass').value  = '';
-  document.getElementById('um-role').value  = user ? (user.Role || user.VaiTro || 'student') : 'student';
-  document.getElementById('um-status').value = user ? (user.Status || user.TrangThai || 'active') : 'active';
-  document.getElementById('um-phone').value = user ? (user.Phone || user.SDT || '') : '';
-  document.getElementById('um-note').value  = user ? (user.Note || user.GhiChu || '') : '';
-  document.getElementById('um-pass-hint').textContent = user ? '(để trống = giữ nguyên)' : '(bắt buộc)';
+  document.getElementById('um-name').value   = user ? (user.FullName || user.HoTen || user.Name || '') : '';
+  document.getElementById('um-email').value  = user ? (user.Email || '') : '';
+  document.getElementById('um-pass').value   = '';
+  document.getElementById('um-phone').value  = user ? (user.Phone  || user.SDT   || '') : '';
+  document.getElementById('um-note').value   = user ? (user.Note   || user.GhiChu|| '') : '';
+  document.getElementById('um-role').value   = user ? (user.Role   || user.VaiTro   || 'student') : 'student';
+  document.getElementById('um-status').value = user ? (user.Status || user.TrangThai|| 'active')  : 'active';
+  const hint = document.getElementById('um-pass-hint');
+  if (hint) hint.textContent = user ? '(để trống = giữ nguyên)' : '(bắt buộc)';
   document.getElementById('um-msg').innerHTML = '';
+  // Reset password strength
+  const fill = document.getElementById('pw-strength-fill');
+  const hwt  = document.getElementById('pw-hint');
+  if (fill) fill.style.width = '0%';
+  if (hwt)  hwt.textContent  = '';
+  // Ensure password field type = password
+  const passInp = document.getElementById('um-pass');
+  if (passInp) passInp.type = 'password';
+  // Update avatar preview
+  updateUMAvatarPreview();
   document.getElementById('user-modal').style.display = 'flex';
 }
 
@@ -3900,125 +4587,138 @@ function renderPermTreeFromCache() {
 function _renderPermItems(items, container, parentPath, grantedSet, onlyPriv, depth) {
   (items || []).forEach(item => {
     if (item.type === 'folder') {
-      const folderPath = parentPath ? parentPath + '/' + item.name : item.name;
-      const isPrivate  = item.access === 'private';
-      const isGranted  = grantedSet.has(folderPath);
-      const childFiles = (item.children || []).filter(c => c.type === 'file');
-      const childFolders = (item.children || []).filter(c => c.type === 'folder');
-      const hasPrivateChild = childFiles.some(f => f.access === 'private') || childFolders.length > 0;
+      const folderPath    = parentPath ? parentPath + '/' + item.name : item.name;
+      const isPrivate     = item.access === 'private';
+      const isGranted     = grantedSet.has(folderPath);
+      const childFiles    = (item.children || []).filter(c => c.type === 'file');
+      const childFolders  = (item.children || []).filter(c => c.type === 'folder');
+      const privateFiles  = childFiles.filter(f => f.access === 'private');
+      const grantedFiles  = childFiles.filter(f => grantedSet.has(f.path));
+      const hasPrivateChild = isPrivate || privateFiles.length > 0 || childFolders.length > 0;
+      if (onlyPriv && !hasPrivateChild) return;
 
-      if (onlyPriv && !isPrivate && !hasPrivateChild) return;
-
+      // Folder wrap
       const wrap = document.createElement('div');
-      wrap.style.cssText = `padding-left:${depth * 16}px`;
+      wrap.className = 'pt-folder-wrap';
 
-      const row = document.createElement('label');
-      row.style.cssText = 'display:flex;align-items:center;gap:9px;padding:8px 14px;cursor:pointer;transition:background .1s;border-radius:0;user-select:none';
-      row.onmouseenter = () => row.style.background = '#f1f5f9';
-      row.onmouseleave = () => row.style.background = '';
+      // Folder row
+      const row = document.createElement('div');
+      row.className = `pt-folder-row${isGranted ? ' pt-checked' : ''}`;
+      row.style.paddingLeft = `${14 + depth * 20}px`;
 
+      // Toggle expand button
+      const toggle = document.createElement('button');
+      toggle.className = 'pt-toggle open';
+      toggle.innerHTML = '<i class="fas fa-chevron-right"></i>';
+      toggle.onclick = (e) => {
+        e.preventDefault(); e.stopPropagation();
+        toggle.classList.toggle('open');
+        childrenDiv.style.display = toggle.classList.contains('open') ? '' : 'none';
+      };
+
+      // Checkbox
       const cb = document.createElement('input');
-      cb.type = 'checkbox';
-      cb.dataset.type = 'folder';
-      cb.dataset.path = folderPath;
-      cb.dataset.id   = item.nocoId || '';
+      cb.type = 'checkbox'; cb.className = 'pt-cb';
+      cb.dataset.type = 'folder'; cb.dataset.path = folderPath; cb.dataset.id = item.nocoId || '';
       cb.checked = isGranted;
-      cb.style.cssText = 'width:16px;height:16px;accent-color:#2563eb;flex-shrink:0;cursor:pointer';
       cb.onchange = () => {
-        // Cascade: check/uncheck toàn bộ bài con
-        const allChildCbs = wrap.querySelectorAll('input[type=checkbox]');
-        allChildCbs.forEach(c => { c.checked = cb.checked; });
+        row.classList.toggle('pt-checked', cb.checked);
+        wrap.querySelectorAll('input[type=checkbox]').forEach(c => {
+          c.checked = cb.checked;
+          c.closest('.pt-folder-row, .pt-file-row')?.classList.toggle('pt-checked', cb.checked);
+        });
         updatePermCountLabel();
       };
 
-      const folderIcon = document.createElement('i');
-      folderIcon.className = `fas fa-folder${item.children?.length ? '-open' : ''}`;
-      folderIcon.style.cssText = `color:${isPrivate?'#f87171':'#60a5fa'};font-size:13px;flex-shrink:0`;
+      // Folder icon
+      const icon = document.createElement('i');
+      icon.className = 'pt-folder-icon fas fa-folder' + (childFiles.length || childFolders.length ? '-open' : '');
+      icon.style.color = isPrivate ? '#f87171' : '#60a5fa';
 
-      const label = document.createElement('span');
-      label.style.cssText = 'flex:1;font-size:13px;font-weight:600;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
-      label.textContent = item.name;
+      // Label
+      const lbl = document.createElement('span');
+      lbl.className = 'pt-folder-label'; lbl.textContent = item.name;
 
+      // Meta: badge + progress bar
       const meta = document.createElement('div');
-      meta.style.cssText = 'display:flex;align-items:center;gap:6px;flex-shrink:0;margin-left:auto';
+      meta.className = 'pt-folder-meta';
 
       if (isPrivate) {
-        meta.innerHTML += '<span style="font-size:10px;background:#fef2f2;color:#b91c1c;border:1px solid #fca5a5;padding:1px 6px;border-radius:4px;font-weight:600">Private</span>';
-      }
-      const childCount = (item.children || []).filter(c => c.type === 'file').length;
-      if (childCount > 0) {
-        meta.innerHTML += `<span style="font-size:10.5px;color:#94a3b8">${childCount} bài</span>`;
+        const badge = document.createElement('span');
+        badge.className = 'pt-badge pt-badge-priv';
+        badge.innerHTML = '<i class="fas fa-lock" style="font-size:8px"></i> Private';
+        meta.appendChild(badge);
       }
 
-      // Toggle collapse children
-      const toggle = document.createElement('button');
-      toggle.innerHTML = '<i class="fas fa-chevron-down" style="font-size:9px;transition:transform .2s"></i>';
-      toggle.style.cssText = 'background:none;border:none;padding:2px 4px;cursor:pointer;color:#94a3b8;flex-shrink:0;font-family:inherit';
-      const childrenWrap = document.createElement('div');
-      childrenWrap.style.cssText = 'padding-left:0;border-left:2px solid #e2e8f0;margin-left:' + (depth*16+20) + 'px';
-      let collapsed = false;
-      toggle.onclick = (e) => {
-        e.preventDefault();
-        collapsed = !collapsed;
-        childrenWrap.style.display = collapsed ? 'none' : '';
-        toggle.querySelector('i').style.transform = collapsed ? 'rotate(-90deg)' : '';
-      };
+      if (childFiles.length > 0) {
+        const grantCount = grantedFiles.length;
+        const prog = document.createElement('div');
+        prog.className = 'pt-prog';
+        prog.title = `${grantCount}/${childFiles.length} bài được cấp quyền`;
+        prog.innerHTML = `
+          <div class="pt-prog-bar">
+            <div class="pt-prog-fill" style="width:${Math.round(grantCount/childFiles.length*100)}%"></div>
+          </div>
+          <span class="pt-prog-text">${grantCount}/${childFiles.length}</span>`;
+        meta.appendChild(prog);
+      }
 
-      row.appendChild(cb);
-      row.appendChild(folderIcon);
-      row.appendChild(label);
-      row.appendChild(meta);
       row.appendChild(toggle);
+      row.appendChild(cb);
+      row.appendChild(icon);
+      row.appendChild(lbl);
+      row.appendChild(meta);
+
+      // Children container
+      const childrenDiv = document.createElement('div');
+      childrenDiv.className = 'pt-children';
+      childrenDiv.style.paddingLeft = `${20 + depth * 20}px`;
 
       wrap.appendChild(row);
-      wrap.appendChild(childrenWrap);
+      wrap.appendChild(childrenDiv);
       container.appendChild(wrap);
 
-      // Render con
+      // Render children recursively
       if (item.children && item.children.length) {
-        _renderPermItems(item.children, childrenWrap, folderPath, grantedSet, onlyPriv, 0);
+        _renderPermItems(item.children, childrenDiv, folderPath, grantedSet, onlyPriv, depth + 1);
       }
 
     } else {
-      // Article
+      // ── Article node ──
       const isPrivate = item.access === 'private' || item.folderAccess === 'private';
       if (onlyPriv && !isPrivate) return;
-
       const isGranted = grantedSet.has(item.path);
+
       const row = document.createElement('label');
-      row.style.cssText = `display:flex;align-items:center;gap:9px;padding:6px 14px 6px ${depth*16+14}px;cursor:pointer;transition:background .1s;user-select:none`;
-      row.onmouseenter = () => row.style.background = '#f8fafc';
-      row.onmouseleave = () => row.style.background = '';
+      row.className = `pt-file-row${isGranted ? ' pt-checked' : ''}`;
+      row.style.paddingLeft = `${14 + depth * 20}px`;
 
       const cb = document.createElement('input');
-      cb.type = 'checkbox';
-      cb.dataset.type = 'article';
-      cb.dataset.path = item.path;
-      cb.dataset.id   = item.nocoId || '';
+      cb.type = 'checkbox'; cb.className = 'pt-cb';
+      cb.dataset.type = 'article'; cb.dataset.path = item.path; cb.dataset.id = item.nocoId || '';
       cb.checked = isGranted;
-      cb.style.cssText = 'width:15px;height:15px;accent-color:#2563eb;flex-shrink:0;cursor:pointer';
-      cb.onchange = updatePermCountLabel;
+      cb.onchange = () => { row.classList.toggle('pt-checked', cb.checked); updatePermCountLabel(); };
 
-      const fileIcon = document.createElement('i');
-      fileIcon.className = 'fas fa-file-lines';
-      fileIcon.style.cssText = 'color:#94a3b8;font-size:12px;flex-shrink:0';
+      const icon = document.createElement('i');
+      icon.className = 'fas fa-file-lines';
+      icon.style.cssText = 'color:#cbd5e1;font-size:12px;flex-shrink:0;margin:0 8px 0 4px';
 
-      const label = document.createElement('span');
-      label.style.cssText = 'flex:1;font-size:12.5px;color:#334155;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
-      label.textContent = item.name;
+      const lbl = document.createElement('span');
+      lbl.className = 'pt-file-label';
+      lbl.style.cssText = 'flex:1;font-size:13px;color:#334155;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+      lbl.textContent = item.name;
 
-      const meta = document.createElement('div');
-      meta.style.cssText = 'margin-left:auto;flex-shrink:0';
-      if (isPrivate) {
-        meta.innerHTML = '<span style="font-size:10px;background:#fef2f2;color:#b91c1c;border:1px solid #fca5a5;padding:1px 6px;border-radius:4px;font-weight:600"><i class="fas fa-lock" style="font-size:8px"></i> Private</span>';
-      } else {
-        meta.innerHTML = '<span style="font-size:10px;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;padding:1px 6px;border-radius:4px;font-weight:600"><i class="fas fa-globe" style="font-size:8px"></i> Public</span>';
-      }
+      const badge = document.createElement('span');
+      badge.className = `pt-badge ${isPrivate ? 'pt-badge-priv' : 'pt-badge-pub'}`;
+      badge.style.marginLeft = 'auto';
+      badge.innerHTML = isPrivate
+        ? '<i class="fas fa-lock" style="font-size:8px"></i> Private'
+        : '<i class="fas fa-globe" style="font-size:8px"></i> Public';
 
       row.appendChild(cb);
-      row.appendChild(fileIcon);
-      row.appendChild(label);
-      row.appendChild(meta);
+      row.appendChild(icon);
+      row.appendChild(lbl);
+      row.appendChild(badge);
       container.appendChild(row);
     }
   });
@@ -4041,11 +4741,9 @@ function updatePermCountLabel() {
   const label = document.getElementById('perm-count-label');
   if (label) {
     const n = currentPermissions.length;
-    label.textContent = n === 0 ? 'Chưa chọn mục nào' : `${n} mục được chọn`;
-    label.style.background = n > 0 ? '#eff6ff' : '#f8fafc';
-    label.style.color       = n > 0 ? '#2563eb' : '#64748b';
-    label.style.borderColor = n > 0 ? '#bfdbfe' : '#e2e8f0';
+    label.textContent = n === 0 ? '0 mục' : `${n} mục`;
   }
+  updatePermSummaryChips();
 }
 
 function permSelectAll() {
@@ -4115,6 +4813,324 @@ async function updateUserStats() {
 
 // Save permissions after saving user
 
+
+// ══════════════════════════════════════════════════════════════
+// USER MANAGEMENT — NEW FUNCTIONS
+// ══════════════════════════════════════════════════════════════
+
+// ── Stats card: click to quick-filter ──
+function quickFilterStat(type) {
+  // Deactivate all cards
+  ['ustat-all','ustat-student','ustat-teacher','ustat-inactive'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('ustat-active');
+  });
+  const roleFilter   = document.getElementById('user-role-filter');
+  const statusFilter = document.getElementById('user-status-filter');
+  if (type === 'inactive') {
+    if (statusFilter) statusFilter.value = 'inactive';
+    if (roleFilter)   roleFilter.value   = '';
+    document.getElementById('ustat-inactive')?.classList.add('ustat-active');
+  } else {
+    if (statusFilter) statusFilter.value = '';
+    if (roleFilter)   roleFilter.value   = type; // '' | 'student' | 'teacher'
+    if (type === '')          document.getElementById('ustat-all')?.classList.add('ustat-active');
+    else if (type==='student') document.getElementById('ustat-student')?.classList.add('ustat-active');
+    else if (type==='teacher') document.getElementById('ustat-teacher')?.classList.add('ustat-active');
+  }
+  filterUsers();
+  updateClearFilterBtn();
+}
+
+// ── Clear filter / search helpers ──
+function clearUserSearch() {
+  const inp = document.getElementById('user-search');
+  if (inp) { inp.value = ''; inp.dispatchEvent(new Event('input')); }
+}
+
+function updateClearFilterBtn() {
+  const q      = document.getElementById('user-search')?.value || '';
+  const role   = document.getElementById('user-role-filter')?.value || '';
+  const status = document.getElementById('user-status-filter')?.value || '';
+  const hasFilter = q || role || status;
+  const clearBtn   = document.getElementById('clear-filter-btn');
+  const searchClearBtn = document.getElementById('user-search-clear');
+  if (clearBtn)      clearBtn.style.display      = hasFilter ? '' : 'none';
+  if (searchClearBtn) searchClearBtn.style.display = q ? '' : 'none';
+}
+
+function clearUserFilters() {
+  const rf = document.getElementById('user-role-filter');
+  const sf = document.getElementById('user-status-filter');
+  const s  = document.getElementById('user-search');
+  if (rf) rf.value = '';
+  if (sf) sf.value = '';
+  if (s)  s.value  = '';
+  ['ustat-all','ustat-student','ustat-teacher','ustat-inactive']
+    .forEach(id => document.getElementById(id)?.classList.remove('ustat-active'));
+  filterUsers();
+  updateClearFilterBtn();
+}
+
+// ── Bulk select ──
+function onUserRowCheck(cb, uid) {
+  if (cb.checked) _selectedUserIds.add(uid);
+  else            _selectedUserIds.delete(uid);
+  const row = document.getElementById(`urow-${uid}`);
+  if (row) row.classList.toggle('urow-selected', cb.checked);
+  updateBulkBar();
+}
+
+function toggleSelectAllUsers(masterCb) {
+  const cbs = document.querySelectorAll('.user-row-cb');
+  cbs.forEach(cb => {
+    cb.checked = masterCb.checked;
+    const uid = parseInt(cb.dataset.id);
+    if (masterCb.checked) _selectedUserIds.add(uid);
+    else                  _selectedUserIds.delete(uid);
+    const row = document.getElementById(`urow-${uid}`);
+    if (row) row.classList.toggle('urow-selected', masterCb.checked);
+  });
+  updateBulkBar();
+}
+
+function updateBulkBar() {
+  const bar   = document.getElementById('bulk-bar');
+  const label = document.getElementById('bulk-count-label');
+  const n = _selectedUserIds.size;
+  if (bar)   bar.classList.toggle('show', n > 0);
+  if (label) label.textContent = `${n} người dùng đã chọn`;
+}
+
+function clearBulkSelect() {
+  _selectedUserIds.clear();
+  document.querySelectorAll('.user-row-cb').forEach(cb => { cb.checked = false; });
+  document.querySelectorAll('.urow.urow-selected').forEach(row => row.classList.remove('urow-selected'));
+  const selAll = document.getElementById('select-all-users');
+  if (selAll) selAll.checked = false;
+  updateBulkBar();
+}
+
+async function bulkDeleteUsers() {
+  const ids = [..._selectedUserIds];
+  if (!ids.length) return;
+  if (!confirm(`Xóa ${ids.length} người dùng đã chọn?\nHành động này không thể hoàn tác!`)) return;
+  showLoading(`Đang xóa ${ids.length} người dùng...`);
+  let ok = 0, fail = 0;
+  for (const id of ids) {
+    try { await NOCO.deleteUser(id); ok++; }
+    catch { fail++; }
+  }
+  hideLoading();
+  clearBulkSelect();
+  await loadUsers();
+  showToast(`✓ Đã xóa ${ok} người dùng${fail ? ` (${fail} lỗi)` : ''}`, ok > 0 ? 'success' : 'error');
+}
+
+async function bulkSetStatus(newStatus) {
+  const ids = [..._selectedUserIds];
+  if (!ids.length) return;
+  const label = newStatus === 'active' ? 'kích hoạt' : 'vô hiệu hóa';
+  if (!confirm(`${label.charAt(0).toUpperCase()+label.slice(1)} ${ids.length} người dùng đã chọn?`)) return;
+  showLoading(`Đang ${label} ${ids.length} tài khoản...`);
+  let ok = 0;
+  for (const id of ids) {
+    try {
+      await NOCO.updateUser(id, { Status: newStatus, TrangThai: newStatus });
+      ok++;
+    } catch {}
+  }
+  hideLoading();
+  clearBulkSelect();
+  await loadUsers();
+  showToast(`✓ Đã ${label} ${ok} tài khoản`, 'success');
+}
+
+// ── Quick status toggle per row ──
+async function quickToggleStatus(uid, name, currentStatus) {
+  const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+  const label = newStatus === 'active' ? 'kích hoạt' : 'vô hiệu hóa';
+  const chip = document.querySelector(`#urow-${uid} .status-chip`);
+  if (chip) { chip.disabled = true; chip.style.opacity = '0.5'; }
+  try {
+    await NOCO.updateUser(uid, { Status: newStatus, TrangThai: newStatus });
+    showToast(`✓ Đã ${label} tài khoản "${name}"`, 'success');
+    await loadUsers();
+  } catch(e) {
+    if (chip) { chip.disabled = false; chip.style.opacity = ''; }
+    showToast('Lỗi đổi trạng thái: ' + e.message, 'error');
+  }
+}
+
+// ── Lazy load permission counts ──
+async function _lazyLoadPermCounts(userIds) {
+  if (!userIds || !userIds.length) return;
+  // Fetch counts in parallel, max 5 at a time
+  const BATCH = 5;
+  for (let i = 0; i < userIds.length; i += BATCH) {
+    const batch = userIds.slice(i, i + BATCH);
+    await Promise.all(batch.map(async (uid) => {
+      try {
+        const data = await NOCO.listPermissions(uid);
+        const count = (data.list || []).length;
+        const chip  = document.getElementById(`perm-chip-${uid}`);
+        const val   = document.getElementById(`perm-chip-val-${uid}`);
+        if (!chip || !val) return;
+        if (count > 0) {
+          chip.className = 'perm-chip has-perms';
+          val.textContent = `${count} quyền`;
+        } else {
+          chip.className = 'perm-chip no-perms';
+          val.textContent = 'Chưa cấp';
+        }
+      } catch { /* optional — không block UI */ }
+    }));
+  }
+}
+
+// ── Export CSV ──
+function exportUsersCSV() {
+  const rows = document.querySelectorAll('#users-tbody tr.urow');
+  if (!rows.length) { showToast('Không có dữ liệu để xuất!', 'warn'); return; }
+  const headers = ['Họ tên','Email','Vai trò','Trạng thái','Ngày tạo'];
+  const lines = [headers.join(',')];
+  rows.forEach(row => {
+    const cells = row.querySelectorAll('td');
+    if (cells.length < 6) return;
+    const nameEl  = cells[1].querySelector('div > div:first-child');
+    const emailEl = cells[1].querySelector('div > div:nth-child(2)');
+    const roleEl  = cells[2].querySelector('span');
+    const statEl  = cells[3].querySelector('button');
+    const dateEl  = cells[5];
+    const cols = [
+      (nameEl?.textContent  || '').trim(),
+      (emailEl?.textContent || '').trim(),
+      (roleEl?.textContent  || '').trim(),
+      (statEl?.textContent  || '').trim(),
+      (dateEl?.textContent  || '').trim(),
+    ].map(v => `"${v.replace(/"/g,'""')}"`);
+    lines.push(cols.join(','));
+  });
+  const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = `users_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+  showToast(`✓ Đã xuất ${lines.length - 1} người dùng`, 'success');
+}
+
+// ── User Modal helpers ──
+function updateUMAvatarPreview() {
+  const name = (document.getElementById('um-name')?.value || '').trim();
+  const role = document.getElementById('um-role')?.value || 'student';
+  const colors = { admin:'#ef4444', teacher:'#4338ca', student:'#2563eb' };
+  const color  = colors[role] || '#2563eb';
+  const initials = name
+    ? name.split(/\s+/).map(w=>w[0]).filter(Boolean).slice(-2).join('').toUpperCase()
+    : '?';
+  const roleLabels = { admin:'⚡ Admin', teacher:'👨‍🏫 Giáo viên', student:'🎓 Học sinh' };
+  const preview = document.getElementById('um-avatar-preview');
+  const sName   = document.getElementById('um-sidebar-name');
+  const sRole   = document.getElementById('um-sidebar-role');
+  if (preview) { preview.textContent = initials; preview.style.background = color; }
+  if (sName)   sName.textContent = name || 'Người dùng mới';
+  if (sRole)   sRole.textContent = roleLabels[role] || role;
+}
+
+function togglePwVisibility(inputId, btn) {
+  const inp = document.getElementById(inputId);
+  if (!inp) return;
+  const isText = inp.type === 'text';
+  inp.type = isText ? 'password' : 'text';
+  btn.innerHTML = isText ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
+}
+
+function updatePasswordStrength() {
+  const pass = document.getElementById('um-pass')?.value || '';
+  const fill = document.getElementById('pw-strength-fill');
+  const hint = document.getElementById('pw-hint');
+  if (!fill) return;
+  let score = 0;
+  if (pass.length >= 6)  score++;
+  if (pass.length >= 10) score++;
+  if (/[A-Z]/.test(pass) && /[a-z]/.test(pass)) score++;
+  if (/[0-9]/.test(pass) || /[^A-Za-z0-9]/.test(pass)) score++;
+  const levels = [
+    { w:'0%',   c:'transparent', t:'' },
+    { w:'25%',  c:'#ef4444',     t:'Rất yếu' },
+    { w:'50%',  c:'#f59e0b',     t:'Yếu' },
+    { w:'75%',  c:'#3b82f6',     t:'Trung bình' },
+    { w:'100%', c:'#22c55e',     t:'Mạnh' },
+  ];
+  const lv = levels[pass.length ? score + 1 : 0] || levels[0];
+  fill.style.width = lv.w; fill.style.background = lv.c;
+  if (hint) { hint.textContent = lv.t; hint.style.color = lv.c; }
+}
+
+// ── Permission Modal additions ──
+
+// Chọn tất cả Private items
+function permSelectAllPrivate() {
+  document.querySelectorAll('#perm-tree input[type=checkbox]').forEach(cb => {
+    const row = cb.closest('.pt-folder-row, .pt-file-row');
+    const badge = row?.querySelector('.pt-badge-priv');
+    if (badge || !row) cb.checked = true; // nếu không có row = folder wrap
+  });
+  updatePermCountLabel();
+}
+
+// Filter perm tree theo search
+function filterPermTree(q) {
+  q = (q || '').toLowerCase().trim();
+  // Re-render nếu query thay đổi
+  if (!q) {
+    renderPermTreeFromCache();
+    return;
+  }
+  // Filter: show only items matching q
+  const container = document.getElementById('perm-tree');
+  if (!container) return;
+  // Traverse all visible rows and hide/show
+  const allWrap = container.querySelectorAll('.pt-folder-wrap, .pt-file-row');
+  allWrap.forEach(el => {
+    const labelEl = el.querySelector('.pt-folder-label, .pt-file-label');
+    const text    = (labelEl?.textContent || '').toLowerCase();
+    el.classList.toggle('pt-hidden', !text.includes(q));
+  });
+  // Show parent folders if any child matches
+  container.querySelectorAll('.pt-folder-wrap').forEach(fw => {
+    const children = fw.querySelector('.pt-children');
+    if (children && children.querySelectorAll('.pt-file-row:not(.pt-hidden)').length > 0) {
+      fw.classList.remove('pt-hidden');
+    }
+  });
+}
+
+function clearPermSearch() {
+  const inp = document.getElementById('perm-search-input');
+  if (inp) { inp.value = ''; filterPermTree(''); }
+}
+
+// Update summary chips in footer
+function updatePermSummaryChips() {
+  const el = document.getElementById('perm-summary-chips');
+  if (!el) return;
+  syncPermFromUI();
+  const folders  = currentPermissions.filter(p => p.type === 'folder').length;
+  const articles = currentPermissions.filter(p => p.type === 'article').length;
+  if (!folders && !articles) {
+    el.innerHTML = '<span style="font-size:12px;color:#94a3b8"><i class="fas fa-info-circle"></i> Không có quyền nào được cấp</span>';
+    return;
+  }
+  let html = '';
+  if (folders)  html += `<span class="perm-summary-chip" style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe"><i class="fas fa-folder" style="font-size:10px"></i> ${folders} thư mục</span>`;
+  if (articles) html += `<span class="perm-summary-chip" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0"><i class="fas fa-file-lines" style="font-size:10px"></i> ${articles} bài học</span>`;
+  el.innerHTML = html;
+}
+
+// ══════════════════════════════════════════════════════════════
+// END NEW FUNCTIONS
+// ══════════════════════════════════════════════════════════════
 
 // ── Function aliases (tương thích tên cũ với tên mới) ──
 const userLoadRecords  = () => loadUsers();
@@ -4189,6 +5205,705 @@ setInterval(() => { if (document.visibilityState === 'visible' && sessionStorage
 
 // ── END CONFIG EXPORT / IMPORT ──────────────────────────
 
+// ═══════════════════════════════════════════════════════════════
+// QUIZ EDITOR
+// ═══════════════════════════════════════════════════════════════
+
+// ── State ──────────────────────────────────────────────────────
+let _qmQuestions  = [];   // [{question, options:[{text,correct}], explanation}]
+let _qmActiveIdx  = -1;   // index đang chỉnh sửa
+let _qmArticleId  = null; // NocoDB article Id
+let _qmArticleName = '';
+
+const OPTION_LETTERS = ['A','B','C','D','E','F'];
+
+// ── Open / Close ───────────────────────────────────────────────
+async function openQuizEditor() {
+  if (!currentEditPath) {
+    showToast('Vui lòng mở một bài học trước khi soạn quiz.', 'warn');
+    return;
+  }
+  _qmArticleId   = await _getNocoId(currentEditPath);
+  _qmArticleName = document.getElementById('e-title').value || currentEditPath;
+
+  document.getElementById('qm-article-name').textContent = _qmArticleName;
+  document.getElementById('quiz-modal-overlay').classList.add('show');
+
+  // Load existing quiz from NocoDB
+  await _qmLoadExisting();
+}
+
+function closeQuizEditor() {
+  document.getElementById('quiz-modal-overlay').classList.remove('show');
+}
+
+// ── Load existing quiz ─────────────────────────────────────────
+async function _qmLoadExisting() {
+  if (!_qmArticleId || !cfg().proxyUrl) return;
+  try {
+    const adminPass = sessionStorage.getItem('ae_admin_pass') || '';
+    const base = (cfg().proxyUrl || 'https://api.gds.edu.vn').replace(/\/$/, '');
+    const r = await fetch(
+      `${base}/admin/quiz?where=(ArticleId,eq,${_qmArticleId})&limit=1&fields=Id,Questions`,
+      { headers: { 'Admin-Password': adminPass } }
+    );
+    if (!r.ok) { _qmQuestions = []; _qmRender(); return; }
+    const data = await r.json();
+    const row  = (data.list || [])[0];
+    if (row && row.Questions) {
+      try { _qmQuestions = JSON.parse(row.Questions); } catch { _qmQuestions = []; }
+    } else { _qmQuestions = []; }
+  } catch { _qmQuestions = []; }
+  _qmActiveIdx = _qmQuestions.length > 0 ? 0 : -1;
+  _qmRender();
+}
+
+// ── Render list + form ─────────────────────────────────────────
+function _qmRender() {
+  _qmRenderList();
+  _qmRenderForm();
+  _qmUpdateFooter();
+}
+
+function _qmRenderList() {
+  const list = document.getElementById('qm-question-list');
+  const countEl = document.getElementById('qm-q-count');
+  countEl.textContent = _qmQuestions.length;
+
+  if (!_qmQuestions.length) {
+    list.innerHTML = '<div class="qm-list-empty">Chưa có câu hỏi.<br>Nhấn <b>+ Thêm</b> hoặc import file.</div>';
+    return;
+  }
+  list.innerHTML = _qmQuestions.map((q, i) => {
+    const hasCorrect = (q.options || []).some(o => o.correct);
+    const isActive   = i === _qmActiveIdx;
+    const hasError   = !q.question?.trim() || !hasCorrect;
+    const preview    = _qmStripLatex(q.question || '(Chưa nhập)').slice(0, 55);
+    return `<div class="qm-q-item${isActive ? ' active' : ''}${hasError ? ' has-error' : ''}"
+        onclick="_qmSelectQuestion(${i})">
+      <span class="qm-q-num">${i + 1}.</span>
+      <span class="qm-q-text">${preview}</span>
+      ${hasCorrect ? '<i class="fas fa-check-circle qm-q-ok"></i>' : '<i class="fas fa-circle-exclamation" style="color:#f59e0b;font-size:11px;padding-top:2px"></i>'}
+    </div>`;
+  }).join('');
+}
+
+function _qmRenderForm() {
+  const emptyState = document.getElementById('qm-empty-state');
+  const form       = document.getElementById('qm-form');
+  if (_qmActiveIdx < 0 || !_qmQuestions[_qmActiveIdx]) {
+    emptyState.style.display = 'flex';
+    form.style.display = 'none';
+    return;
+  }
+  emptyState.style.display = 'none';
+  form.style.display = 'flex';
+
+  const q = _qmQuestions[_qmActiveIdx];
+  document.getElementById('qm-active-num').textContent = `— Câu ${_qmActiveIdx + 1}`;
+  document.getElementById('qm-q-text').value = q.question || '';
+  document.getElementById('qm-q-expl').value = q.explanation || '';
+  qmUpdatePreview('qm-q-text', 'qm-q-preview');
+  qmUpdatePreview('qm-q-expl', 'qm-expl-preview');
+  _qmRenderOptions();
+}
+
+function _qmRenderOptions() {
+  const wrap = document.getElementById('qm-options-wrap');
+  const q    = _qmQuestions[_qmActiveIdx];
+  const opts = q.options || [];
+  wrap.innerHTML = opts.map((o, i) => `
+    <div class="qm-option-row${o.correct ? ' is-correct' : ''}" id="qm-opt-row-${i}">
+      <input type="radio" class="qm-option-radio" name="qm-correct"
+        ${o.correct ? 'checked' : ''} onchange="_qmSetCorrect(${i})">
+      <span class="qm-option-letter">${OPTION_LETTERS[i] || i + 1}.</span>
+      <input class="qm-option-input" type="text" value="${_qmEsc(o.text || '')}"
+        placeholder="Nhập lựa chọn... (hỗ trợ $LaTeX$)"
+        oninput="_qmOptionInput(this, ${i})">
+      ${opts.length > 2 ? `<button class="qm-option-del" onclick="_qmDeleteOption(${i})" title="Xóa lựa chọn này"><i class="fas fa-times"></i></button>` : ''}
+    </div>`).join('');
+}
+
+// ── CRUD actions ───────────────────────────────────────────────
+function qmAddQuestion() {
+  _qmSaveFormToState(); // save current before adding
+  _qmQuestions.push({ question: '', options: [
+    { text: '', correct: false },
+    { text: '', correct: false },
+    { text: '', correct: false },
+    { text: '', correct: false },
+  ], explanation: '' });
+  _qmActiveIdx = _qmQuestions.length - 1;
+  _qmRender();
+  // Scroll list to bottom
+  const list = document.getElementById('qm-question-list');
+  setTimeout(() => { list.scrollTop = list.scrollHeight; }, 50);
+  document.getElementById('qm-q-text').focus();
+}
+
+function _qmSelectQuestion(idx) {
+  _qmSaveFormToState();
+  _qmActiveIdx = idx;
+  _qmRender();
+}
+
+function qmAddOption() {
+  if (_qmActiveIdx < 0) return;
+  _qmSaveFormToState();
+  const q = _qmQuestions[_qmActiveIdx];
+  if ((q.options || []).length >= 6) { showToast('Tối đa 6 lựa chọn', 'warn'); return; }
+  q.options.push({ text: '', correct: false });
+  _qmRenderOptions();
+}
+
+function _qmDeleteOption(optIdx) {
+  if (_qmActiveIdx < 0) return;
+  const q = _qmQuestions[_qmActiveIdx];
+  if ((q.options || []).length <= 2) { showToast('Cần ít nhất 2 lựa chọn', 'warn'); return; }
+  q.options.splice(optIdx, 1);
+  // Ensure at least one correct
+  if (!q.options.some(o => o.correct)) q.options[0].correct = true;
+  _qmRenderOptions();
+}
+
+function _qmSetCorrect(optIdx) {
+  if (_qmActiveIdx < 0) return;
+  const q = _qmQuestions[_qmActiveIdx];
+  (q.options || []).forEach((o, i) => o.correct = i === optIdx);
+  // Update row highlight without full re-render
+  document.querySelectorAll('.qm-option-row').forEach((row, i) => {
+    row.classList.toggle('is-correct', i === optIdx);
+  });
+}
+
+function _qmOptionInput(el, optIdx) {
+  if (_qmActiveIdx < 0) return;
+  const q = _qmQuestions[_qmActiveIdx];
+  if (q.options[optIdx]) q.options[optIdx].text = el.value;
+}
+
+function qmDeleteQuestion() {
+  if (_qmActiveIdx < 0) return;
+  if (!confirm(`Xóa câu ${_qmActiveIdx + 1}?`)) return;
+  _qmQuestions.splice(_qmActiveIdx, 1);
+  _qmActiveIdx = Math.min(_qmActiveIdx, _qmQuestions.length - 1);
+  _qmRender();
+}
+
+// ── Save form state to array ───────────────────────────────────
+function _qmSaveFormToState() {
+  if (_qmActiveIdx < 0 || !_qmQuestions[_qmActiveIdx]) return;
+  const q = _qmQuestions[_qmActiveIdx];
+  q.question    = document.getElementById('qm-q-text').value;
+  q.explanation = document.getElementById('qm-q-expl').value;
+  // Options: already updated in _qmOptionInput / _qmSetCorrect
+  // Re-read option text from DOM
+  document.querySelectorAll('#qm-options-wrap .qm-option-input').forEach((inp, i) => {
+    if (q.options[i]) q.options[i].text = inp.value;
+  });
+}
+
+function _qmUpdateFooter() {
+  const total    = _qmQuestions.length;
+  const complete = _qmQuestions.filter(q =>
+    q.question?.trim() && (q.options || []).some(o => o.correct) && q.options.every(o => o.text?.trim())
+  ).length;
+  document.getElementById('qm-footer-stat').textContent =
+    total ? `${complete}/${total} câu đầy đủ` : 'Chưa có câu hỏi';
+}
+
+// ── LaTeX preview ──────────────────────────────────────────────
+function qmUpdatePreview(srcId, tgtId) {
+  const text = document.getElementById(srcId).value;
+  const box  = document.getElementById(tgtId);
+  if (!text.trim()) { box.innerHTML = '<span style="color:#94a3b8;font-size:13px">Preview sẽ hiển thị ở đây...</span>'; return; }
+  box.textContent = text;
+  if (typeof renderMathInElement !== 'undefined') {
+    try {
+      renderMathInElement(box, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$',  right: '$',  display: false },
+          { left: '\\[', right: '\\]', display: true },
+          { left: '\\(', right: '\\)', display: false },
+        ],
+        throwOnError: false,
+      });
+    } catch { /* silent */ }
+  }
+}
+
+function _qmStripLatex(text) {
+  return text.replace(/\$\$[\s\S]*?\$\$/g, '[CT]').replace(/\$[^$]*?\$/g, '[ct]').trim();
+}
+
+function _qmEsc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Preview all ────────────────────────────────────────────────
+function qmPreviewAll() {
+  _qmSaveFormToState();
+  const overlay  = document.getElementById('qm-preview-overlay');
+  const content  = document.getElementById('qm-preview-content');
+  if (!_qmQuestions.length) { showToast('Chưa có câu hỏi để xem trước', 'warn'); return; }
+
+  content.innerHTML = _qmQuestions.map((q, qi) => {
+    const opts = (q.options || []).map((o, oi) => `
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:8px;
+          background:${o.correct ? '#f0fdf4' : 'transparent'};border:1px solid ${o.correct ? '#86efac' : 'transparent'}">
+        <span style="font-weight:700;color:${o.correct ? '#16a34a' : '#64748b'};width:20px">${OPTION_LETTERS[oi]}.</span>
+        <span class="qm-latex-render">${_qmEsc(o.text)}</span>
+        ${o.correct ? '<span style="margin-left:auto;font-size:11px;color:#16a34a;font-weight:700">✓ Đúng</span>' : ''}
+      </div>`).join('');
+    return `
+      <div style="border:1px solid var(--border);border-radius:12px;padding:16px;background:var(--bg)">
+        <div style="font-weight:700;color:var(--primary);font-size:13px;margin-bottom:8px">Câu ${qi + 1}</div>
+        <div class="qm-latex-render" style="font-size:14.5px;margin-bottom:12px;line-height:1.7">${_qmEsc(q.question || '')}</div>
+        <div style="display:flex;flex-direction:column;gap:4px">${opts}</div>
+        ${q.explanation ? `<div style="margin-top:12px;padding:10px 12px;background:#fffbeb;border-radius:8px;font-size:13px;color:#92400e">
+          <i class="fas fa-lightbulb" style="color:#f59e0b;margin-right:5px"></i><span class="qm-latex-render">${_qmEsc(q.explanation)}</span>
+        </div>` : ''}
+      </div>`;
+  }).join('');
+
+  overlay.style.display = 'block';
+  // Render LaTeX in all .qm-latex-render nodes
+  if (typeof renderMathInElement !== 'undefined') {
+    setTimeout(() => {
+      content.querySelectorAll('.qm-latex-render').forEach(el => {
+        try {
+          renderMathInElement(el, {
+            delimiters: [
+              { left: '$$', right: '$$', display: true },
+              { left: '$',  right: '$',  display: false },
+              { left: '\\[', right: '\\]', display: true },
+              { left: '\\(', right: '\\)', display: false },
+            ],
+            throwOnError: false,
+          });
+        } catch { /* silent */ }
+      });
+    }, 50);
+  }
+}
+
+// ── Save to NocoDB ─────────────────────────────────────────────
+async function saveQuiz() {
+  _qmSaveFormToState();
+
+  // Validate
+  const errors = _qmQuestions.map((q, i) => {
+    if (!q.question?.trim()) return `Câu ${i+1}: Thiếu nội dung câu hỏi`;
+    if (!(q.options || []).some(o => o.correct)) return `Câu ${i+1}: Chưa chọn đáp án đúng`;
+    if (q.options.some(o => !o.text?.trim())) return `Câu ${i+1}: Có lựa chọn bị bỏ trống`;
+    return null;
+  }).filter(Boolean);
+
+  if (errors.length) {
+    showToast(errors[0], 'warn');
+    _qmRenderList(); // highlight errors
+    return;
+  }
+  if (!_qmArticleId) { showToast('Không xác định được bài học. Lưu bài vào NocoDB trước.', 'error'); return; }
+
+  const adminPass = sessionStorage.getItem('ae_admin_pass') || '';
+  const base      = (cfg().proxyUrl || 'https://api.gds.edu.vn').replace(/\/$/, '');
+  const payload   = JSON.stringify(_qmQuestions);
+
+  try {
+    // Check if quiz already exists
+    const check = await fetch(
+      `${base}/admin/quiz?where=(ArticleId,eq,${_qmArticleId})&limit=1&fields=Id`,
+      { headers: { 'Admin-Password': adminPass } }
+    );
+    const checkData = await check.json();
+    const existing  = (checkData.list || [])[0];
+
+    if (existing) {
+      await fetch(`${base}/admin/quiz`, {
+        method: 'PATCH',
+        headers: { 'Admin-Password': adminPass, 'Content-Type': 'application/json' },
+        body: JSON.stringify([{ Id: existing.Id, Questions: payload }]),
+      });
+    } else {
+      await fetch(`${base}/admin/quiz`, {
+        method: 'POST',
+        headers: { 'Admin-Password': adminPass, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ArticleId: String(_qmArticleId), Questions: payload, CreatedAt: new Date().toISOString() }),
+      });
+    }
+    showToast(`✓ Đã lưu quiz (${_qmQuestions.length} câu hỏi)`, 'success');
+    closeQuizEditor();
+  } catch(e) {
+    showToast('Lỗi lưu quiz: ' + e.message, 'error');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// QUIZ IMPORT: PDF / DOCX / TXT → parse → populate editor
+// ═══════════════════════════════════════════════════════════════
+
+async function importQuizFile(input, type) {
+  const file = input.files[0];
+  input.value = ''; // reset so same file can re-import
+  if (!file) return;
+
+  _qmShowImportProgress('Đang đọc file...', 10);
+
+  try {
+    let rawText = '';
+    if (type === 'pdf') {
+      rawText = await _extractPDF(file);
+    } else if (type === 'docx') {
+      rawText = await _extractDOCX(file);
+    } else {
+      rawText = await file.text();
+    }
+
+    _qmShowImportProgress('Đang phân tích đề...', 60);
+    const parsed = _parseQuizText(rawText);
+
+    if (!parsed.length) {
+      _qmHideImportProgress();
+      showToast('Không tìm thấy câu hỏi nào theo định dạng chuẩn.', 'warn');
+      _qmShowFormatHelp();
+      return;
+    }
+
+    _qmShowImportProgress(`Nhập ${parsed.length} câu hỏi...`, 90);
+    await new Promise(r => setTimeout(r, 300));
+
+    if (_qmQuestions.length && !confirm(`Tìm thấy ${parsed.length} câu hỏi. Thêm vào ${_qmQuestions.length} câu hiện có? (Hủy để thay thế toàn bộ)`)) {
+      _qmQuestions = parsed;
+    } else if (!_qmQuestions.length) {
+      _qmQuestions = parsed;
+    } else {
+      _qmQuestions = [..._qmQuestions, ...parsed];
+    }
+
+    _qmActiveIdx = 0;
+    _qmHideImportProgress();
+    _qmRender();
+    showToast(`✓ Import thành công ${parsed.length} câu hỏi`, 'success');
+  } catch(e) {
+    _qmHideImportProgress();
+    showToast('Lỗi import: ' + e.message, 'error');
+    console.error('Quiz import error:', e);
+  }
+}
+
+// ── PDF extract via PDF.js ─────────────────────────────────────
+async function _extractPDF(file) {
+  if (typeof pdfjsLib === 'undefined') throw new Error('PDF.js chưa tải. Tải lại trang và thử lại.');
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const pages = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    _qmShowImportProgress(`Đọc trang ${i}/${pdf.numPages}...`, 10 + Math.round(i / pdf.numPages * 45));
+    const page    = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    // Reconstruct lines by grouping items with similar Y coordinate
+    const items   = content.items;
+    const lines   = [];
+    let curLine   = [];
+    let lastY     = null;
+    for (const item of items) {
+      const y = Math.round(item.transform[5]);
+      if (lastY !== null && Math.abs(y - lastY) > 3) {
+        if (curLine.length) lines.push(curLine.map(c => c.str).join(''));
+        curLine = [];
+      }
+      curLine.push(item);
+      lastY = y;
+    }
+    if (curLine.length) lines.push(curLine.map(c => c.str).join(''));
+    pages.push(lines.join('\n'));
+  }
+  return pages.join('\n\n');
+}
+
+// ── DOCX extract via mammoth.js ────────────────────────────────
+async function _extractDOCX(file) {
+  if (typeof mammoth === 'undefined') throw new Error('mammoth.js chưa tải. Tải lại trang và thử lại.');
+  const arrayBuffer = await file.arrayBuffer();
+  const result = await mammoth.extractRawValue({ arrayBuffer });
+  return result.value;
+}
+
+// ── Universal quiz text parser ─────────────────────────────────
+function _parseQuizText(text) {
+  // Normalize: CRLF → LF, remove zero-width chars, normalize spaces
+  text = text
+    .replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+    .replace(/[\u200B\u200C\u200D\uFEFF]/g, '')
+    .replace(/[ \t]+/g, ' ')
+    .trim();
+
+  const lines = text.split('\n').map(l => l.trim());
+  const questions = [];
+  let i = 0;
+
+  // Regex patterns
+  // Question starters: "Câu 1:", "Câu 1.", "1.", "1)", "Question 1:", etc.
+  const reQuestion = /^(?:câu\s*)?(\d+)[.:)\s]\s*(.+)/i;
+  // Option starters: "A.", "A)", "a.", "a)", "(A)", "(a)"
+  const reOption   = /^(?:\(?([A-Fa-f])\)?[.)]\s*)(.+)/;
+  // Answer line: "Đáp án: B", "Đáp án:B", "ĐÁP ÁN: B", "Answer: B", "Key: B"
+  const reAnswer   = /^(?:đáp\s*án|answer|key|ans|da)[:\s]+([A-Fa-f])/i;
+  // Explanation: "Giải:", "Giải thích:", "Explanation:", "HD:", "Hướng dẫn:"
+  const reExpl     = /^(?:giải(?:\s*thích)?|explanation|hd|hướng\s*dẫn|note)[:\s]+(.+)/i;
+
+  while (i < lines.length) {
+    const line = lines[i];
+    if (!line) { i++; continue; }
+
+    const qMatch = reQuestion.exec(line);
+    if (!qMatch) { i++; continue; }
+
+    // Found a question
+    let questionText = qMatch[2].trim();
+    // Collect multi-line question text (until we hit an option line)
+    i++;
+    while (i < lines.length && lines[i] && !reOption.exec(lines[i]) && !reQuestion.exec(lines[i])) {
+      questionText += ' ' + lines[i];
+      i++;
+    }
+
+    // Collect options
+    const options  = [];
+    let answerLetter = null;
+    let explanation  = '';
+
+    while (i < lines.length) {
+      const l = lines[i];
+      if (!l) { i++; continue; }
+
+      const oMatch = reOption.exec(l);
+      const aMatch = reAnswer.exec(l);
+      const eMatch = reExpl.exec(l);
+      // Next question starts
+      if (reQuestion.exec(l) && options.length >= 2) break;
+
+      if (oMatch) {
+        let optText = oMatch[2].trim();
+        // Collect multi-line option text
+        i++;
+        while (i < lines.length && lines[i] && !reOption.exec(lines[i]) &&
+               !reAnswer.exec(lines[i]) && !reQuestion.exec(lines[i])) {
+          optText += ' ' + lines[i];
+          i++;
+        }
+        // Check if option text ends with * or (đúng) or (correct)
+        let isMarked = false;
+        optText = optText.replace(/\s*[*✓✔]\s*$/, () => { isMarked = true; return ''; });
+        optText = optText.replace(/\s*\(đúng\)\s*$/i, () => { isMarked = true; return ''; });
+        optText = optText.replace(/\s*\(correct\)\s*$/i, () => { isMarked = true; return ''; });
+        options.push({ letter: oMatch[1].toUpperCase(), text: optText.trim(), markedCorrect: isMarked });
+      } else if (aMatch) {
+        answerLetter = aMatch[1].toUpperCase();
+        i++;
+      } else if (eMatch) {
+        explanation = eMatch[1].trim();
+        // Collect multi-line explanation
+        i++;
+        while (i < lines.length && lines[i] && !reQuestion.exec(lines[i])) {
+          explanation += ' ' + lines[i];
+          i++;
+        }
+      } else {
+        i++;
+      }
+    }
+
+    // Need at least 2 options to be a valid question
+    if (options.length < 2) continue;
+
+    // Determine correct answer
+    const finalOptions = options.map(o => ({
+      text: o.text,
+      correct: o.markedCorrect ||
+               (answerLetter && o.letter === answerLetter),
+    }));
+
+    // If no correct found via marker or answer line → leave unchecked (user fixes manually)
+    questions.push({
+      question:    questionText.trim(),
+      options:     finalOptions,
+      explanation: explanation.trim(),
+    });
+  }
+
+  return questions;
+}
+
+function _qmShowFormatHelp() {
+  showToast(
+    'Định dạng: "Câu 1: [câu hỏi]" → "A. [lựa chọn]" → "Đáp án: B"',
+    'info'
+  );
+}
+
+// ── Import progress UI ─────────────────────────────────────────
+function _qmShowImportProgress(msg, pct) {
+  const el   = document.getElementById('qm-import-progress');
+  const fill = document.getElementById('qm-import-bar-fill');
+  const stat = document.getElementById('qm-import-status');
+  el.classList.add('show');
+  if (stat) stat.textContent = msg;
+  if (fill) fill.style.width = pct + '%';
+}
+function _qmHideImportProgress() {
+  document.getElementById('qm-import-progress').classList.remove('show');
+}
+
 </script>
+
+<!-- ══ QUIZ EDITOR MODAL ════════════════════════════════════════ -->
+<div id="quiz-modal-overlay">
+  <div class="qm-box" style="position:relative">
+
+    <!-- Import progress overlay -->
+    <div class="qm-import-progress" id="qm-import-progress">
+      <i class="fas fa-file-import fa-2x" style="color:var(--primary);opacity:.6"></i>
+      <p id="qm-import-status">Đang xử lý file...</p>
+      <div class="qm-import-bar-wrap">
+        <div class="qm-import-bar-fill" id="qm-import-bar-fill" style="width:0%"></div>
+      </div>
+    </div>
+
+    <!-- Header -->
+    <div class="qm-header">
+      <div class="qm-header-icon"><i class="fas fa-circle-question"></i></div>
+      <div class="qm-header-title">
+        <h2>Soạn Quiz</h2>
+        <p id="qm-article-name">Chưa chọn bài</p>
+      </div>
+      <div class="qm-header-actions">
+        <button class="qm-btn qm-btn-ghost" onclick="closeQuizEditor()"><i class="fas fa-times"></i></button>
+      </div>
+    </div>
+
+    <!-- Import bar -->
+    <div class="qm-import-bar">
+      <span class="qm-import-label"><i class="fas fa-file-import"></i> Import đề:</span>
+      <label class="qm-btn qm-btn-import" style="cursor:pointer">
+        <i class="fas fa-file-pdf"></i> PDF
+        <input type="file" accept=".pdf" style="display:none" onchange="importQuizFile(this,'pdf')">
+      </label>
+      <label class="qm-btn qm-btn-import" style="cursor:pointer">
+        <i class="fas fa-file-word"></i> DOCX
+        <input type="file" accept=".docx,.doc" style="display:none" onchange="importQuizFile(this,'docx')">
+      </label>
+      <label class="qm-btn qm-btn-import" style="cursor:pointer">
+        <i class="fas fa-file-lines"></i> TXT
+        <input type="file" accept=".txt" style="display:none" onchange="importQuizFile(this,'txt')">
+      </label>
+      <span class="qm-import-hint">Hỗ trợ LaTeX: <code style="color:rgba(255,255,255,.7)">$x^2$</code> &nbsp;·&nbsp; <code style="color:rgba(255,255,255,.7)">$$\frac{a}{b}$$</code></span>
+    </div>
+
+    <!-- Body -->
+    <div class="qm-body">
+
+      <!-- Left: question list -->
+      <div class="qm-list">
+        <div class="qm-list-header">
+          <span class="qm-list-title">Câu hỏi (<span id="qm-q-count">0</span>)</span>
+          <button class="qm-add-btn" onclick="qmAddQuestion()"><i class="fas fa-plus"></i> Thêm</button>
+        </div>
+        <div class="qm-question-list" id="qm-question-list">
+          <div class="qm-list-empty">Chưa có câu hỏi.<br>Nhấn <b>+ Thêm</b> hoặc import file.</div>
+        </div>
+      </div>
+
+      <!-- Right: editor -->
+      <div class="qm-editor" id="qm-editor-pane">
+        <div class="qm-empty-state" id="qm-empty-state">
+          <i class="fas fa-circle-question"></i>
+          <span>Chọn câu hỏi để chỉnh sửa<br><small>hoặc nhấn <b>+ Thêm</b> để tạo mới</small></span>
+        </div>
+        <div id="qm-form" style="display:none;flex-direction:column;gap:16px">
+
+          <!-- Question text -->
+          <div>
+            <div class="qm-field-label"><i class="fas fa-circle-question" style="color:var(--primary)"></i> Câu hỏi <span id="qm-active-num" style="color:var(--primary)"></span></div>
+            <textarea class="qm-textarea" id="qm-q-text" rows="3"
+              placeholder="Nhập câu hỏi... LaTeX: $x^2$ hoặc $$\frac{a}{b}$$"
+              oninput="qmUpdatePreview('qm-q-text','qm-q-preview')"></textarea>
+            <div class="qm-latex-hint">
+              LaTeX inline: <code>$...$</code> &nbsp;·&nbsp; display: <code>$$...$$</code> &nbsp;·&nbsp;
+              <code>\frac{a}{b}</code> <code>\sqrt{x}</code> <code>x^{2}</code> <code>\int_0^1</code>
+            </div>
+          </div>
+
+          <!-- Question preview -->
+          <div>
+            <div class="qm-preview-label"><i class="fas fa-eye" style="color:#64748b"></i> Preview</div>
+            <div class="qm-preview-box" id="qm-q-preview"></div>
+          </div>
+
+          <!-- Options -->
+          <div>
+            <div class="qm-field-label"><i class="fas fa-list-ul" style="color:#8b5cf6"></i> Lựa chọn <span style="font-size:10.5px;font-weight:400;color:var(--text-muted)">(chọn ⬤ = đáp án đúng)</span></div>
+            <div class="qm-options-wrap" id="qm-options-wrap"></div>
+            <button class="qm-add-option-btn" onclick="qmAddOption()"><i class="fas fa-plus"></i> Thêm lựa chọn</button>
+          </div>
+
+          <!-- Explanation -->
+          <div>
+            <div class="qm-field-label"><i class="fas fa-lightbulb" style="color:#f59e0b"></i> Giải thích (hiện sau khi nộp bài)</div>
+            <textarea class="qm-textarea" id="qm-q-expl" rows="2"
+              placeholder="Hướng dẫn giải, công thức... LaTeX được hỗ trợ"
+              oninput="qmUpdatePreview('qm-q-expl','qm-expl-preview')"></textarea>
+          </div>
+
+          <!-- Explanation preview -->
+          <div>
+            <div class="qm-preview-label"><i class="fas fa-eye" style="color:#64748b"></i> Preview giải thích</div>
+            <div class="qm-preview-box" id="qm-expl-preview" style="font-size:13.5px;color:#64748b"></div>
+          </div>
+
+          <!-- Delete question -->
+          <div style="padding-top:4px">
+            <button class="qm-btn qm-btn-danger" onclick="qmDeleteQuestion()">
+              <i class="fas fa-trash"></i> Xóa câu này
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /.qm-body -->
+
+    <!-- Footer -->
+    <div class="qm-footer">
+      <span class="qm-q-count" id="qm-footer-stat"></span>
+      <div class="qm-footer-actions">
+        <button class="qm-btn" style="background:var(--hover);color:var(--text)" onclick="qmPreviewAll()">
+          <i class="fas fa-eye"></i> Xem trước tất cả
+        </button>
+        <button class="qm-btn qm-btn-ghost" style="background:#f1f5f9;color:#64748b" onclick="closeQuizEditor()">Hủy</button>
+        <button class="qm-btn qm-btn-primary" style="background:var(--primary);color:#fff" onclick="saveQuiz()">
+          <i class="fas fa-database"></i> Lưu Quiz
+        </button>
+      </div>
+    </div>
+
+  </div><!-- /.qm-box -->
+</div><!-- /#quiz-modal-overlay -->
+
+<!-- Quiz Preview All Modal (nhỏ hơn, dạng card) -->
+<div id="qm-preview-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1100;overflow-y:auto;padding:24px 16px">
+  <div style="background:var(--card);border-radius:16px;max-width:680px;margin:auto;padding:24px;position:relative">
+    <button onclick="document.getElementById('qm-preview-overlay').style.display='none'"
+      style="position:absolute;top:14px;right:14px;background:var(--hover);border:none;border-radius:8px;padding:6px 12px;cursor:pointer;font-family:inherit;color:var(--text)">
+      <i class="fas fa-times"></i> Đóng
+    </button>
+    <h3 style="margin:0 0 16px;font-size:16px;color:var(--text)"><i class="fas fa-circle-question" style="color:var(--primary)"></i> Xem trước Quiz</h3>
+    <div id="qm-preview-content" style="display:flex;flex-direction:column;gap:20px"></div>
+  </div>
+</div>
 </body>
 </html>
