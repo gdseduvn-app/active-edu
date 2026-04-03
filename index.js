@@ -557,10 +557,19 @@ async function loadArticle(item) {
       let content = row.Content;
       if (content.startsWith('lz:')) {
         try {
-          content = LZString.decompressFromBase64(content.slice(3)) || '';
-          if (!content) throw new Error('Ket qua giai nen rong');
+          const decompressed = LZString.decompressFromBase64(content.slice(3));
+          if (!decompressed) throw new Error('Kết quả giải nén rỗng');
+          content = decompressed;
         } catch(e) {
-          content = '<p style="color:red;padding:20px">Loi giai nen: ' + e.message + '</p>';
+          // Fallback: nếu phần sau prefix trông giống HTML thì dùng thẳng
+          const rawBody = content.slice(3);
+          if (rawBody.includes('<') && rawBody.includes('>')) {
+            content = rawBody;
+            console.warn('[LZ] Decompress failed, using raw body:', e);
+          } else {
+            content = '<p style="color:#ef4444;padding:40px;text-align:center">⚠️ Lỗi hiển thị bài học. Vui lòng thử lại.</p>';
+            console.error('[LZ] Decompress failed, no fallback possible:', e);
+          }
         }
       }
 

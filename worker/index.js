@@ -96,6 +96,43 @@ async function verifyToken(token, secret) {
   } catch { return null; }
 }
 
+// ── Admin session token (8h, HMAC-signed) ────────────────────
+
+/** Tạo admin token có hạn 8h */
+async function makeAdminToken(secret) {
+  const payload = `admin:${Date.now()}`;
+  const sig = await sha256(secret + payload);
+  return btoa(payload) + '.' + sig.slice(0, 40);
+}
+
+/** Xác minh admin token; trả true nếu hợp lệ */
+async function verifyAdminToken(token, secret) {
+  try {
+    const [b64, sig] = token.split('.');
+    if (!b64 || !sig) return false;
+    const payload = atob(b64);
+    const expected = (await sha256(secret + payload)).slice(0, 40);
+    if (sig !== expected) return false;
+    const [, ts] = payload.split(':');
+    return Date.now() - Number(ts) < 8 * 60 * 60 * 1000; // 8h
+  } catch { return false; }
+}
+
+/**
+ * Xác thực admin request.
+ * Chấp nhận: Admin-Token (session token) HOẶC Admin-Password (legacy).
+ * Trả true nếu hợp lệ.
+ */
+async function verifyAdminAuth(request, env) {
+  const adminToken = request.headers.get('Admin-Token');
+  if (adminToken) {
+    const secret = env.TOKEN_SECRET || 'activeedu_secret_2024';
+    return verifyAdminToken(adminToken, secret + ':admin');
+  }
+  // Legacy fallback: plain-text password
+  return request.headers.get('Admin-Password') === env.ADMIN_PASSWORD;
+}
+
 // ── NocoDB fetch helper ───────────────────────────────────────
 
 async function nocoFetch(env, path, method = 'GET', body) {
@@ -312,7 +349,7 @@ export default {
     const cors = {
       'Access-Control-Allow-Origin': env.ALLOWED_ORIGIN || '*',
       'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Admin-Password, Authorization',
+      'Access-Control-Allow-Headers': 'Content-Type, Admin-Password, Admin-Token, Authorization',
     };
     const secHeaders = {
       'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
@@ -337,6 +374,21 @@ export default {
 
     // ── Health check ──────────────────────────────────────────
     if (path === '/api/health') return json({ ok: true, ts: Date.now() });
+
+    // ── Admin login → trả session token ─────────────────────
+    if (path === '/admin/auth' && request.method === 'POST') {
+      const rl = await checkRateLimit(clientIP, env, 'admin');
+      if (!rl.allowed) return json({ error: 'Quá nhiều lần thử. Vui lòng đợi 15 phút.' }, 429);
+      const { password } = await request.json().catch(() => ({}));
+      if (!password || password !== env.ADMIN_PASSWORD) {
+        await checkRateLimit(clientIP, env, 'admin'); // tính thêm attempt
+        return json({ error: 'Sai mật khẩu' }, 401);
+      }
+      await clearRateLimit(clientIP, env, 'admin');
+      const secret = env.TOKEN_SECRET || 'activeedu_secret_2024';
+      const token = await makeAdminToken(secret + ':admin');
+      return json({ token, expiresIn: 8 * 3600 });
+    }
 
     // ── Student login ─────────────────────────────────────────
     if (path === '/api/auth/login' && request.method === 'POST') {
@@ -633,7 +685,7 @@ export default {
 
     // ── Admin: Google Drive upload ────────────────────────────
     if (path === '/admin/drive-upload' && request.method === 'POST') {
-      if (request.headers.get('Admin-Password') !== env.ADMIN_PASSWORD)
+      if (!await verifyAdminAuth(request, env))
         return json({ error: 'Unauthorized' }, 401);
       try {
         const { fileName, content: htmlContent } = await request.json();
@@ -647,7 +699,7 @@ export default {
 
     // ── Admin: Google Drive fetch proxy ──────────────────────
     if (path === '/admin/drive-fetch' && request.method === 'GET') {
-      if (request.headers.get('Admin-Password') !== env.ADMIN_PASSWORD)
+      if (!await verifyAdminAuth(request, env))
         return json({ error: 'Unauthorized' }, 401);
       try {
         const fileId = url.searchParams.get('fileId');
@@ -670,7 +722,7 @@ export default {
       if (country && !allowed.includes('*') && !allowed.includes(country))
         return json({ error: 'Access denied from your region' }, 403);
 
-      if (request.headers.get('Admin-Password') !== env.ADMIN_PASSWORD) {
+      if (!await verifyAdminAuth(request, env)) {
         const adminRl = await checkRateLimit(clientIP, env, 'admin');
         if (!adminRl.allowed) return json({ error: 'Quá nhiều yêu cầu. Thử lại sau 15 phút.' }, 429);
         return json({ error: 'Unauthorized' }, 401);
@@ -739,7 +791,7 @@ export default {
       if (country && !allowed.includes('*') && !allowed.includes(country))
         return json({ error: 'Access denied from your region' }, 403);
 
-      if (request.headers.get('Admin-Password') !== env.ADMIN_PASSWORD) {
+      if (!await verifyAdminAuth(request, env)) {
         const adminRl = await checkRateLimit(clientIP, env, 'admin');
         if (!adminRl.allowed) return json({ error: `Quá nhiều yêu cầu (${adminRl.count}). Thử lại sau 15 phút.` }, 429);
         return json({ error: 'Unauthorized' }, 401);

@@ -12,7 +12,15 @@ function getCfg() {
   try { return JSON.parse(localStorage.getItem(CFG_KEY) || '{}'); }
   catch { return {}; }
 }
-function saveCfg(c) { localStorage.setItem(CFG_KEY, JSON.stringify(c)); }
+function saveCfg(c) {
+  try {
+    localStorage.setItem(CFG_KEY, JSON.stringify(c));
+  } catch(e) {
+    // Quota exceeded hoặc private browsing block
+    console.warn('[CFG] localStorage unavailable:', e.message);
+    showToast('⚠️ Không lưu được cấu hình (localStorage đầy)', 'warn');
+  }
+}
 
 function getDefaultCfg() {
   return { token:'', repo:'', branch:'main', contentDir:'content', title:'ActiveEdu', url:'', adminUser:'admin', adminPass:'', proxyUrl:'https://api.gds.edu.vn' };
@@ -76,9 +84,12 @@ async function doLogin() {
   if (btn) { btn.disabled = true; btn.textContent = 'Đang xác thực...'; }
 
   try {
-    // Xác thực bằng cách gọi thử Worker với password này
-    const r = await fetch('https://api.gds.edu.vn/admin/articles?limit=1', {
-      headers: { 'Content-Type': 'application/json', 'Admin-Password': p }
+    // Xác thực qua /admin/auth → nhận session token (8h)
+    const proxyUrl = cfg().proxyUrl || 'https://api.gds.edu.vn';
+    const r = await fetch(`${proxyUrl}/admin/auth`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: p }),
     });
 
     if (r.status === 401) {
@@ -102,15 +113,18 @@ async function doLogin() {
       return;
     }
 
-    if (!r.ok && r.status !== 404) {
+    if (!r.ok) {
       errEl.textContent = 'Lỗi kết nối Worker. Thử lại sau!';
       errEl.style.display = 'block';
       return;
     }
 
-    // Đăng nhập thành công → reset counter
+    const authData = await r.json();
+    // Đăng nhập thành công → lưu token (không lưu password)
     _resetLoginAttempts();
     sessionStorage.setItem('ae_auth', '1');
+    sessionStorage.setItem('ae_admin_token', authData.token || '');
+    // Giữ password tạm để fallback nếu worker cũ chưa có /admin/auth
     sessionStorage.setItem('ae_admin_pass', p);
     document.getElementById('login-screen').style.display = 'none';
     initAdmin();
@@ -127,6 +141,7 @@ async function doLogin() {
 function doLogout() {
   sessionStorage.removeItem('ae_auth');
   sessionStorage.removeItem('ae_admin_pass');
+  sessionStorage.removeItem('ae_admin_token');
   location.reload();
 }
 
@@ -1436,14 +1451,84 @@ function richInsertLink() {
 }
 
 function richInsertImage() {
-  const url = prompt('Nhập URL hình ảnh:');
-  if (!url) return;
-  const alt = prompt('Mô tả (alt text):', '') || '';
-  const w = prompt('Chiều rộng (px hoặc %, để trống = 100%):', '100%') || '100%';
-  const d = _getRichIframeDoc();
-  if (!d) return;
-  d.execCommand('insertHTML', false, `<img src="${url}" alt="${alt}" style="max-width:${w};border-radius:6px;display:block;margin:8px 0">`);
-  _onRichChange();
+  // Hiển thị dialog chọn: upload file hoặc nhập URL
+  const choice = confirm('Tải ảnh từ máy tính?\n\nOK = Chọn file\nCancel = Nhập URL');
+  if (choice) {
+    richUploadImage();
+  } else {
+    const url = prompt('Nhập URL hình ảnh:');
+    if (!url) return;
+    const alt = prompt('Mô tả (alt text):', '') || '';
+    const w = prompt('Chiều rộng (px hoặc %, để trống = 100%):', '100%') || '100%';
+    const d = _getRichIframeDoc();
+    if (!d) return;
+    d.execCommand('insertHTML', false,
+      `<img src="${url}" alt="${alt}" style="max-width:${w};border-radius:6px;display:block;margin:8px 0">`);
+    _onRichChange();
+  }
+}
+
+// ── Upload ảnh từ máy: nén qua Canvas → base64 → lưu inline trong bài ──
+function richUploadImage() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.onchange = async () => {
+    const file = input.files[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) { showToast('Ảnh quá lớn (tối đa 10MB)', 'warn'); return; }
+    showLoading('Đang nén ảnh...');
+    try {
+      const dataUrl = await _compressImageToBase64(file, 1200, 0.82);
+      const alt = file.name.replace(/\.[^.]+$/, '');
+      const d = _getRichIframeDoc();
+      if (!d) { hideLoading(); return; }
+      d.execCommand('insertHTML', false,
+        `<img src="${dataUrl}" alt="${alt}" style="max-width:100%;border-radius:6px;display:block;margin:8px 0">`);
+      _onRichChange();
+      const kb = Math.round(dataUrl.length * 0.75 / 1024);
+      showToast(`✓ Đã chèn ảnh (~${kb} KB, lưu inline)`, 'success');
+    } catch(e) {
+      showToast('Lỗi nén ảnh: ' + e.message, 'error');
+    } finally { hideLoading(); }
+  };
+  input.click();
+}
+
+/**
+ * Nén ảnh qua Canvas: resize về maxPx cạnh dài, encode JPEG quality q.
+ * Trả về data URI string (data:image/jpeg;base64,...).
+ */
+function _compressImageToBase64(file, maxPx = 1200, quality = 0.82) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Không đọc được file'));
+    reader.onload = e => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Không decode được ảnh'));
+      img.onload = () => {
+        let w = img.naturalWidth, h = img.naturalHeight;
+        if (w === 0 || h === 0) { reject(new Error('Ảnh rỗng')); return; }
+        // Scale down nếu lớn hơn maxPx
+        if (w > maxPx || h > maxPx) {
+          if (w >= h) { h = Math.round(h * maxPx / w); w = maxPx; }
+          else        { w = Math.round(w * maxPx / h); h = maxPx; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        // Thử WebP trước, fallback JPEG
+        let dataUrl = canvas.toDataURL('image/webp', quality);
+        if (!dataUrl.startsWith('data:image/webp')) {
+          dataUrl = canvas.toDataURL('image/jpeg', quality);
+        }
+        resolve(dataUrl);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 function richInsertTable() {
@@ -1739,10 +1824,19 @@ async function editFile(path) {
       const _raw = row.Content || '';
       if (_raw.startsWith('lz:')) {
         try {
-          html = LZString.decompressFromBase64(_raw.slice(3)) || '';
-          if (!html) throw new Error('Kết quả giải nén rỗng');
+          const decompressed = LZString.decompressFromBase64(_raw.slice(3));
+          if (!decompressed) throw new Error('Kết quả giải nén rỗng');
+          html = decompressed;
         } catch(e) {
-          html = `<p style="color:red;padding:20px">Lỗi giải nén: ${e.message}</p>`;
+          // Fallback: nếu raw có dấu hiệu là HTML thật thì dùng thẳng (bỏ prefix lz:)
+          const rawBody = _raw.slice(3);
+          if (rawBody.includes('<') && rawBody.includes('>')) {
+            html = rawBody;
+            showToast('⚠️ Giải nén thất bại — hiển thị nội dung gốc', 'warn');
+          } else {
+            html = `<p style="color:red;padding:20px">⚠️ Lỗi giải nén: ${e.message}<br><small>Vui lòng lưu lại bài để sửa.</small></p>`;
+          }
+          console.error('[LZ] Decompress failed:', e);
         }
       } else {
         html = _raw;
@@ -2398,6 +2492,12 @@ async function syncFromNoco() {
 const PROXY = 'https://api.gds.edu.vn';
 
 function adminHeaders() {
+  const token = sessionStorage.getItem('ae_admin_token') || '';
+  if (token) {
+    // Dùng session token (không lộ password)
+    return { 'Content-Type': 'application/json', 'Admin-Token': token };
+  }
+  // Fallback legacy: plain-text password (cho worker cũ chưa update)
   const pass = sessionStorage.getItem('ae_admin_pass') || '';
   return { 'Content-Type': 'application/json', 'Admin-Password': pass };
 }
@@ -4351,11 +4451,13 @@ function _wrapInlineCodeBlocks(text) {
 
 // ── Universal quiz text parser ─────────────────────────────────
 function _parseQuizText(text) {
-  // Normalize: CRLF → LF, remove zero-width chars, normalize spaces
+  // Normalize toàn diện
   text = text
     .replace(/\r\n/g, '\n').replace(/\r/g, '\n')
-    .replace(/[\u200B\u200C\u200D\uFEFF]/g, '')
+    .replace(/[\u200B\u200C\u200D\uFEFF\u00A0]/g, ' ') // zero-width + non-breaking space
     .replace(/[ \t]+/g, ' ')
+    // Normalize dấu gạch nối full-width và dấu câu tương tự
+    .replace(/[\uFF0E\u2024]/g, '.').replace(/[\uFF09\u2019]/g, ')')
     .trim();
 
   // Wrap inline HTML code blocks trước khi parse
@@ -4370,15 +4472,21 @@ function _parseQuizText(text) {
   const questions = [];
   let i = 0;
 
-  // Regex patterns
-  // Question starters: "Câu 1:", "Câu 1.", "1.", "1)", "Question 1:", etc.
-  const reQuestion = /^(?:câu\s*)?(\d+)[.:)\s]\s*(.+)/i;
-  // Option starters: "A.", "A)", "a.", "a)", "(A)", "(a)", "[A.]" (bracket = correct)
-  const reOption   = /^(?:\[([A-Fa-f])[.\]]\]?|\(?([A-Fa-f])\)?[.)]\s*)(.+)/;
-  // Answer line: "Đáp án: B", "Đáp án:B", "ĐÁP ÁN: B", "Answer: B", "Key: B"
-  const reAnswer   = /^(?:đáp\s*án|answer|key|ans|da)[:\s]+([A-Fa-f])/i;
-  // Explanation: "Giải:", "Giải thích:", "Explanation:", "HD:", "Hướng dẫn:"
-  const reExpl     = /^(?:giải(?:\s*thích)?|explanation|hd|hướng\s*dẫn|note)[:\s]+(.+)/i;
+  // ── Regex patterns ──────────────────────────────────────────
+  // Question: "Câu 1:", "Câu 1.", "1.", "1)", "Question 1:", "Bài 1:", "Phần 1."
+  const reQuestion = /^(?:(?:câu|bài|phần|question|q)\s*)?(\d+)[.:)\s]\s*(.+)/i;
+  // Option: "A.", "A)", "a.", "(A)", "[A.]" (bracket = correct), "A -", "A:"
+  const reOption   = /^(?:\[([A-Ea-e])[.\]]\]?|\(?([A-Ea-e])\)?[.):\-]\s*)(.+)/;
+  // Answer: "Đáp án: B", "ĐÁP ÁN:B", "Answer: B", "Key: B", "Đáp: B", "DA: B"
+  const reAnswer   = /^(?:đáp\s*(?:án|case)?|answer|key|ans|da|correct)[:\s]+([A-Ea-e])/i;
+  // Explanation: "Giải:", "Giải thích:", "Explanation:", "HD:", "Hướng dẫn:", "Note:"
+  const reExpl     = /^(?:giải(?:\s*thích)?|explanation|hd|hướng\s*dẫn|note|lời\s*giải)[:\s]+(.+)/i;
+
+  // Helper: kiểm tra line có phải là bắt đầu option không
+  const isOptionLine  = l => reOption.test(l);
+  const isAnswerLine  = l => reAnswer.test(l);
+  const isExplLine    = l => reExpl.test(l);
+  const isQuestionLine = (l, minOpts = 0) => reQuestion.test(l) && (minOpts === 0 || questions.length > 0 || true);
 
   while (i < lines.length) {
     const line = lines[i];
@@ -4387,57 +4495,76 @@ function _parseQuizText(text) {
     const qMatch = reQuestion.exec(line);
     if (!qMatch) { i++; continue; }
 
-    // Found a question
+    // Tìm thấy câu hỏi
     let questionText = qMatch[2].trim();
-    // Collect multi-line question text (until we hit an option line)
+
+    // Thu thập nội dung câu hỏi multi-line (đến khi gặp option hoặc câu hỏi tiếp theo)
     i++;
-    while (i < lines.length && lines[i] && !reOption.exec(lines[i]) && !reQuestion.exec(lines[i])) {
-      questionText += ' ' + lines[i];
+    while (i < lines.length) {
+      const nl = lines[i];
+      if (!nl) { i++; continue; }
+      if (isOptionLine(nl) || isAnswerLine(nl) || isExplLine(nl)) break;
+      // Dừng nếu câu hỏi tiếp theo và đã có đủ context (số thứ tự lớn hơn)
+      const nqm = reQuestion.exec(nl);
+      if (nqm && parseInt(nqm[1]) > parseInt(qMatch[1])) break;
+      questionText += ' ' + nl;
       i++;
     }
 
-    // Collect options
-    const options  = [];
+    // Thu thập đáp án
+    const options    = [];
     let answerLetter = null;
     let explanation  = '';
+    let safetyCount  = 0; // chống vòng lặp vô tận
 
-    while (i < lines.length) {
+    while (i < lines.length && safetyCount++ < 200) {
       const l = lines[i];
       if (!l) { i++; continue; }
+
+      // Câu hỏi tiếp theo bắt đầu → dừng
+      const nqm = reQuestion.exec(l);
+      if (nqm && options.length >= 2 && parseInt(nqm[1]) > parseInt(qMatch[1])) break;
 
       const oMatch = reOption.exec(l);
       const aMatch = reAnswer.exec(l);
       const eMatch = reExpl.exec(l);
-      // Next question starts
-      if (reQuestion.exec(l) && options.length >= 2) break;
 
       if (oMatch) {
-        // Group 1 = bracket format [A.] (correct), Group 2 = normal format, Group 3 = text
         const isBracketCorrect = !!oMatch[1];
         const optLetter = (oMatch[1] || oMatch[2]).toUpperCase();
         let optText = oMatch[3].trim();
-        // Collect multi-line option text
         i++;
-        while (i < lines.length && lines[i] && !reOption.exec(lines[i]) &&
-               !reAnswer.exec(lines[i]) && !reQuestion.exec(lines[i])) {
-          optText += ' ' + lines[i];
+        // Multi-line option text
+        while (i < lines.length) {
+          const ol = lines[i];
+          if (!ol) { i++; continue; }
+          if (isOptionLine(ol) || isAnswerLine(ol) || isExplLine(ol)) break;
+          if (reQuestion.exec(ol)) break;
+          optText += ' ' + ol;
           i++;
         }
-        // Check if option text ends with * or (đúng) or (correct)
+        // Detect đáp án đúng qua marker cuối text
         let isMarked = isBracketCorrect;
-        optText = optText.replace(/\s*[*✓✔]\s*$/, () => { isMarked = true; return ''; });
-        optText = optText.replace(/\s*\(đúng\)\s*$/i, () => { isMarked = true; return ''; });
-        optText = optText.replace(/\s*\(correct\)\s*$/i, () => { isMarked = true; return ''; });
-        options.push({ letter: optLetter, text: optText.trim(), markedCorrect: isMarked });
+        optText = optText
+          .replace(/\s*[*✓✔√]\s*$/, () => { isMarked = true; return ''; })
+          .replace(/\s*\(đúng\)\s*$/i, () => { isMarked = true; return ''; })
+          .replace(/\s*\(correct\)\s*$/i, () => { isMarked = true; return ''; })
+          .replace(/\s*\[đúng\]\s*$/i, () => { isMarked = true; return ''; });
+        // Tránh trùng lặp option cùng chữ cái
+        if (!options.find(o => o.letter === optLetter)) {
+          options.push({ letter: optLetter, text: optText.trim(), markedCorrect: isMarked });
+        }
       } else if (aMatch) {
         answerLetter = aMatch[1].toUpperCase();
         i++;
       } else if (eMatch) {
         explanation = eMatch[1].trim();
-        // Collect multi-line explanation
         i++;
-        while (i < lines.length && lines[i] && !reQuestion.exec(lines[i])) {
-          explanation += ' ' + lines[i];
+        while (i < lines.length) {
+          const el = lines[i];
+          if (!el) { i++; continue; }
+          if (reQuestion.exec(el) || isOptionLine(el)) break;
+          explanation += ' ' + el;
           i++;
         }
       } else {
@@ -4445,17 +4572,15 @@ function _parseQuizText(text) {
       }
     }
 
-    // Need at least 2 options to be a valid question
+    // Cần ít nhất 2 đáp án
     if (options.length < 2) continue;
 
-    // Determine correct answer
+    // Xác định đáp án đúng
     const finalOptions = options.map(o => ({
       text: o.text,
-      correct: o.markedCorrect ||
-               (answerLetter && o.letter === answerLetter),
+      correct: o.markedCorrect || (answerLetter ? o.letter === answerLetter : false),
     }));
 
-    // If no correct found via marker or answer line → leave unchecked (user fixes manually)
     questions.push({
       question:    questionText.trim(),
       options:     finalOptions,
