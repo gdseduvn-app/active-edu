@@ -5650,8 +5650,8 @@ function _parseQuizText(text) {
   // Regex patterns
   // Question starters: "Câu 1:", "Câu 1.", "1.", "1)", "Question 1:", etc.
   const reQuestion = /^(?:câu\s*)?(\d+)[.:)\s]\s*(.+)/i;
-  // Option starters: "A.", "A)", "a.", "a)", "(A)", "(a)"
-  const reOption   = /^(?:\(?([A-Fa-f])\)?[.)]\s*)(.+)/;
+  // Option starters: "A.", "A)", "a.", "a)", "(A)", "(a)", "[A.]" (bracket = correct)
+  const reOption   = /^(?:\[([A-Fa-f])[.\]]\]?|\(?([A-Fa-f])\)?[.)]\s*)(.+)/;
   // Answer line: "Đáp án: B", "Đáp án:B", "ĐÁP ÁN: B", "Answer: B", "Key: B"
   const reAnswer   = /^(?:đáp\s*án|answer|key|ans|da)[:\s]+([A-Fa-f])/i;
   // Explanation: "Giải:", "Giải thích:", "Explanation:", "HD:", "Hướng dẫn:"
@@ -5689,7 +5689,10 @@ function _parseQuizText(text) {
       if (reQuestion.exec(l) && options.length >= 2) break;
 
       if (oMatch) {
-        let optText = oMatch[2].trim();
+        // Group 1 = bracket format [A.] (correct), Group 2 = normal format, Group 3 = text
+        const isBracketCorrect = !!oMatch[1];
+        const optLetter = (oMatch[1] || oMatch[2]).toUpperCase();
+        let optText = oMatch[3].trim();
         // Collect multi-line option text
         i++;
         while (i < lines.length && lines[i] && !reOption.exec(lines[i]) &&
@@ -5698,11 +5701,11 @@ function _parseQuizText(text) {
           i++;
         }
         // Check if option text ends with * or (đúng) or (correct)
-        let isMarked = false;
+        let isMarked = isBracketCorrect;
         optText = optText.replace(/\s*[*✓✔]\s*$/, () => { isMarked = true; return ''; });
         optText = optText.replace(/\s*\(đúng\)\s*$/i, () => { isMarked = true; return ''; });
         optText = optText.replace(/\s*\(correct\)\s*$/i, () => { isMarked = true; return ''; });
-        options.push({ letter: oMatch[1].toUpperCase(), text: optText.trim(), markedCorrect: isMarked });
+        options.push({ letter: optLetter, text: optText.trim(), markedCorrect: isMarked });
       } else if (aMatch) {
         answerLetter = aMatch[1].toUpperCase();
         i++;
