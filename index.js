@@ -282,17 +282,28 @@ async function init() {
     // Load reading progress if already logged in (e.g. page refresh)
     if (isLoggedIn()) loadUserProgress();
 
-    // Deep link: /bai/{nocoId} (mới) hoặc /bai/{slug} (backward compat)
-    const pathMatch = window.location.pathname.match(/\/bai\/([^/]+)/);
-    const params    = new URLSearchParams(window.location.search);
-    const paramId   = params.get('article') || params.get('bai');
-    const rawVal    = pathMatch ? decodeURIComponent(pathMatch[1]) : (paramId ? decodeURIComponent(paramId) : null);
-    if (rawVal) {
-      // Thử tìm bằng ID trước (số), fallback slug
-      const item = /^\d+$/.test(rawVal)
-        ? findItemById(contentTree, rawVal)
-        : (findItemBySlug(contentTree, rawVal) || findItemById(contentTree, rawVal));
-      if (item) loadArticle(item);
+    // Deep link routing
+    const currentPath = window.location.pathname;
+    const params      = new URLSearchParams(window.location.search);
+
+    if (currentPath === '/courses') {
+      // /courses — hiện danh sách khoá học
+      showCoursesView();
+    } else if (currentPath.match(/^\/course\/(\d+)/)) {
+      // /course/{id} — hiện chi tiết khoá học
+      const courseId = currentPath.match(/^\/course\/(\d+)/)[1];
+      showCourseDetail(parseInt(courseId));
+    } else {
+      // /bai/{nocoId} hoặc ?article=... (backward compat)
+      const pathMatch = currentPath.match(/\/bai\/([^/]+)/);
+      const paramId   = params.get('article') || params.get('bai');
+      const rawVal    = pathMatch ? decodeURIComponent(pathMatch[1]) : (paramId ? decodeURIComponent(paramId) : null);
+      if (rawVal) {
+        const item = /^\d+$/.test(rawVal)
+          ? findItemById(contentTree, rawVal)
+          : (findItemBySlug(contentTree, rawVal) || findItemById(contentTree, rawVal));
+        if (item) loadArticle(item);
+      }
     }
   } catch(e) {
     console.error('NocoDB load error:', e);
@@ -985,6 +996,8 @@ iframe {
       setBlobSrcdoc(iframe, finalContent);
       // Start progress tracking after content loads
       _startProgressTracking(item);
+      // Show AI Tutor button
+      _showAITutorBtn(item.name);
       // Fire-and-forget: increment view count in Analytics
       _trackArticleView(item.nocoId);
     } else {
@@ -1083,12 +1096,22 @@ function shareArticle() {
   }
 }
 
+function _hideAllViews() {
+  document.getElementById('home-view').style.display = 'none';
+  document.getElementById('article-view').style.display = 'none';
+  document.getElementById('article-gate').style.display = 'none';
+  const cv = document.getElementById('courses-view');
+  if (cv) cv.style.display = 'none';
+  const cdv = document.getElementById('course-detail-view');
+  if (cdv) cdv.style.display = 'none';
+}
+
 function showHome() {
   _stopProgressTracking();
   _resetReactionPanel();
+  _hideAITutorBtn();
+  _hideAllViews();
   document.getElementById('home-view').style.display = 'block';
-  document.getElementById('article-view').style.display = 'none';
-  document.getElementById('article-gate').style.display = 'none';
   setBreadcrumb(null);
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
   pendingPrivateItem = null;
@@ -1684,4 +1707,245 @@ function _showOfflineBanner(reason) {
       style="margin-left:auto;border:none;background:rgba(255,255,255,.15);color:#fff;padding:4px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-family:inherit">Đóng</button>`;
   document.body.appendChild(banner);
 }
+
+// ═══════════════════════════════════════════════════
+// COURSES — Canvas LMS model (student view)
+// ═══════════════════════════════════════════════════
+
+let _coursesCache = null;
+let _modulesCache = {};
+
+async function showCoursesView() {
+  _hideAllViews();
+  document.getElementById('courses-view').style.display = 'block';
+  document.getElementById('content-area').classList.remove('article-mode');
+  history.pushState(null, '', '/courses');
+  document.title = 'Khoá học — ActiveEdu';
+  await _renderCoursesList();
+}
+
+async function _renderCoursesList() {
+  const grid = document.getElementById('courses-grid');
+  grid.innerHTML = '<div style="text-align:center;padding:40px;color:#64748b"><i class="fas fa-spinner fa-spin"></i> Đang tải khoá học...</div>';
+
+  try {
+    const proxyBase = (PROXY_URL || 'https://api.gds.edu.vn').replace(/\/$/, '');
+    const r = await fetch(`${proxyBase}/api/courses?where=(Status,eq,published)&sort=Title&limit=100`);
+    if (!r.ok) throw new Error('Không tải được danh sách khoá học');
+    const data = await r.json();
+    _coursesCache = data.list || [];
+
+    if (!_coursesCache.length) {
+      grid.innerHTML = '<div style="text-align:center;padding:60px;color:#64748b">Chưa có khoá học nào được công bố.</div>';
+      return;
+    }
+
+    grid.innerHTML = '';
+    _coursesCache.forEach(course => {
+      const card = document.createElement('div');
+      card.className = 'course-card';
+      card.innerHTML = `
+        <div class="course-card-title"><i class="fas fa-book-open" style="color:var(--primary);margin-right:6px"></i>${esc(course.Title)}</div>
+        ${course.Description ? `<div class="course-card-desc">${esc(course.Description)}</div>` : ''}
+        <div class="course-card-meta">
+          <span><i class="fas fa-layer-group"></i> Các modules</span>
+          <span style="margin-left:auto;color:var(--primary);font-weight:600">Xem khoá học <i class="fas fa-arrow-right"></i></span>
+        </div>`;
+      card.onclick = () => showCourseDetail(course.Id);
+      grid.appendChild(card);
+    });
+  } catch(e) {
+    grid.innerHTML = `<div style="text-align:center;padding:40px;color:#dc2626">${e.message}</div>`;
+  }
+}
+
+async function showCourseDetail(courseId) {
+  _hideAllViews();
+  document.getElementById('course-detail-view').style.display = 'block';
+  document.getElementById('content-area').classList.remove('article-mode');
+  history.pushState(null, '', `/course/${courseId}`);
+
+  // Lấy thông tin khoá học
+  const proxyBase = (PROXY_URL || 'https://api.gds.edu.vn').replace(/\/$/, '');
+  let course = _coursesCache?.find(c => c.Id === courseId);
+  if (!course) {
+    try {
+      const r = await fetch(`${proxyBase}/api/courses/${courseId}`);
+      if (r.ok) course = await r.json();
+    } catch { }
+  }
+
+  document.getElementById('course-detail-title').textContent = course?.Title || 'Khoá học';
+  document.getElementById('course-detail-desc').textContent = course?.Description || '';
+  document.getElementById('course-tags').innerHTML = `<span class="article-hd-tag">${esc(course?.Status || 'published')}</span>`;
+  document.title = `${course?.Title || 'Khoá học'} — ActiveEdu`;
+
+  // Load modules
+  const container = document.getElementById('modules-container');
+  container.innerHTML = '<div style="text-align:center;padding:40px;color:#64748b"><i class="fas fa-spinner fa-spin"></i> Đang tải modules...</div>';
+
+  try {
+    const r = await fetch(`${proxyBase}/api/modules?where=(CourseId,eq,${courseId})&sort=Position&limit=100`);
+    if (!r.ok) throw new Error('Không tải được modules');
+    const data = await r.json();
+    const modules = data.list || [];
+    _modulesCache[courseId] = modules;
+
+    if (!modules.length) {
+      container.innerHTML = '<div style="text-align:center;padding:40px;color:#64748b">Khoá học này chưa có module nào.</div>';
+      return;
+    }
+
+    // Load articles for this course (có ModuleId)
+    const artResp = await fetch(`${proxyBase}/api/articles?where=(ModuleId,nnull,true)&fields=Id,Title,Access,ItemType,ModuleId,Position&limit=500`).catch(() => null);
+    const artData = artResp?.ok ? await artResp.json() : { list: [] };
+    const allItems = artData.list || [];
+
+    container.innerHTML = '';
+    modules.forEach((mod, idx) => {
+      const items = allItems.filter(a => String(a.ModuleId) === String(mod.Id))
+        .sort((a, b) => (a.Position || 0) - (b.Position || 0));
+
+      const block = document.createElement('div');
+      block.className = 'module-block';
+      const typeLabel = { article: 'Bài đọc', interactive: 'Tương tác', quiz: 'Trắc nghiệm' };
+      block.innerHTML = `
+        <div class="module-block-hd">
+          <div class="module-block-num">${mod.Position || idx + 1}</div>
+          <div class="module-block-title">${esc(mod.Title)}</div>
+          ${mod.UnlockCondition ? '<span style="margin-left:auto;font-size:11px;color:#64748b"><i class="fas fa-lock"></i> Có điều kiện</span>' : ''}
+        </div>
+        <div class="module-block-items">
+          ${items.length ? items.map(item => {
+            const type = item.ItemType || 'article';
+            const isPrivate = item.Access === 'private';
+            return `<div class="module-item-row" onclick="_openModuleItem(${item.Id})">
+              <span class="module-item-type type-${type}">${typeLabel[type] || type}</span>
+              <span style="flex:1;font-size:13px">${esc(item.Title || `Bài ${item.Id}`)}</span>
+              ${isPrivate ? '<i class="fas fa-lock" style="color:#94a3b8;font-size:11px"></i>' : ''}
+              <i class="fas fa-chevron-right" style="color:#94a3b8;font-size:11px"></i>
+            </div>`;
+          }).join('') : '<div style="padding:12px 18px;font-size:13px;color:#94a3b8">Module này chưa có bài học.</div>'}
+        </div>`;
+      container.appendChild(block);
+    });
+  } catch(e) {
+    container.innerHTML = `<div style="text-align:center;padding:40px;color:#dc2626">${e.message}</div>`;
+  }
+}
+
+function showCoursesView_back() { showCoursesView(); }
+
+function _openModuleItem(articleId) {
+  const item = findItemById(contentTree, String(articleId));
+  if (item) {
+    loadArticle(item);
+  } else {
+    // Item có thể chưa có trong tree (nếu access=private) — thử load trực tiếp
+    const synth = { nocoId: String(articleId), name: 'Bài học', path: '', folder: '', access: 'public' };
+    loadArticle(synth);
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// SOCRATIC AI TUTOR
+// ═══════════════════════════════════════════════════
+
+let _socraticOpen = false;
+let _socraticArticleTitle = '';
+let _currentDraftWordCount = 0; // theo dõi số từ học sinh đã viết (từ iframe postMessage)
+
+function toggleSocraticPanel() {
+  _socraticOpen = !_socraticOpen;
+  const panel = document.getElementById('socratic-panel');
+  if (panel) panel.style.display = _socraticOpen ? 'block' : 'none';
+  if (_socraticOpen && !document.getElementById('socratic-messages').children.length) {
+    _addSocraticMessage('system', '👋 Tôi là AI Tutor Socratic. Tôi sẽ không cho đáp án trực tiếp — chỉ đặt câu hỏi để dẫn dắt bạn tự tìm ra. Hãy hỏi tôi sau khi bạn đã đọc và suy nghĩ!');
+  }
+}
+
+function _showAITutorBtn(articleTitle) {
+  _socraticArticleTitle = articleTitle || '';
+  const btn = document.getElementById('ai-tutor-btn');
+  if (btn) btn.style.display = '';
+  // Reset panel khi load bài mới
+  _socraticOpen = false;
+  const panel = document.getElementById('socratic-panel');
+  if (panel) { panel.style.display = 'none'; }
+  const msgs = document.getElementById('socratic-messages');
+  if (msgs) msgs.innerHTML = '';
+}
+
+function _hideAITutorBtn() {
+  const btn = document.getElementById('ai-tutor-btn');
+  if (btn) btn.style.display = 'none';
+  const panel = document.getElementById('socratic-panel');
+  if (panel) panel.style.display = 'none';
+  _socraticOpen = false;
+}
+
+function _addSocraticMessage(type, text) {
+  const msgs = document.getElementById('socratic-messages');
+  if (!msgs) return;
+  const div = document.createElement('div');
+  div.className = `socratic-msg ${type}`;
+  div.textContent = text;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+async function sendSocraticMessage() {
+  const input = document.getElementById('socratic-input');
+  const btn = document.getElementById('socratic-send-btn');
+  const message = input?.value?.trim();
+  if (!message) return;
+
+  if (!isLoggedIn()) {
+    _addSocraticMessage('system', '⚠️ Vui lòng đăng nhập để dùng AI Tutor.');
+    return;
+  }
+
+  input.value = '';
+  _addSocraticMessage('user', message);
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+  try {
+    const proxyBase = (PROXY_URL || 'https://api.gds.edu.vn').replace(/\/$/, '');
+    const r = await fetch(`${proxyBase}/api/ai/socratic`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${getUser()?.token || ''}`,
+      },
+      body: JSON.stringify({
+        message,
+        articleTitle: _socraticArticleTitle,
+        wordCount: _currentDraftWordCount || 60, // default pass nếu không track được
+      }),
+    });
+
+    const data = await r.json();
+    if (!r.ok) {
+      _addSocraticMessage('system', `⚠️ ${data.error || 'Lỗi kết nối AI'}`);
+    } else {
+      _addSocraticMessage('ai', data.reply);
+    }
+  } catch(e) {
+    _addSocraticMessage('system', '⚠️ Không kết nối được AI. Thử lại sau.');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-paper-plane"></i>';
+  }
+}
+
+// Enter để gửi (Shift+Enter = xuống dòng)
+document.addEventListener('DOMContentLoaded', () => {
+  const input = document.getElementById('socratic-input');
+  if (input) {
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendSocraticMessage(); }
+    });
+  }
+});
 

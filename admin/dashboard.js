@@ -1785,9 +1785,9 @@ function _activatePanel(id) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.getElementById('panel-' + id)?.classList.add('active');
   document.querySelectorAll('.sb-item').forEach(n => n.classList.remove('active'));
-  const idx = {dashboard:0, editor:1, users:2, settings:3};
+  const idx = {dashboard:0, editor:1, users:2, courses:3, analytics:4, settings:5};
   document.querySelectorAll('.sb-item')[idx[id]]?.classList.add('active');
-  const titles = {dashboard:'Dashboard', editor:'Soạn thảo', users:'Người dùng', settings:'Cài đặt'};
+  const titles = {dashboard:'Dashboard', editor:'Soạn thảo', users:'Người dùng', courses:'Khoá học', analytics:'Học tập', settings:'Cài đặt'};
   document.getElementById('panel-title').textContent = titles[id] || id;
 }
 
@@ -2349,6 +2349,8 @@ function showPanel(id, navEl) {
 
   } else if (id === 'users') {
     loadUsers();
+  } else if (id === 'courses') {
+    loadCourses();
   } else if (id === 'analytics') {
     loadAnalytics();
   }
@@ -4731,5 +4733,228 @@ function _qmShowImportProgress(msg, pct) {
 }
 function _qmHideImportProgress() {
   document.getElementById('qm-import-progress').classList.remove('show');
+}
+
+// ═══════════════════════════════════════════════════
+// COURSES — Canvas LMS model
+// ═══════════════════════════════════════════════════
+let _courses = [];       // cache danh sách khoá học
+let _activeCourseId = null; // khoá học đang mở module builder
+
+// ── Load danh sách khoá học ──
+async function loadCourses() {
+  const tbody = document.getElementById('courses-table');
+  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:24px">Đang tải...</td></tr>';
+  document.getElementById('module-builder').style.display = 'none';
+
+  try {
+    const r = await fetch(`${PROXY}/admin/courses?limit=200&sort=-UpdatedAt`, { headers: adminHeaders() });
+    if (!r.ok) throw new Error(await r.text());
+    const data = await r.json();
+    _courses = data.list || [];
+
+    if (!_courses.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:32px">Chưa có khoá học nào. Bấm "+ Tạo khoá học" để bắt đầu.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = _courses.map(c => `
+      <tr>
+        <td><strong>${_esc(c.Title)}</strong>${c.Description ? `<div style="font-size:12px;color:var(--text-muted);margin-top:2px">${_esc(c.Description.slice(0,80))}${c.Description.length>80?'…':''}</div>` : ''}</td>
+        <td><span class="badge ${c.Status==='published'?'badge-green':c.Status==='archived'?'badge-red':'badge-gray'}">${c.Status||'draft'}</span></td>
+        <td style="text-align:center">—</td>
+        <td style="font-size:12px;color:var(--text-muted)">${c.UpdatedAt ? new Date(c.UpdatedAt).toLocaleDateString('vi') : '—'}</td>
+        <td>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-outline btn-sm" onclick="openModuleBuilder(${c.Id})"><i class="fas fa-layer-group"></i> Modules</button>
+            <button class="btn btn-outline btn-sm" onclick="openCourseModal(${c.Id})"><i class="fas fa-pen"></i></button>
+            <button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:none" onclick="deleteCourse(${c.Id}, '${_esc(c.Title)}')"><i class="fas fa-trash"></i></button>
+          </div>
+        </td>
+      </tr>`).join('');
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#dc2626;padding:24px">Lỗi: ${e.message}</td></tr>`;
+  }
+}
+
+function _esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── Course modal ──
+function openCourseModal(id) {
+  const course = id ? _courses.find(c => c.Id === id) : null;
+  document.getElementById('course-modal-title').textContent = course ? 'Sửa khoá học' : 'Tạo khoá học';
+  document.getElementById('cm-id').value = course?.Id || '';
+  document.getElementById('cm-title').value = course?.Title || '';
+  document.getElementById('cm-desc').value = course?.Description || '';
+  document.getElementById('cm-status').value = course?.Status || 'draft';
+  document.getElementById('course-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('cm-title').focus(), 100);
+}
+function closeCourseModal() { document.getElementById('course-modal').style.display = 'none'; }
+
+async function saveCourse() {
+  const id = document.getElementById('cm-id').value;
+  const title = document.getElementById('cm-title').value.trim();
+  if (!title) { showToast('Nhập tên khoá học!', 'warn'); return; }
+
+  const payload = {
+    Title: title,
+    Description: document.getElementById('cm-desc').value.trim(),
+    Status: document.getElementById('cm-status').value,
+    UpdatedAt: new Date().toISOString(),
+  };
+
+  try {
+    showLoading(id ? 'Đang cập nhật...' : 'Đang tạo khoá học...');
+    const method = id ? 'PATCH' : 'POST';
+    const body = id ? [{ Id: parseInt(id), ...payload }] : payload;
+    const r = await fetch(`${PROXY}/admin/courses`, {
+      method,
+      headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    closeCourseModal();
+    showToast(id ? 'Đã cập nhật khoá học!' : 'Đã tạo khoá học!', 'success');
+    await loadCourses();
+  } catch(e) {
+    showToast('Lỗi: ' + e.message, 'error');
+  } finally { hideLoading(); }
+}
+
+async function deleteCourse(id, title) {
+  if (!confirm(`Xoá khoá học "${title}"?\nCác modules trong khoá học này cũng sẽ bị xoá.`)) return;
+  try {
+    showLoading('Đang xoá...');
+    const r = await fetch(`${PROXY}/admin/courses`, {
+      method: 'DELETE',
+      headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify([{ Id: id }]),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    showToast('Đã xoá khoá học!', 'success');
+    await loadCourses();
+  } catch(e) {
+    showToast('Lỗi: ' + e.message, 'error');
+  } finally { hideLoading(); }
+}
+
+// ── Module builder ──
+let _modules = [];
+
+async function openModuleBuilder(courseId) {
+  _activeCourseId = courseId;
+  const course = _courses.find(c => c.Id === courseId);
+  document.getElementById('module-builder-title').innerHTML = `📦 Modules — <em>${_esc(course?.Title || '')}</em>`;
+  document.getElementById('module-builder').style.display = '';
+
+  // Scroll to builder
+  document.getElementById('module-builder').scrollIntoView({ behavior: 'smooth' });
+  await loadModules(courseId);
+}
+function closeModuleBuilder() {
+  document.getElementById('module-builder').style.display = 'none';
+  _activeCourseId = null;
+}
+
+async function loadModules(courseId) {
+  const container = document.getElementById('modules-list');
+  container.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-muted)">Đang tải...</div>';
+  try {
+    const r = await fetch(`${PROXY}/admin/modules?where=(CourseId,eq,${courseId})&sort=Position&limit=100`, { headers: adminHeaders() });
+    if (!r.ok) throw new Error(await r.text());
+    const data = await r.json();
+    _modules = data.list || [];
+    renderModules();
+  } catch(e) {
+    container.innerHTML = `<div style="color:#dc2626;padding:16px">Lỗi: ${e.message}</div>`;
+  }
+}
+
+function renderModules() {
+  const container = document.getElementById('modules-list');
+  if (!_modules.length) {
+    container.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-muted)">Chưa có module nào. Bấm "+ Thêm module".</div>';
+    return;
+  }
+  container.innerHTML = _modules.map((m, i) => `
+    <div class="module-item" data-id="${m.Id}">
+      <div class="module-item-hd">
+        <span class="module-pos">${m.Position || i+1}</span>
+        <div class="module-info">
+          <strong>${_esc(m.Title)}</strong>
+          ${m.UnlockCondition ? `<div class="module-unlock"><i class="fas fa-lock"></i> ${_esc(m.UnlockCondition)}</div>` : ''}
+        </div>
+        <div style="display:flex;gap:6px;margin-left:auto">
+          <button class="btn btn-outline btn-sm" onclick="openModuleModal(${m.Id})"><i class="fas fa-pen"></i></button>
+          <button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:none" onclick="deleteModule(${m.Id}, '${_esc(m.Title)}')"><i class="fas fa-trash"></i></button>
+        </div>
+      </div>
+      <div class="module-items-hint">
+        <i class="fas fa-info-circle"></i> ItemType: article | interactive | quiz
+        — Gán bài viết vào module bằng cách sửa bài trong <strong>Soạn thảo</strong> → đặt ModuleId = ${m.Id}
+      </div>
+    </div>`).join('');
+}
+
+// ── Module modal ──
+function openModuleModal(id) {
+  const mod = id ? _modules.find(m => m.Id === id) : null;
+  document.getElementById('module-modal-title').textContent = mod ? 'Sửa module' : 'Thêm module';
+  document.getElementById('mm-id').value = mod?.Id || '';
+  document.getElementById('mm-title').value = mod?.Title || '';
+  document.getElementById('mm-position').value = mod?.Position || (_modules.length + 1);
+  document.getElementById('mm-unlock').value = mod?.UnlockCondition || '';
+  document.getElementById('module-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('mm-title').focus(), 100);
+}
+function closeModuleModal() { document.getElementById('module-modal').style.display = 'none'; }
+
+async function saveModule() {
+  if (!_activeCourseId) return;
+  const id = document.getElementById('mm-id').value;
+  const title = document.getElementById('mm-title').value.trim();
+  if (!title) { showToast('Nhập tên module!', 'warn'); return; }
+
+  const payload = {
+    CourseId: _activeCourseId,
+    Title: title,
+    Position: parseInt(document.getElementById('mm-position').value) || 1,
+    UnlockCondition: document.getElementById('mm-unlock').value.trim() || null,
+  };
+
+  try {
+    showLoading(id ? 'Đang cập nhật...' : 'Đang tạo module...');
+    const method = id ? 'PATCH' : 'POST';
+    const body = id ? [{ Id: parseInt(id), ...payload }] : payload;
+    const r = await fetch(`${PROXY}/admin/modules`, {
+      method,
+      headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    closeModuleModal();
+    showToast(id ? 'Đã cập nhật module!' : 'Đã thêm module!', 'success');
+    await loadModules(_activeCourseId);
+  } catch(e) {
+    showToast('Lỗi: ' + e.message, 'error');
+  } finally { hideLoading(); }
+}
+
+async function deleteModule(id, title) {
+  if (!confirm(`Xoá module "${title}"?`)) return;
+  try {
+    showLoading('Đang xoá...');
+    const r = await fetch(`${PROXY}/admin/modules`, {
+      method: 'DELETE',
+      headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify([{ Id: id }]),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    showToast('Đã xoá module!', 'success');
+    await loadModules(_activeCourseId);
+  } catch(e) {
+    showToast('Lỗi: ' + e.message, 'error');
+  } finally { hideLoading(); }
 }
 

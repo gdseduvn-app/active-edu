@@ -152,6 +152,9 @@
         <button class="back-btn" id="share-btn" style="margin:0;background:rgba(37,99,235,.1);color:#2563eb;border-color:#bfdbfe" onclick="shareArticle()" title="Sao chép link chia sẻ">
           <i class="fas fa-share-nodes"></i> Chia sẻ
         </button>
+        <button class="back-btn" id="ai-tutor-btn" style="margin:0;background:rgba(124,58,237,.1);color:#7c3aed;border-color:#ddd6fe;display:none" onclick="toggleSocraticPanel()" title="Hỏi AI Tutor Socratic">
+          <i class="fas fa-robot"></i> AI Tutor
+        </button>
         <span id="share-toast" style="font-size:12px;color:#16a34a;display:none"><i class="fas fa-check"></i> Đã sao chép link!</span>
       </div>
       <div class="article-wrap">
@@ -179,6 +182,20 @@
             <i class="fas fa-check-circle" style="color:#16a34a"></i>
             <span>Bạn đã hoàn thành bài học này!</span>
           </div>
+          <!-- Socratic AI panel -->
+          <div id="socratic-panel" style="display:none;margin-top:16px">
+            <div class="socratic-hd">
+              <i class="fas fa-robot" style="color:#7c3aed"></i>
+              <strong>AI Tutor Socratic</strong>
+              <span id="socratic-wc-hint" style="font-size:12px;color:#94a3b8;margin-left:auto"></span>
+              <button onclick="toggleSocraticPanel()" style="background:none;border:none;cursor:pointer;padding:4px;color:#94a3b8"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="socratic-messages" class="socratic-messages"></div>
+            <div class="socratic-input-row">
+              <textarea id="socratic-input" class="socratic-input" placeholder="Hỏi AI tutor... (đã viết đủ 50 từ suy nghĩ chưa?)" rows="2"></textarea>
+              <button id="socratic-send-btn" class="socratic-send-btn" onclick="sendSocraticMessage()"><i class="fas fa-paper-plane"></i></button>
+            </div>
+          </div>
           <!-- Reaction panel (chỉ hiện sau khi đọc xong) -->
           <div class="reaction-panel" id="reaction-panel-wrap" style="display:none">
             <div class="reaction-label"><i class="fas fa-comment-dots" style="color:#f59e0b"></i> Bài học này thế nào với bạn?</div>
@@ -190,6 +207,29 @@
             <div class="reaction-done-msg" id="reaction-done-msg"><i class="fas fa-check-circle"></i> Cảm ơn phản hồi của bạn!</div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- COURSES LIST -->
+    <div id="courses-view" style="display:none">
+      <button class="back-btn" onclick="showHome()"><i class="fas fa-arrow-left"></i> Trang chủ</button>
+      <div class="sec-header" style="margin-top:16px"><h2><i class="fas fa-book-open" style="color:var(--primary)"></i> Khoá học</h2></div>
+      <div id="courses-grid" class="cards-grid"></div>
+    </div>
+
+    <!-- COURSE DETAIL (modules view) -->
+    <div id="course-detail-view" style="display:none">
+      <button class="back-btn" onclick="showCoursesView()"><i class="fas fa-arrow-left"></i> Tất cả khoá học</button>
+      <div class="article-wrap" style="margin-top:16px">
+        <div class="article-hd">
+          <div>
+            <div class="article-hd-tags" id="course-tags"></div>
+            <h1 id="course-detail-title">Tên khoá học</h1>
+            <div class="article-hd-meta" id="course-detail-desc"></div>
+          </div>
+          <i class="fas fa-book-open article-hd-icon"></i>
+        </div>
+        <div id="modules-container" style="padding:24px 0"></div>
       </div>
     </div>
 

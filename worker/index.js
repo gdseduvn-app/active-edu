@@ -36,6 +36,8 @@ const PUBLIC_ROUTES = {
   '/api/articles':    env => `/api/v2/tables/${env.NOCO_ARTICLE}/records`,
   '/api/folders':     env => `/api/v2/tables/${env.NOCO_FOLDERS}/records`,
   '/api/permissions': env => `/api/v2/tables/${env.NOCO_PERMS}/records`,
+  '/api/courses':     env => `/api/v2/tables/${env.NOCO_COURSES}/records`,
+  '/api/modules':     env => `/api/v2/tables/${env.NOCO_MODULES}/records`,
 };
 
 /** Admin routes that proxy directly to NocoDB (after auth check) */
@@ -46,6 +48,8 @@ const ADMIN_PROXY_ROUTES = {
   '/admin/progress':        env => `/api/v2/tables/${env.NOCO_PROGRESS}/records`,
   '/admin/quiz':            env => `/api/v2/tables/${env.NOCO_QUIZ}/records`,
   '/admin/analytics':       env => `/api/v2/tables/${env.NOCO_ANALYTICS}/records`,
+  '/admin/courses':         env => `/api/v2/tables/${env.NOCO_COURSES}/records`,
+  '/admin/modules':         env => `/api/v2/tables/${env.NOCO_MODULES}/records`,
   '/admin/fields/articles': env => `/api/v2/tables/${env.NOCO_ARTICLE}/fields`,
   '/admin/fields/users':    env => `/api/v2/tables/${env.NOCO_USERS}/fields`,
 };
@@ -55,6 +59,8 @@ const CACHE_TTL = {
   '/api/articles':    120,
   '/api/folders':     300,
   '/api/permissions': 60,
+  '/api/courses':     120,
+  '/api/modules':     60,
 };
 
 // ── Crypto helpers ────────────────────────────────────────────
@@ -681,6 +687,60 @@ export default {
       }).catch(() => {});
 
       return json({ score, correct, total: questions.length, results });
+    }
+
+    // ── Student: Socratic AI tutor (Claude Haiku) ────────────
+    if (path === '/api/ai/socratic' && request.method === 'POST') {
+      const authHeader = request.headers.get('Authorization') || '';
+      const secret = env.TOKEN_SECRET || 'activeedu_secret_2024';
+      const session = await verifyToken(authHeader.replace('Bearer ', ''), secret);
+      if (!session) return json({ error: 'Đăng nhập để dùng AI tutor' }, 401);
+
+      if (!env.ANTHROPIC_API_KEY) return json({ error: 'AI chưa được cấu hình' }, 503);
+
+      let body;
+      try { body = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
+      const { message, articleTitle, wordCount } = body;
+      if (!message || typeof message !== 'string' || message.trim().length === 0)
+        return json({ error: 'Thiếu nội dung câu hỏi' }, 400);
+
+      // Zero-draft validator: học sinh phải viết ít nhất 50 từ trước
+      if (!wordCount || wordCount < 50)
+        return json({ error: 'Hãy viết ít nhất 50 từ suy nghĩ của mình trước khi hỏi AI' }, 400);
+
+      const systemPrompt = `Bạn là gia sư Socratic cho bài học: "${(articleTitle || 'bài học').slice(0, 100)}".
+KHÔNG bao giờ cho đáp án trực tiếp. Chỉ đặt câu hỏi dẫn dắt để học sinh tự tìm ra.
+Nếu học sinh hỏi đáp án, hỏi ngược lại: "Em nghĩ bước tiếp theo là gì?"
+Trả lời bằng tiếng Việt, ngắn gọn, tối đa 3 câu.`;
+
+      try {
+        const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'x-api-key': env.ANTHROPIC_API_KEY,
+            'anthropic-version': '2023-06-01',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 300,
+            system: systemPrompt,
+            messages: [{ role: 'user', content: message.slice(0, 1000) }],
+          }),
+        });
+
+        if (!claudeRes.ok) {
+          const errText = await claudeRes.text();
+          console.error('Claude API error:', errText);
+          return json({ error: 'AI tạm thời không khả dụng' }, 502);
+        }
+
+        const claudeData = await claudeRes.json();
+        const reply = claudeData.content?.[0]?.text || '';
+        return json({ reply });
+      } catch (e) {
+        return json({ error: 'Lỗi kết nối AI' }, 500);
+      }
     }
 
     // ── Admin: Google Drive upload ────────────────────────────
