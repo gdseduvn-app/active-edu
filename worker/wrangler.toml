@@ -22,8 +22,11 @@ compatibility_flags = ["nodejs_compat"]
 #   wrangler secret put NOCO_PROGRESS
 #   wrangler secret put NOCO_QUIZ
 #   wrangler secret put NOCO_ANALYTICS
-#   wrangler secret put NOCO_COURSES     (Canvas LMS: Courses table ID)
-#   wrangler secret put NOCO_MODULES     (Canvas LMS: Modules table ID)
+#   wrangler secret put NOCO_COURSES       (Canvas LMS: Courses table ID)
+#   wrangler secret put NOCO_MODULES       (Canvas LMS: Modules table ID)
+#   wrangler secret put NOCO_QBANK         (Question Bank table ID)
+#   wrangler secret put NOCO_EXAMS         (Exams table ID)
+#   wrangler secret put NOCO_EXAM_SECTIONS (ExamSections table ID)
 #   wrangler secret put ADMIN_PASSWORD
 #   wrangler secret put PASS_SALT
 #   wrangler secret put TOKEN_SECRET

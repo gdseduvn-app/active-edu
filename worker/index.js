@@ -50,6 +50,9 @@ const ADMIN_PROXY_ROUTES = {
   '/admin/analytics':       env => `/api/v2/tables/${env.NOCO_ANALYTICS}/records`,
   '/admin/courses':         env => `/api/v2/tables/${env.NOCO_COURSES}/records`,
   '/admin/modules':         env => `/api/v2/tables/${env.NOCO_MODULES}/records`,
+  '/admin/question-banks':  env => `/api/v2/tables/${env.NOCO_QBANK}/records`,
+  '/admin/exams':           env => `/api/v2/tables/${env.NOCO_EXAMS}/records`,
+  '/admin/exam-sections':   env => `/api/v2/tables/${env.NOCO_EXAM_SECTIONS}/records`,
   '/admin/fields/articles': env => `/api/v2/tables/${env.NOCO_ARTICLE}/fields`,
   '/admin/fields/users':    env => `/api/v2/tables/${env.NOCO_USERS}/fields`,
 };
@@ -687,6 +690,206 @@ export default {
       }).catch(() => {});
 
       return json({ score, correct, total: questions.length, results });
+    }
+
+    // ── Admin: toggle module item Published state ─────────────
+    if (path.startsWith('/admin/module-item/') && request.method === 'PATCH') {
+      if (!await verifyAdminAuth(request, env))
+        return json({ error: 'Unauthorized' }, 401);
+      const articleId = path.slice('/admin/module-item/'.length);
+      if (!articleId || !env.NOCO_ARTICLE) return json({ error: 'Thiếu articleId' }, 400);
+      const body = await request.json().catch(() => ({}));
+      const r = await nocoFetch(env, `/api/v2/tables/${env.NOCO_ARTICLE}/records`, 'PATCH',
+        [{ Id: parseInt(articleId), Published: body.published }]);
+      return new Response(await r.text(), { status: r.status, headers: { ...cors, 'Content-Type': 'application/json' } });
+    }
+
+    // ── Student: GET question bank list (public, no questions exposed) ──
+    if (path === '/api/question-banks' && request.method === 'GET') {
+      if (!env.NOCO_QBANK) return json({ list: [] });
+      const r = await nocoFetch(env,
+        `/api/v2/tables/${env.NOCO_QBANK}/records?fields=Id,Title,GroupName,Description,QuestionCount&limit=200${url.search ? '&' + url.search.slice(1) : ''}`
+      );
+      const data = await r.json();
+      return json(data);
+    }
+
+    // ── Student: GET exam list (public metadata, no questions) ──
+    if (path === '/api/exams' && request.method === 'GET') {
+      if (!env.NOCO_EXAMS) return json({ list: [] });
+      const r = await nocoFetch(env,
+        `/api/v2/tables/${env.NOCO_EXAMS}/records?where=(Status,eq,published)&fields=Id,Title,Description,ModuleId,TimeLimit,PassScore,TotalPoints&limit=200${url.search ? '&' + url.search.slice(1) : ''}`
+      );
+      const data = await r.json();
+      return json(data);
+    }
+
+    // ── Student: GET single exam → sample questions from banks ──
+    if (path.startsWith('/api/exam/') && !path.includes('/submit') && request.method === 'GET') {
+      const examId = path.slice('/api/exam/'.length);
+      if (!examId || !env.NOCO_EXAMS || !env.NOCO_EXAM_SECTIONS || !env.NOCO_QBANK)
+        return json({ error: 'Exam chưa được cấu hình' }, 503);
+
+      // Lấy thông tin đề thi
+      const examR = await nocoFetch(env, `/api/v2/tables/${env.NOCO_EXAMS}/records/${examId}`);
+      if (!examR.ok) return json({ error: 'Không tìm thấy đề thi' }, 404);
+      const exam = await examR.json();
+      if (exam.Status !== 'published') return json({ error: 'Đề thi chưa công bố' }, 403);
+
+      // Lấy các sections
+      const secR = await nocoFetch(env,
+        `/api/v2/tables/${env.NOCO_EXAM_SECTIONS}/records?where=(ExamId,eq,${examId})&sort=Position&limit=50`
+      );
+      const secData = await secR.json();
+      const sections = secData.list || [];
+      if (!sections.length) return json({ error: 'Đề thi chưa có phần nào' }, 400);
+
+      // Với mỗi section, lấy ngân hàng câu hỏi và sample ngẫu nhiên
+      const resultSections = [];
+      let totalPoints = 0;
+
+      for (const sec of sections) {
+        const bankR = await nocoFetch(env, `/api/v2/tables/${env.NOCO_QBANK}/records/${sec.BankId}`);
+        if (!bankR.ok) continue;
+        const bank = await bankR.json();
+        let allQuestions = [];
+        try { allQuestions = JSON.parse(bank.Questions || '[]'); } catch { continue; }
+
+        // Fisher-Yates shuffle & take N
+        const count = Math.min(sec.QuestionCount || 1, allQuestions.length);
+        const shuffled = [...allQuestions];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        const sampled = shuffled.slice(0, count);
+        totalPoints += count * (sec.PointsPerQuestion || 1);
+
+        // Strip correct answers trước khi trả về client
+        const sanitized = sampled.map((q, qi) => ({
+          id: `${sec.Id}_${qi}`,
+          sectionId: sec.Id,
+          bankId: sec.BankId,
+          origIdx: allQuestions.indexOf(q),
+          question: q.question,
+          type: q.type || 'mcq',
+          options: (q.options || []).map((o, oi) => ({
+            id: oi,
+            text: typeof o === 'string' ? o : o.text,
+          })),
+          points: sec.PointsPerQuestion || 1,
+        }));
+
+        resultSections.push({
+          sectionId: sec.Id,
+          bankTitle: bank.Title || sec.BankTitle || '',
+          pointsPerQuestion: sec.PointsPerQuestion || 1,
+          questions: sanitized,
+        });
+      }
+
+      return json({
+        examId: exam.Id,
+        title: exam.Title,
+        description: exam.Description || '',
+        timeLimit: exam.TimeLimit || 0,
+        passScore: exam.PassScore || 60,
+        totalPoints,
+        sections: resultSections,
+      });
+    }
+
+    // ── Student: POST /api/exam/{id}/submit → grade & save ────
+    if (path.startsWith('/api/exam/') && path.endsWith('/submit') && request.method === 'POST') {
+      const authHeader = request.headers.get('Authorization') || '';
+      const secret = env.TOKEN_SECRET || 'activeedu_secret_2024';
+      const session = await verifyToken(authHeader.replace('Bearer ', ''), secret);
+      if (!session) return json({ error: 'Đăng nhập để nộp bài' }, 401);
+
+      const examId = path.slice('/api/exam/'.length).replace('/submit', '');
+      const body = await request.json().catch(() => ({}));
+      // answers: [{ questionId: "sectionId_qi", sectionId, bankId, origIdx, optionId }]
+      const { answers, totalPoints } = body;
+      if (!Array.isArray(answers)) return json({ error: 'Dữ liệu không hợp lệ' }, 400);
+
+      if (!env.NOCO_QBANK || !env.NOCO_EXAM_SECTIONS)
+        return json({ error: 'Server chưa cấu hình' }, 503);
+
+      // Group answers by sectionId
+      const bySection = {};
+      for (const ans of answers) {
+        if (!bySection[ans.sectionId]) bySection[ans.sectionId] = [];
+        bySection[ans.sectionId].push(ans);
+      }
+
+      let earnedPoints = 0;
+      const sectionResults = [];
+
+      for (const [sectionId, sectionAnswers] of Object.entries(bySection)) {
+        // Lấy section để biết bankId, pointsPerQuestion
+        const secR = await nocoFetch(env,
+          `/api/v2/tables/${env.NOCO_EXAM_SECTIONS}/records?where=(Id,eq,${sectionId})&limit=1`
+        );
+        const secData = await secR.json();
+        const sec = (secData.list || [])[0];
+        if (!sec) continue;
+
+        const bankR = await nocoFetch(env, `/api/v2/tables/${env.NOCO_QBANK}/records/${sec.BankId}`);
+        if (!bankR.ok) continue;
+        const bank = await bankR.json();
+        let allQ = [];
+        try { allQ = JSON.parse(bank.Questions || '[]'); } catch { continue; }
+
+        let sectionCorrect = 0;
+        const qResults = [];
+        for (const ans of sectionAnswers) {
+          const q = allQ[ans.origIdx];
+          if (!q) continue;
+          const correctIdx = (q.options || []).findIndex(o =>
+            typeof o === 'object' ? o.correct : false
+          );
+          const isCorrect = ans.optionId === correctIdx;
+          if (isCorrect) {
+            sectionCorrect++;
+            earnedPoints += sec.PointsPerQuestion || 1;
+          }
+          qResults.push({
+            questionId: ans.questionId,
+            correctOptionId: correctIdx,
+            isCorrect,
+            explanation: q.explanation || null,
+          });
+        }
+        sectionResults.push({ sectionId, correct: sectionCorrect, results: qResults });
+      }
+
+      const possible = totalPoints || 100;
+      const scorePercent = Math.round((earnedPoints / possible) * 100);
+
+      // Lưu vào Progress (fire-and-forget)
+      if (env.NOCO_PROGRESS) {
+        (async () => {
+          const key = `exam_${examId}`;
+          const ex = await nocoFetch(env,
+            `/api/v2/tables/${env.NOCO_PROGRESS}/records?where=(UserId,eq,${session.userId})~and(ArticleId,eq,${key})&limit=1&fields=Id,Score`
+          );
+          const ed = await ex.json();
+          const row = (ed.list || [])[0];
+          if (row) {
+            if (scorePercent > (row.Score || 0))
+              await nocoFetch(env, `/api/v2/tables/${env.NOCO_PROGRESS}/records`, 'PATCH',
+                [{ Id: row.Id, Score: scorePercent, Completed: scorePercent >= 60 }]);
+          } else {
+            await nocoFetch(env, `/api/v2/tables/${env.NOCO_PROGRESS}/records`, 'POST', {
+              UserId: session.userId, ArticleId: key,
+              Score: scorePercent, Completed: scorePercent >= 60,
+              CompletedAt: new Date().toISOString(),
+            });
+          }
+        })().catch(() => {});
+      }
+
+      return json({ score: scorePercent, earnedPoints, totalPoints: possible, sectionResults });
     }
 
     // ── Student: Socratic AI tutor (Claude Haiku) ────────────

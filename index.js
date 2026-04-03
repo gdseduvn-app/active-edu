@@ -1104,6 +1104,8 @@ function _hideAllViews() {
   if (cv) cv.style.display = 'none';
   const cdv = document.getElementById('course-detail-view');
   if (cdv) cdv.style.display = 'none';
+  const ev = document.getElementById('exam-view');
+  if (ev) ev.style.display = 'none';
 }
 
 function showHome() {
@@ -1796,15 +1798,22 @@ async function showCourseDetail(courseId) {
       return;
     }
 
-    // Load articles for this course (có ModuleId)
-    const artResp = await fetch(`${proxyBase}/api/articles?where=(ModuleId,nnull,true)&fields=Id,Title,Access,ItemType,ModuleId,Position&limit=500`).catch(() => null);
+    // Load articles for this course (có ModuleId) + exams cho course này
+    const [artResp, examResp] = await Promise.all([
+      fetch(`${proxyBase}/api/articles?where=(ModuleId,nnull,true)&fields=Id,Title,Access,ItemType,ModuleId,Position,Published&limit=500`).catch(() => null),
+      fetch(`${proxyBase}/api/exams?where=(ModuleId,nnull,true)&fields=Id,Title,ModuleId,TimeLimit,PassScore,TotalPoints,Status`).catch(() => null),
+    ]);
     const artData = artResp?.ok ? await artResp.json() : { list: [] };
-    const allItems = artData.list || [];
+    const examData = examResp?.ok ? await examResp.json() : { list: [] };
+    // Chỉ hiện items đã được publish (Published !== false)
+    const allItems = (artData.list || []).filter(a => a.Published !== false);
+    const allExams = (examData.list || []).filter(e => e.Status === 'published');
 
     container.innerHTML = '';
     modules.forEach((mod, idx) => {
       const items = allItems.filter(a => String(a.ModuleId) === String(mod.Id))
         .sort((a, b) => (a.Position || 0) - (b.Position || 0));
+      const exams = allExams.filter(e => String(e.ModuleId) === String(mod.Id));
 
       const block = document.createElement('div');
       block.className = 'module-block';
@@ -1816,7 +1825,7 @@ async function showCourseDetail(courseId) {
           ${mod.UnlockCondition ? '<span style="margin-left:auto;font-size:11px;color:#64748b"><i class="fas fa-lock"></i> Có điều kiện</span>' : ''}
         </div>
         <div class="module-block-items">
-          ${items.length ? items.map(item => {
+          ${items.map(item => {
             const type = item.ItemType || 'article';
             const isPrivate = item.Access === 'private';
             return `<div class="module-item-row" onclick="_openModuleItem(${item.Id})">
@@ -1825,7 +1834,15 @@ async function showCourseDetail(courseId) {
               ${isPrivate ? '<i class="fas fa-lock" style="color:#94a3b8;font-size:11px"></i>' : ''}
               <i class="fas fa-chevron-right" style="color:#94a3b8;font-size:11px"></i>
             </div>`;
-          }).join('') : '<div style="padding:12px 18px;font-size:13px;color:#94a3b8">Module này chưa có bài học.</div>'}
+          }).join('')}
+          ${exams.map(exam => `
+            <div class="module-item-row" onclick="openExamView(${exam.Id})">
+              <span class="module-item-type type-quiz">📝 Đề thi</span>
+              <span style="flex:1;font-size:13px">${esc(exam.Title)}</span>
+              ${exam.TimeLimit ? `<span style="font-size:11px;color:#64748b"><i class="fas fa-clock"></i> ${exam.TimeLimit} phút</span>` : ''}
+              <i class="fas fa-chevron-right" style="color:#94a3b8;font-size:11px"></i>
+            </div>`).join('')}
+          ${!items.length && !exams.length ? '<div style="padding:12px 18px;font-size:13px;color:#94a3b8">Module này chưa có bài học.</div>' : ''}
         </div>`;
       container.appendChild(block);
     });
@@ -1949,3 +1966,234 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
+
+// ═══════════════════════════════════════════════════
+// EXAM VIEW (học sinh làm bài)
+// ═══════════════════════════════════════════════════
+
+let _examTimer = null;
+let _examData = null;
+let _examAnswers = {}; // { questionId: { sectionId, bankId, origIdx, optionId } }
+let _examStartedFrom = 'home'; // để quay lại đúng chỗ
+
+async function openExamView(examId) {
+  if (!isLoggedIn()) { showLoginModal(false); return; }
+
+  _examStartedFrom = document.getElementById('course-detail-view').style.display !== 'none' ? 'course' : 'home';
+  _hideAllViews();
+  const examBody = document.getElementById('exam-body');
+  document.getElementById('exam-view').style.display = 'block';
+  document.getElementById('content-area').classList.remove('article-mode');
+  examBody.innerHTML = '<div style="text-align:center;padding:60px;color:#64748b"><i class="fas fa-spinner fa-spin fa-2x"></i><div style="margin-top:12px">Đang tải đề thi...</div></div>';
+  document.getElementById('exam-tags').innerHTML = '';
+  document.getElementById('exam-timer-display').style.display = 'none';
+  history.pushState(null, '', `/exam/${examId}`);
+
+  const proxyBase = (PROXY_URL || 'https://api.gds.edu.vn').replace(/\/$/, '');
+  try {
+    const r = await fetch(`${proxyBase}/api/exam/${examId}`, {
+      headers: { 'Authorization': `Bearer ${getUser()?.token || ''}` }
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      examBody.innerHTML = `<div style="text-align:center;padding:60px;color:#dc2626"><i class="fas fa-exclamation-triangle fa-2x"></i><div style="margin-top:12px">${err.error || 'Không tải được đề thi'}</div></div>`;
+      return;
+    }
+    _examData = await r.json();
+    _examAnswers = {};
+    document.getElementById('exam-view-title').textContent = _examData.title;
+    document.getElementById('exam-view-meta').innerHTML =
+      `<i class="fas fa-star" style="color:#f59e0b"></i> ${_examData.totalPoints} điểm &nbsp;·&nbsp; ` +
+      `<i class="fas fa-check-circle" style="color:#16a34a"></i> Đạt ${_examData.passScore}% &nbsp;·&nbsp; ` +
+      `<i class="fas fa-list-ol"></i> ${_examData.sections.reduce((s,sec) => s + sec.questions.length, 0)} câu`;
+    document.getElementById('exam-tags').innerHTML = `<span class="article-hd-tag" style="background:#fef3c7;border-color:#fde68a;color:#92400e">📝 Đề thi</span>`;
+
+    _renderExamQuestions();
+
+    // Start timer nếu có TimeLimit
+    if (_examData.timeLimit > 0) {
+      let remaining = _examData.timeLimit * 60;
+      document.getElementById('exam-timer-display').style.display = '';
+      _updateTimerDisplay(remaining);
+      _examTimer = setInterval(() => {
+        remaining--;
+        _updateTimerDisplay(remaining);
+        if (remaining <= 0) {
+          clearInterval(_examTimer);
+          showToast('⏰ Hết thời gian! Đang nộp bài...', 'warn');
+          _submitExam(examId, true);
+        }
+      }, 1000);
+    }
+  } catch(e) {
+    examBody.innerHTML = `<div style="text-align:center;padding:60px;color:#dc2626">Lỗi: ${e.message}</div>`;
+  }
+}
+
+function _updateTimerDisplay(seconds) {
+  const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+  const s = (seconds % 60).toString().padStart(2, '0');
+  const el = document.getElementById('exam-timer-text');
+  if (el) el.textContent = `${m}:${s}`;
+  // Đỏ khi còn < 5 phút
+  const wrap = document.getElementById('exam-timer-display');
+  if (wrap) wrap.style.background = seconds < 300 ? '#fef2f2' : '#f0fdf4';
+}
+
+function _renderExamQuestions() {
+  const body = document.getElementById('exam-body');
+  if (!_examData?.sections?.length) {
+    body.innerHTML = '<div style="padding:40px;text-align:center;color:#64748b">Đề thi không có câu hỏi.</div>';
+    return;
+  }
+
+  let qCounter = 0;
+  const examId = _examData.examId;
+  let html = '';
+
+  if (_examData.description) {
+    html += `<div style="background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:20px;font-size:14px;color:var(--text)">${esc(_examData.description)}</div>`;
+  }
+
+  _examData.sections.forEach(sec => {
+    html += `<div class="exam-section-block">
+      <div class="exam-sec-hd"><i class="fas fa-layer-group"></i> ${esc(sec.bankTitle)} <span class="exam-sec-pts">${sec.pointsPerQuestion} điểm/câu</span></div>`;
+
+    sec.questions.forEach(q => {
+      qCounter++;
+      html += `<div class="exam-q-card" id="eq-${q.id}">
+        <div class="exam-q-num">Câu ${qCounter} <span style="font-size:11px;color:#94a3b8">(${q.points} điểm)</span></div>
+        <div class="exam-q-text">${esc(q.question)}</div>
+        <div class="exam-q-options">
+          ${(q.options || []).map(opt => `
+            <label class="exam-option" id="eo-${q.id}-${opt.id}">
+              <input type="radio" name="eq-${q.id}" value="${opt.id}"
+                data-qid="${q.id}" data-sid="${sec.sectionId}" data-bid="${sec.bankId || ''}" data-origidx="${q.origIdx}"
+                onchange="_recordAnswer('${q.id}', ${opt.id}, '${sec.sectionId}', ${q.origIdx})">
+              <span>${esc(opt.text)}</span>
+            </label>`).join('')}
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+  });
+
+  html += `<div style="text-align:center;margin-top:32px;padding-bottom:24px">
+    <button class="lm-btn" style="max-width:260px;margin:0 auto;background:linear-gradient(135deg,#2563eb,#1d4ed8)" onclick="_submitExam(${examId})">
+      <i class="fas fa-paper-plane"></i> Nộp bài
+    </button>
+  </div>`;
+
+  body.innerHTML = html;
+}
+
+function _recordAnswer(questionId, optionId, sectionId, origIdx) {
+  _examAnswers[questionId] = { questionId, optionId, sectionId: parseInt(sectionId), origIdx };
+  // Highlight selected option
+  document.querySelectorAll(`[name="eq-${questionId}"]`).forEach(inp => {
+    inp.closest('.exam-option')?.classList.toggle('selected', inp.value == optionId);
+  });
+}
+
+async function _submitExam(examId, autoSubmit = false) {
+  if (!autoSubmit) {
+    const totalQ = _examData?.sections?.reduce((s, sec) => s + sec.questions.length, 0) || 0;
+    const answered = Object.keys(_examAnswers).length;
+    if (answered < totalQ) {
+      if (!confirm(`Bạn còn ${totalQ - answered} câu chưa trả lời. Nộp bài ngay?`)) return;
+    }
+  }
+
+  if (_examTimer) { clearInterval(_examTimer); _examTimer = null; }
+
+  const answers = Object.values(_examAnswers);
+  const proxyBase = (PROXY_URL || 'https://api.gds.edu.vn').replace(/\/$/, '');
+  try {
+    const r = await fetch(`${proxyBase}/api/exam/${examId}/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getUser()?.token || ''}` },
+      body: JSON.stringify({ answers, totalPoints: _examData?.totalPoints || 100 }),
+    });
+    const result = await r.json();
+    if (!r.ok) { showToast(result.error || 'Lỗi nộp bài', 'error'); return; }
+    _renderExamResult(result);
+  } catch(e) {
+    showToast('Lỗi kết nối khi nộp bài', 'error');
+  }
+}
+
+function _renderExamResult(result) {
+  const body = document.getElementById('exam-body');
+  const passed = result.score >= (_examData?.passScore || 60);
+  const icon = passed ? '🎉' : '📚';
+  const color = passed ? '#16a34a' : '#dc2626';
+  const bg = passed ? '#f0fdf4' : '#fef2f2';
+
+  // Gom kết quả theo questionId
+  const resultMap = {};
+  (result.sectionResults || []).forEach(sec => {
+    (sec.results || []).forEach(r => { resultMap[r.questionId] = r; });
+  });
+
+  let html = `
+    <div style="text-align:center;padding:32px;background:${bg};border-radius:16px;margin-bottom:28px">
+      <div style="font-size:48px;margin-bottom:8px">${icon}</div>
+      <div style="font-size:36px;font-weight:800;color:${color}">${result.score}%</div>
+      <div style="font-size:14px;color:var(--text-muted);margin-top:4px">${result.earnedPoints}/${result.totalPoints} điểm</div>
+      <div style="margin-top:12px;font-size:15px;font-weight:600;color:${color}">${passed ? '✅ Đạt yêu cầu!' : '❌ Chưa đạt — Hãy ôn tập thêm!'}</div>
+    </div>
+    <h3 style="margin-bottom:16px">📋 Xem lại đáp án</h3>`;
+
+  let qCounter = 0;
+  _examData?.sections?.forEach(sec => {
+    sec.questions.forEach(q => {
+      qCounter++;
+      const res = resultMap[q.id];
+      const isCorrect = res?.isCorrect;
+      html += `<div class="exam-q-card" style="border-color:${isCorrect ? '#86efac' : '#fca5a5'};background:${isCorrect ? '#f0fdf4' : '#fff7f7'}">
+        <div class="exam-q-num" style="color:${isCorrect ? '#16a34a' : '#dc2626'}">
+          ${isCorrect ? '✅' : '❌'} Câu ${qCounter}
+        </div>
+        <div class="exam-q-text">${esc(q.question)}</div>
+        <div class="exam-q-options">
+          ${(q.options || []).map(opt => {
+            const isSelected = _examAnswers[q.id]?.optionId === opt.id;
+            const isAnswerCorrect = res?.correctOptionId === opt.id;
+            let cls = 'exam-option';
+            let style = '';
+            if (isAnswerCorrect) { cls += ' correct'; style = 'background:#dcfce7;border-color:#86efac'; }
+            else if (isSelected && !isAnswerCorrect) { cls += ' wrong'; style = 'background:#fee2e2;border-color:#fca5a5'; }
+            return `<label class="${cls}" style="${style}">
+              <span>${isAnswerCorrect ? '✓' : (isSelected ? '✗' : '○')}</span>
+              <span>${esc(opt.text)}</span>
+            </label>`;
+          }).join('')}
+        </div>
+        ${res?.explanation ? `<div class="exam-explanation"><i class="fas fa-lightbulb" style="color:#f59e0b"></i> ${esc(res.explanation)}</div>` : ''}
+      </div>`;
+    });
+  });
+
+  html += `<div style="text-align:center;margin-top:28px">
+    <button class="back-btn" onclick="closeExamView()" style="margin:0 auto;display:inline-flex">
+      <i class="fas fa-arrow-left"></i> Quay lại khoá học
+    </button>
+  </div>`;
+
+  body.innerHTML = html;
+  document.getElementById('exam-timer-display').style.display = 'none';
+  window.scrollTo(0, 0);
+}
+
+function closeExamView() {
+  if (_examTimer) { clearInterval(_examTimer); _examTimer = null; }
+  _examData = null;
+  _examAnswers = {};
+  document.getElementById('exam-view').style.display = 'none';
+  // Quay lại đúng chỗ
+  if (history.state?.courseId || window.location.pathname.startsWith('/course/')) {
+    history.back();
+  } else {
+    showHome();
+  }
+}

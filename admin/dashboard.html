@@ -51,6 +51,8 @@
   <div class="sb-item" onclick="showPanel('editor',this)"><i class="fas fa-pen-fancy"></i> Soạn thảo</div>
   <div class="sb-item" onclick="showPanel('users',this)"><i class="fas fa-users"></i> Người dùng</div>
   <div class="sb-item" onclick="showPanel('courses',this)"><i class="fas fa-book-open"></i> Khoá học</div>
+  <div class="sb-item" onclick="showPanel('qbank',this)"><i class="fas fa-database"></i> Ngân hàng đề</div>
+  <div class="sb-item" onclick="showPanel('exams',this)"><i class="fas fa-file-pen"></i> Đề bài tập</div>
   <div class="sb-item" onclick="showPanel('analytics',this)"><i class="fas fa-graduation-cap"></i> Học tập</div>
   <div class="sb-item" onclick="showPanel('settings',this)"><i class="fas fa-gear"></i> Cài đặt</div>
 
@@ -168,6 +170,133 @@
         <div class="modal-ft">
           <button class="btn btn-outline" onclick="closeModuleModal()">Huỷ</button>
           <button class="btn btn-primary" onclick="saveModule()"><i class="fas fa-floppy-disk"></i> Lưu</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ QUESTION BANK ═════════════════════════ -->
+    <div class="panel" id="panel-qbank">
+      <div class="card">
+        <div class="sec-hd">
+          <h3>🗃️ Ngân hàng câu hỏi</h3>
+          <div class="actions">
+            <button class="btn btn-primary btn-sm" onclick="openQBankModal()"><i class="fas fa-plus"></i> Tạo ngân hàng</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Tên ngân hàng</th><th>Nhóm / Tag</th><th>Số câu</th><th>Thao tác</th></tr></thead>
+            <tbody id="qbank-table"><tr><td colspan="4" style="text-align:center;padding:32px;color:var(--text-muted)">Đang tải...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Question editor (shown when bank selected) -->
+      <div id="qbank-editor" class="card" style="display:none">
+        <div class="sec-hd">
+          <h3 id="qbank-editor-title">✏️ Câu hỏi</h3>
+          <div class="actions">
+            <button class="btn btn-outline btn-sm" onclick="closeQBankEditor()"><i class="fas fa-arrow-left"></i> Quay lại</button>
+            <button class="btn btn-primary btn-sm" onclick="addQBankQuestion()"><i class="fas fa-plus"></i> Thêm câu</button>
+            <button class="btn btn-success btn-sm" onclick="saveQBankQuestions()"><i class="fas fa-floppy-disk"></i> Lưu tất cả</button>
+          </div>
+        </div>
+        <div id="qbank-questions-list" class="qbank-questions"></div>
+      </div>
+    </div>
+
+    <!-- ── QBank modal ──────────────────────────── -->
+    <div id="qbank-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeQBankModal()">
+      <div class="modal-box" style="max-width:480px">
+        <div class="modal-hd"><h3 id="qbank-modal-title">Tạo ngân hàng</h3><button class="modal-close" onclick="closeQBankModal()">✕</button></div>
+        <div class="modal-body">
+          <div class="form-group"><label>Tên ngân hàng *</label><input id="qbm-title" class="inp" placeholder="VD: Đại số - Chương 1"></div>
+          <div class="form-group"><label>Nhóm / Tag</label><input id="qbm-group" class="inp" placeholder="VD: dai-so, hinh-hoc, ..."></div>
+          <div class="form-group"><label>Mô tả</label><textarea id="qbm-desc" class="inp" rows="2" placeholder="Mô tả ngắn..."></textarea></div>
+          <input type="hidden" id="qbm-id">
+        </div>
+        <div class="modal-ft">
+          <button class="btn btn-outline" onclick="closeQBankModal()">Huỷ</button>
+          <button class="btn btn-primary" onclick="saveQBank()"><i class="fas fa-floppy-disk"></i> Lưu</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ EXAMS ══════════════════════════════════ -->
+    <div class="panel" id="panel-exams">
+      <div class="card">
+        <div class="sec-hd">
+          <h3>📝 Đề bài tập</h3>
+          <div class="actions">
+            <button class="btn btn-primary btn-sm" onclick="openExamModal()"><i class="fas fa-plus"></i> Tạo đề</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Tên đề</th><th>Trạng thái</th><th>Tổng điểm</th><th>Thời gian</th><th>Thao tác</th></tr></thead>
+            <tbody id="exams-table"><tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-muted)">Đang tải...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Exam section builder -->
+      <div id="exam-section-builder" class="card" style="display:none">
+        <div class="sec-hd">
+          <h3 id="exam-builder-title">🔧 Cấu trúc đề</h3>
+          <div class="actions">
+            <button class="btn btn-outline btn-sm" onclick="closeExamBuilder()"><i class="fas fa-arrow-left"></i> Quay lại</button>
+            <button class="btn btn-primary btn-sm" onclick="openExamSectionModal()"><i class="fas fa-plus"></i> Thêm phần</button>
+          </div>
+        </div>
+        <div id="exam-summary-bar" class="exam-summary-bar"></div>
+        <div id="exam-sections-list" class="exam-sections"></div>
+      </div>
+    </div>
+
+    <!-- ── Exam modal ───────────────────────────── -->
+    <div id="exam-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeExamModal()">
+      <div class="modal-box" style="max-width:520px">
+        <div class="modal-hd"><h3 id="exam-modal-title">Tạo đề bài tập</h3><button class="modal-close" onclick="closeExamModal()">✕</button></div>
+        <div class="modal-body">
+          <div class="form-group"><label>Tên đề *</label><input id="em-title" class="inp" placeholder="VD: Bài kiểm tra Chương 1"></div>
+          <div class="form-group"><label>Mô tả / Hướng dẫn</label><textarea id="em-desc" class="inp" rows="3" placeholder="Hướng dẫn làm bài..."></textarea></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group"><label>Thời gian (phút, 0=không giới hạn)</label><input id="em-time" class="inp" type="number" min="0" placeholder="45"></div>
+            <div class="form-group"><label>Điểm đạt (%)</label><input id="em-pass" class="inp" type="number" min="0" max="100" placeholder="60"></div>
+          </div>
+          <div class="form-group"><label>Trạng thái</label>
+            <select id="em-status" class="inp">
+              <option value="draft">📝 Draft</option>
+              <option value="published">✅ Công bố</option>
+            </select>
+          </div>
+          <input type="hidden" id="em-id">
+        </div>
+        <div class="modal-ft">
+          <button class="btn btn-outline" onclick="closeExamModal()">Huỷ</button>
+          <button class="btn btn-primary" onclick="saveExam()"><i class="fas fa-floppy-disk"></i> Lưu</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Exam section modal ───────────────────── -->
+    <div id="exam-section-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeExamSectionModal()">
+      <div class="modal-box" style="max-width:480px">
+        <div class="modal-hd"><h3 id="esm-title">Thêm phần thi</h3><button class="modal-close" onclick="closeExamSectionModal()">✕</button></div>
+        <div class="modal-body">
+          <div class="form-group"><label>Ngân hàng câu hỏi *</label>
+            <select id="esm-bank" class="inp"><option value="">— Chọn ngân hàng —</option></select>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group"><label>Số câu lấy *</label><input id="esm-count" class="inp" type="number" min="1" placeholder="10"></div>
+            <div class="form-group"><label>Điểm/câu *</label><input id="esm-points" class="inp" type="number" min="0.1" step="0.1" placeholder="1"></div>
+          </div>
+          <div id="esm-bank-info" style="font-size:12px;color:var(--text-muted);padding:8px 12px;background:#f8fafc;border-radius:8px;display:none"></div>
+          <input type="hidden" id="esm-id">
+        </div>
+        <div class="modal-ft">
+          <button class="btn btn-outline" onclick="closeExamSectionModal()">Huỷ</button>
+          <button class="btn btn-primary" onclick="saveExamSection()"><i class="fas fa-floppy-disk"></i> Thêm phần</button>
         </div>
       </div>
     </div>

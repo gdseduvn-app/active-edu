@@ -1785,9 +1785,9 @@ function _activatePanel(id) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.getElementById('panel-' + id)?.classList.add('active');
   document.querySelectorAll('.sb-item').forEach(n => n.classList.remove('active'));
-  const idx = {dashboard:0, editor:1, users:2, courses:3, analytics:4, settings:5};
+  const idx = {dashboard:0, editor:1, users:2, courses:3, qbank:4, exams:5, analytics:6, settings:7};
   document.querySelectorAll('.sb-item')[idx[id]]?.classList.add('active');
-  const titles = {dashboard:'Dashboard', editor:'Soạn thảo', users:'Người dùng', courses:'Khoá học', analytics:'Học tập', settings:'Cài đặt'};
+  const titles = {dashboard:'Dashboard', editor:'Soạn thảo', users:'Người dùng', courses:'Khoá học', qbank:'Ngân hàng đề', exams:'Đề bài tập', analytics:'Học tập', settings:'Cài đặt'};
   document.getElementById('panel-title').textContent = titles[id] || id;
 }
 
@@ -2351,6 +2351,10 @@ function showPanel(id, navEl) {
     loadUsers();
   } else if (id === 'courses') {
     loadCourses();
+  } else if (id === 'qbank') {
+    loadQBanks();
+  } else if (id === 'exams') {
+    loadExams();
   } else if (id === 'analytics') {
     loadAnalytics();
   }
@@ -4886,15 +4890,75 @@ function renderModules() {
           ${m.UnlockCondition ? `<div class="module-unlock"><i class="fas fa-lock"></i> ${_esc(m.UnlockCondition)}</div>` : ''}
         </div>
         <div style="display:flex;gap:6px;margin-left:auto">
+          <button class="btn btn-outline btn-sm" onclick="loadModuleItems(${m.Id})"><i class="fas fa-list"></i> Items</button>
           <button class="btn btn-outline btn-sm" onclick="openModuleModal(${m.Id})"><i class="fas fa-pen"></i></button>
           <button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:none" onclick="deleteModule(${m.Id}, '${_esc(m.Title)}')"><i class="fas fa-trash"></i></button>
         </div>
       </div>
-      <div class="module-items-hint">
-        <i class="fas fa-info-circle"></i> ItemType: article | interactive | quiz
-        — Gán bài viết vào module bằng cách sửa bài trong <strong>Soạn thảo</strong> → đặt ModuleId = ${m.Id}
-      </div>
+      <div id="module-items-${m.Id}" class="module-items-container" style="display:none"></div>
     </div>`).join('');
+}
+
+// ── Module items (articles trong module) với publish toggle ──
+async function loadModuleItems(moduleId) {
+  const container = document.getElementById(`module-items-${moduleId}`);
+  if (!container) return;
+
+  // Toggle nếu đang mở
+  if (container.style.display !== 'none') { container.style.display = 'none'; return; }
+  container.style.display = 'block';
+  container.innerHTML = '<div style="padding:12px 16px;color:var(--text-muted);font-size:13px"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>';
+
+  try {
+    const r = await fetch(`${PROXY}/admin/articles?where=(ModuleId,eq,${moduleId})&sort=Position&limit=100&fields=Id,Title,ItemType,Position,Published,Access`, { headers: adminHeaders() });
+    if (!r.ok) throw new Error(await r.text());
+    const data = await r.json();
+    const items = data.list || [];
+
+    if (!items.length) {
+      container.innerHTML = '<div style="padding:12px 18px;font-size:13px;color:#94a3b8">Module này chưa có bài học nào. Vào Soạn thảo → đặt ModuleId để gán bài.</div>';
+      return;
+    }
+
+    const typeIcon = { article: '📄', interactive: '🎮', quiz: '📊' };
+    container.innerHTML = `
+      <table class="module-items-table">
+        <thead><tr><th>#</th><th>Tên bài</th><th>Loại</th><th>Công bố</th></tr></thead>
+        <tbody>
+          ${items.map(item => `
+            <tr>
+              <td style="color:var(--text-muted);font-size:12px">${item.Position || '—'}</td>
+              <td><span style="font-size:13px">${_esc(item.Title || `Bài ${item.Id}`)}</span></td>
+              <td><span style="font-size:11px;background:#f1f5f9;padding:2px 7px;border-radius:100px">${typeIcon[item.ItemType] || '📄'} ${item.ItemType || 'article'}</span></td>
+              <td>
+                <label class="publish-toggle" title="${item.Published === false ? 'Đang ẩn' : 'Đang hiện'}">
+                  <input type="checkbox" ${item.Published !== false ? 'checked' : ''} onchange="toggleItemPublished(${item.Id}, this.checked, this)">
+                  <span class="publish-slider"></span>
+                </label>
+              </td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+  } catch(e) {
+    container.innerHTML = `<div style="padding:12px 16px;color:#dc2626;font-size:13px">Lỗi: ${e.message}</div>`;
+  }
+}
+
+async function toggleItemPublished(articleId, published, checkboxEl) {
+  try {
+    const r = await fetch(`${PROXY}/admin/module-item/${articleId}`, {
+      method: 'PATCH',
+      headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ published }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    const label = checkboxEl.closest('.publish-toggle');
+    if (label) label.title = published ? 'Đang hiện' : 'Đang ẩn';
+    showToast(published ? '✅ Đã công bố bài học' : '🙈 Đã ẩn bài học', 'success');
+  } catch(e) {
+    checkboxEl.checked = !published; // rollback
+    showToast('Lỗi: ' + e.message, 'error');
+  }
 }
 
 // ── Module modal ──
@@ -4958,3 +5022,497 @@ async function deleteModule(id, title) {
   } finally { hideLoading(); }
 }
 
+
+// ═══════════════════════════════════════════════════
+// QUESTION BANK
+// ═══════════════════════════════════════════════════
+let _qbanks = [];
+let _activeQBankId = null;
+let _qbankQuestions = []; // draft questions đang chỉnh sửa
+
+async function loadQBanks() {
+  const tbody = document.getElementById('qbank-table');
+  tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--text-muted)">Đang tải...</td></tr>';
+  document.getElementById('qbank-editor').style.display = 'none';
+  try {
+    const r = await fetch(`${PROXY}/admin/question-banks?limit=200&sort=-UpdatedAt`, { headers: adminHeaders() });
+    if (!r.ok) throw new Error(await r.text());
+    const data = await r.json();
+    _qbanks = data.list || [];
+
+    if (!_qbanks.length) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--text-muted)">Chưa có ngân hàng nào. Bấm "+ Tạo ngân hàng".</td></tr>';
+      return;
+    }
+    tbody.innerHTML = _qbanks.map(b => {
+      let qCount = 0;
+      try { qCount = JSON.parse(b.Questions || '[]').length; } catch {}
+      return `<tr>
+        <td><strong>${_esc(b.Title)}</strong>${b.Description ? `<div style="font-size:12px;color:var(--text-muted)">${_esc(b.Description.slice(0,60))}</div>` : ''}</td>
+        <td><span class="badge badge-gray">${_esc(b.GroupName || '—')}</span></td>
+        <td style="text-align:center;font-weight:600">${qCount}</td>
+        <td><div style="display:flex;gap:6px">
+          <button class="btn btn-outline btn-sm" onclick="openQBankEditor(${b.Id})"><i class="fas fa-list-ol"></i> Câu hỏi</button>
+          <button class="btn btn-outline btn-sm" onclick="openQBankModal(${b.Id})"><i class="fas fa-pen"></i></button>
+          <button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:none" onclick="deleteQBank(${b.Id},'${_esc(b.Title)}')"><i class="fas fa-trash"></i></button>
+        </div></td>
+      </tr>`;
+    }).join('');
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#dc2626;padding:24px">Lỗi: ${e.message}</td></tr>`;
+  }
+}
+
+function openQBankModal(id) {
+  const b = id ? _qbanks.find(x => x.Id === id) : null;
+  document.getElementById('qbank-modal-title').textContent = b ? 'Sửa ngân hàng' : 'Tạo ngân hàng';
+  document.getElementById('qbm-id').value = b?.Id || '';
+  document.getElementById('qbm-title').value = b?.Title || '';
+  document.getElementById('qbm-group').value = b?.GroupName || '';
+  document.getElementById('qbm-desc').value = b?.Description || '';
+  document.getElementById('qbank-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('qbm-title').focus(), 100);
+}
+function closeQBankModal() { document.getElementById('qbank-modal').style.display = 'none'; }
+
+async function saveQBank() {
+  const id = document.getElementById('qbm-id').value;
+  const title = document.getElementById('qbm-title').value.trim();
+  if (!title) { showToast('Nhập tên ngân hàng!', 'warn'); return; }
+  const payload = {
+    Title: title,
+    GroupName: document.getElementById('qbm-group').value.trim(),
+    Description: document.getElementById('qbm-desc').value.trim(),
+    UpdatedAt: new Date().toISOString(),
+  };
+  try {
+    showLoading(id ? 'Đang cập nhật...' : 'Đang tạo...');
+    const method = id ? 'PATCH' : 'POST';
+    const body = id ? [{ Id: parseInt(id), ...payload }] : payload;
+    const r = await fetch(`${PROXY}/admin/question-banks`, {
+      method, headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    closeQBankModal();
+    showToast('Đã lưu ngân hàng!', 'success');
+    await loadQBanks();
+  } catch(e) { showToast('Lỗi: ' + e.message, 'error'); } finally { hideLoading(); }
+}
+
+async function deleteQBank(id, title) {
+  if (!confirm(`Xoá ngân hàng "${title}"?`)) return;
+  try {
+    showLoading('Đang xoá...');
+    const r = await fetch(`${PROXY}/admin/question-banks`, {
+      method: 'DELETE',
+      headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify([{ Id: id }]),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    showToast('Đã xoá!', 'success');
+    await loadQBanks();
+  } catch(e) { showToast('Lỗi: ' + e.message, 'error'); } finally { hideLoading(); }
+}
+
+// ── Question editor ──
+async function openQBankEditor(bankId) {
+  _activeQBankId = bankId;
+  const bank = _qbanks.find(b => b.Id === bankId);
+  document.getElementById('qbank-editor-title').textContent = `✏️ Câu hỏi — ${bank?.Title || ''}`;
+  document.getElementById('qbank-editor').style.display = '';
+  document.getElementById('qbank-editor').scrollIntoView({ behavior: 'smooth' });
+
+  // Load questions
+  try {
+    const r = await fetch(`${PROXY}/admin/question-banks/${bankId}`, { headers: adminHeaders() });
+    const data = await r.json();
+    _qbankQuestions = JSON.parse(data.Questions || '[]');
+  } catch { _qbankQuestions = []; }
+  renderQBankQuestions();
+}
+
+function closeQBankEditor() {
+  document.getElementById('qbank-editor').style.display = 'none';
+  _activeQBankId = null;
+}
+
+function renderQBankQuestions() {
+  const container = document.getElementById('qbank-questions-list');
+  if (!_qbankQuestions.length) {
+    container.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-muted)">Chưa có câu hỏi nào. Bấm "+ Thêm câu".</div>';
+    return;
+  }
+  container.innerHTML = _qbankQuestions.map((q, qi) => `
+    <div class="qb-question-card" id="qbq-${qi}">
+      <div class="qbq-hd">
+        <span class="qbq-num">Câu ${qi + 1}</span>
+        <select class="inp" style="width:120px;font-size:12px;padding:4px 8px" onchange="_qbankQuestions[${qi}].type=this.value">
+          <option value="mcq" ${q.type==='mcq'||!q.type?'selected':''}>Trắc nghiệm</option>
+          <option value="truefalse" ${q.type==='truefalse'?'selected':''}>Đúng/Sai</option>
+        </select>
+        <button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:none;margin-left:auto" onclick="removeQBankQuestion(${qi})"><i class="fas fa-trash"></i></button>
+      </div>
+      <div class="form-group" style="margin-bottom:8px">
+        <textarea class="inp" rows="2" placeholder="Nội dung câu hỏi..." onchange="_qbankQuestions[${qi}].question=this.value">${_esc(q.question || '')}</textarea>
+      </div>
+      <div class="qbq-options">
+        ${(q.options || []).map((opt, oi) => {
+          const optText = typeof opt === 'string' ? opt : opt.text;
+          const isCorrect = typeof opt === 'object' && opt.correct;
+          return `<div class="qbq-option">
+            <input type="radio" name="qbq-correct-${qi}" value="${oi}" ${isCorrect ? 'checked' : ''} onchange="_setCorrectOption(${qi},${oi})" title="Đánh dấu đáp án đúng">
+            <input class="inp" style="flex:1" placeholder="Phương án ${oi+1}" value="${_esc(optText)}" onchange="_updateOptionText(${qi},${oi},this.value)">
+            <button onclick="_removeOption(${qi},${oi})" style="background:none;border:none;cursor:pointer;color:#94a3b8;font-size:13px">✕</button>
+          </div>`;
+        }).join('')}
+        <button class="btn btn-outline btn-sm" style="margin-top:4px;width:100%" onclick="_addOption(${qi})"><i class="fas fa-plus"></i> Thêm phương án</button>
+      </div>
+      <div class="form-group" style="margin-top:8px;margin-bottom:0">
+        <input class="inp" style="font-size:12px" placeholder="💡 Giải thích (hiện sau khi nộp bài)..." value="${_esc(q.explanation || '')}" onchange="_qbankQuestions[${qi}].explanation=this.value">
+      </div>
+    </div>`).join('');
+}
+
+function addQBankQuestion() {
+  _qbankQuestions.push({
+    type: 'mcq',
+    question: '',
+    options: [
+      { text: '', correct: false },
+      { text: '', correct: false },
+      { text: '', correct: false },
+      { text: '', correct: false },
+    ],
+    explanation: '',
+  });
+  renderQBankQuestions();
+  setTimeout(() => {
+    const cards = document.querySelectorAll('.qb-question-card');
+    cards[cards.length - 1]?.scrollIntoView({ behavior: 'smooth' });
+  }, 100);
+}
+
+function removeQBankQuestion(qi) {
+  if (!confirm('Xoá câu hỏi này?')) return;
+  _qbankQuestions.splice(qi, 1);
+  renderQBankQuestions();
+}
+
+function _setCorrectOption(qi, oi) {
+  (_qbankQuestions[qi]?.options || []).forEach((opt, idx) => {
+    if (typeof opt === 'object') opt.correct = (idx === oi);
+  });
+}
+function _updateOptionText(qi, oi, val) {
+  const opt = _qbankQuestions[qi]?.options?.[oi];
+  if (typeof opt === 'object') opt.text = val;
+  else if (opt !== undefined) _qbankQuestions[qi].options[oi] = { text: val, correct: false };
+}
+function _addOption(qi) {
+  if (!_qbankQuestions[qi].options) _qbankQuestions[qi].options = [];
+  _qbankQuestions[qi].options.push({ text: '', correct: false });
+  renderQBankQuestions();
+}
+function _removeOption(qi, oi) {
+  _qbankQuestions[qi]?.options?.splice(oi, 1);
+  renderQBankQuestions();
+}
+
+async function saveQBankQuestions() {
+  if (!_activeQBankId) return;
+  // Sync current textarea values vào _qbankQuestions trước khi lưu
+  document.querySelectorAll('.qb-question-card').forEach((card, qi) => {
+    const ta = card.querySelector('textarea');
+    if (ta && _qbankQuestions[qi]) _qbankQuestions[qi].question = ta.value;
+    card.querySelectorAll('.qbq-option input[type="text"], .qbq-option .inp:not([type="radio"])').forEach((inp, oi) => {
+      const opt = _qbankQuestions[qi]?.options?.[oi];
+      if (opt && typeof opt === 'object') opt.text = inp.value;
+    });
+    const explInp = card.querySelector('.form-group:last-child .inp');
+    if (explInp && _qbankQuestions[qi]) _qbankQuestions[qi].explanation = explInp.value;
+  });
+
+  // Validate: mỗi câu cần ≥2 phương án và đúng 1 đáp án đúng
+  for (let i = 0; i < _qbankQuestions.length; i++) {
+    const q = _qbankQuestions[i];
+    if (!q.question?.trim()) { showToast(`Câu ${i+1}: chưa nhập nội dung!`, 'warn'); return; }
+    const opts = q.options || [];
+    if (opts.length < 2) { showToast(`Câu ${i+1}: cần ít nhất 2 phương án!`, 'warn'); return; }
+    const correctCount = opts.filter(o => typeof o === 'object' && o.correct).length;
+    if (correctCount !== 1) { showToast(`Câu ${i+1}: phải chọn đúng 1 đáp án đúng!`, 'warn'); return; }
+  }
+
+  try {
+    showLoading('Đang lưu câu hỏi...');
+    const r = await fetch(`${PROXY}/admin/question-banks`, {
+      method: 'PATCH',
+      headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify([{
+        Id: _activeQBankId,
+        Questions: JSON.stringify(_qbankQuestions),
+        QuestionCount: _qbankQuestions.length,
+        UpdatedAt: new Date().toISOString(),
+      }]),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    showToast(`Đã lưu ${_qbankQuestions.length} câu hỏi!`, 'success');
+    await loadQBanks();
+  } catch(e) { showToast('Lỗi: ' + e.message, 'error'); } finally { hideLoading(); }
+}
+
+// ═══════════════════════════════════════════════════
+// EXAMS (ĐỀ BÀI TẬP)
+// ═══════════════════════════════════════════════════
+let _exams = [];
+let _activeExamId = null;
+let _examSections = [];
+
+async function loadExams() {
+  const tbody = document.getElementById('exams-table');
+  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-muted)">Đang tải...</td></tr>';
+  document.getElementById('exam-section-builder').style.display = 'none';
+  try {
+    const r = await fetch(`${PROXY}/admin/exams?limit=200&sort=-UpdatedAt`, { headers: adminHeaders() });
+    if (!r.ok) throw new Error(await r.text());
+    const data = await r.json();
+    _exams = data.list || [];
+
+    if (!_exams.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-muted)">Chưa có đề thi nào. Bấm "+ Tạo đề".</td></tr>';
+      return;
+    }
+    tbody.innerHTML = _exams.map(e => `<tr>
+      <td><strong>${_esc(e.Title)}</strong>${e.Description ? `<div style="font-size:12px;color:var(--text-muted)">${_esc(e.Description.slice(0,60))}</div>` : ''}</td>
+      <td><span class="badge ${e.Status==='published'?'badge-green':'badge-gray'}">${e.Status||'draft'}</span></td>
+      <td style="text-align:center">${e.TotalPoints || '—'}</td>
+      <td style="text-align:center">${e.TimeLimit ? e.TimeLimit + ' phút' : '∞'}</td>
+      <td><div style="display:flex;gap:6px">
+        <button class="btn btn-outline btn-sm" onclick="openExamBuilder(${e.Id})"><i class="fas fa-layer-group"></i> Cấu trúc</button>
+        <button class="btn btn-outline btn-sm" onclick="openExamModal(${e.Id})"><i class="fas fa-pen"></i></button>
+        <button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:none" onclick="deleteExam(${e.Id},'${_esc(e.Title)}')"><i class="fas fa-trash"></i></button>
+      </div></td>
+    </tr>`).join('');
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#dc2626;padding:24px">Lỗi: ${e.message}</td></tr>`;
+  }
+}
+
+function openExamModal(id) {
+  const ex = id ? _exams.find(e => e.Id === id) : null;
+  document.getElementById('exam-modal-title').textContent = ex ? 'Sửa đề thi' : 'Tạo đề bài tập';
+  document.getElementById('em-id').value = ex?.Id || '';
+  document.getElementById('em-title').value = ex?.Title || '';
+  document.getElementById('em-desc').value = ex?.Description || '';
+  document.getElementById('em-time').value = ex?.TimeLimit || '';
+  document.getElementById('em-pass').value = ex?.PassScore || 60;
+  document.getElementById('em-status').value = ex?.Status || 'draft';
+  document.getElementById('exam-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('em-title').focus(), 100);
+}
+function closeExamModal() { document.getElementById('exam-modal').style.display = 'none'; }
+
+async function saveExam() {
+  const id = document.getElementById('em-id').value;
+  const title = document.getElementById('em-title').value.trim();
+  if (!title) { showToast('Nhập tên đề!', 'warn'); return; }
+  const payload = {
+    Title: title,
+    Description: document.getElementById('em-desc').value.trim(),
+    TimeLimit: parseInt(document.getElementById('em-time').value) || 0,
+    PassScore: parseInt(document.getElementById('em-pass').value) || 60,
+    Status: document.getElementById('em-status').value,
+    UpdatedAt: new Date().toISOString(),
+  };
+  try {
+    showLoading(id ? 'Đang cập nhật...' : 'Đang tạo...');
+    const method = id ? 'PATCH' : 'POST';
+    const body = id ? [{ Id: parseInt(id), ...payload }] : payload;
+    const r = await fetch(`${PROXY}/admin/exams`, {
+      method, headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    closeExamModal();
+    showToast(id ? 'Đã cập nhật đề!' : 'Đã tạo đề!', 'success');
+    await loadExams();
+  } catch(e) { showToast('Lỗi: ' + e.message, 'error'); } finally { hideLoading(); }
+}
+
+async function deleteExam(id, title) {
+  if (!confirm(`Xoá đề "${title}"?`)) return;
+  try {
+    showLoading('Đang xoá...');
+    const r = await fetch(`${PROXY}/admin/exams`, {
+      method: 'DELETE',
+      headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify([{ Id: id }]),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    showToast('Đã xoá!', 'success');
+    await loadExams();
+  } catch(e) { showToast('Lỗi: ' + e.message, 'error'); } finally { hideLoading(); }
+}
+
+// ── Exam section builder ──
+async function openExamBuilder(examId) {
+  _activeExamId = examId;
+  const exam = _exams.find(e => e.Id === examId);
+  document.getElementById('exam-builder-title').innerHTML = `🔧 Cấu trúc đề — <em>${_esc(exam?.Title || '')}</em>`;
+  document.getElementById('exam-section-builder').style.display = '';
+  document.getElementById('exam-section-builder').scrollIntoView({ behavior: 'smooth' });
+  await loadExamSections(examId);
+}
+function closeExamBuilder() {
+  document.getElementById('exam-section-builder').style.display = 'none';
+  _activeExamId = null;
+}
+
+async function loadExamSections(examId) {
+  const listEl = document.getElementById('exam-sections-list');
+  listEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-muted)">Đang tải...</div>';
+  try {
+    const r = await fetch(`${PROXY}/admin/exam-sections?where=(ExamId,eq,${examId})&sort=Position&limit=50`, { headers: adminHeaders() });
+    if (!r.ok) throw new Error(await r.text());
+    const data = await r.json();
+    _examSections = data.list || [];
+    renderExamSections();
+  } catch(e) {
+    listEl.innerHTML = `<div style="padding:16px;color:#dc2626">Lỗi: ${e.message}</div>`;
+  }
+}
+
+function renderExamSections() {
+  const listEl = document.getElementById('exam-sections-list');
+  const summaryEl = document.getElementById('exam-summary-bar');
+
+  if (!_examSections.length) {
+    listEl.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-muted)">Chưa có phần nào. Bấm "+ Thêm phần" để lấy câu từ ngân hàng đề.</div>';
+    summaryEl.innerHTML = '';
+    return;
+  }
+
+  const totalQ = _examSections.reduce((s, sec) => s + (sec.QuestionCount || 0), 0);
+  const totalPts = _examSections.reduce((s, sec) => s + (sec.QuestionCount || 0) * (sec.PointsPerQuestion || 1), 0);
+
+  summaryEl.innerHTML = `
+    <div class="exam-summary-item"><i class="fas fa-list-ol"></i> <strong>${totalQ}</strong> câu</div>
+    <div class="exam-summary-item"><i class="fas fa-star"></i> <strong>${totalPts}</strong> điểm tổng</div>
+    <div class="exam-summary-item"><i class="fas fa-layer-group"></i> <strong>${_examSections.length}</strong> phần</div>`;
+
+  listEl.innerHTML = _examSections.map((sec, idx) => {
+    const bank = _qbanks.find(b => b.Id === sec.BankId);
+    const bankQ = bank ? (() => { try { return JSON.parse(bank.Questions || '[]').length; } catch { return '?'; } })() : '?';
+    const pts = (sec.QuestionCount || 0) * (sec.PointsPerQuestion || 1);
+    return `<div class="exam-section-item">
+      <div class="esi-hd">
+        <span class="esi-num">Phần ${idx + 1}</span>
+        <div class="esi-info">
+          <strong>${_esc(sec.BankTitle || bank?.Title || `Ngân hàng #${sec.BankId}`)}</strong>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:2px">
+            Lấy <strong>${sec.QuestionCount}</strong>/${bankQ} câu &nbsp;·&nbsp;
+            <strong>${sec.PointsPerQuestion || 1} điểm</strong>/câu &nbsp;·&nbsp;
+            Tổng: <strong>${pts} điểm</strong>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;margin-left:auto">
+          <button class="btn btn-outline btn-sm" onclick="deleteExamSection(${sec.Id})"><i class="fas fa-trash" style="color:#dc2626"></i></button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Cập nhật TotalPoints lên exam record (fire-and-forget)
+  fetch(`${PROXY}/admin/exams`, {
+    method: 'PATCH',
+    headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify([{ Id: _activeExamId, TotalPoints: totalPts }]),
+  }).catch(() => {});
+  // Cập nhật local cache
+  const exam = _exams.find(e => e.Id === _activeExamId);
+  if (exam) exam.TotalPoints = totalPts;
+}
+
+async function openExamSectionModal() {
+  // Load qbanks nếu chưa có
+  if (!_qbanks.length) {
+    try {
+      const r = await fetch(`${PROXY}/admin/question-banks?limit=200`, { headers: adminHeaders() });
+      const data = await r.json();
+      _qbanks = data.list || [];
+    } catch { }
+  }
+
+  const bankSel = document.getElementById('esm-bank');
+  bankSel.innerHTML = '<option value="">— Chọn ngân hàng —</option>' +
+    _qbanks.map(b => {
+      let qCount = 0;
+      try { qCount = JSON.parse(b.Questions || '[]').length; } catch {}
+      return `<option value="${b.Id}" data-count="${qCount}">${_esc(b.Title)} (${qCount} câu)</option>`;
+    }).join('');
+
+  bankSel.onchange = () => {
+    const opt = bankSel.selectedOptions[0];
+    const infoEl = document.getElementById('esm-bank-info');
+    const count = opt?.dataset?.count;
+    if (count) {
+      infoEl.style.display = '';
+      infoEl.innerHTML = `<i class="fas fa-info-circle"></i> Ngân hàng này có <strong>${count} câu</strong>. Nhập số câu muốn lấy (tối đa ${count}).`;
+      document.getElementById('esm-count').max = count;
+    } else { infoEl.style.display = 'none'; }
+  };
+
+  document.getElementById('esm-id').value = '';
+  document.getElementById('esm-count').value = '';
+  document.getElementById('esm-points').value = '1';
+  document.getElementById('esm-bank-info').style.display = 'none';
+  document.getElementById('exam-section-modal').style.display = 'flex';
+}
+function closeExamSectionModal() { document.getElementById('exam-section-modal').style.display = 'none'; }
+
+async function saveExamSection() {
+  if (!_activeExamId) return;
+  const bankId = parseInt(document.getElementById('esm-bank').value);
+  if (!bankId) { showToast('Chọn ngân hàng câu hỏi!', 'warn'); return; }
+  const count = parseInt(document.getElementById('esm-count').value);
+  if (!count || count < 1) { showToast('Nhập số câu hợp lệ!', 'warn'); return; }
+  const points = parseFloat(document.getElementById('esm-points').value);
+  if (!points || points <= 0) { showToast('Nhập điểm hợp lệ!', 'warn'); return; }
+
+  const bank = _qbanks.find(b => b.Id === bankId);
+  const payload = {
+    ExamId: _activeExamId,
+    BankId: bankId,
+    BankTitle: bank?.Title || '',
+    QuestionCount: count,
+    PointsPerQuestion: points,
+    Position: _examSections.length + 1,
+  };
+  try {
+    showLoading('Đang thêm phần...');
+    const r = await fetch(`${PROXY}/admin/exam-sections`, {
+      method: 'POST',
+      headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    closeExamSectionModal();
+    showToast('Đã thêm phần!', 'success');
+    await loadExamSections(_activeExamId);
+  } catch(e) { showToast('Lỗi: ' + e.message, 'error'); } finally { hideLoading(); }
+}
+
+async function deleteExamSection(id) {
+  if (!confirm('Xoá phần này khỏi đề?')) return;
+  try {
+    showLoading('Đang xoá...');
+    const r = await fetch(`${PROXY}/admin/exam-sections`, {
+      method: 'DELETE',
+      headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify([{ Id: id }]),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    showToast('Đã xoá phần!', 'success');
+    await loadExamSections(_activeExamId);
+  } catch(e) { showToast('Lỗi: ' + e.message, 'error'); } finally { hideLoading(); }
+}

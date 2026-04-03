@@ -233,6 +233,27 @@
       </div>
     </div>
 
+    <!-- EXAM VIEW -->
+    <div id="exam-view" style="display:none">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <button class="back-btn" style="margin:0" id="exam-back-btn" onclick="closeExamView()"><i class="fas fa-arrow-left"></i> Quay lại</button>
+        <div id="exam-timer-display" style="display:none;font-size:13px;font-weight:600;color:#dc2626;padding:4px 12px;background:#fef2f2;border-radius:8px;border:1px solid #fca5a5">
+          <i class="fas fa-clock"></i> <span id="exam-timer-text">—</span>
+        </div>
+      </div>
+      <div class="article-wrap">
+        <div class="article-hd">
+          <div>
+            <div class="article-hd-tags" id="exam-tags"></div>
+            <h1 id="exam-view-title">Đề thi</h1>
+            <div class="article-hd-meta" id="exam-view-meta"></div>
+          </div>
+          <i class="fas fa-file-pen article-hd-icon"></i>
+        </div>
+        <div class="article-body" id="exam-body" style="padding:24px"></div>
+      </div>
+    </div>
+
     <!-- PRIVATE GATE -->
     <div id="article-gate">
       <button class="back-btn" onclick="showHome()"><i class="fas fa-arrow-left"></i> Quay lại thư viện</button>
