@@ -4813,7 +4813,6 @@ async function saveCourse() {
     Title: title,
     Description: document.getElementById('cm-desc').value.trim(),
     Status: document.getElementById('cm-status').value,
-    UpdatedAt: new Date().toISOString(),
   };
 
   try {
