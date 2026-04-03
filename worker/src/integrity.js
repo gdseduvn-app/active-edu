@@ -55,11 +55,17 @@ export function _audit(env, action, tableName, recordId, actor, before, after) {
 export async function _softDelete(env, tableEnvKey, ids, actor) {
   if (!env[tableEnvKey] || !ids.length) return 0;
   const now = new Date().toISOString();
-  const payload = ids.map(id => ({
-    Id:        id,
-    DeletedAt: now,
-    DeletedBy: actor?.userId || 0,
-  }));
-  await nocoFetch(env, `/api/v2/tables/${env[tableEnvKey]}/records`, 'PATCH', payload);
+  // Thử soft-delete với DeletedAt + DeletedBy
+  const payload = ids.map(id => ({ Id: id, DeletedAt: now, DeletedBy: actor?.userId || 0 }));
+  let r = await nocoFetch(env, `/api/v2/tables/${env[tableEnvKey]}/records`, 'PATCH', payload);
+  // Nếu 400 (vd: thiếu DeletedBy field), thử lại chỉ với DeletedAt
+  if (!r.ok) {
+    const payload2 = ids.map(id => ({ Id: id, DeletedAt: now }));
+    r = await nocoFetch(env, `/api/v2/tables/${env[tableEnvKey]}/records`, 'PATCH', payload2);
+  }
+  // Nếu vẫn lỗi (thiếu DeletedAt field), hard-delete
+  if (!r.ok) {
+    await nocoFetch(env, `/api/v2/tables/${env[tableEnvKey]}/records`, 'DELETE', ids.map(id => ({ Id: id })));
+  }
   return ids.length;
 }

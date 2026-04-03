@@ -126,27 +126,31 @@ export async function handleSafeCourseDelete(request, env, { cors, json }) {
   const _adminActor = { userId: 0, email: 'admin' };
   let cascadeCount = 0;
 
-  for (const courseId of ids) {
-    const courseSnap = await nocoFetch(env, `/api/v2/tables/${env.NOCO_COURSES}/records/${courseId}`);
-    const courseRecord = courseSnap.ok ? await courseSnap.json() : null;
+  try {
+    for (const courseId of ids) {
+      const courseSnap = await nocoFetch(env, `/api/v2/tables/${env.NOCO_COURSES}/records/${courseId}`);
+      const courseRecord = courseSnap.ok ? await courseSnap.json() : null;
 
-    // 1. Lấy tất cả modules thuộc course
-    const moduleIds = await _getChildIds(env, 'NOCO_MODULES', 'CourseId', courseId);
-    for (const mod of moduleIds) {
-      // 2. Unlink articles khỏi module
-      const artIds = await _getChildIds(env, 'NOCO_ARTICLE', 'ModuleId', mod.Id);
-      if (artIds.length) {
-        const unlinkPayload = artIds.map(a => ({ Id: a.Id, ModuleId: null, ItemType: null, Position: null }));
-        await nocoFetch(env, `/api/v2/tables/${env.NOCO_ARTICLE}/records`, 'PATCH', unlinkPayload);
+      // 1. Lấy tất cả modules thuộc course
+      const moduleIds = await _getChildIds(env, 'NOCO_MODULES', 'CourseId', courseId);
+      for (const mod of moduleIds) {
+        // 2. Unlink articles khỏi module
+        const artIds = await _getChildIds(env, 'NOCO_ARTICLE', 'ModuleId', mod.Id);
+        if (artIds.length) {
+          const unlinkPayload = artIds.map(a => ({ Id: a.Id, ModuleId: null, ItemType: null, Position: null }));
+          await nocoFetch(env, `/api/v2/tables/${env.NOCO_ARTICLE}/records`, 'PATCH', unlinkPayload);
+        }
+        // 3. Soft-delete module
+        await _softDelete(env, 'NOCO_MODULES', [mod.Id], _adminActor);
+        _audit(env, 'delete', 'Modules', mod.Id, _adminActor, { Id: mod.Id }, null);
+        cascadeCount++;
       }
-      // 3. Soft-delete module
-      await _softDelete(env, 'NOCO_MODULES', [mod.Id], _adminActor);
-      _audit(env, 'delete', 'Modules', mod.Id, _adminActor, { Id: mod.Id }, null);
-      cascadeCount++;
+      // 4. Delete course (soft nếu có DeletedAt, hard nếu không)
+      await _softDelete(env, 'NOCO_COURSES', [courseId], _adminActor);
+      _audit(env, 'delete', 'Courses', courseId, _adminActor, courseRecord, null);
     }
-    // 4. Soft-delete course
-    await _softDelete(env, 'NOCO_COURSES', [courseId], _adminActor);
-    _audit(env, 'delete', 'Courses', courseId, _adminActor, courseRecord, null);
+  } catch (e) {
+    return json({ error: e.message || 'Delete failed' }, 500);
   }
   return json({ ok: true, cascadeModulesDeleted: cascadeCount });
 }

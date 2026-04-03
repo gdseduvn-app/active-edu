@@ -4844,8 +4844,9 @@ async function deleteCourse(id, title) {
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify([{ Id: id }]),
     });
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.error || await r.text());
+    const text = await r.text();
+    const data = (() => { try { return JSON.parse(text); } catch { return {}; } })();
+    if (!r.ok) throw new Error(data.error || text || `HTTP ${r.status}`);
     showToast(`Đã xoá khoá học (${data.cascadeModulesDeleted || 0} modules)`, 'success');
     _moduleOptionsCache = null;
     await loadCourses();
