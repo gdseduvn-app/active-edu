@@ -1,0 +1,80 @@
+name: Security Check
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    name: Kiem tra bao mat code
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Kiem tra khong co secrets hardcode
+        run: |
+          FOUND=0
+          # Danh sach pattern nguy hiem (khong duoc xuat hien trong code)
+          for pattern in "xc-token" "activeedu2024" "hocsinh123" "ghp_" "github_pat_" "PASS_SALT" "TOKEN_SECRET" "ADMIN_PASSWORD"; do
+            # Bo qua worker/wrangler.toml (chi chua comments) va .gitignore
+            if grep -rni "$pattern" \
+              --include="*.html" \
+              --include="*.js" \
+              --exclude-dir=".git" \
+              --exclude-dir="node_modules" \
+              . | grep -v "worker/wrangler.toml" | grep -v ".gitignore" | grep -v "security-check.yml"; then
+              echo "CANH BAO: Phat hien pattern nguy hiem: $pattern"
+              FOUND=1
+            fi
+          done
+          if [ $FOUND -eq 0 ]; then
+            echo "OK: Khong phat hien secrets hardcode"
+          else
+            echo "LOI: Co secrets trong code!"
+            exit 1
+          fi
+
+      - name: Kiem tra iframe sandbox an toan
+        run: |
+          if grep -rni 'sandbox="[^"]*allow-same-origin[^"]*allow-scripts\|sandbox="[^"]*allow-scripts[^"]*allow-same-origin' \
+            --include="*.html" . ; then
+            echo "LOI: iframe dung ca allow-same-origin va allow-scripts - nguy co bypass sandbox!"
+            exit 1
+          else
+            echo "OK: Khong phat hien iframe sandbox nguy hiem"
+          fi
+
+      - name: Kiem tra postMessage khong dung wildcard
+        run: |
+          if grep -rn "postMessage.*'\*'" --include="*.html" --include="*.js" . ; then
+            echo "LOI: postMessage dung wildcard origin '*' - phai chi dinh domain cu the!"
+            exit 1
+          else
+            echo "OK: postMessage origin an toan"
+          fi
+
+      - name: Kiem tra Worker JS syntax
+        run: |
+          if [ -f "worker/index.js" ]; then
+            node --check worker/index.js && echo "OK: Worker syntax hop le"
+          else
+            echo "CANH BAO: Khong tim thay worker/index.js"
+            exit 1
+          fi
+
+      - name: Kiem tra .bak files khong bi commit
+        run: |
+          if find . -name "*.bak" -not -path "./.git/*" | grep -q .; then
+            echo "LOI: Phat hien file .bak trong repo:"
+            find . -name "*.bak" -not -path "./.git/*"
+            exit 1
+          else
+            echo "OK: Khong co file .bak"
+          fi
+
+      - name: Hoan tat
+        run: echo "Security check hoan tat!"

@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(md5 /Users/TriHue/Downloads/active-edu-main/dashboard.html /Users/TriHue/Downloads/active-edu-main/admin/dashboard.html)"
+    ]
+  }
+}
