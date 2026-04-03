@@ -287,6 +287,60 @@ async function hashUserPayload(payload, env) {
   return { ...payload, Password: hashed, MatKhau: hashed };
 }
 
+// ── Referential integrity helpers ────────────────────────────
+
+/**
+ * Kiểm tra record có tồn tại không.
+ * Trả về record nếu có, null nếu không.
+ */
+async function _assertExists(env, tableEnvKey, id, label) {
+  if (!id || !env[tableEnvKey]) return { ok: false, error: `${label}: table chưa cấu hình` };
+  const r = await nocoFetch(env, `/api/v2/tables/${env[tableEnvKey]}/records/${id}`);
+  if (!r.ok) return { ok: false, error: `${label} #${id} không tồn tại` };
+  const data = await r.json();
+  if (!data || !data.Id) return { ok: false, error: `${label} #${id} không tồn tại` };
+  return { ok: true, record: data };
+}
+
+/**
+ * Đếm số records con đang tham chiếu đến cha.
+ * Dùng để chặn xoá cha khi còn con.
+ */
+async function _countChildren(env, tableEnvKey, fkField, parentId) {
+  if (!env[tableEnvKey]) return 0;
+  const r = await nocoFetch(env,
+    `/api/v2/tables/${env[tableEnvKey]}/records?where=(${fkField},eq,${parentId})&limit=1&fields=Id`
+  );
+  if (!r.ok) return 0;
+  const data = await r.json();
+  return data.pageInfo?.totalRows ?? (data.list?.length ?? 0);
+}
+
+/**
+ * Lấy toàn bộ Id của records con, dùng cho cascade delete.
+ */
+async function _getChildIds(env, tableEnvKey, fkField, parentId) {
+  if (!env[tableEnvKey]) return [];
+  const r = await nocoFetch(env,
+    `/api/v2/tables/${env[tableEnvKey]}/records?where=(${fkField},eq,${parentId})&limit=500&fields=Id`
+  );
+  if (!r.ok) return [];
+  const data = await r.json();
+  return (data.list || []).map(row => ({ Id: row.Id }));
+}
+
+/**
+ * Cascade delete: xoá tất cả records con của một cha.
+ * Trả về số lượng đã xoá.
+ */
+async function _cascadeDelete(env, tableEnvKey, fkField, parentId) {
+  const ids = await _getChildIds(env, tableEnvKey, fkField, parentId);
+  if (!ids.length) return 0;
+  // NocoDB bulk delete nhận array of { Id }
+  await nocoFetch(env, `/api/v2/tables/${env[tableEnvKey]}/records`, 'DELETE', ids);
+  return ids.length;
+}
+
 // ── Analytics helpers (fire-and-forget, called from handlers) ─
 
 async function _getOrCreateAnalytics(env, articleId) {
@@ -690,6 +744,165 @@ export default {
       }).catch(() => {});
 
       return json({ score, correct, total: questions.length, results });
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // CONSTRAINT-AWARE ENDPOINTS
+    // Các endpoint này thay thế proxy thô để đảm bảo toàn vẹn FK
+    // ════════════════════════════════════════════════════════════
+
+    // ── Admin: tạo Module (validate CourseId tồn tại) ─────────
+    if (path === '/admin/modules/safe' && request.method === 'POST') {
+      if (!await verifyAdminAuth(request, env)) return json({ error: 'Unauthorized' }, 401);
+      const body = await request.json().catch(() => ({}));
+
+      // FK check: CourseId phải tồn tại
+      if (body.CourseId) {
+        const check = await _assertExists(env, 'NOCO_COURSES', body.CourseId, 'Khoá học');
+        if (!check.ok) return json({ error: check.error }, 422);
+      } else {
+        return json({ error: 'CourseId bắt buộc' }, 422);
+      }
+      // Unique check: không trùng Position trong cùng Course
+      if (body.Position && env.NOCO_MODULES) {
+        const dup = await nocoFetch(env,
+          `/api/v2/tables/${env.NOCO_MODULES}/records?where=(CourseId,eq,${body.CourseId})~and(Position,eq,${body.Position})&limit=1&fields=Id`
+        );
+        const dupData = await dup.json();
+        if ((dupData.list || []).length) {
+          return json({ error: `Vị trí ${body.Position} đã có module khác trong khoá học này` }, 422);
+        }
+      }
+      const r = await nocoFetch(env, `/api/v2/tables/${env.NOCO_MODULES}/records`, 'POST', body);
+      return new Response(await r.text(), { status: r.status, headers: { ...cors, 'Content-Type': 'application/json' } });
+    }
+
+    // ── Admin: xoá Course → cascade delete Modules + Articles unlink ──
+    if (path === '/admin/courses/safe' && request.method === 'DELETE') {
+      if (!await verifyAdminAuth(request, env)) return json({ error: 'Unauthorized' }, 401);
+      const body = await request.json().catch(() => ([]));
+      const ids = Array.isArray(body) ? body.map(r => r.Id) : [body.Id];
+      if (!ids.length) return json({ error: 'Thiếu Id' }, 400);
+
+      let cascadeCount = 0;
+      for (const courseId of ids) {
+        // 1. Lấy tất cả modules thuộc course
+        const moduleIds = await _getChildIds(env, 'NOCO_MODULES', 'CourseId', courseId);
+        for (const mod of moduleIds) {
+          // 2. Unlink articles khỏi module (set ModuleId = null)
+          const artIds = await _getChildIds(env, 'NOCO_ARTICLE', 'ModuleId', mod.Id);
+          if (artIds.length) {
+            const unlinkPayload = artIds.map(a => ({ Id: a.Id, ModuleId: null, ItemType: null, Position: null }));
+            await nocoFetch(env, `/api/v2/tables/${env.NOCO_ARTICLE}/records`, 'PATCH', unlinkPayload);
+          }
+          // 3. Xoá module
+          await nocoFetch(env, `/api/v2/tables/${env.NOCO_MODULES}/records`, 'DELETE', [{ Id: mod.Id }]);
+          cascadeCount++;
+        }
+        // 4. Xoá course
+        await nocoFetch(env, `/api/v2/tables/${env.NOCO_COURSES}/records`, 'DELETE', [{ Id: courseId }]);
+      }
+      return json({ ok: true, cascadeModulesDeleted: cascadeCount });
+    }
+
+    // ── Admin: xoá Module → cascade unlink Articles + xoá Exams liên quan ──
+    if (path === '/admin/modules/safe' && request.method === 'DELETE') {
+      if (!await verifyAdminAuth(request, env)) return json({ error: 'Unauthorized' }, 401);
+      const body = await request.json().catch(() => ([]));
+      const ids = Array.isArray(body) ? body.map(r => r.Id) : [body.Id];
+
+      for (const modId of ids) {
+        // Unlink articles
+        const artIds = await _getChildIds(env, 'NOCO_ARTICLE', 'ModuleId', modId);
+        if (artIds.length) {
+          const unlinkPayload = artIds.map(a => ({ Id: a.Id, ModuleId: null, Position: null }));
+          await nocoFetch(env, `/api/v2/tables/${env.NOCO_ARTICLE}/records`, 'PATCH', unlinkPayload);
+        }
+        // Unlink exams (set ModuleId = null, không xoá exam)
+        if (env.NOCO_EXAMS) {
+          const examIds = await _getChildIds(env, 'NOCO_EXAMS', 'ModuleId', modId);
+          if (examIds.length) {
+            const unlinkExams = examIds.map(e => ({ Id: e.Id, ModuleId: null }));
+            await nocoFetch(env, `/api/v2/tables/${env.NOCO_EXAMS}/records`, 'PATCH', unlinkExams);
+          }
+        }
+        // Xoá module
+        await nocoFetch(env, `/api/v2/tables/${env.NOCO_MODULES}/records`, 'DELETE', [{ Id: modId }]);
+      }
+      return json({ ok: true });
+    }
+
+    // ── Admin: tạo ExamSection (validate ExamId + BankId tồn tại, validate count ≤ bank size) ──
+    if (path === '/admin/exam-sections/safe' && request.method === 'POST') {
+      if (!await verifyAdminAuth(request, env)) return json({ error: 'Unauthorized' }, 401);
+      const body = await request.json().catch(() => ({}));
+
+      // FK check: ExamId
+      const examCheck = await _assertExists(env, 'NOCO_EXAMS', body.ExamId, 'Đề thi');
+      if (!examCheck.ok) return json({ error: examCheck.error }, 422);
+
+      // FK check: BankId
+      const bankCheck = await _assertExists(env, 'NOCO_QBANK', body.BankId, 'Ngân hàng câu hỏi');
+      if (!bankCheck.ok) return json({ error: bankCheck.error }, 422);
+
+      // Business rule: QuestionCount ≤ số câu trong ngân hàng
+      let bankSize = 0;
+      try { bankSize = JSON.parse(bankCheck.record.Questions || '[]').length; } catch {}
+      if (bankSize > 0 && (body.QuestionCount || 0) > bankSize) {
+        return json({ error: `Ngân hàng chỉ có ${bankSize} câu, không thể lấy ${body.QuestionCount}` }, 422);
+      }
+      if ((body.QuestionCount || 0) < 1) return json({ error: 'Số câu phải ≥ 1' }, 422);
+      if ((body.PointsPerQuestion || 0) <= 0) return json({ error: 'Điểm/câu phải > 0' }, 422);
+
+      // Duplicate check: cùng exam không lấy cùng 1 bank 2 lần
+      const dupCheck = await nocoFetch(env,
+        `/api/v2/tables/${env.NOCO_EXAM_SECTIONS}/records?where=(ExamId,eq,${body.ExamId})~and(BankId,eq,${body.BankId})&limit=1&fields=Id`
+      );
+      const dupData = await dupCheck.json();
+      if ((dupData.list || []).length) {
+        return json({ error: 'Ngân hàng này đã có trong đề. Mỗi ngân hàng chỉ dùng 1 lần/đề.' }, 422);
+      }
+
+      const r = await nocoFetch(env, `/api/v2/tables/${env.NOCO_EXAM_SECTIONS}/records`, 'POST', body);
+      return new Response(await r.text(), { status: r.status, headers: { ...cors, 'Content-Type': 'application/json' } });
+    }
+
+    // ── Admin: xoá Exam → cascade delete ExamSections ─────────
+    if (path === '/admin/exams/safe' && request.method === 'DELETE') {
+      if (!await verifyAdminAuth(request, env)) return json({ error: 'Unauthorized' }, 401);
+      const body = await request.json().catch(() => ([]));
+      const ids = Array.isArray(body) ? body.map(r => r.Id) : [body.Id];
+
+      let sectionCount = 0;
+      for (const examId of ids) {
+        // Cascade delete sections trước
+        const deleted = await _cascadeDelete(env, 'NOCO_EXAM_SECTIONS', 'ExamId', examId);
+        sectionCount += deleted;
+        // Xoá exam
+        await nocoFetch(env, `/api/v2/tables/${env.NOCO_EXAMS}/records`, 'DELETE', [{ Id: examId }]);
+      }
+      return json({ ok: true, sectionsDeleted: sectionCount });
+    }
+
+    // ── Admin: xoá QuestionBank → chặn nếu đang dùng trong ExamSection ──
+    if (path === '/admin/question-banks/safe' && request.method === 'DELETE') {
+      if (!await verifyAdminAuth(request, env)) return json({ error: 'Unauthorized' }, 401);
+      const body = await request.json().catch(() => ([]));
+      const ids = Array.isArray(body) ? body.map(r => r.Id) : [body.Id];
+
+      for (const bankId of ids) {
+        // Referential integrity: chặn xoá nếu bank đang được dùng
+        const usedCount = await _countChildren(env, 'NOCO_EXAM_SECTIONS', 'BankId', bankId);
+        if (usedCount > 0) {
+          return json({
+            error: `Không thể xoá: Ngân hàng #${bankId} đang được dùng trong ${usedCount} đề thi. Xoá phần thi liên quan trước.`
+          }, 409); // 409 Conflict
+        }
+      }
+      // An toàn → xoá
+      const r = await nocoFetch(env, `/api/v2/tables/${env.NOCO_QBANK}/records`, 'DELETE',
+        ids.map(id => ({ Id: id })));
+      return new Response(await r.text(), { status: r.status, headers: { ...cors, 'Content-Type': 'application/json' } });
     }
 
     // ── Admin: toggle module item Published state ─────────────

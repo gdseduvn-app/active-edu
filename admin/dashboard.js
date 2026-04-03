@@ -4827,16 +4827,18 @@ async function saveCourse() {
 }
 
 async function deleteCourse(id, title) {
-  if (!confirm(`Xoá khoá học "${title}"?\nCác modules trong khoá học này cũng sẽ bị xoá.`)) return;
+  if (!confirm(`Xoá khoá học "${title}"?\n⚠️ Tất cả modules trong khoá học sẽ bị xoá.\nCác bài viết được giữ lại nhưng sẽ không còn thuộc module nào.`)) return;
   try {
-    showLoading('Đang xoá...');
-    const r = await fetch(`${PROXY}/admin/courses`, {
+    showLoading('Đang xoá (cascade)...');
+    // /safe endpoint: cascade delete modules, unlink articles, đảm bảo toàn vẹn FK
+    const r = await fetch(`${PROXY}/admin/courses/safe`, {
       method: 'DELETE',
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify([{ Id: id }]),
     });
-    if (!r.ok) throw new Error(await r.text());
-    showToast('Đã xoá khoá học!', 'success');
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || await r.text());
+    showToast(`Đã xoá khoá học (${data.cascadeModulesDeleted || 0} modules)`, 'success');
     await loadCourses();
   } catch(e) {
     showToast('Lỗi: ' + e.message, 'error');
@@ -5006,15 +5008,17 @@ async function saveModule() {
 }
 
 async function deleteModule(id, title) {
-  if (!confirm(`Xoá module "${title}"?`)) return;
+  if (!confirm(`Xoá module "${title}"?\n⚠️ Các bài viết trong module sẽ được giữ lại nhưng không còn thuộc module nào.`)) return;
   try {
     showLoading('Đang xoá...');
-    const r = await fetch(`${PROXY}/admin/modules`, {
+    // /safe endpoint: unlink articles + exams, giữ toàn vẹn FK
+    const r = await fetch(`${PROXY}/admin/modules/safe`, {
       method: 'DELETE',
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify([{ Id: id }]),
     });
-    if (!r.ok) throw new Error(await r.text());
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || await r.text());
     showToast('Đã xoá module!', 'success');
     await loadModules(_activeCourseId);
   } catch(e) {
@@ -5103,14 +5107,16 @@ async function saveQBank() {
 async function deleteQBank(id, title) {
   if (!confirm(`Xoá ngân hàng "${title}"?`)) return;
   try {
-    showLoading('Đang xoá...');
-    const r = await fetch(`${PROXY}/admin/question-banks`, {
+    showLoading('Đang kiểm tra ràng buộc...');
+    // /safe endpoint: chặn xoá nếu đang được dùng trong đề thi (FK integrity)
+    const r = await fetch(`${PROXY}/admin/question-banks/safe`, {
       method: 'DELETE',
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify([{ Id: id }]),
     });
-    if (!r.ok) throw new Error(await r.text());
-    showToast('Đã xoá!', 'success');
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || await r.text());
+    showToast('Đã xoá ngân hàng!', 'success');
     await loadQBanks();
   } catch(e) { showToast('Lỗi: ' + e.message, 'error'); } finally { hideLoading(); }
 }
@@ -5340,16 +5346,18 @@ async function saveExam() {
 }
 
 async function deleteExam(id, title) {
-  if (!confirm(`Xoá đề "${title}"?`)) return;
+  if (!confirm(`Xoá đề "${title}"?\n⚠️ Tất cả phần thi trong đề sẽ bị xoá theo.`)) return;
   try {
-    showLoading('Đang xoá...');
-    const r = await fetch(`${PROXY}/admin/exams`, {
+    showLoading('Đang xoá (cascade sections)...');
+    // /safe endpoint: cascade delete ExamSections trước, rồi xoá Exam
+    const r = await fetch(`${PROXY}/admin/exams/safe`, {
       method: 'DELETE',
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify([{ Id: id }]),
     });
-    if (!r.ok) throw new Error(await r.text());
-    showToast('Đã xoá!', 'success');
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || await r.text());
+    showToast(`Đã xoá đề (${data.sectionsDeleted || 0} phần thi)`, 'success');
     await loadExams();
   } catch(e) { showToast('Lỗi: ' + e.message, 'error'); } finally { hideLoading(); }
 }
@@ -5489,13 +5497,15 @@ async function saveExamSection() {
     Position: _examSections.length + 1,
   };
   try {
-    showLoading('Đang thêm phần...');
-    const r = await fetch(`${PROXY}/admin/exam-sections`, {
+    showLoading('Đang thêm phần (kiểm tra ràng buộc)...');
+    // /safe endpoint: validate ExamId tồn tại, BankId tồn tại, QuestionCount ≤ bank size, không trùng bank trong cùng đề
+    const r = await fetch(`${PROXY}/admin/exam-sections/safe`, {
       method: 'POST',
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    if (!r.ok) throw new Error(await r.text());
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || await r.text());
     closeExamSectionModal();
     showToast('Đã thêm phần!', 'success');
     await loadExamSections(_activeExamId);
