@@ -4824,7 +4824,11 @@ async function saveCourse() {
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
-    if (!r.ok) throw new Error(await r.text());
+    if (!r.ok) {
+      const errText = await r.text();
+      console.error('[saveCourse] NocoDB error:', errText);
+      throw new Error(errText);
+    }
     closeCourseModal();
     showToast(id ? 'Đã cập nhật khoá học!' : 'Đã tạo khoá học!', 'success');
     _moduleOptionsCache = null;
