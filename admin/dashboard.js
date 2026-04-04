@@ -4752,7 +4752,7 @@ let _activeCourseId = null; // khoá học đang mở module builder
 // ── Load danh sách khoá học ──
 async function loadCourses() {
   const tbody = document.getElementById('courses-table');
-  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:24px">Đang tải...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="8" class="cv-loading">Đang tải...</td></tr>';
   document.getElementById('module-builder').style.display = 'none';
 
   try {
@@ -4761,47 +4761,109 @@ async function loadCourses() {
     const data = await r.json();
     _courses = data.list || [];
 
-    if (!_courses.length) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:32px">Chưa có khoá học nào. Bấm "+ Tạo khoá học" để bắt đầu.</td></tr>';
-      return;
+    // Populate term filter
+    const terms = [...new Set(_courses.map(c => c.Term).filter(Boolean))].sort();
+    const termSel = document.getElementById('course-filter-term');
+    if (termSel) {
+      termSel.innerHTML = '<option value="">Tất cả kì học</option>' +
+        terms.map(t => `<option value="${_esc(t)}">${_esc(t)}</option>`).join('');
     }
 
-    tbody.innerHTML = _courses.map(c => {
-      const wf = c.WorkflowState || (c.Status === 'published' ? 'available' : c.Status === 'archived' ? 'completed' : 'created');
-      const wfBadge = {
-        available: `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:#f0fdf4;color:#16a34a">✅ Available</span>`,
-        created:   `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:#f8fafc;color:#64748b">📝 Created</span>`,
-        claimed:   `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:#fefce8;color:#92400e">🔒 Claimed</span>`,
-        completed: `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:#fef2f2;color:#991b1b">🔴 Concluded</span>`,
-        deleted:   `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:#fee2e2;color:#b91c1c">🗑️ Deleted</span>`,
-      }[wf] || `<span style="font-size:11px;color:var(--text-muted)">${wf}</span>`;
-      return `<tr>
-        <td>
-          <strong>${_esc(c.Title)}</strong>
-          ${c.CourseCode ? `<span style="margin-left:6px;font-size:11px;background:#f1f5f9;color:#475569;padding:1px 6px;border-radius:4px">${_esc(c.CourseCode)}</span>` : ''}
-          ${c.Description ? `<div style="font-size:12px;color:var(--text-muted);margin-top:2px">${_esc(c.Description.slice(0,80))}${c.Description.length>80?'…':''}</div>` : ''}
-        </td>
-        <td style="text-align:center">${wfBadge}</td>
-        <td style="text-align:center;color:var(--text-muted)">—</td>
-        <td style="text-align:center">
-          <button class="btn btn-outline btn-sm" onclick="openEnrollmentPanel(${c.Id},'${_esc(c.Title)}')" title="Quản lý ghi danh">
-            <i class="fas fa-users"></i>
-          </button>
-        </td>
-        <td style="text-align:center">
-          <div style="display:flex;gap:4px;justify-content:center;flex-wrap:wrap">
-            <button class="btn btn-outline btn-sm" onclick="openModuleBuilder(${c.Id})" title="Modules"><i class="fas fa-layer-group"></i></button>
-            <button class="btn btn-outline btn-sm" onclick="openCourseWorkflowPanel(${c.Id},'${_esc(c.Title)}')" title="Workflow"><i class="fas fa-rotate"></i></button>
-            <button class="btn btn-outline btn-sm" onclick="openCourseModal(${c.Id})" title="Sửa"><i class="fas fa-pen"></i></button>
-            <button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:1px solid #fecaca" onclick="deleteCourse(${c.Id},'${_esc(c.Title)}')" title="Xoá"><i class="fas fa-trash"></i></button>
-          </div>
-        </td>
-      </tr>`;
-    }).join('');
+    renderCoursesTable(_courses);
   } catch(e) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#dc2626;padding:24px">Lỗi: ${e.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:#dc2626;padding:24px">Lỗi: ${e.message}</td></tr>`;
   }
 }
+
+function renderCoursesTable(list) {
+  const tbody = document.getElementById('courses-table');
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="cv-loading">Chưa có khoá học nào. Bấm "+ Khóa học" để bắt đầu.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(c => {
+    const wf = c.WorkflowState || (c.Status === 'published' ? 'available' : c.Status === 'archived' ? 'completed' : 'created');
+    const isPublished = wf === 'available';
+
+    // Published icon — Canvas style: green circle-check or gray circle-minus
+    const pubIcon = isPublished
+      ? `<button class="cv-pub-btn cv-pub-on" onclick="openCourseWorkflowPanel(${c.Id},'${_esc(c.Title)}')" title="Đã công bố — click để quản lý">
+           <i class="fas fa-check-circle"></i>
+         </button>`
+      : `<button class="cv-pub-btn cv-pub-off" onclick="openCourseWorkflowPanel(${c.Id},'${_esc(c.Title)}')" title="${_wfLabel(wf)} — click để xuất bản">
+           <i class="fas fa-minus-circle"></i>
+         </button>`;
+
+    // Teacher avatar (placeholder — first letter of course title)
+    const initials = (c.Title || '?')[0].toUpperCase();
+    const teacherHtml = `<span class="cv-teacher-wrap">
+      <span class="cv-avatar">${initials}</span>
+      <span class="cv-teacher-name">${_esc(c.Title.slice(0,20))}</span>
+    </span>`;
+
+    const sisId = c.CourseCode || '—';
+    const term = c.Term || '—';
+    const subUnit = c.Department || '—';
+    const students = c.EnrollmentCount != null ? c.EnrollmentCount : '—';
+
+    return `<tr class="cv-course-row" data-wf="${wf}" data-term="${_esc(term)}">
+      <td class="cv-td-pub">${pubIcon}</td>
+      <td class="cv-td-name">
+        <a class="cv-course-link" onclick="openModuleBuilder(${c.Id})">${_esc(c.Title)}</a>
+        ${c.Description ? `<div class="cv-course-desc">${_esc(c.Description.slice(0,70))}${c.Description.length>70?'…':''}</div>` : ''}
+      </td>
+      <td class="cv-td-sis">${_esc(sisId)}</td>
+      <td class="cv-td-term">${_esc(term)}</td>
+      <td class="cv-td-teacher">${teacherHtml}</td>
+      <td class="cv-td-sub">${_esc(subUnit)}</td>
+      <td class="cv-td-students">${students}</td>
+      <td class="cv-td-actions">
+        <div class="cv-row-actions">
+          <button class="cv-row-action-btn" onclick="openEnrollmentPanel(${c.Id},'${_esc(c.Title)}')" title="Thêm học viên">
+            <i class="fas fa-plus"></i>
+          </button>
+          <div class="cv-action-menu-wrap">
+            <button class="cv-row-action-btn cv-gear-btn" onclick="toggleCourseMenu(${c.Id},this)" title="Cài đặt">
+              <i class="fas fa-cog"></i>
+            </button>
+            <div class="cv-action-menu" id="cmenu-${c.Id}" style="display:none">
+              <button onclick="openModuleBuilder(${c.Id});closeCourseMenus()"><i class="fas fa-layer-group"></i> Modules</button>
+              <button onclick="openCourseWorkflowPanel(${c.Id},'${_esc(c.Title)}');closeCourseMenus()"><i class="fas fa-rotate"></i> Workflow</button>
+              <button onclick="openCourseModal(${c.Id});closeCourseMenus()"><i class="fas fa-pen"></i> Chỉnh sửa</button>
+              <div class="cv-menu-divider"></div>
+              <button class="cv-menu-danger" onclick="deleteCourse(${c.Id},'${_esc(c.Title)}');closeCourseMenus()"><i class="fas fa-trash"></i> Xoá khoá học</button>
+            </div>
+          </div>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function _wfLabel(wf) {
+  return { available:'Đã công bố', created:'Nháp', claimed:'Claimed', completed:'Kết thúc', deleted:'Đã xoá' }[wf] || wf;
+}
+
+function toggleCourseMenu(id, btn) {
+  closeCourseMenus();
+  const m = document.getElementById(`cmenu-${id}`);
+  if (m) {
+    m.style.display = 'block';
+    // Position near button
+    const rect = btn.getBoundingClientRect();
+    const mainRect = document.querySelector('.main-content').getBoundingClientRect();
+    m.style.top = (rect.bottom - mainRect.top + 4) + 'px';
+    m.style.right = (mainRect.right - rect.right) + 'px';
+  }
+}
+
+function closeCourseMenus() {
+  document.querySelectorAll('.cv-action-menu').forEach(m => m.style.display = 'none');
+}
+// Close menu on outside click
+document.addEventListener('click', e => {
+  if (!e.target.closest('.cv-action-menu-wrap')) closeCourseMenus();
+});
 
 function _esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
@@ -4878,8 +4940,34 @@ async function deleteCourse(id, title) {
   } finally { hideLoading(); }
 }
 
-// ── Course search filter ──
+// ── Course search + checkbox filters ──
+function filterCoursesClient() {
+  if (!_courses.length) return;
+  const q    = (document.getElementById('course-search')?.value || '').toLowerCase();
+  const term = document.getElementById('course-filter-term')?.value || '';
+  const type = document.getElementById('course-filter-type')?.value || '';
+  const hideEmpty    = document.getElementById('chk-hide-empty')?.checked;
+  const onlyTemplate = document.getElementById('chk-only-template')?.checked;
+  const onlyPublic   = document.getElementById('chk-only-public')?.checked;
+
+  let list = _courses.filter(c => {
+    const wf = c.WorkflowState || (c.Status === 'published' ? 'available' : 'created');
+    if (q && !`${c.Title}${c.CourseCode}${c.Description}`.toLowerCase().includes(q)) return false;
+    if (term && c.Term !== term) return false;
+    if (type && wf !== type) return false;
+    if (hideEmpty && !c.EnrollmentCount) return false;
+    if (onlyTemplate && !c.IsTemplate) return false;
+    if (onlyPublic && wf !== 'available') return false;
+    return true;
+  });
+  renderCoursesTable(list);
+}
+
+// keep backward compat
 function filterCoursesTable(q) {
+  const el = document.getElementById('course-search');
+  if (el) el.value = q;
+  filterCoursesClient();
   if (!_courses.length) return;
   const lq = q.toLowerCase();
   const rows = document.querySelectorAll('#courses-table tr');

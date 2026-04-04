@@ -2126,3 +2126,281 @@ select.inp { cursor: pointer; }
   #sidebar { display: none; }
   .stats-grid { grid-template-columns: 1fr; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   28. CANVAS-STYLE COURSE MANAGEMENT
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Toolbar */
+.cv-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 24px 14px;
+  flex-wrap: wrap;
+}
+.cv-toolbar-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.cv-toolbar-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+/* Selects */
+.cv-select {
+  height: 36px;
+  padding: 0 28px 0 12px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text);
+  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M6 8L1 3h10z'/%3E%3C/svg%3E") no-repeat right 10px center;
+  appearance: none;
+  cursor: pointer;
+  transition: border-color .15s;
+}
+.cv-select:focus { outline: none; border-color: var(--primary); }
+
+/* Search */
+.cv-search {
+  flex: 1;
+  min-width: 200px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text);
+  background: #fff;
+  transition: border-color .15s, box-shadow .15s;
+}
+.cv-search:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(79,70,229,.1);
+}
+
+/* Checkbox filters bar */
+.cv-checks-bar {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  padding: 10px 24px;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.cv-check-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+}
+.cv-check-label input[type=checkbox] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+/* Courses table */
+.cv-courses-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.cv-courses-table thead th {
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: var(--bg);
+  border-bottom: 1.5px solid var(--border);
+  white-space: nowrap;
+}
+.cv-th-pub     { width: 90px; text-align: center; }
+.cv-th-name    { min-width: 200px; }
+.cv-th-sis     { width: 120px; }
+.cv-th-term    { width: 100px; }
+.cv-th-teacher { width: 180px; }
+.cv-th-sub     { width: 130px; }
+.cv-th-students{ width: 80px; text-align: center; }
+.cv-th-actions { width: 80px; }
+
+/* Table rows */
+.cv-course-row { transition: background .12s; }
+.cv-course-row:hover { background: var(--hover-indigo); }
+.cv-course-row td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: middle;
+}
+.cv-loading {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 36px !important;
+}
+
+/* Published icon */
+.cv-td-pub { text-align: center; }
+.cv-pub-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  background: transparent;
+  transition: transform .15s, box-shadow .15s;
+}
+.cv-pub-btn:hover { transform: scale(1.15); }
+.cv-pub-on  { color: #16a34a; }
+.cv-pub-on:hover  { box-shadow: 0 0 0 4px rgba(22,163,74,.15); }
+.cv-pub-off { color: #94a3b8; }
+.cv-pub-off:hover { color: var(--primary); box-shadow: 0 0 0 4px rgba(79,70,229,.1); }
+
+/* Course name link */
+.cv-td-name {}
+.cv-course-link {
+  font-weight: 600;
+  color: var(--primary);
+  cursor: pointer;
+  text-decoration: none;
+  line-height: 1.3;
+}
+.cv-course-link:hover { text-decoration: underline; }
+.cv-course-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* SIS ID, term, sub-unit */
+.cv-td-sis, .cv-td-term, .cv-td-sub {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* Teacher column */
+.cv-td-teacher {}
+.cv-teacher-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cv-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--primary-light);
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 700;
+  border: 2px solid #c7d2fe;
+  flex-shrink: 0;
+}
+.cv-teacher-name {
+  font-size: 13px;
+  color: var(--primary);
+  cursor: pointer;
+}
+.cv-teacher-name:hover { text-decoration: underline; }
+
+/* Student count */
+.cv-td-students {
+  text-align: center;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Row actions */
+.cv-td-actions { text-align: right; }
+.cv-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: flex-end;
+}
+.cv-row-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-sm);
+  border: 1.5px solid var(--border);
+  background: #fff;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  transition: all .15s;
+}
+.cv-row-action-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+/* Gear dropdown */
+.cv-action-menu-wrap {
+  position: relative;
+}
+.cv-action-menu {
+  position: fixed;
+  z-index: 999;
+  background: #fff;
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-lg);
+  min-width: 170px;
+  padding: 4px 0;
+  animation: fadeIn .12s ease;
+}
+.cv-action-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-family: inherit;
+  background: none;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: background .1s;
+}
+.cv-action-menu button:hover { background: var(--hover-indigo); color: var(--primary); }
+.cv-action-menu button i { width: 14px; text-align: center; color: var(--text-muted); }
+.cv-action-menu button:hover i { color: var(--primary); }
+.cv-menu-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+.cv-menu-danger { color: var(--danger) !important; }
+.cv-menu-danger:hover { background: var(--danger-light) !important; }
+.cv-menu-danger i { color: var(--danger) !important; }
