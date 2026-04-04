@@ -46,6 +46,10 @@ compatibility_flags = ["nodejs_compat"]
 #
 # ── Course Management module (FR-C01 to FR-C11) ──────────────
 #   wrangler secret put NOCO_ENROLLMENTS      → m3vjp8zn51kx7e4
+#
+# ── AI Agents module ──────────────────────────────────────────
+#   wrangler secret put AI_GATEWAY_KEY    (Anthropic or OpenAI API key)
+#   wrangler secret put AI_PROVIDER       (optional: "anthropic" | "openai", default: "anthropic")
 
 # ── Custom Domain ─────────────────────────────────────────────
 routes = [
