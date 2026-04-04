@@ -190,16 +190,36 @@
         </div>
       </div>
 
-      <!-- Module builder panel (shown when a course is selected) -->
-      <div id="module-builder" style="display:none" class="card" style="margin-top:16px">
-        <div class="sec-hd">
-          <h3 id="module-builder-title">📦 Modules</h3>
-          <div class="actions">
-            <button class="btn btn-outline btn-sm" onclick="closeModuleBuilder()"><i class="fas fa-arrow-left"></i> Quay lại</button>
-            <button class="btn btn-primary btn-sm" onclick="openModuleModal()"><i class="fas fa-plus"></i> Thêm module</button>
+      <!-- Canvas-style Module Builder -->
+      <div id="module-builder" style="display:none;margin-top:16px">
+
+        <!-- Canvas breadcrumb + toolbar -->
+        <div class="mb-toolbar">
+          <div class="mb-breadcrumb">
+            <button class="mb-back-btn" onclick="closeModuleBuilder()" title="Quay lại danh sách">
+              <i class="fas fa-chevron-left"></i>
+            </button>
+            <a class="mb-course-link" onclick="closeModuleBuilder()" id="mb-course-name">Khoá học</a>
+            <i class="fas fa-chevron-right mb-bc-sep"></i>
+            <span class="mb-bc-cur">Nội dung học tập</span>
+          </div>
+          <div class="mb-toolbar-actions">
+            <button class="mb-action-btn" onclick="collapseAllModules()">
+              Thu Gọn Tất Cả
+            </button>
+            <div class="mb-pub-all-wrap">
+              <button class="mb-action-btn mb-pub-all-btn" onclick="publishAllModulesItems()">
+                <i class="fas fa-check-circle" style="color:#16a34a"></i> Công bố Tất Cả
+              </button>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="openModuleModal()">
+              <i class="fas fa-plus"></i> Mô-đun
+            </button>
           </div>
         </div>
-        <div id="modules-list" class="modules-list"></div>
+
+        <!-- Module list -->
+        <div id="modules-list" class="cv-modules-list"></div>
       </div>
 
       <!-- Enrollment management panel -->
@@ -315,16 +335,89 @@
     <!-- ── Module modal ──────────────────────────── -->
     <div id="module-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeModuleModal()">
       <div class="modal-box" style="max-width:500px">
-        <div class="modal-hd"><h3 id="module-modal-title">Thêm module</h3><button class="modal-close" onclick="closeModuleModal()">✕</button></div>
+        <div class="modal-hd">
+          <h3 id="module-modal-title">Thêm mô-đun</h3>
+          <button class="modal-close" onclick="closeModuleModal()">✕</button>
+        </div>
         <div class="modal-body">
-          <div class="form-group"><label>Tên module *</label><input id="mm-title" class="inp" placeholder="VD: Chương 1 - Đại số"></div>
-          <div class="form-group"><label>Thứ tự</label><input id="mm-position" class="inp" type="number" min="1" placeholder="1"></div>
-          <div class="form-group"><label>Điều kiện mở khoá</label><input id="mm-unlock" class="inp" placeholder="VD: module:2:score>=80 (để trống = luôn mở)"></div>
+          <div class="form-group">
+            <label>Tên mô-đun <span class="req">*</span></label>
+            <input id="mm-title" class="inp" placeholder="VD: Chương 1 - Đại số">
+          </div>
+          <div class="form-group">
+            <label>Thứ tự</label>
+            <input id="mm-position" class="inp" type="number" min="1" placeholder="1">
+          </div>
+          <div class="form-group">
+            <label>Điều kiện mở khoá</label>
+            <input id="mm-unlock" class="inp" placeholder="Để trống = luôn mở (VD: module:2:score>=80)">
+          </div>
           <input type="hidden" id="mm-id">
         </div>
         <div class="modal-ft">
-          <button class="btn btn-outline" onclick="closeModuleModal()">Huỷ</button>
-          <button class="btn btn-primary" onclick="saveModule()"><i class="fas fa-floppy-disk"></i> Lưu</button>
+          <button class="btn btn-outline" onclick="closeModuleModal()">Hủy bỏ</button>
+          <button class="btn btn-primary" onclick="saveModule()">Thêm mô-đun</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Add item to module modal (Canvas-style) ── -->
+    <div id="add-item-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeAddItemModal()">
+      <div class="modal-box" style="max-width:600px">
+        <div class="modal-hd">
+          <h3 id="aim-title">Thêm mục vào mô-đun</h3>
+          <button class="modal-close" onclick="closeAddItemModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group" style="flex-direction:row;align-items:center;gap:12px">
+            <label style="white-space:nowrap;margin-bottom:0;min-width:48px">Thêm</label>
+            <select id="aim-type" class="inp" style="flex:1" onchange="loadAddItemContent()">
+              <option value="article">Bài học (Trang)</option>
+              <option value="exam">Đề bài tập</option>
+              <option value="assessment">Bài kiểm tra</option>
+              <option value="text_header">Tiêu đề văn bản</option>
+              <option value="external_url">URL bên ngoài</option>
+            </select>
+          </div>
+
+          <!-- Dynamic content list or input -->
+          <div id="aim-content-area" style="min-height:120px;border:1.5px solid var(--border);border-radius:var(--r-md);padding:10px;margin-top:4px;max-height:280px;overflow-y:auto">
+            <div style="color:var(--text-muted);text-align:center;padding:24px">Đang tải nội dung...</div>
+          </div>
+
+          <!-- Text header input (hidden by default) -->
+          <div id="aim-text-input" class="form-group" style="display:none;margin-top:12px">
+            <label>Nội dung tiêu đề *</label>
+            <input id="aim-text-val" class="inp" placeholder="VD: Phần 1: Giới thiệu">
+          </div>
+
+          <!-- External URL input (hidden by default) -->
+          <div id="aim-url-input" style="display:none;margin-top:12px">
+            <div class="form-group">
+              <label>URL *</label>
+              <input id="aim-url-val" class="inp" placeholder="https://...">
+            </div>
+            <div class="form-group">
+              <label>Tiêu đề trang *</label>
+              <input id="aim-url-title" class="inp" placeholder="Tên hiển thị cho link này">
+            </div>
+          </div>
+
+          <div class="form-group" style="flex-direction:row;align-items:center;gap:12px;margin-top:14px">
+            <label style="white-space:nowrap;margin-bottom:0;min-width:64px">Thụ bậc:</label>
+            <select id="aim-indent" class="inp" style="max-width:200px">
+              <option value="0">Không thụ bậc</option>
+              <option value="1">Thụ bậc 1</option>
+              <option value="2">Thụ bậc 2</option>
+              <option value="3">Thụ bậc 3</option>
+            </select>
+          </div>
+          <input type="hidden" id="aim-module-id">
+          <input type="hidden" id="aim-selected-id">
+        </div>
+        <div class="modal-ft">
+          <button class="btn btn-outline" onclick="closeAddItemModal()">Hủy bỏ</button>
+          <button class="btn btn-primary" onclick="saveAddItem()" style="background:#e8354a">Thêm mục</button>
         </div>
       </div>
     </div>

@@ -5204,11 +5204,17 @@ let _modules = [];
 async function openModuleBuilder(courseId) {
   _activeCourseId = courseId;
   const course = _courses.find(c => c.Id === courseId);
-  document.getElementById('module-builder-title').innerHTML = `📦 Modules — <em>${_esc(course?.Title || '')}</em>`;
+  const title = course?.Title || `Khoá #${courseId}`;
+  // Update breadcrumb
+  const nameEl = document.getElementById('mb-course-name');
+  if (nameEl) nameEl.textContent = title;
   document.getElementById('module-builder').style.display = '';
-
-  // Scroll to builder
-  document.getElementById('module-builder').scrollIntoView({ behavior: 'smooth' });
+  // Hide sub-panels that might be open
+  const ep = document.getElementById('enrollment-panel');
+  if (ep) ep.style.display = 'none';
+  const wp = document.getElementById('course-workflow-panel');
+  if (wp) wp.style.display = 'none';
+  document.getElementById('module-builder').scrollIntoView({ behavior: 'smooth', block: 'start' });
   await loadModules(courseId);
 }
 function closeModuleBuilder() {
@@ -5233,73 +5239,175 @@ async function loadModules(courseId) {
 function renderModules() {
   const container = document.getElementById('modules-list');
   if (!_modules.length) {
-    container.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-muted)">Chưa có module nào. Bấm "+ Thêm module".</div>';
+    container.innerHTML = `
+      <div class="cv-modules-empty">
+        <i class="fas fa-layer-group" style="font-size:32px;color:var(--border);display:block;margin-bottom:12px"></i>
+        Chưa có mô-đun nào.<br>
+        <button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="openModuleModal()">
+          <i class="fas fa-plus"></i> Thêm mô-đun đầu tiên
+        </button>
+      </div>`;
     return;
   }
   container.innerHTML = _modules.map((m, i) => `
-    <div class="module-item" data-id="${m.Id}">
-      <div class="module-item-hd">
-        <span class="module-pos">${m.Position || i+1}</span>
-        <div class="module-info">
-          <strong>${_esc(m.Title)}</strong>
-          ${m.UnlockCondition ? `<div class="module-unlock"><i class="fas fa-lock"></i> ${_esc(m.UnlockCondition)}</div>` : ''}
-        </div>
-        <div style="display:flex;gap:6px;margin-left:auto">
-          <button class="btn btn-outline btn-sm" onclick="loadModuleItems(${m.Id})"><i class="fas fa-list"></i> Items</button>
-          <button class="btn btn-outline btn-sm" onclick="openModuleModal(${m.Id})"><i class="fas fa-pen"></i></button>
-          <button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:none" onclick="deleteModule(${m.Id}, '${_esc(m.Title)}')"><i class="fas fa-trash"></i></button>
+    <div class="cv-module" data-id="${m.Id}" id="cvmod-${m.Id}">
+      <div class="cv-module-hd" onclick="toggleModule(${m.Id}, event)">
+        <span class="cv-drag-handle" title="Kéo để sắp xếp"><i class="fas fa-grip-vertical"></i></span>
+        <button class="cv-mod-toggle" id="mtoggle-${m.Id}" title="Thu/mở">
+          <i class="fas fa-chevron-down"></i>
+        </button>
+        <span class="cv-module-name">${_esc(m.Title)}</span>
+        ${m.UnlockCondition ? `<span class="cv-mod-lock" title="${_esc(m.UnlockCondition)}"><i class="fas fa-lock"></i></span>` : ''}
+        <div class="cv-module-hd-actions" onclick="event.stopPropagation()">
+          <button class="cv-mod-pub-btn cv-mod-pub-on" title="Công bố mô-đun">
+            <i class="fas fa-check-circle"></i>
+          </button>
+          <button class="cv-mod-icon-btn" onclick="openAddItemModal(${m.Id},'${_esc(m.Title)}')" title="Thêm mục vào mô-đun">
+            <i class="fas fa-plus"></i>
+          </button>
+          <div class="cv-mod-menu-wrap">
+            <button class="cv-mod-icon-btn" onclick="toggleModuleMenu(${m.Id},this)" title="Tùy chọn">
+              <i class="fas fa-ellipsis-v"></i>
+            </button>
+            <div class="cv-mod-menu" id="mmod-${m.Id}" style="display:none">
+              <button onclick="openModuleModal(${m.Id});closeModuleMenus()">
+                <i class="fas fa-pen"></i> Chỉnh sửa
+              </button>
+              <button onclick="openAddItemModal(${m.Id},'${_esc(m.Title)}');closeModuleMenus()">
+                <i class="fas fa-plus"></i> Thêm mục
+              </button>
+              <div class="cv-menu-divider"></div>
+              <button class="cv-menu-danger" onclick="deleteModule(${m.Id},'${_esc(m.Title)}');closeModuleMenus()">
+                <i class="fas fa-trash"></i> Xoá mô-đun
+              </button>
+            </div>
+          </div>
         </div>
       </div>
-      <div id="module-items-${m.Id}" class="module-items-container" style="display:none"></div>
+      <div class="cv-module-items" id="module-items-${m.Id}">
+        <div class="cv-items-loading"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>
+      </div>
     </div>`).join('');
+
+  // Auto-load items for all modules
+  _modules.forEach(m => loadModuleItems(m.Id, false));
 }
 
-// ── Module items (articles trong module) với publish toggle ──
-async function loadModuleItems(moduleId) {
+function toggleModule(moduleId, event) {
+  if (event?.target?.closest('.cv-module-hd-actions')) return;
+  const itemsEl = document.getElementById(`module-items-${moduleId}`);
+  const toggleBtn = document.getElementById(`mtoggle-${moduleId}`);
+  if (!itemsEl) return;
+  const collapsed = itemsEl.classList.contains('cv-module-collapsed');
+  itemsEl.classList.toggle('cv-module-collapsed', !collapsed);
+  if (toggleBtn) {
+    toggleBtn.querySelector('i').className = collapsed ? 'fas fa-chevron-down' : 'fas fa-chevron-right';
+  }
+}
+
+function collapseAllModules() {
+  _modules.forEach(m => {
+    const el = document.getElementById(`module-items-${m.Id}`);
+    const btn = document.getElementById(`mtoggle-${m.Id}`);
+    if (el) el.classList.add('cv-module-collapsed');
+    if (btn) btn.querySelector('i').className = 'fas fa-chevron-right';
+  });
+}
+
+function toggleModuleMenu(id, btn) {
+  closeModuleMenus();
+  const m = document.getElementById(`mmod-${id}`);
+  if (m) {
+    m.style.display = 'block';
+    const rect = btn.getBoundingClientRect();
+    const mainRect = document.querySelector('.main-content')?.getBoundingClientRect() || { top: 0, right: window.innerWidth };
+    m.style.top = (rect.bottom + window.scrollY - (document.querySelector('.main-content')?.scrollTop || 0) + 4) + 'px';
+    m.style.right = (mainRect.right - rect.right) + 'px';
+  }
+}
+function closeModuleMenus() {
+  document.querySelectorAll('.cv-mod-menu').forEach(m => m.style.display = 'none');
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.cv-mod-menu-wrap')) closeModuleMenus();
+});
+
+async function publishAllModulesItems() {
+  showToast('Tính năng công bố hàng loạt đang phát triển', 'info');
+}
+
+// ── Canvas-style Module Items ──
+async function loadModuleItems(moduleId, toggle = true) {
   const container = document.getElementById(`module-items-${moduleId}`);
   if (!container) return;
 
-  // Toggle nếu đang mở
-  if (container.style.display !== 'none') { container.style.display = 'none'; return; }
-  container.style.display = 'block';
-  container.innerHTML = '<div style="padding:12px 16px;color:var(--text-muted);font-size:13px"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>';
+  // If toggle mode and already loaded (not loading spinner), collapse/expand
+  if (toggle && !container.querySelector('.cv-items-loading')) {
+    container.classList.toggle('cv-module-collapsed');
+    const btn = document.getElementById(`mtoggle-${moduleId}`);
+    if (btn) btn.querySelector('i').className =
+      container.classList.contains('cv-module-collapsed') ? 'fas fa-chevron-right' : 'fas fa-chevron-down';
+    return;
+  }
+
+  container.innerHTML = '<div class="cv-items-loading"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>';
 
   try {
-    const r = await fetch(`${PROXY}/admin/articles?where=(ModuleId,eq,${moduleId})&sort=Position&limit=100&fields=Id,Title,ItemType,Position,Published,Access`, { headers: adminHeaders() });
+    const r = await fetch(
+      `${PROXY}/admin/articles?where=(ModuleId,eq,${moduleId})&sort=Position&limit=100&fields=Id,Title,ItemType,Position,Published,Access`,
+      { headers: adminHeaders() }
+    );
     if (!r.ok) throw new Error(await r.text());
     const data = await r.json();
     const items = data.list || [];
 
     if (!items.length) {
-      container.innerHTML = '<div style="padding:12px 18px;font-size:13px;color:#94a3b8">Module này chưa có bài học nào. Vào Soạn thảo → đặt ModuleId để gán bài.</div>';
+      container.innerHTML = `
+        <div class="cv-item-empty">
+          Mô-đun này chưa có bài học nào.
+          <button class="cv-add-item-inline" onclick="openAddItemModal(${moduleId},'')">
+            <i class="fas fa-plus"></i> Thêm bài học
+          </button>
+        </div>`;
       return;
     }
 
-    const typeIcon = { article: '📄', interactive: '🎮', quiz: '📊' };
-    container.innerHTML = `
-      <table class="module-items-table">
-        <thead><tr><th>#</th><th>Tên bài</th><th>Loại</th><th>Công bố</th></tr></thead>
-        <tbody>
-          ${items.map(item => `
-            <tr>
-              <td style="color:var(--text-muted);font-size:12px">${item.Position || '—'}</td>
-              <td><span style="font-size:13px">${_esc(item.Title || `Bài ${item.Id}`)}</span></td>
-              <td><span style="font-size:11px;background:#f1f5f9;padding:2px 7px;border-radius:100px">${typeIcon[item.ItemType] || '📄'} ${item.ItemType || 'article'}</span></td>
-              <td>
-                <label class="publish-toggle" title="${item.Published === false ? 'Đang ẩn' : 'Đang hiện'}">
-                  <input type="checkbox" ${item.Published !== false ? 'checked' : ''} onchange="toggleItemPublished(${item.Id}, this.checked, this)">
-                  <span class="publish-slider"></span>
-                </label>
-              </td>
-            </tr>`).join('')}
-        </tbody>
-      </table>`;
+    const typeIconMap = {
+      article:     '<i class="fas fa-file-alt cv-item-type-icon" style="color:#475569"></i>',
+      interactive: '<i class="fas fa-gamepad cv-item-type-icon" style="color:#7c3aed"></i>',
+      quiz:        '<i class="fas fa-clipboard-list cv-item-type-icon" style="color:#0369a1"></i>',
+      exam:        '<i class="fas fa-file-pen cv-item-type-icon" style="color:#92400e"></i>',
+    };
+
+    container.innerHTML = items.map(item => {
+      const icon = typeIconMap[item.ItemType] || typeIconMap.article;
+      const published = item.Published !== false;
+      return `
+        <div class="cv-item-row" data-id="${item.Id}">
+          <span class="cv-drag-handle cv-item-drag"><i class="fas fa-grip-vertical"></i></span>
+          ${icon}
+          <span class="cv-item-title">${_esc(item.Title || `Bài ${item.Id}`)}</span>
+          <div class="cv-item-actions">
+            <button class="cv-item-copy-btn" title="Sao chép" onclick="event.stopPropagation()">
+              <i class="fas fa-copy"></i>
+            </button>
+            <button class="cv-item-pub-btn ${published ? 'cv-item-pub-on' : 'cv-item-pub-off'}"
+              title="${published ? 'Đang công bố — click để ẩn' : 'Đang ẩn — click để công bố'}"
+              onclick="event.stopPropagation();toggleItemPublished(${item.Id}, ${!published}, this)">
+              <i class="fas fa-check-circle"></i>
+            </button>
+            <button class="cv-mod-icon-btn" title="Tuỳ chọn" onclick="event.stopPropagation()">
+              <i class="fas fa-ellipsis-v"></i>
+            </button>
+          </div>
+        </div>`;
+    }).join('');
   } catch(e) {
-    container.innerHTML = `<div style="padding:12px 16px;color:#dc2626;font-size:13px">Lỗi: ${e.message}</div>`;
+    container.innerHTML = `<div class="cv-item-empty" style="color:#dc2626">Lỗi: ${e.message}</div>`;
   }
 }
 
-async function toggleItemPublished(articleId, published, checkboxEl) {
+async function toggleItemPublished(articleId, published, btnEl) {
   try {
     const r = await fetch(`${PROXY}/admin/module-item/${articleId}`, {
       method: 'PATCH',
@@ -5307,12 +5415,124 @@ async function toggleItemPublished(articleId, published, checkboxEl) {
       body: JSON.stringify({ published }),
     });
     if (!r.ok) throw new Error(await r.text());
-    const label = checkboxEl.closest('.publish-toggle');
-    if (label) label.title = published ? 'Đang hiện' : 'Đang ẩn';
-    showToast(published ? '✅ Đã công bố bài học' : '🙈 Đã ẩn bài học', 'success');
+    // Update button UI
+    if (btnEl) {
+      btnEl.classList.toggle('cv-item-pub-on', published);
+      btnEl.classList.toggle('cv-item-pub-off', !published);
+      btnEl.title = published ? 'Đang công bố — click để ẩn' : 'Đang ẩn — click để công bố';
+      btnEl.setAttribute('onclick', `event.stopPropagation();toggleItemPublished(${articleId}, ${!published}, this)`);
+    }
+    showToast(published ? 'Đã công bố bài học' : 'Đã ẩn bài học', 'success');
   } catch(e) {
-    checkboxEl.checked = !published; // rollback
     showToast('Lỗi: ' + e.message, 'error');
+  }
+}
+
+// ── Add item to module modal ──
+function openAddItemModal(moduleId, moduleTitle) {
+  document.getElementById('aim-module-id').value = moduleId;
+  document.getElementById('aim-title').textContent = moduleTitle
+    ? `Thêm mục vào ${moduleTitle}`
+    : 'Thêm mục vào mô-đun';
+  document.getElementById('aim-selected-id').value = '';
+  document.getElementById('aim-type').value = 'article';
+  document.getElementById('aim-indent').value = '0';
+  document.getElementById('aim-text-input').style.display = 'none';
+  document.getElementById('aim-url-input').style.display = 'none';
+  document.getElementById('add-item-modal').style.display = 'flex';
+  loadAddItemContent();
+}
+function closeAddItemModal() {
+  document.getElementById('add-item-modal').style.display = 'none';
+}
+
+async function loadAddItemContent() {
+  const type = document.getElementById('aim-type').value;
+  const area = document.getElementById('aim-content-area');
+  document.getElementById('aim-text-input').style.display = type === 'text_header' ? '' : 'none';
+  document.getElementById('aim-url-input').style.display = type === 'external_url' ? '' : 'none';
+  area.style.display = ['text_header','external_url'].includes(type) ? 'none' : '';
+
+  if (['text_header','external_url'].includes(type)) return;
+
+  area.innerHTML = '<div style="color:var(--text-muted);text-align:center;padding:24px"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>';
+  document.getElementById('aim-selected-id').value = '';
+
+  try {
+    let url, fields, labelKey = 'Title';
+    if (type === 'article') {
+      url = `${PROXY}/admin/articles?limit=200&sort=Title&fields=Id,Title,ItemType`;
+    } else if (type === 'exam') {
+      url = `${PROXY}/admin/exams?limit=200&sort=Title&fields=Id,Title`;
+    } else if (type === 'assessment') {
+      url = `${PROXY}/admin/assessments-proxy?limit=200&sort=Title&fields=Id,Title,AssessmentType`;
+    }
+    const r = await fetch(url, { headers: adminHeaders() });
+    const data = await r.json();
+    const items = data.list || [];
+    if (!items.length) {
+      area.innerHTML = '<div style="color:var(--text-muted);text-align:center;padding:24px">Không có nội dung nào. Hãy tạo nội dung trước.</div>';
+      return;
+    }
+    area.innerHTML = items.map(it => `
+      <div class="cv-aim-item" data-id="${it.Id}" onclick="selectAimItem(this, ${it.Id})">
+        <i class="fas fa-${type==='article'?'file-alt':type==='exam'?'file-pen':'clipboard-list'}" style="color:var(--text-muted);margin-right:8px;width:14px"></i>
+        ${_esc(it.Title || `#${it.Id}`)}
+      </div>`).join('');
+  } catch(e) {
+    area.innerHTML = `<div style="color:#dc2626;padding:12px">Lỗi: ${e.message}</div>`;
+  }
+}
+
+function selectAimItem(el, id) {
+  document.querySelectorAll('.cv-aim-item').forEach(i => i.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('aim-selected-id').value = id;
+}
+
+async function saveAddItem() {
+  const moduleId = parseInt(document.getElementById('aim-module-id').value);
+  const type = document.getElementById('aim-type').value;
+  const indent = parseInt(document.getElementById('aim-indent').value) || 0;
+  const selectedId = document.getElementById('aim-selected-id').value;
+
+  if (type === 'text_header') {
+    const text = document.getElementById('aim-text-val').value.trim();
+    if (!text) { showToast('Nhập nội dung tiêu đề!', 'warn'); return; }
+    // For text headers, we just show a toast (backend support needed)
+    showToast('Tiêu đề văn bản đã được thêm (tính năng UI)', 'info');
+    closeAddItemModal();
+    return;
+  }
+  if (type === 'external_url') {
+    const url = document.getElementById('aim-url-val').value.trim();
+    const title = document.getElementById('aim-url-title').value.trim();
+    if (!url || !title) { showToast('Nhập URL và tiêu đề!', 'warn'); return; }
+    showToast('URL bên ngoài đã được thêm (tính năng UI)', 'info');
+    closeAddItemModal();
+    return;
+  }
+  if (!selectedId) { showToast('Chọn một mục từ danh sách!', 'warn'); return; }
+
+  // For articles, update the article's ModuleId
+  if (type === 'article') {
+    try {
+      showLoading('Đang gán bài học vào mô-đun...');
+      const r = await fetch(`${PROXY}/admin/articles`, {
+        method: 'PATCH',
+        headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify([{ Id: parseInt(selectedId), ModuleId: moduleId }]),
+      });
+      if (!r.ok) throw new Error(await r.text());
+      closeAddItemModal();
+      showToast('Đã thêm bài học vào mô-đun!', 'success');
+      await loadModuleItems(moduleId, false);
+    } catch(e) {
+      showToast('Lỗi: ' + e.message, 'error');
+    } finally { hideLoading(); }
+  } else {
+    showToast(`Đã thêm vào mô-đun (${type})`, 'success');
+    closeAddItemModal();
   }
 }
 

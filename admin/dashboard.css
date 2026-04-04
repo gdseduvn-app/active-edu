@@ -2404,3 +2404,354 @@ select.inp { cursor: pointer; }
 .cv-menu-danger { color: var(--danger) !important; }
 .cv-menu-danger:hover { background: var(--danger-light) !important; }
 .cv-menu-danger i { color: var(--danger) !important; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   29. CANVAS-STYLE MODULE BUILDER
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Module Builder Toolbar ── */
+.mb-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: #fff;
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-card) var(--r-card) 0 0;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.mb-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.mb-back-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: #fff;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  transition: all .15s;
+}
+.mb-back-btn:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+.mb-course-link {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--primary);
+  cursor: pointer;
+  text-decoration: none;
+}
+.mb-course-link:hover { text-decoration: underline; }
+.mb-bc-sep { color: var(--text-subtle); font-size: 11px; }
+.mb-bc-cur { font-weight: 600; color: var(--text); font-size: 14px; }
+
+.mb-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.mb-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 14px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-sm);
+  background: #fff;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text);
+  cursor: pointer;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.mb-action-btn:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+
+/* ── Modules list ── */
+.cv-modules-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 0 32px;
+}
+.cv-modules-empty {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--text-muted);
+  background: #fff;
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-card);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+/* ── Single Module Card ── */
+.cv-module {
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-md);
+  background: #fff;
+  overflow: visible;
+  box-shadow: var(--shadow-xs);
+}
+
+/* Module header */
+.cv-module-hd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #f5f5f0;
+  border-radius: var(--r-md) var(--r-md) 0 0;
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid var(--border);
+  transition: background .1s;
+}
+.cv-module-hd:hover { background: #eeede8; }
+.cv-drag-handle {
+  color: #b0b0a8;
+  cursor: grab;
+  font-size: 13px;
+  padding: 2px 1px;
+  flex-shrink: 0;
+}
+.cv-drag-handle:active { cursor: grabbing; }
+.cv-mod-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px; height: 22px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 11px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  transition: transform .15s, color .1s;
+}
+.cv-mod-toggle:hover { color: var(--primary); }
+.cv-module-name {
+  flex: 1;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text);
+}
+.cv-mod-lock {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-right: 4px;
+}
+
+/* Module header action buttons */
+.cv-module-hd-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+.cv-mod-pub-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  font-size: 17px;
+  cursor: pointer;
+  transition: transform .15s;
+}
+.cv-mod-pub-btn:hover { transform: scale(1.15); }
+.cv-mod-pub-on  { color: #16a34a; }
+.cv-mod-pub-off { color: #94a3b8; }
+.cv-mod-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px; height: 30px;
+  border-radius: var(--r-sm);
+  border: 1.5px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  transition: all .15s;
+}
+.cv-mod-icon-btn:hover { border-color: var(--border); background: #fff; color: var(--text); }
+
+/* Module menu dropdown */
+.cv-mod-menu-wrap { position: relative; }
+.cv-mod-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 200;
+  background: #fff;
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-lg);
+  min-width: 165px;
+  padding: 4px 0;
+  animation: fadeIn .12s ease;
+}
+.cv-mod-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-family: inherit;
+  background: none;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: background .1s;
+}
+.cv-mod-menu button:hover { background: var(--hover-indigo); color: var(--primary); }
+.cv-mod-menu button i { width: 14px; text-align: center; color: var(--text-muted); }
+.cv-mod-menu button:hover i { color: var(--primary); }
+
+/* ── Module items container ── */
+.cv-module-items {
+  border-radius: 0 0 var(--r-md) var(--r-md);
+  overflow: hidden;
+  transition: max-height .25s ease;
+}
+.cv-module-collapsed {
+  display: none;
+}
+.cv-items-loading {
+  padding: 14px 20px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.cv-item-empty {
+  padding: 16px 20px;
+  color: var(--text-muted);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-left: 4px solid #e2e8f0;
+  margin: 0;
+}
+.cv-add-item-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border: 1.5px dashed var(--border);
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all .15s;
+}
+.cv-add-item-inline:hover { border-color: var(--primary); color: var(--primary); }
+
+/* ── Item row (Canvas style) ── */
+.cv-item-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px 11px 16px;
+  border-top: 1px solid var(--border-subtle);
+  border-left: 4px solid #16a34a; /* Canvas green left accent */
+  background: #fff;
+  cursor: default;
+  transition: background .1s;
+}
+.cv-item-row:hover { background: #fafaf8; }
+.cv-item-drag {
+  color: #c0c0b8;
+  font-size: 12px;
+  cursor: grab;
+  flex-shrink: 0;
+}
+.cv-item-type-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+  width: 16px;
+  text-align: center;
+}
+.cv-item-title {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.cv-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity .15s;
+}
+.cv-item-row:hover .cv-item-actions { opacity: 1; }
+.cv-item-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px; height: 28px;
+  border-radius: var(--r-sm);
+  border: 1.5px solid var(--border);
+  background: #fff;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  transition: all .15s;
+}
+.cv-item-copy-btn:hover { border-color: var(--text-muted); color: var(--text); }
+.cv-item-pub-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  font-size: 17px;
+  cursor: pointer;
+  transition: transform .15s;
+}
+.cv-item-pub-btn:hover { transform: scale(1.2); }
+.cv-item-pub-on  { color: #16a34a; opacity: 1; }
+.cv-item-pub-off { color: #94a3b8; }
+
+/* Always show publish icon (not just on hover) */
+.cv-item-pub-btn { opacity: 1 !important; }
+
+/* ── Add item modal content list ── */
+.cv-aim-item {
+  display: flex;
+  align-items: center;
+  padding: 9px 12px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text);
+  transition: background .1s;
+  border: 2px solid transparent;
+  margin-bottom: 2px;
+}
+.cv-aim-item:hover { background: var(--hover-indigo); color: var(--primary); }
+.cv-aim-item.selected {
+  background: var(--primary-light);
+  border-color: var(--primary);
+  color: var(--primary);
+  font-weight: 600;
+}
