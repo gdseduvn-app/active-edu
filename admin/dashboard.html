@@ -66,11 +66,13 @@
 <!-- ── MAIN ────────────────────────────────── -->
 <div id="main">
   <div class="topbar">
-    <div class="topbar-title" id="panel-title">Dashboard</div>
+    <div class="topbar-left">
+      <div class="topbar-title" id="panel-title">Dashboard</div>
+    </div>
     <div class="topbar-right">
+      <span id="top-repo" style="font-size:12px;color:var(--text-subtle)"></span>
       <div class="admin-badge"><i class="fas fa-shield-halved"></i> Admin</div>
-      <button onclick="doLogout()" style="padding:5px 12px;border:1px solid #e2e8f0;background:transparent;border-radius:7px;font-size:12px;cursor:pointer;color:#64748b;font-family:inherit" title="Đăng xuất"><i class="fas fa-right-from-bracket"></i> Đăng xuất</button>
-      <span style="font-size:13px;color:var(--text-muted)" id="top-repo"></span>
+      <button onclick="doLogout()" class="topbar-logout" title="Đăng xuất"><i class="fas fa-right-from-bracket"></i> Đăng xuất</button>
     </div>
   </div>
 
@@ -84,16 +86,33 @@
         <span class="sync-time" id="sync-time-dash"></span>
       </div>
       <div class="stats-grid">
-        <div class="stat-card"><div class="lbl">Bài viết</div><div class="val" id="d-articles">—</div><div class="sub">trên NocoDB</div></div>
-        <div class="stat-card"><div class="lbl">Thư mục</div><div class="val" id="d-folders">—</div></div>
-        <div class="stat-card"><div class="lbl">Kết nối</div><div class="val" id="d-repo" style="font-size:14px;margin-top:4px">—</div></div>
-        <div class="stat-card"><div class="lbl">Đồng bộ cuối</div><div class="val" id="d-sync" style="font-size:13px;margin-top:4px">—</div></div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:#EEF2FF"><i class="fas fa-file-lines" style="color:#4F46E5"></i></div>
+          <div class="lbl">Bài viết</div>
+          <div class="val" id="d-articles">—</div>
+          <div class="sub"><i class="fas fa-arrow-trend-up"></i> trên NocoDB</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:#ECFDF5"><i class="fas fa-folder-open" style="color:#10B981"></i></div>
+          <div class="lbl">Thư mục</div>
+          <div class="val" id="d-folders">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:#ECFEFF"><i class="fas fa-plug" style="color:#06B6D4"></i></div>
+          <div class="lbl">Kết nối</div>
+          <div class="val" id="d-repo" style="font-size:14px;margin-top:4px">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:#FEF3C7"><i class="fas fa-rotate" style="color:#F59E0B"></i></div>
+          <div class="lbl">Đồng bộ cuối</div>
+          <div class="val" id="d-sync" style="font-size:13px;margin-top:4px">—</div>
+        </div>
       </div>
-      <div class="card">
-        <div class="sec-hd">
-          <h3>📋 Bài viết gần đây (từ NocoDB)</h3>
-          <div class="actions">
-            <button class="btn btn-teal btn-sm" onclick="syncFromGitHub()"><i class="fas fa-rotate"></i> Đồng bộ ngay</button>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div class="card-header">
+          <div class="card-header-title"><i class="fas fa-list-ul" style="color:#4F46E5"></i> Bài viết gần đây (từ NocoDB)</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-outline btn-sm" onclick="syncFromGitHub()"><i class="fas fa-rotate"></i> Đồng bộ</button>
             <button class="btn btn-primary btn-sm" onclick="showPanel('editor',document.querySelectorAll('.sb-item')[1])"><i class="fas fa-plus"></i> Tạo bài</button>
           </div>
         </div>
@@ -319,12 +338,18 @@
 
     <!-- ══ QUESTION BANK ═════════════════════════ -->
     <div class="panel" id="panel-qbank">
-      <div class="card">
-        <div class="sec-hd">
-          <h3>🗃️ Ngân hàng câu hỏi</h3>
-          <div class="actions">
-            <button class="btn btn-primary btn-sm" onclick="openQBankModal()"><i class="fas fa-plus"></i> Tạo ngân hàng</button>
-          </div>
+      <div class="page-header">
+        <div class="page-header-left">
+          <div class="page-title"><i class="fas fa-database"></i> Ngân hàng câu hỏi</div>
+          <div class="page-subtitle">Quản lý tập hợp câu hỏi theo chủ đề · Tái sử dụng trong các đề thi</div>
+        </div>
+        <div class="page-header-right">
+          <button class="btn btn-primary" onclick="openQBankModal()"><i class="fas fa-plus"></i> Tạo ngân hàng</button>
+        </div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div class="card-header">
+          <div class="card-header-title"><i class="fas fa-table-list" style="color:#4F46E5"></i> Danh sách ngân hàng</div>
         </div>
         <div class="table-wrap">
           <table>
@@ -367,12 +392,18 @@
 
     <!-- ══ EXAMS ══════════════════════════════════ -->
     <div class="panel" id="panel-exams">
-      <div class="card">
-        <div class="sec-hd">
-          <h3>📝 Đề bài tập</h3>
-          <div class="actions">
-            <button class="btn btn-primary btn-sm" onclick="openExamModal()"><i class="fas fa-plus"></i> Tạo đề</button>
-          </div>
+      <div class="page-header">
+        <div class="page-header-left">
+          <div class="page-title"><i class="fas fa-file-pen"></i> Đề bài tập</div>
+          <div class="page-subtitle">Tạo và quản lý đề kiểm tra · Cấu hình phần thi và thang điểm</div>
+        </div>
+        <div class="page-header-right">
+          <button class="btn btn-primary" onclick="openExamModal()"><i class="fas fa-plus"></i> Tạo đề</button>
+        </div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div class="card-header">
+          <div class="card-header-title"><i class="fas fa-table-list" style="color:#4F46E5"></i> Danh sách đề</div>
         </div>
         <div class="table-wrap">
           <table>
@@ -446,28 +477,57 @@
 
     <!-- ══ ANALYTICS ════════════════════════════ -->
     <div class="panel" id="panel-analytics">
+      <div class="page-header">
+        <div class="page-header-left">
+          <div class="page-title"><i class="fas fa-graduation-cap"></i> Phân tích học tập</div>
+          <div class="page-subtitle">Theo dõi tiến độ học sinh · Phân tích phản hồi · Đo lường hiệu quả nội dung</div>
+        </div>
+      </div>
       <div class="stats-grid" id="an-stats-grid">
-        <div class="stat-card"><div class="lbl">Tổng lượt hoàn thành</div><div class="val" id="an-total-done">—</div><div class="sub">bài đã đọc xong</div></div>
-        <div class="stat-card"><div class="lbl">Học sinh tham gia</div><div class="val" id="an-total-students">—</div><div class="sub">có tiến độ ghi nhận</div></div>
-        <div class="stat-card"><div class="lbl">Phản hồi tích cực</div><div class="val" id="an-easy-pct">—</div><div class="sub">Dễ hiểu / tổng reaction</div></div>
-        <div class="stat-card"><div class="lbl">Cần cải thiện</div><div class="val" id="an-improve-pct">—</div><div class="sub">Khó / Cần ví dụ thêm</div></div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:#EEF2FF"><i class="fas fa-check-circle" style="color:#4F46E5"></i></div>
+          <div class="lbl">Tổng lượt hoàn thành</div>
+          <div class="val" id="an-total-done">—</div>
+          <div class="sub">bài đã đọc xong</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:#ECFDF5"><i class="fas fa-users" style="color:#10B981"></i></div>
+          <div class="lbl">Học sinh tham gia</div>
+          <div class="val" id="an-total-students">—</div>
+          <div class="sub">có tiến độ ghi nhận</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:#ECFEFF"><i class="fas fa-face-smile" style="color:#06B6D4"></i></div>
+          <div class="lbl">Phản hồi tích cực</div>
+          <div class="val" id="an-easy-pct">—</div>
+          <div class="sub">Dễ hiểu / tổng reaction</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:#FEF3C7"><i class="fas fa-triangle-exclamation" style="color:#F59E0B"></i></div>
+          <div class="lbl">Cần cải thiện</div>
+          <div class="val" id="an-improve-pct">—</div>
+          <div class="sub">Khó / Cần ví dụ thêm</div>
+        </div>
       </div>
 
       <!-- Reactions chart -->
-      <div class="card" style="margin-bottom:18px">
-        <div class="sec-hd"><h3>💬 Phân tích phản hồi học sinh</h3>
+      <div class="card" style="margin-bottom:18px;padding:0;overflow:hidden">
+        <div class="card-header">
+          <div class="card-header-title"><i class="fas fa-comments" style="color:#4F46E5"></i> Phân tích phản hồi học sinh</div>
           <button class="btn btn-outline btn-sm" onclick="loadAnalytics()"><i class="fas fa-rotate"></i> Làm mới</button>
         </div>
-        <div id="an-reaction-wrap" style="padding:16px 0">
-          <div id="an-reaction-bars" style="display:flex;flex-direction:column;gap:10px;padding:0 8px">
+        <div id="an-reaction-wrap" style="padding:16px 20px">
+          <div id="an-reaction-bars" style="display:flex;flex-direction:column;gap:10px">
             <div style="text-align:center;color:var(--text-muted);padding:24px"><i class="fas fa-circle-notch fa-spin"></i> Đang tải...</div>
           </div>
         </div>
       </div>
 
       <!-- Top articles by reads -->
-      <div class="card" style="margin-bottom:18px">
-        <div class="sec-hd"><h3>🔥 Bài học được đọc nhiều nhất</h3></div>
+      <div class="card" style="margin-bottom:18px;padding:0;overflow:hidden">
+        <div class="card-header">
+          <div class="card-header-title"><i class="fas fa-fire" style="color:#EF4444"></i> Bài học được đọc nhiều nhất</div>
+        </div>
         <div class="table-wrap">
           <table>
             <thead><tr><th>#</th><th>Bài học</th><th>Lượt hoàn thành</th><th>Dễ hiểu</th><th>Khó hiểu</th><th>Cần ví dụ</th></tr></thead>
@@ -477,8 +537,9 @@
       </div>
 
       <!-- Students with least progress -->
-      <div class="card">
-        <div class="sec-hd"><h3>📋 Tiến độ học sinh</h3>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div class="card-header">
+          <div class="card-header-title"><i class="fas fa-chart-line" style="color:#10B981"></i> Tiến độ học sinh</div>
           <span id="an-student-note" style="font-size:12px;color:var(--text-muted)"></span>
         </div>
         <div class="table-wrap">
@@ -1153,9 +1214,14 @@
     </div>
 
     <div class="panel" id="panel-settings">
-      <div class="sec-hd">
-        <h3>⚙️ Cài đặt</h3>
-        <button class="btn btn-success" onclick="saveSettings()"><i class="fas fa-save"></i> Lưu tất cả</button>
+      <div class="page-header">
+        <div class="page-header-left">
+          <div class="page-title"><i class="fas fa-gear"></i> Cài đặt</div>
+          <div class="page-subtitle">Cấu hình kết nối, tài khoản và thông tin hệ thống</div>
+        </div>
+        <div class="page-header-right">
+          <button class="btn btn-success" onclick="saveSettings()"><i class="fas fa-save"></i> Lưu tất cả</button>
+        </div>
       </div>
 
       <!-- NocoDB -->
