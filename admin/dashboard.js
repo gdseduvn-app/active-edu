@@ -2454,6 +2454,8 @@ function showPanel(id, navEl) {
     loadAnalytics();
   } else if (id === 'assessments') {
     loadAssessments();
+  } else if (id === 'ai-agents') {
+    initAIAgentsPanel();
   }
 }
 
@@ -6877,4 +6879,403 @@ async function exportAssessmentCSV() {
 // ── escHtml helper (if not defined elsewhere) ──────
 if (typeof escHtml === 'undefined') {
   window.escHtml = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// AI AGENTS PANEL
+// ═══════════════════════════════════════════════════════════════════
+
+let _selectedContentAction = 'improve';
+let _generatedQuestions = [];
+let _coachHistory = [];
+
+async function initAIAgentsPanel() {
+  // Check AI connection
+  try {
+    const r = await fetch(`${PROXY}/api/health`, { headers: adminHeaders() });
+    const dot = document.getElementById('ai-status-dot');
+    const txt = document.getElementById('ai-status-text');
+    if (r.ok) {
+      dot.className = 'ai-status-dot ai-status-online';
+      txt.textContent = 'Worker online — AI ready';
+    }
+  } catch {}
+
+  // Populate course selector for analytics agent
+  const sel = document.getElementById('analytics-course-sel');
+  if (sel && _courses.length) {
+    sel.innerHTML = '<option value="">-- Chọn khoá học --</option>' +
+      _courses.map(c => `<option value="${c.Id}">${_esc(c.Title)}</option>`).join('');
+  } else if (sel) {
+    // Fetch courses if not cached
+    try {
+      const r = await fetch(`${PROXY}/admin/courses?limit=200&fields=Id,Title`, { headers: adminHeaders() });
+      const data = await r.json();
+      const courses = data.list || [];
+      sel.innerHTML = '<option value="">-- Chọn khoá học --</option>' +
+        courses.map(c => `<option value="${c.Id}">${_esc(c.Title)}</option>`).join('');
+    } catch {}
+  }
+}
+
+// ── 1. Curriculum Agent ──────────────────────────────────────────
+async function runCurriculumAgent() {
+  const prompt = document.getElementById('ca-prompt').value.trim();
+  if (!prompt) { showToast('Nhập mô tả khoá học!', 'warn'); return; }
+
+  const btn = document.querySelector('#agent-curriculum .ai-run-btn');
+  setAgentLoading(btn, true);
+  const resultEl = document.getElementById('ca-result');
+  resultEl.style.display = 'none';
+
+  try {
+    const r = await fetch(`${PROXY}/ai/curriculum-agent`, {
+      method: 'POST',
+      headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, questionCount: parseInt(document.getElementById('ca-nodes').value) || 10 }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Lỗi AI');
+
+    const dag = data.dag;
+    if (!dag) throw new Error(data.raw || 'AI không trả về DAG hợp lệ');
+
+    // Render DAG visually
+    resultEl.style.display = '';
+    resultEl.innerHTML = renderDAG(dag);
+    showToast('Curriculum Agent đã tạo lộ trình!', 'success');
+  } catch(e) {
+    resultEl.style.display = '';
+    resultEl.innerHTML = `<div class="ai-error"><i class="fas fa-exclamation-triangle"></i> ${e.message}</div>`;
+    showToast('Lỗi: ' + e.message, 'error');
+  } finally {
+    setAgentLoading(btn, false);
+  }
+}
+
+function renderDAG(dag) {
+  const nodes = dag.nodes || [];
+  const edges = dag.edges || [];
+  const typeColors = { core: '#4F46E5', satellite: '#0891B2', remedial: '#DC2626' };
+
+  let html = '<div class="dag-preview">';
+  html += '<div class="dag-legend">';
+  html += '<span class="dag-badge" style="background:#EEF2FF;color:#4F46E5">◉ Core</span>';
+  html += '<span class="dag-badge" style="background:#ECFEFF;color:#0891B2">◉ Enrichment</span>';
+  html += '<span class="dag-badge" style="background:#FEF2F2;color:#DC2626">◉ Remedial</span>';
+  html += '</div>';
+  html += '<div class="dag-nodes">';
+  nodes.forEach((node, i) => {
+    const color = typeColors[node.type] || '#64748B';
+    const bg = { core:'#EEF2FF', satellite:'#ECFEFF', remedial:'#FEF2F2' }[node.type] || '#F8FAFC';
+    html += `
+      <div class="dag-node" style="border-color:${color};background:${bg}">
+        <div class="dag-node-id" style="color:${color}">${node.id || `N${i+1}`}</div>
+        <div class="dag-node-title">${_esc(node.title || '')}</div>
+        <div class="dag-node-meta">
+          ${node.estimatedMinutes ? `<span><i class="fas fa-clock"></i> ${node.estimatedMinutes}p</span>` : ''}
+          ${node.type ? `<span class="dag-badge" style="background:${bg};color:${color};font-size:10px">${node.type}</span>` : ''}
+        </div>
+        ${node.learningObjectives?.length ? `<div class="dag-node-obj">${node.learningObjectives.slice(0,2).map(o => `<div>• ${_esc(o)}</div>`).join('')}</div>` : ''}
+      </div>`;
+  });
+  html += '</div>';
+  if (edges.length) {
+    html += '<div class="dag-edges-title">Luồng học tập:</div>';
+    html += '<div class="dag-edges">';
+    edges.forEach(e => {
+      const cond = { always: '→', score_above_80: '→ (>80%)', score_below_60: '→ (<60%)' }[e.condition] || '→';
+      html += `<div class="dag-edge"><span class="dag-edge-from">${e.from}</span><span class="dag-edge-arrow">${cond}</span><span class="dag-edge-to">${e.to}</span></div>`;
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+// ── 2. Assessment Agent ──────────────────────────────────────────
+async function runAssessmentAgent() {
+  const content = document.getElementById('aa-content').value.trim();
+  if (!content) { showToast('Paste nội dung bài học!', 'warn'); return; }
+
+  const btn = document.querySelector('#agent-assessment .ai-run-btn');
+  setAgentLoading(btn, true);
+  const resultEl = document.getElementById('aa-result');
+  resultEl.style.display = 'none';
+  _generatedQuestions = [];
+
+  try {
+    const r = await fetch(`${PROXY}/ai/assessment-agent`, {
+      method: 'POST',
+      headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content,
+        questionCount: parseInt(document.getElementById('aa-count').value) || 5,
+        difficulty: document.getElementById('aa-difficulty').value,
+        types: ['mcq', 'truefalse'],
+      }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Lỗi AI');
+
+    _generatedQuestions = data.questions || [];
+    if (!_generatedQuestions.length) throw new Error('AI không tạo được câu hỏi');
+
+    resultEl.style.display = '';
+    resultEl.innerHTML = renderGeneratedQuestions(_generatedQuestions);
+    document.getElementById('aa-import-btn').style.display = '';
+    showToast(`Đã tạo ${_generatedQuestions.length} câu hỏi!`, 'success');
+  } catch(e) {
+    resultEl.style.display = '';
+    resultEl.innerHTML = `<div class="ai-error"><i class="fas fa-exclamation-triangle"></i> ${e.message}</div>`;
+  } finally {
+    setAgentLoading(btn, false);
+  }
+}
+
+function renderGeneratedQuestions(questions) {
+  const bloomLabels = ['', 'Nhớ', 'Hiểu', 'Vận dụng', 'Phân tích', 'Đánh giá', 'Sáng tạo'];
+  const bloomColors = ['', '#64748b', '#0891b2', '#16a34a', '#7c3aed', '#d97706', '#dc2626'];
+  let html = `<div class="ai-qs-header">
+    <span>${questions.length} câu hỏi được tạo</span>
+  </div>`;
+  questions.forEach((q, i) => {
+    const bloom = q.bloomsLevel || 1;
+    html += `<div class="ai-q-item">
+      <div class="ai-q-num">
+        <span>Câu ${i+1}</span>
+        <span class="bloom-badge" style="background:${bloomColors[bloom]}20;color:${bloomColors[bloom]}">
+          Bloom ${bloom} — ${bloomLabels[bloom] || ''}
+        </span>
+      </div>
+      <div class="ai-q-text">${_esc(q.question || '')}</div>
+      ${q.options ? `<div class="ai-q-opts">${q.options.map((o,j) => `
+        <div class="ai-q-opt ${o === q.correct || j === q.correct ? 'ai-q-opt-correct' : ''}">
+          <span class="ai-q-opt-letter">${'ABCD'[j]}</span> ${_esc(String(o))}
+          ${o === q.correct || j === q.correct ? '<i class="fas fa-check" style="color:#16a34a;margin-left:auto"></i>' : ''}
+        </div>`).join('')}</div>` : ''}
+      ${q.explanation ? `<div class="ai-q-explain"><i class="fas fa-lightbulb"></i> ${_esc(q.explanation)}</div>` : ''}
+    </div>`;
+  });
+  return html;
+}
+
+async function importGeneratedQuestions() {
+  if (!_generatedQuestions.length) return;
+  const name = prompt('Tên ngân hàng câu hỏi mới:', 'AI Generated — ' + new Date().toLocaleDateString('vi-VN'));
+  if (!name) return;
+  try {
+    showLoading('Đang tạo ngân hàng câu hỏi...');
+    const r = await fetch(`${PROXY}/admin/question-banks`, {
+      method: 'POST',
+      headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ Title: name, Questions: JSON.stringify(_generatedQuestions), GroupName: 'AI Generated' }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    showToast('Đã import vào ngân hàng câu hỏi!', 'success');
+    _generatedQuestions = [];
+    document.getElementById('aa-import-btn').style.display = 'none';
+  } catch(e) {
+    showToast('Lỗi: ' + e.message, 'error');
+  } finally { hideLoading(); }
+}
+
+// ── 3. Coaching Agent (Socratic + Zero-draft) ──────────────────
+function checkZeroDraft(textarea) {
+  const words = textarea.value.trim().split(/\s+/).filter(w => w.length > 0).length;
+  const count = Math.min(words, 50);
+  document.getElementById('coach-word-count').textContent = words;
+  document.getElementById('coach-draft-bar').style.width = (count / 50 * 100) + '%';
+
+  const sendBtn = document.getElementById('coach-send-btn');
+  const zdBar = document.getElementById('coach-zero-draft');
+  if (words >= 50) {
+    sendBtn.disabled = false;
+    zdBar.style.display = 'none';
+  } else {
+    sendBtn.disabled = true;
+    zdBar.style.display = 'flex';
+    document.getElementById('coach-zd-msg').textContent =
+      `Cần thêm ${50 - words} từ nữa để mở khoá AI Tutor`;
+  }
+}
+
+async function runCoachingAgent() {
+  const draft = document.getElementById('coach-draft').value.trim();
+  if (!draft || draft.split(/\s+/).length < 50) {
+    showToast('Viết đủ 50 từ trước khi gửi!', 'warn'); return;
+  }
+
+  const btn = document.getElementById('coach-send-btn');
+  setAgentLoading(btn, true);
+
+  try {
+    const r = await fetch(`${PROXY}/ai/coaching-agent`, {
+      method: 'POST',
+      headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        studentMessage: draft,
+        context: { lessonTitle: 'Preview mode', submissionDraft: draft, previousMessages: _coachHistory.slice(-6) },
+      }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Lỗi AI');
+
+    if (data.blocked) {
+      showToast(data.message, 'warn'); return;
+    }
+
+    _coachHistory.push({ role: 'user', content: draft });
+    _coachHistory.push({ role: 'assistant', content: data.response });
+
+    const msgs = document.getElementById('coach-messages');
+    msgs.innerHTML += `
+      <div class="coach-msg coach-user"><div class="coach-bubble">${_esc(draft)}</div></div>
+      <div class="coach-msg coach-ai">
+        <div class="coach-avatar"><i class="fas fa-robot"></i></div>
+        <div class="coach-bubble">${_esc(data.response)}</div>
+      </div>`;
+    msgs.scrollTop = msgs.scrollHeight;
+    document.getElementById('coach-draft').value = '';
+    document.getElementById('coach-draft-bar').style.width = '0%';
+    document.getElementById('coach-word-count').textContent = '0';
+    document.getElementById('coach-send-btn').disabled = true;
+  } catch(e) {
+    showToast('Lỗi: ' + e.message, 'error');
+  } finally {
+    setAgentLoading(btn, false);
+  }
+}
+
+function clearCoachChat() {
+  _coachHistory = [];
+  document.getElementById('coach-messages').innerHTML = `
+    <div class="ai-chat-welcome">
+      <i class="fas fa-robot"></i><br>Chat đã được xoá. Bắt đầu cuộc trò chuyện mới!
+    </div>`;
+}
+
+// ── 4. Analytics Agent ──────────────────────────────────────────
+async function runAnalyticsAgent() {
+  const courseId = document.getElementById('analytics-course-sel').value;
+  if (!courseId) { showToast('Chọn khoá học để phân tích!', 'warn'); return; }
+
+  const btn = document.querySelector('#agent-analytics .ai-run-btn');
+  setAgentLoading(btn, true);
+  const alertsEl = document.getElementById('analytics-alerts');
+  const resultEl = document.getElementById('an-result');
+  alertsEl.style.display = 'none';
+  resultEl.style.display = 'none';
+
+  try {
+    const r = await fetch(`${PROXY}/ai/analytics-agent`, {
+      method: 'POST',
+      headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ courseId: parseInt(courseId) }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Lỗi AI');
+
+    // Render alerts
+    alertsEl.style.display = '';
+    const alerts = data.alerts || [];
+    const sevColor = { high: '#dc2626', medium: '#d97706', low: '#16a34a' };
+    const sevBg = { high: '#fef2f2', medium: '#fffbeb', low: '#f0fdf4' };
+
+    alertsEl.innerHTML = alerts.length
+      ? alerts.map(a => `
+          <div class="analytics-alert" style="border-color:${sevColor[a.severity]};background:${sevBg[a.severity]}">
+            <div class="analytics-alert-hd">
+              <span class="analytics-sev-dot" style="background:${sevColor[a.severity]}"></span>
+              <strong>${_esc(a.type || 'Alert')}</strong>
+              <span class="analytics-sev" style="color:${sevColor[a.severity]}">${a.severity?.toUpperCase()}</span>
+            </div>
+            <div class="analytics-alert-msg">${_esc(a.message || '')}</div>
+            ${a.recommendation ? `<div class="analytics-alert-rec"><i class="fas fa-lightbulb"></i> ${_esc(a.recommendation)}</div>` : ''}
+          </div>`).join('')
+      : '<div style="color:var(--text-muted);padding:12px;text-align:center">Không có cảnh báo — học sinh đang tiến bộ tốt ✅</div>';
+
+    // Summary
+    if (data.summary) {
+      resultEl.style.display = '';
+      resultEl.innerHTML = `<div class="ai-summary-box">
+        <strong><i class="fas fa-chart-bar"></i> Tóm tắt AI:</strong><br>${_esc(data.summary)}
+        ${data.insights?.length ? `<ul>${data.insights.map(i => `<li>${_esc(i)}</li>`).join('')}</ul>` : ''}
+      </div>`;
+    }
+    showToast(`Phân tích hoàn tất — ${alerts.length} cảnh báo`, alerts.filter(a=>a.severity==='high').length ? 'error' : 'success');
+  } catch(e) {
+    alertsEl.style.display = '';
+    alertsEl.innerHTML = `<div class="ai-error"><i class="fas fa-exclamation-triangle"></i> ${e.message}</div>`;
+  } finally {
+    setAgentLoading(btn, false);
+  }
+}
+
+// ── 5. Content Agent ──────────────────────────────────────────
+function selectContentAction(btn) {
+  document.querySelectorAll('.ai-action-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  _selectedContentAction = btn.dataset.action;
+}
+
+async function runContentAgent() {
+  const content = document.getElementById('cont-input').value.trim();
+  if (!content) { showToast('Nhập nội dung cần xử lý!', 'warn'); return; }
+
+  const btn = document.querySelector('#agent-content .ai-run-btn');
+  setAgentLoading(btn, true);
+  const resultEl = document.getElementById('cont-result');
+  resultEl.style.display = 'none';
+
+  try {
+    const r = await fetch(`${PROXY}/ai/content-agent`, {
+      method: 'POST',
+      headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content, action: _selectedContentAction }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Lỗi AI');
+
+    resultEl.style.display = '';
+    const actionLabels = { improve:'Đã cải thiện', summarize:'Tóm tắt', translate:'Bản dịch', accessibility_check:'Kết quả kiểm tra' };
+    resultEl.innerHTML = `
+      <div class="ai-content-result">
+        <div class="ai-content-result-hd">
+          <strong>${actionLabels[_selectedContentAction] || 'Kết quả'}</strong>
+          <button class="cv-row-action-btn" onclick="copyToClipboard('cont-result-text')" title="Sao chép">
+            <i class="fas fa-copy"></i>
+          </button>
+        </div>
+        <div id="cont-result-text" class="ai-content-result-body">${_esc(data.result || '')}</div>
+        ${data.suggestions?.length ? `<div class="ai-content-suggestions">
+          <strong><i class="fas fa-lightbulb"></i> Gợi ý:</strong>
+          <ul>${data.suggestions.map(s => `<li>${_esc(s)}</li>`).join('')}</ul>
+        </div>` : ''}
+      </div>`;
+    showToast('Content Agent hoàn tất!', 'success');
+  } catch(e) {
+    resultEl.style.display = '';
+    resultEl.innerHTML = `<div class="ai-error"><i class="fas fa-exclamation-triangle"></i> ${e.message}</div>`;
+  } finally {
+    setAgentLoading(btn, false);
+  }
+}
+
+function copyToClipboard(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  navigator.clipboard.writeText(el.textContent).then(() => showToast('Đã sao chép!', 'success'));
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+function setAgentLoading(btn, loading) {
+  if (!btn) return;
+  btn.disabled = loading;
+  if (loading) {
+    btn._orig = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang chạy AI...';
+  } else {
+    btn.innerHTML = btn._orig || btn.innerHTML;
+  }
 }

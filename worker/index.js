@@ -28,6 +28,13 @@ import {
   handleCourseAccessCheck,
 } from './src/handlers/enrollmentHandler.js';
 import { handleSocratic } from './src/handlers/aiHandler.js';
+import {
+  handleCurriculumAgent,
+  handleAssessmentAgent,
+  handleCoachingAgent,
+  handleAnalyticsAgent,
+  handleContentAgent,
+} from './src/handlers/aiAgentHandler.js';
 import { handleDriveUpload, handleDriveFetch } from './src/handlers/driveHandler.js';
 import {
   handleAdminUsers,
@@ -213,6 +220,18 @@ export default {
     // ── AI tutor ────────────────────────────────────────────
     if (path === '/api/ai/socratic' && request.method === 'POST')
       return handleSocratic(request, env, ctx);
+
+    // ── AI Agent endpoints (5 agents) ───────────────────────
+    if (path === '/ai/curriculum-agent' && request.method === 'POST')
+      return handleCurriculumAgent(request, env, ctx);
+    if (path === '/ai/assessment-agent' && request.method === 'POST')
+      return handleAssessmentAgent(request, env, ctx);
+    if (path === '/ai/coaching-agent' && request.method === 'POST')
+      return handleCoachingAgent(request, env, ctx);
+    if (path === '/ai/analytics-agent' && request.method === 'POST')
+      return handleAnalyticsAgent(request, env, ctx);
+    if (path === '/ai/content-agent' && request.method === 'POST')
+      return handleContentAgent(request, env, ctx);
 
     // ── Admin: Drive ────────────────────────────────────────
     if (path === '/admin/drive-upload' && request.method === 'POST')

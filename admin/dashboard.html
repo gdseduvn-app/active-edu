@@ -55,6 +55,7 @@
   <div class="sb-item" onclick="showPanel('exams',this)"><i class="fas fa-file-pen"></i> Đề bài tập</div>
   <div class="sb-item" onclick="showPanel('analytics',this)"><i class="fas fa-graduation-cap"></i> Học tập</div>
   <div class="sb-item" onclick="showPanel('assessments',this)"><i class="fas fa-clipboard-question"></i> Bài kiểm tra</div>
+  <div class="sb-item" onclick="showPanel('ai-agents',this)"><i class="fas fa-robot"></i> AI Agents</div>
   <div class="sb-item" onclick="showPanel('settings',this)"><i class="fas fa-gear"></i> Cài đặt</div>
 
   <div class="sb-footer">
@@ -1369,6 +1370,218 @@
         </div>
       </div>
     </div>
+
+    <!-- ══ AI AGENTS ══════════════════════════════════ -->
+    <div class="panel" id="panel-ai-agents">
+
+      <!-- Header -->
+      <div class="cv-dash-header" style="margin-bottom:20px">
+        <div>
+          <h1 class="cv-dash-title">🤖 AI Agents</h1>
+          <div style="font-size:13px;color:var(--text-muted);margin-top:2px">
+            5 AI Agents thông minh — Curriculum · Assessment · Coaching · Analytics · Content
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span class="ai-status-dot" id="ai-status-dot"></span>
+          <span style="font-size:12px;color:var(--text-muted)" id="ai-status-text">Kiểm tra kết nối...</span>
+        </div>
+      </div>
+
+      <!-- Agent cards grid -->
+      <div class="ai-agents-grid">
+
+        <!-- 1. Curriculum Agent -->
+        <div class="ai-agent-card" id="agent-curriculum">
+          <div class="ai-agent-hd">
+            <div class="ai-agent-icon" style="background:#EEF2FF;color:#4F46E5">
+              <i class="fas fa-sitemap"></i>
+            </div>
+            <div>
+              <div class="ai-agent-name">Curriculum Agent</div>
+              <div class="ai-agent-desc">Tạo lộ trình học DAG từ mô tả</div>
+            </div>
+          </div>
+          <div class="ai-agent-body">
+            <div class="form-group">
+              <label>Mô tả khoá học *</label>
+              <textarea id="ca-prompt" class="inp" rows="3"
+                placeholder="VD: Khoá học Python cho người mới bắt đầu, 8 tuần, tập trung lập trình ứng dụng web..."></textarea>
+            </div>
+            <div class="form-group">
+              <label>Số node (bài học)</label>
+              <input id="ca-nodes" class="inp" type="number" min="3" max="30" value="10">
+            </div>
+          </div>
+          <div class="ai-agent-ft">
+            <button class="btn btn-primary btn-sm ai-run-btn" onclick="runCurriculumAgent()">
+              <i class="fas fa-play"></i> Tạo lộ trình
+            </button>
+          </div>
+          <div class="ai-agent-result" id="ca-result" style="display:none"></div>
+        </div>
+
+        <!-- 2. Assessment Agent -->
+        <div class="ai-agent-card" id="agent-assessment">
+          <div class="ai-agent-hd">
+            <div class="ai-agent-icon" style="background:#FEF3C7;color:#D97706">
+              <i class="fas fa-clipboard-question"></i>
+            </div>
+            <div>
+              <div class="ai-agent-name">Assessment Agent</div>
+              <div class="ai-agent-desc">Tự động tạo câu hỏi từ nội dung bài học</div>
+            </div>
+          </div>
+          <div class="ai-agent-body">
+            <div class="form-group">
+              <label>Nội dung bài học *</label>
+              <textarea id="aa-content" class="inp" rows="4"
+                placeholder="Paste nội dung bài học vào đây để AI tạo câu hỏi..."></textarea>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div class="form-group">
+                <label>Số câu hỏi</label>
+                <input id="aa-count" class="inp" type="number" min="1" max="20" value="5">
+              </div>
+              <div class="form-group">
+                <label>Độ khó</label>
+                <select id="aa-difficulty" class="inp">
+                  <option value="easy">Dễ (Bloom 1-2)</option>
+                  <option value="medium" selected>Trung bình (Bloom 3-4)</option>
+                  <option value="hard">Khó (Bloom 5-6)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="ai-agent-ft">
+            <button class="btn btn-primary btn-sm ai-run-btn" onclick="runAssessmentAgent()">
+              <i class="fas fa-play"></i> Tạo câu hỏi
+            </button>
+            <button class="btn btn-outline btn-sm" id="aa-import-btn" style="display:none" onclick="importGeneratedQuestions()">
+              <i class="fas fa-file-import"></i> Import vào ngân hàng
+            </button>
+          </div>
+          <div class="ai-agent-result" id="aa-result" style="display:none"></div>
+        </div>
+
+        <!-- 3. Coaching Agent -->
+        <div class="ai-agent-card" id="agent-coaching">
+          <div class="ai-agent-hd">
+            <div class="ai-agent-icon" style="background:#F0FDF4;color:#16A34A">
+              <i class="fas fa-chalkboard-user"></i>
+            </div>
+            <div>
+              <div class="ai-agent-name">Coaching Agent</div>
+              <div class="ai-agent-desc">Trợ lý Socratic — hướng dẫn không cho đáp án</div>
+            </div>
+          </div>
+          <div class="ai-agent-body">
+            <div class="ai-chat-messages" id="coach-messages">
+              <div class="ai-chat-welcome">
+                <i class="fas fa-robot"></i><br>
+                Xin chào! Tôi là AI Tutor Socratic.<br>
+                Tôi sẽ <strong>không cho đáp án trực tiếp</strong>, mà sẽ đặt câu hỏi để giúp bạn tự khám phá.
+              </div>
+            </div>
+            <div class="ai-chat-zero-draft" id="coach-zero-draft" style="display:none">
+              <i class="fas fa-lock"></i>
+              <span id="coach-zd-msg">Viết ít nhất 50 từ trình bày suy nghĩ trước khi hỏi AI</span>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:10px">
+              <textarea id="coach-draft" class="inp" rows="2"
+                placeholder="Trình bày suy nghĩ / câu hỏi của bạn (tối thiểu 50 từ)..."
+                oninput="checkZeroDraft(this)"></textarea>
+            </div>
+            <div class="ai-zero-draft-bar">
+              <div class="ai-zero-draft-fill" id="coach-draft-bar" style="width:0%"></div>
+            </div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:3px">
+              <span id="coach-word-count">0</span>/50 từ — Khi đạt 50 từ, AI sẽ mở khóa
+            </div>
+          </div>
+          <div class="ai-agent-ft">
+            <button class="btn btn-primary btn-sm ai-run-btn" id="coach-send-btn" onclick="runCoachingAgent()" disabled>
+              <i class="fas fa-paper-plane"></i> Gửi cho AI Tutor
+            </button>
+            <button class="btn btn-outline btn-sm" onclick="clearCoachChat()">
+              <i class="fas fa-trash"></i> Xoá
+            </button>
+          </div>
+        </div>
+
+        <!-- 4. Analytics Agent -->
+        <div class="ai-agent-card" id="agent-analytics">
+          <div class="ai-agent-hd">
+            <div class="ai-agent-icon" style="background:#FDF4FF;color:#9333EA">
+              <i class="fas fa-radar"></i>
+            </div>
+            <div>
+              <div class="ai-agent-name">Analytics Agent</div>
+              <div class="ai-agent-desc">Instructor Radar — cảnh báo rủi ro học sinh</div>
+            </div>
+          </div>
+          <div class="ai-agent-body">
+            <div class="form-group">
+              <label>Khoá học cần phân tích</label>
+              <select id="analytics-course-sel" class="inp">
+                <option value="">-- Chọn khoá học --</option>
+              </select>
+            </div>
+            <div id="analytics-alerts" class="analytics-alerts-container" style="display:none"></div>
+          </div>
+          <div class="ai-agent-ft">
+            <button class="btn btn-primary btn-sm ai-run-btn" onclick="runAnalyticsAgent()">
+              <i class="fas fa-magnifying-glass-chart"></i> Phân tích ngay
+            </button>
+          </div>
+          <div class="ai-agent-result" id="an-result" style="display:none"></div>
+        </div>
+
+        <!-- 5. Content Agent -->
+        <div class="ai-agent-card" id="agent-content">
+          <div class="ai-agent-hd">
+            <div class="ai-agent-icon" style="background:#FFF1F2;color:#E11D48">
+              <i class="fas fa-wand-magic-sparkles"></i>
+            </div>
+            <div>
+              <div class="ai-agent-name">Content Agent</div>
+              <div class="ai-agent-desc">Cải thiện, tóm tắt, dịch & kiểm tra nội dung</div>
+            </div>
+          </div>
+          <div class="ai-agent-body">
+            <div class="form-group">
+              <label>Nội dung *</label>
+              <textarea id="cont-input" class="inp" rows="5"
+                placeholder="Paste nội dung cần xử lý vào đây..."></textarea>
+            </div>
+            <div class="form-group">
+              <label>Hành động</label>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                <button class="ai-action-btn active" data-action="improve" onclick="selectContentAction(this)">
+                  <i class="fas fa-pen-sparkle"></i> Cải thiện
+                </button>
+                <button class="ai-action-btn" data-action="summarize" onclick="selectContentAction(this)">
+                  <i class="fas fa-compress"></i> Tóm tắt
+                </button>
+                <button class="ai-action-btn" data-action="translate" onclick="selectContentAction(this)">
+                  <i class="fas fa-language"></i> Dịch
+                </button>
+                <button class="ai-action-btn" data-action="accessibility_check" onclick="selectContentAction(this)">
+                  <i class="fas fa-universal-access"></i> Kiểm tra
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="ai-agent-ft">
+            <button class="btn btn-primary btn-sm ai-run-btn" onclick="runContentAgent()">
+              <i class="fas fa-play"></i> Chạy Agent
+            </button>
+          </div>
+          <div class="ai-agent-result" id="cont-result" style="display:none"></div>
+        </div>
+
+      </div><!-- /ai-agents-grid -->
+    </div><!-- /panel-ai-agents -->
 
     <div class="panel" id="panel-settings">
       <div class="page-header">
