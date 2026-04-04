@@ -80,47 +80,93 @@
 
     <!-- ══ DASHBOARD ═══════════════════════════ -->
     <div class="panel active" id="panel-dashboard">
-      <div id="sync-bar-dash" class="sync-bar" style="display:none">
-        <i class="fas fa-rotate sync-icon" id="sync-icon-dash"></i>
-        <span class="sync-text" id="sync-text-dash">Đang đồng bộ...</span>
-        <span class="sync-time" id="sync-time-dash"></span>
+
+      <!-- Canvas-style Dashboard header -->
+      <div class="cv-dash-header">
+        <h1 class="cv-dash-title">Dashboard</h1>
+        <button class="cv-mod-icon-btn" title="Tùy chọn">
+          <i class="fas fa-ellipsis-v"></i>
+        </button>
       </div>
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-icon" style="background:#EEF2FF"><i class="fas fa-file-lines" style="color:#4F46E5"></i></div>
-          <div class="lbl">Bài viết</div>
-          <div class="val" id="d-articles">—</div>
-          <div class="sub"><i class="fas fa-arrow-trend-up"></i> trên NocoDB</div>
+
+      <!-- Two-column layout: main + sidebar -->
+      <div class="cv-dash-layout">
+
+        <!-- ── Main content ── -->
+        <div class="cv-dash-main">
+
+          <!-- Stats row -->
+          <div class="cv-dash-stats">
+            <div class="cv-dash-stat">
+              <div class="cv-dash-stat-val" id="ds-courses">—</div>
+              <div class="cv-dash-stat-lbl">Khoá học</div>
+            </div>
+            <div class="cv-dash-stat">
+              <div class="cv-dash-stat-val" id="ds-published">—</div>
+              <div class="cv-dash-stat-lbl">Đã công bố</div>
+            </div>
+            <div class="cv-dash-stat">
+              <div class="cv-dash-stat-val" id="ds-students">—</div>
+              <div class="cv-dash-stat-lbl">Học viên</div>
+            </div>
+            <div class="cv-dash-stat">
+              <div class="cv-dash-stat-val" id="ds-assessments">—</div>
+              <div class="cv-dash-stat-lbl">Bài kiểm tra</div>
+            </div>
+          </div>
+
+          <!-- Course cards section -->
+          <div class="cv-dash-section-hd">
+            <span id="cv-dash-courses-heading">Các khoá học đã công bố</span>
+            <button class="cv-dash-see-all" onclick="showPanel('courses',document.querySelectorAll('.sb-item')[3])">
+              Xem tất cả →
+            </button>
+          </div>
+
+          <!-- Course cards grid -->
+          <div id="cv-course-cards" class="cv-course-cards-grid">
+            <div class="cv-cards-loading"><i class="fas fa-spinner fa-spin"></i> Đang tải khoá học...</div>
+          </div>
+
         </div>
-        <div class="stat-card">
-          <div class="stat-icon" style="background:#ECFDF5"><i class="fas fa-folder-open" style="color:#10B981"></i></div>
-          <div class="lbl">Thư mục</div>
-          <div class="val" id="d-folders">—</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon" style="background:#ECFEFF"><i class="fas fa-plug" style="color:#06B6D4"></i></div>
-          <div class="lbl">Kết nối</div>
-          <div class="val" id="d-repo" style="font-size:14px;margin-top:4px">—</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon" style="background:#FEF3C7"><i class="fas fa-rotate" style="color:#F59E0B"></i></div>
-          <div class="lbl">Đồng bộ cuối</div>
-          <div class="val" id="d-sync" style="font-size:13px;margin-top:4px">—</div>
-        </div>
-      </div>
-      <div class="card" style="padding:0;overflow:hidden">
-        <div class="card-header">
-          <div class="card-header-title"><i class="fas fa-list-ul" style="color:#4F46E5"></i> Bài viết gần đây (từ NocoDB)</div>
-          <div style="display:flex;gap:8px">
-            <button class="btn btn-outline btn-sm" onclick="syncFromGitHub()"><i class="fas fa-rotate"></i> Đồng bộ</button>
-            <button class="btn btn-primary btn-sm" onclick="showPanel('editor',document.querySelectorAll('.sb-item')[1])"><i class="fas fa-plus"></i> Tạo bài</button>
+
+        <!-- ── Sidebar ── -->
+        <div class="cv-dash-sidebar">
+          <div class="cv-dash-coming-up">
+            <div class="cv-dash-cu-hd">
+              <span class="cv-dash-cu-title">Sắp diễn ra</span>
+              <a class="cv-dash-cu-link" onclick="showPanel('courses',document.querySelectorAll('.sb-item')[3])">
+                <i class="fas fa-calendar"></i> Xem lịch
+              </a>
+            </div>
+            <div class="cv-dash-cu-body" id="cv-dash-upcoming">
+              Không có gì cho tuần tới
+            </div>
+          </div>
+
+          <div class="cv-dash-quick-links">
+            <button class="cv-qb-sidebar-btn" onclick="openCourseModal()">
+              <i class="fas fa-plus"></i> Tạo khoá học mới
+            </button>
+            <button class="cv-qb-sidebar-btn cv-qb-sidebar-btn-outline" onclick="showPanel('users',document.querySelectorAll('.sb-item')[2])">
+              <i class="fas fa-users"></i> Quản lý học viên
+            </button>
+            <button class="cv-qb-sidebar-btn cv-qb-sidebar-btn-outline" onclick="showPanel('assessments',document.querySelectorAll('.sb-item')[6])">
+              <i class="fas fa-clipboard-list"></i> Bài kiểm tra
+            </button>
+            <button class="cv-qb-sidebar-btn cv-qb-sidebar-btn-outline" onclick="showPanel('analytics',document.querySelectorAll('.sb-item')[7])">
+              <i class="fas fa-chart-bar"></i> Phân tích học tập
+            </button>
           </div>
         </div>
-        <div class="table-wrap">
-          <table><thead><tr><th>Tên bài</th><th>Thư mục</th><th>Quyền</th><th>Cập nhật</th><th>Thao tác</th></tr></thead>
-          <tbody id="dash-table"><tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:32px">Kết nối NocoDB để xem danh sách bài viết</td></tr></tbody>
-          </table>
-        </div>
+
+      </div>
+
+      <!-- hidden compat elements -->
+      <div style="display:none">
+        <span id="d-articles"></span><span id="d-folders"></span>
+        <span id="d-repo"></span><span id="d-sync"></span>
+        <tbody id="dash-table"></tbody>
       </div>
     </div>
 

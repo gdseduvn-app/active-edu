@@ -1933,32 +1933,144 @@ function flattenFolders(tree) {
   return (tree||[]).flatMap(i => i.type==='folder' ? [i, ...flattenFolders(i.children)] : []);
 }
 
-function updateDashboard() {
-  const files   = flattenFiles(indexTree);
-  const folders = flattenFolders(indexTree);
-  document.getElementById('d-articles').textContent = files.length;
-  document.getElementById('d-folders').textContent  = folders.length;
-  const c = cfg();
-  document.getElementById('d-repo').textContent = c.repo || '—';
-  document.getElementById('d-sync').textContent = new Date().toLocaleTimeString('vi-VN');
-  document.getElementById('top-repo').textContent = c.nocoUrl ? c.nocoUrl.replace('https://','').split('/')[0] : '';
+// Canvas-style course card color palette
+const _CARD_COLORS = [
+  '#E66000','#E8354A','#9B59B6','#1ABC9C','#3498DB',
+  '#27AE60','#F39C12','#2980B9','#8E44AD','#16A085',
+  '#C0392B','#2ECC71','#D35400','#7D3C98','#117A65',
+];
+function _courseCardColor(id) {
+  return _CARD_COLORS[(id || 0) % _CARD_COLORS.length];
+}
 
-  const tbody = document.getElementById('dash-table');
-  if (!files.length) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:28px">Chưa có bài viết. Kết nối NocoDB hoặc tạo bài mới.</td></tr>';
-    return;
+async function loadDashboardCourses() {
+  const grid = document.getElementById('cv-course-cards');
+  if (!grid) return;
+  grid.innerHTML = '<div class="cv-cards-loading"><i class="fas fa-spinner fa-spin"></i> Đang tải khoá học...</div>';
+
+  try {
+    const r = await fetch(`${PROXY}/admin/courses?limit=200&sort=-UpdatedAt`, { headers: adminHeaders() });
+    if (!r.ok) throw new Error(await r.text());
+    const data = await r.json();
+    const courses = data.list || [];
+
+    // Update stats
+    const published = courses.filter(c => {
+      const wf = c.WorkflowState || (c.Status === 'published' ? 'available' : 'created');
+      return wf === 'available';
+    });
+    _el('ds-courses', courses.length);
+    _el('ds-published', published.length);
+
+    // Load assessments count
+    fetch(`${PROXY}/admin/assessments-proxy?limit=1`, { headers: adminHeaders() })
+      .then(r => r.json()).then(d => _el('ds-assessments', d.pageInfo?.totalRows || d.list?.length || '—'))
+      .catch(() => {});
+
+    // Load user count
+    fetch(`${PROXY}/admin/users?limit=1`, { headers: adminHeaders() })
+      .then(r => r.json()).then(d => _el('ds-students', d.pageInfo?.totalRows || d.list?.length || '—'))
+      .catch(() => {});
+
+    // Update section heading
+    const heading = document.getElementById('cv-dash-courses-heading');
+    if (heading) heading.textContent = `Các khoá học đã công bố (${published.length})`;
+
+    // Show published courses first, then others
+    const sorted = [...published, ...courses.filter(c => !published.includes(c))];
+
+    if (!sorted.length) {
+      grid.innerHTML = `
+        <div class="cv-cards-empty">
+          <i class="fas fa-book-open" style="font-size:36px;color:var(--border);display:block;margin-bottom:12px"></i>
+          Chưa có khoá học nào.<br>
+          <button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="openCourseModal()">
+            <i class="fas fa-plus"></i> Tạo khoá học đầu tiên
+          </button>
+        </div>`;
+      return;
+    }
+
+    grid.innerHTML = sorted.slice(0, 12).map(c => {
+      const wf = c.WorkflowState || (c.Status === 'published' ? 'available' : 'created');
+      const isPublished = wf === 'available';
+      const color = _courseCardColor(c.Id);
+      const term = c.Term ? `<span class="cv-card-term">${_esc(c.Term)}</span>` : '';
+      const initials = (c.Title || '?').substring(0, 2).toUpperCase();
+
+      return `
+        <div class="cv-course-card" onclick="openModuleBuilder(${c.Id})">
+          <!-- Card header with color -->
+          <div class="cv-card-banner" style="background:${color}">
+            <div class="cv-card-banner-text">${initials}</div>
+            <div class="cv-card-menu-wrap" onclick="event.stopPropagation()">
+              <button class="cv-card-menu-btn" onclick="toggleCardMenu(${c.Id},this)" title="Tùy chọn">
+                <i class="fas fa-ellipsis-v"></i>
+              </button>
+              <div class="cv-card-menu" id="cardmenu-${c.Id}" style="display:none">
+                <button onclick="openModuleBuilder(${c.Id});closeCardMenus()"><i class="fas fa-layer-group"></i> Nội dung</button>
+                <button onclick="openEnrollmentPanel(${c.Id},'${_esc(c.Title)}');closeCardMenus();showPanel('courses',null)"><i class="fas fa-users"></i> Học viên</button>
+                <button onclick="openCourseModal(${c.Id});closeCardMenus()"><i class="fas fa-pen"></i> Chỉnh sửa</button>
+                <button onclick="openCourseWorkflowPanel(${c.Id},'${_esc(c.Title)}');closeCardMenus();showPanel('courses',null)"><i class="fas fa-rotate"></i> Workflow</button>
+              </div>
+            </div>
+            ${!isPublished ? `<span class="cv-card-draft-badge">Nháp</span>` : ''}
+          </div>
+          <!-- Card body -->
+          <div class="cv-card-body">
+            <a class="cv-card-name" style="color:${color}">${_esc(c.Title)}</a>
+            <div class="cv-card-sub">${_esc(c.CourseCode || c.Title)}</div>
+            ${term}
+          </div>
+          <!-- Card footer icons -->
+          <div class="cv-card-footer" onclick="event.stopPropagation()">
+            <button class="cv-card-foot-btn" onclick="openModuleBuilder(${c.Id})" title="Nội dung học tập">
+              <i class="fas fa-book-open"></i>
+            </button>
+            <button class="cv-card-foot-btn" onclick="openEnrollmentPanel(${c.Id},'${_esc(c.Title)}');showPanel('courses',null)" title="Học viên">
+              <i class="fas fa-users"></i>
+            </button>
+            <button class="cv-card-foot-btn" onclick="openCourseModal(${c.Id})" title="Cài đặt">
+              <i class="fas fa-folder"></i>
+            </button>
+          </div>
+        </div>`;
+    }).join('');
+
+    // Also update _courses cache for modals
+    if (!_courses.length) _courses = courses;
+
+  } catch(e) {
+    if (grid) grid.innerHTML = `<div class="cv-cards-loading" style="color:#dc2626">Lỗi: ${e.message}</div>`;
   }
-  tbody.innerHTML = files.slice(-12).reverse().map(f => `
-    <tr>
-      <td><i class="fas fa-file-lines" style="color:var(--text-muted)"></i> <b>${f.name}</b></td>
-      <td>${f.folder ? `<span class="badge badge-blue">${f.folder}</span>` : '<span style="color:var(--text-muted)">Gốc</span>'}</td>
-      <td>${f.access === 'private' ? '<span class="badge" style="background:#fee2e2;color:#b91c1c">🔒 Private</span>' : '<span class="badge badge-green">🌐 Public</span>'}</td>
-      <td style="font-size:12px;color:var(--text-muted)">${f.updated||'—'}</td>
-      <td style="white-space:nowrap">
-        <button class="btn btn-outline btn-sm" onclick="openArticleEditor('${f.path}')"><i class="fas fa-pen"></i></button>
-        <button class="btn btn-danger btn-sm" onclick="confirmDeleteFile('${f.path}')"><i class="fas fa-trash"></i></button>
-      </td>
-    </tr>`).join('');
+}
+
+function _el(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+
+function toggleCardMenu(id, btn) {
+  closeCardMenus();
+  const m = document.getElementById(`cardmenu-${id}`);
+  if (m) m.style.display = 'block';
+}
+function closeCardMenus() {
+  document.querySelectorAll('.cv-card-menu').forEach(m => m.style.display = 'none');
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.cv-card-menu-wrap')) closeCardMenus();
+});
+
+function updateDashboard() {
+  // Keep compat — also reload course cards
+  const c = cfg();
+  const repoEl = document.getElementById('d-repo');
+  if (repoEl) repoEl.textContent = c.repo || '—';
+  const syncEl = document.getElementById('d-sync');
+  if (syncEl) syncEl.textContent = new Date().toLocaleTimeString('vi-VN');
+  const topRepoEl = document.getElementById('top-repo');
+  if (topRepoEl) topRepoEl.textContent = c.nocoUrl ? c.nocoUrl.replace('https://','').split('/')[0] : '';
 }
 
 // ═══════════════════════════════════════════════════
@@ -2328,6 +2440,7 @@ function showPanel(id, navEl) {
 
   } else if (id === 'dashboard') {
     updateDashboard();
+    loadDashboardCourses();
 
   } else if (id === 'users') {
     loadUsers();
@@ -2376,7 +2489,7 @@ function initAdmin() {
     syncFromNoco().then(() => {
       updateDashboard();
       updateFolderSelects();
-      // Sau khi tree sẵn sàng, kiểm tra có bản nháp chưa lưu không
+      loadDashboardCourses();           // Canvas course cards
       setTimeout(_restoreDraftIfAny, 500);
     });
   } else {
