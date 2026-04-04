@@ -48,6 +48,7 @@ import {
   handleSafeExamSectionCreate,
   handleSafeExamDelete,
   handleSafeQuestionBankDelete,
+  handleSetupAIAccessField,
 } from './src/handlers/adminHandler.js';
 import {
   handleAssessmentList,
@@ -280,6 +281,10 @@ export default {
 
     if (path.startsWith('/admin/module-item/') && request.method === 'PATCH')
       return handleModuleItemToggle(request, env, ctx);
+
+    // ── One-time setup: thêm field AIAccess vào NocoDB Users ──
+    if (path === '/admin/setup/ai-access-field' && request.method === 'POST')
+      return handleSetupAIAccessField(request, env, ctx);
 
     // ── Assessments: student routes ─────────────────────────
     if (path === '/api/assessments' && request.method === 'GET')

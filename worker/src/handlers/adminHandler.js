@@ -285,3 +285,55 @@ export async function handleSafeQuestionBankDelete(request, env, { cors, json })
   }
   return json({ ok: true, deleted: ids.length });
 }
+
+// ── One-time setup: thêm field AIAccess vào bảng Users ────────
+// POST /admin/setup/ai-access-field
+// Gọi 1 lần duy nhất để khởi tạo schema. Idempotent (safe to re-run).
+export async function handleSetupAIAccessField(request, env, { json }) {
+  if (!await verifyAdminAuth(request, env)) return json({ error: 'Unauthorized' }, 401);
+  if (!env.NOCO_USERS) return json({ error: 'NOCO_USERS chưa được cấu hình' }, 503);
+
+  const nocoBase = (env.NOCO_URL || '').replace(/\/$/, '');
+  const token    = env.NOCO_TOKEN || '';
+
+  // 1. Lấy danh sách field hiện tại của bảng Users
+  const fieldsResp = await fetch(`${nocoBase}/api/v1/meta/tables/${env.NOCO_USERS}/fields`, {
+    headers: { 'xc-auth': token, 'xc-token': token },
+  });
+
+  if (fieldsResp.ok) {
+    const fieldsData = await fieldsResp.json();
+    const fields = fieldsData.list || fieldsData || [];
+    const exists = Array.isArray(fields)
+      ? fields.some(f => f.title === 'AIAccess' || f.column_name === 'AIAccess')
+      : false;
+
+    if (exists) {
+      return json({ ok: true, message: 'Field AIAccess đã tồn tại, không cần tạo lại.' });
+    }
+  }
+
+  // 2. Tạo field AIAccess (Checkbox)
+  const createResp = await fetch(`${nocoBase}/api/v1/meta/tables/${env.NOCO_USERS}/fields`, {
+    method: 'POST',
+    headers: {
+      'xc-auth': token,
+      'xc-token': token,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      title: 'AIAccess',
+      uidt: 'Checkbox',       // NocoDB UI Data Type: Checkbox
+      column_name: 'AIAccess',
+      meta: { isLocaleString: false },
+      cdf: false,              // default value = false (chưa có quyền)
+    }),
+  });
+
+  if (!createResp.ok) {
+    const errText = await createResp.text();
+    return json({ error: 'Không tạo được field', detail: errText }, 502);
+  }
+
+  return json({ ok: true, message: 'Đã tạo field AIAccess (Checkbox) vào bảng Users thành công.' });
+}

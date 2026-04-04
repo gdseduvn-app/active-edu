@@ -3007,6 +3007,36 @@ function setNocoSyncBar(show, text='', time='', err=false) {
 }
 
 // ── Test connection button in settings ──
+// ── One-time setup: tạo field AIAccess trong NocoDB ──────────
+async function runSetupAIAccessField() {
+  const btn = document.getElementById('btn-setup-ai-field');
+  const res = document.getElementById('setup-ai-result');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang chạy...';
+  res.style.display = 'none';
+
+  try {
+    const r = await apiFetch('/admin/setup/ai-access-field', 'POST', {});
+    const data = await r.json();
+
+    if (r.ok && data.ok) {
+      res.style.cssText = 'display:block;padding:12px 16px;border-radius:8px;font-size:13px;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d';
+      res.innerHTML = `<i class="fas fa-check-circle"></i> ${data.message}`;
+      btn.innerHTML = '<i class="fas fa-check"></i> Đã khởi tạo';
+      btn.style.background = '#16a34a';
+      showToast('✅ ' + data.message, 'success');
+    } else {
+      throw new Error(data.error || data.detail || 'Lỗi không xác định');
+    }
+  } catch(e) {
+    res.style.cssText = 'display:block;padding:12px 16px;border-radius:8px;font-size:13px;background:#fef2f2;border:1px solid #fca5a5;color:#dc2626';
+    res.innerHTML = `<i class="fas fa-times-circle"></i> Lỗi: ${e.message}`;
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> Thử lại';
+    showToast('❌ ' + e.message, 'error');
+  }
+}
+
 async function nocoTestAndSave() {
   const res = document.getElementById('noco-test-result');
   res.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang kiểm tra...';
