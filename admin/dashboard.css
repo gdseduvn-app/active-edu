@@ -3574,3 +3574,30 @@ select.inp { cursor: pointer; }
 .ai-content-result-body { padding: 12px 14px; white-space: pre-wrap; color: var(--text); }
 .ai-content-suggestions { padding: 10px 14px; background: #fffbeb; border-top: 1px solid #fcd34d; font-size: 12px; }
 .ai-content-suggestions ul { margin-top: 4px; padding-left: 16px; }
+
+/* ── AI Access chip (users table) ───────────────────────────── */
+.ai-access-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 11px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid;
+  transition: all .15s;
+  font-family: inherit;
+}
+.ai-access-chip.on {
+  background: #f5f3ff;
+  color: #7c3aed;
+  border-color: #ddd6fe;
+}
+.ai-access-chip.on:hover { background: #ede9fe; }
+.ai-access-chip.off {
+  background: #f8fafc;
+  color: #94a3b8;
+  border-color: #e2e8f0;
+}
+.ai-access-chip.off:hover { background: #f5f3ff; color: #7c3aed; border-color: #ddd6fe; }

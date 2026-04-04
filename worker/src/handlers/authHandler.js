@@ -89,8 +89,20 @@ export async function handleLogin(request, env, { json, clientIP }) {
 
     await clearRateLimit(clientIP, env, 'login');
     const secret = getTokenSecret(env);
-    const token = await makeToken(user.Id, email, user.Role || user.VaiTro || 'student', secret);
-    return json({ token, user: { id: user.Id, email, displayName: user.FullName || user.HoTen || user.Name || email, role: user.Role || user.VaiTro || 'student' } });
+    const role = user.Role || user.VaiTro || 'student';
+    const token = await makeToken(user.Id, email, role, secret);
+    // aiAccess: admin/teacher luôn có; student cần field AIAccess = true
+    const aiAccess = role === 'admin' || role === 'teacher' ? true : !!user.AIAccess;
+    return json({
+      token,
+      user: {
+        id: user.Id,
+        email,
+        displayName: user.FullName || user.HoTen || user.Name || email,
+        role,
+        aiAccess,
+      },
+    });
   } catch { return json({ error: 'Lỗi server' }, 500); }
 }
 

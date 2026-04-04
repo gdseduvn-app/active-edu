@@ -115,6 +115,7 @@ async function doUserLogin() {
         displayName: data.user.displayName,
         role: data.user.role,
         token: data.token,
+        aiAccess: !!data.user.aiAccess,
       });
 
       // Student có role=admin trong NocoDB → redirect dashboard
@@ -2342,7 +2343,18 @@ function toggleSocraticPanel() {
 function _showAITutorBtn(articleTitle) {
   _socraticArticleTitle = articleTitle || '';
   const btn = document.getElementById('ai-tutor-btn');
-  if (btn) btn.style.display = '';
+  if (!btn) return;
+
+  // Chỉ hiện nút AI nếu đã đăng nhập VÀ có quyền AI
+  const user = getUser();
+  const hasAI = user && (user.aiAccess === true || user.role === 'admin' || user.role === 'teacher');
+
+  if (!hasAI) {
+    btn.style.display = 'none';
+    return;
+  }
+
+  btn.style.display = '';
   // Reset panel khi load bài mới
   _socraticOpen = false;
   const panel = document.getElementById('socratic-panel');
@@ -2380,6 +2392,14 @@ async function sendSocraticMessage() {
     return;
   }
 
+  // Kiểm tra quyền AI phía client (double-check trước khi gửi request)
+  const _u = getUser();
+  const _hasAI = _u && (_u.aiAccess === true || _u.role === 'admin' || _u.role === 'teacher');
+  if (!_hasAI) {
+    _addSocraticMessage('system', '🔒 Tài khoản của bạn chưa được cấp quyền sử dụng AI. Liên hệ giáo viên để được kích hoạt.');
+    return;
+  }
+
   input.value = '';
   _addSocraticMessage('user', message);
   btn.disabled = true;
@@ -2396,13 +2416,19 @@ async function sendSocraticMessage() {
       body: JSON.stringify({
         message,
         articleTitle: _socraticArticleTitle,
-        wordCount: _currentDraftWordCount || 60, // default pass nếu không track được
+        wordCount: _currentDraftWordCount || 60,
       }),
     });
 
     const data = await r.json();
     if (!r.ok) {
-      _addSocraticMessage('system', `⚠️ ${data.error || 'Lỗi kết nối AI'}`);
+      if (data.noAccess) {
+        _addSocraticMessage('system', `🔒 ${data.error}`);
+        // Ẩn nút AI tutor vì không có quyền
+        _hideAITutorBtn();
+      } else {
+        _addSocraticMessage('system', `⚠️ ${data.error || 'Lỗi kết nối AI'}`);
+      }
     } else {
       _addSocraticMessage('ai', data.reply);
     }

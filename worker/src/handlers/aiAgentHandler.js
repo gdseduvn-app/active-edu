@@ -9,9 +9,10 @@
  *   POST /ai/content-agent      — Content improvement/summarize/translate (admin only)
  */
 
-import { verifyAdminAuth } from '../auth.js';
+import { verifyAdminAuth, getTokenSecret, verifyToken } from '../auth.js';
 import { nocoFetch } from '../db.js';
 import { checkRateLimit } from '../middleware.js';
+import { checkAIAccess } from './aiHandler.js';
 
 // ── In-memory rate limit store (module scope, per-IP per-route) ──────────────
 const _rateLimits = new Map();
@@ -226,8 +227,17 @@ export async function handleAssessmentAgent(request, env, { json, clientIP }) {
  * Zero-draft enforcement: submissionDraft must be >= 50 words before AI responds.
  */
 export async function handleCoachingAgent(request, env, { json, clientIP }) {
-  // Rate limit: 20 requests/IP/hour
-  const rl = localRateLimit(clientIP, 'coaching-agent', 20);
+  // ── Xác thực token + kiểm tra quyền AI ──────────────────────
+  const authHeader = request.headers.get('Authorization') || '';
+  const secret = getTokenSecret(env);
+  const session = await verifyToken(authHeader.replace('Bearer ', ''), secret);
+  if (!session) return json({ error: 'Đăng nhập để dùng AI Tutor', requireLogin: true }, 401);
+
+  const access = await checkAIAccess(env, session.userId);
+  if (!access.ok) return json({ error: access.reason, noAccess: access.noAccess || false }, 403);
+
+  // Rate limit: 20 requests/user/hour
+  const rl = localRateLimit(`coaching:${session.userId}`, 'coaching-agent', 20);
   if (!rl.allowed) return json({ error: 'Quá nhiều yêu cầu. Thử lại sau 1 giờ.' }, 429);
 
   if (!env.AI_GATEWAY_KEY) return json({ error: 'AI chưa được cấu hình' }, 503);

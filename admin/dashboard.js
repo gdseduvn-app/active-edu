@@ -2765,7 +2765,7 @@ function renderUsersTable(page) {
   updateBulkBar();
 
   if (page.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" style="padding:56px;text-align:center;color:#94a3b8"><i class="fas fa-users-slash" style="font-size:28px;display:block;margin-bottom:12px;opacity:.4"></i>Không tìm thấy người dùng nào</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="padding:56px;text-align:center;color:#94a3b8"><i class="fas fa-users-slash" style="font-size:28px;display:block;margin-bottom:12px;opacity:.4"></i>Không tìm thấy người dùng nào</td></tr>';
     return;
   }
 
@@ -2789,6 +2789,7 @@ function renderUsersTable(page) {
     const avatarColor = avatarColors[role] || '#2563eb';
     const isInactive  = status !== 'active';
     const isSelected  = _selectedUserIds.has(uid);
+    const aiAccess    = !!u.AIAccess;
 
     // Status chip (clickable quick-toggle)
     const statusChip = status === 'active'
@@ -2798,6 +2799,18 @@ function renderUsersTable(page) {
       : `<button class="status-chip inactive" onclick="quickToggleStatus(${uid},'${esc(name)}','inactive')" title="Nhấn để kích hoạt">
            <span class="status-dot"></span> Vô hiệu
          </button>`;
+
+    // AI Access toggle chip
+    const isAdminOrTeacher = role === 'admin' || role === 'teacher';
+    const aiChip = isAdminOrTeacher
+      ? `<span style="display:inline-flex;align-items:center;gap:4px;background:#f0fdf4;color:#15803d;padding:3px 10px;border-radius:20px;font-size:11px;border:1px solid #bbf7d0" title="Admin/Giáo viên luôn có quyền AI"><i class="fas fa-robot" style="font-size:9px"></i> Mặc định</span>`
+      : aiAccess
+        ? `<button class="ai-access-chip on" onclick="toggleAIAccess(${uid},'${esc(name)}',true)" title="Nhấn để thu hồi quyền AI">
+             <i class="fas fa-robot" style="font-size:9px"></i> Bật
+           </button>`
+        : `<button class="ai-access-chip off" onclick="toggleAIAccess(${uid},'${esc(name)}',false)" title="Nhấn để cấp quyền AI">
+             <i class="fas fa-robot" style="font-size:9px"></i> Tắt
+           </button>`;
 
     // Perm badge (will be lazy-loaded)
     const permBadge = `<button class="perm-chip no-perms" id="perm-chip-${uid}"
@@ -2825,6 +2838,7 @@ function renderUsersTable(page) {
       </td>
       <td style="padding:10px 14px">${roleLabel[role] || roleLabel.student}</td>
       <td style="padding:10px 14px">${statusChip}</td>
+      <td style="padding:10px 14px;text-align:center">${aiChip}</td>
       <td style="padding:10px 14px;text-align:center">${permBadge}</td>
       <td style="padding:10px 14px;color:#94a3b8;font-size:12px;white-space:nowrap">${esc(created)}</td>
       <td style="padding:10px 14px">
@@ -2850,6 +2864,21 @@ function renderUsersTable(page) {
 // Chuyển trang: fetch lại từ server
 function userPageNext() { userPageIndex++; loadUsers(); }
 function userPagePrev() { if (userPageIndex > 0) { userPageIndex--; loadUsers(); } }
+
+// ── Toggle AI Access cho học sinh ────────────────────────────
+async function toggleAIAccess(uid, name, currentOn) {
+  const newVal = !currentOn;
+  const action = newVal ? 'cấp' : 'thu hồi';
+  if (!confirm(`${action.charAt(0).toUpperCase() + action.slice(1)} quyền AI cho "${name}"?`)) return;
+  try {
+    const r = await apiFetch(`/admin/users/${uid}`, 'PATCH', { AIAccess: newVal });
+    if (!r.ok) throw new Error((await r.json()).error || 'Lỗi cập nhật');
+    showToast(`✅ Đã ${action} quyền AI cho ${name}`, 'success');
+    await loadUsers();
+  } catch(e) {
+    showToast('❌ ' + e.message, 'error');
+  }
+}
 
 function openUserModal(user) {
   editingUserId = user ? user.Id : null;
