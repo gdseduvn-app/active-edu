@@ -2755,3 +2755,280 @@ select.inp { cursor: pointer; }
   color: var(--primary);
   font-weight: 600;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   30. CANVAS-STYLE QUESTION BANK & ASSESSMENTS
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Question Bank — two-column layout ── */
+.cv-qb-layout {
+  display: grid;
+  grid-template-columns: 1fr 220px;
+  gap: 24px;
+  align-items: flex-start;
+}
+@media (max-width: 860px) {
+  .cv-qb-layout { grid-template-columns: 1fr; }
+}
+
+.cv-qb-main {}
+.cv-qb-heading {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+.cv-qb-hr {
+  border: none;
+  border-top: 1.5px solid var(--border);
+  margin: 0 0 4px;
+}
+.cv-qb-loading {
+  padding: 24px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.cv-qb-empty {
+  padding: 40px 24px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+/* QBank list item */
+.cv-qb-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 4px;
+}
+.cv-qb-item-main { flex: 1; min-width: 0; }
+.cv-qb-item-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--primary);
+  cursor: pointer;
+  display: block;
+  margin-bottom: 3px;
+}
+.cv-qb-item-title:hover { text-decoration: underline; }
+.cv-qb-item-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.cv-qb-meta-sep { color: var(--border); }
+.cv-qb-group {
+  padding: 1px 7px;
+  background: var(--primary-light);
+  color: var(--primary);
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.cv-qb-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.cv-qb-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  transition: all .15s;
+}
+.cv-qb-action:hover { background: var(--hover); color: var(--text); }
+.cv-qb-action-del:hover { background: var(--danger-light); color: var(--danger); }
+
+/* QBank sidebar */
+.cv-qb-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 4px;
+}
+.cv-qb-sidebar-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-sm);
+  background: #fff;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: all .15s;
+}
+.cv-qb-sidebar-btn:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+.cv-qb-sidebar-btn i { width: 14px; text-align: center; color: var(--text-muted); }
+.cv-qb-sidebar-btn:hover i { color: var(--primary); }
+.cv-qb-sidebar-btn-outline { background: transparent; }
+
+/* ── Assessments — Canvas style ── */
+.cv-assess-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 0 14px;
+  flex-wrap: wrap;
+}
+.cv-assess-search {
+  width: 260px !important;
+  flex-shrink: 0;
+}
+.cv-assess-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+.cv-btn-assess-new {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 16px;
+  background: #e8354a;
+  color: #fff;
+  border: none;
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all .15s;
+}
+.cv-btn-assess-new:hover { background: #c72e40; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(232,53,74,.3); }
+
+/* Assessment groups */
+.cv-assess-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.cv-assess-empty {
+  text-align: center;
+  padding: 56px 24px;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.8;
+}
+.cv-assess-group {
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: #fff;
+}
+
+/* Group header (Canvas accordion) */
+.cv-assess-group-hd {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 16px;
+  background: #f5f5f0;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+  transition: background .1s;
+}
+.cv-assess-group-hd:hover { background: #eeede8; }
+.cv-ag-arrow {
+  font-size: 11px;
+  color: var(--text-muted);
+  transition: transform .2s;
+  flex-shrink: 0;
+}
+.cv-ag-label {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text);
+  flex: 1;
+}
+.cv-ag-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  padding: 1px 8px;
+}
+
+/* Group body */
+.cv-assess-group-body {}
+.cv-ag-collapsed { display: none; }
+
+/* Assessment item row */
+.cv-assess-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-left: 4px solid #16a34a;
+  border-top: 1px solid var(--border-subtle);
+  background: #fff;
+  transition: background .1s;
+}
+.cv-assess-item:hover { background: #fafaf8; }
+
+.cv-assess-item-icon {
+  flex-shrink: 0;
+  width: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cv-quiz-icon {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.cv-assess-item-info { flex: 1; min-width: 0; }
+.cv-assess-item-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cv-assess-item-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.cv-ai-sep { color: #d1d5db; }
+
+.cv-assess-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity .15s;
+}
+.cv-assess-item:hover .cv-assess-item-actions { opacity: 1; }
+/* always show publish icon */
+.cv-assess-item-actions .cv-item-pub-btn { opacity: 1 !important; }

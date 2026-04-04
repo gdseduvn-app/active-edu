@@ -5611,36 +5611,64 @@ let _activeQBankId = null;
 let _qbankQuestions = []; // draft questions đang chỉnh sửa
 
 async function loadQBanks() {
-  const tbody = document.getElementById('qbank-table');
-  tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--text-muted)">Đang tải...</td></tr>';
+  const listEl = document.getElementById('qbank-list');
+  if (listEl) listEl.innerHTML = '<div class="cv-qb-loading"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>';
   document.getElementById('qbank-editor').style.display = 'none';
+  const listView = document.getElementById('qbank-list-view');
+  if (listView) listView.style.display = '';
+
   try {
     const r = await fetch(`${PROXY}/admin/question-banks?limit=200&sort=-UpdatedAt`, { headers: adminHeaders() });
     if (!r.ok) throw new Error(await r.text());
     const data = await r.json();
     _qbanks = data.list || [];
 
+    if (!listEl) return;
     if (!_qbanks.length) {
-      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--text-muted)">Chưa có ngân hàng nào. Bấm "+ Tạo ngân hàng".</td></tr>';
+      listEl.innerHTML = `
+        <div class="cv-qb-empty">
+          Chưa có ngân hàng câu hỏi nào.<br>
+          <button class="btn btn-primary btn-sm" style="margin-top:10px" onclick="openQBankModal()">
+            <i class="fas fa-plus"></i> Thêm ngân hàng đầu tiên
+          </button>
+        </div>`;
       return;
     }
-    tbody.innerHTML = _qbanks.map(b => {
+
+    listEl.innerHTML = _qbanks.map(b => {
       let qCount = 0;
       try { qCount = JSON.parse(b.Questions || '[]').length; } catch {}
-      return `<tr>
-        <td><strong>${_esc(b.Title)}</strong>${b.Description ? `<div style="font-size:12px;color:var(--text-muted)">${_esc(b.Description.slice(0,60))}</div>` : ''}</td>
-        <td><span class="badge badge-gray">${_esc(b.GroupName || '—')}</span></td>
-        <td style="text-align:center;font-weight:600">${qCount}</td>
-        <td><div style="display:flex;gap:6px">
-          <button class="btn btn-outline btn-sm" onclick="openQBankEditor(${b.Id})"><i class="fas fa-list-ol"></i> Câu hỏi</button>
-          <button class="btn btn-outline btn-sm" onclick="openQBankModal(${b.Id})"><i class="fas fa-pen"></i></button>
-          <button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:none" onclick="deleteQBank(${b.Id},'${_esc(b.Title)}')"><i class="fas fa-trash"></i></button>
-        </div></td>
-      </tr>`;
+      const updated = b.UpdatedAt ? _fmtDate(b.UpdatedAt) : '—';
+      return `
+        <div class="cv-qb-item">
+          <div class="cv-qb-item-main">
+            <a class="cv-qb-item-title" onclick="openQBankEditor(${b.Id})">${_esc(b.Title)}</a>
+            <div class="cv-qb-item-meta">
+              <span>${qCount} câu hỏi</span>
+              <span class="cv-qb-meta-sep">·</span>
+              <span>Cập nhật lần cuối: ${updated}</span>
+              ${b.GroupName ? `<span class="cv-qb-meta-sep">·</span><span class="cv-qb-group">${_esc(b.GroupName)}</span>` : ''}
+            </div>
+          </div>
+          <div class="cv-qb-item-actions">
+            <button class="cv-qb-action" title="Đánh dấu"><i class="fas fa-bookmark"></i></button>
+            <button class="cv-qb-action" onclick="openQBankModal(${b.Id})" title="Chỉnh sửa"><i class="fas fa-pencil"></i></button>
+            <button class="cv-qb-action cv-qb-action-del" onclick="deleteQBank(${b.Id},'${_esc(b.Title)}')" title="Xoá"><i class="fas fa-times"></i></button>
+          </div>
+        </div>
+        <hr class="cv-qb-hr">`;
     }).join('');
   } catch(e) {
-    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#dc2626;padding:24px">Lỗi: ${e.message}</td></tr>`;
+    if (listEl) listEl.innerHTML = `<div style="color:#dc2626;padding:16px">Lỗi: ${e.message}</div>`;
   }
+}
+
+function _fmtDate(iso) {
+  try {
+    const d = new Date(iso);
+    const months = ['Th1','Th2','Th3','Th4','Th5','Th6','Th7','Th8','Th9','Th10','Th11','Th12'];
+    return `${months[d.getMonth()]} ${d.getDate()} lúc ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+  } catch { return iso; }
 }
 
 function openQBankModal(id) {
@@ -5701,11 +5729,15 @@ async function deleteQBank(id, title) {
 async function openQBankEditor(bankId) {
   _activeQBankId = bankId;
   const bank = _qbanks.find(b => b.Id === bankId);
-  document.getElementById('qbank-editor-title').textContent = `✏️ Câu hỏi — ${bank?.Title || ''}`;
+  document.getElementById('qbank-editor-title').textContent = bank?.Title || `Ngân hàng #${bankId}`;
+  const metaEl = document.getElementById('qbank-editor-meta');
+  if (metaEl) metaEl.textContent = bank?.GroupName ? `Nhóm: ${bank.GroupName}` : '';
+  // Hide list view, show editor
+  const listView = document.getElementById('qbank-list-view');
+  if (listView) listView.style.display = 'none';
   document.getElementById('qbank-editor').style.display = '';
   document.getElementById('qbank-editor').scrollIntoView({ behavior: 'smooth' });
 
-  // Load questions
   try {
     const r = await fetch(`${PROXY}/admin/question-banks/${bankId}`, { headers: adminHeaders() });
     const data = await r.json();
@@ -5717,6 +5749,8 @@ async function openQBankEditor(bankId) {
 function closeQBankEditor() {
   document.getElementById('qbank-editor').style.display = 'none';
   _activeQBankId = null;
+  const listView = document.getElementById('qbank-list-view');
+  if (listView) listView.style.display = '';
 }
 
 function renderQBankQuestions() {
@@ -6167,60 +6201,116 @@ function assessPage(dir) {
 }
 
 function renderAssessmentsTable(list) {
-  const tb = document.getElementById('assessments-table');
+  const container = document.getElementById('cv-assess-groups');
+  if (!container) return;
+
   if (!list.length) {
-    tb.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--text-muted)">Chưa có bài kiểm tra nào</td></tr>';
-    document.getElementById('assess-page-info').textContent = '';
-    document.getElementById('assess-prev').disabled = true;
-    document.getElementById('assess-next').disabled = true;
+    container.innerHTML = `
+      <div class="cv-assess-empty">
+        <i class="fas fa-clipboard-question" style="font-size:36px;color:var(--border);display:block;margin-bottom:12px"></i>
+        Chưa có bài kiểm tra nào.<br>
+        <button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="openAssessmentModal()">
+          <i class="fas fa-plus"></i> Tạo đề kiểm tra đầu tiên
+        </button>
+      </div>`;
     return;
   }
-  const start = _assessPage * _assessPageSize;
-  const page = list.slice(start, start + _assessPageSize);
-  tb.innerHTML = page.map((a, i) => {
-    const typeInfo = ASSESS_TYPE_LABEL[a.AssessmentType] || {};
-    const qs = (() => { try { return JSON.parse(a.Questions || '[]').length; } catch { return '–'; } })();
-    const pub = a.IsPublished ? `<span style="color:#16a34a;font-weight:600">✅ Live</span>` : `<span style="color:#94a3b8">Draft</span>`;
-    const tl = a.TimeLimitMinutes ? `${a.TimeLimitMinutes} phút` : '∞';
-    return `<tr>
-      <td style="color:var(--text-muted);font-size:12px">${start + i + 1}</td>
-      <td>
-        <div style="font-weight:600;font-size:13px">${escHtml(a.Title || '')}</div>
-        ${a.Description ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${escHtml((a.Description||'').slice(0,60))}</div>` : ''}
-      </td>
-      <td>${assessTypeBadge(a.AssessmentType)}</td>
-      <td style="font-size:12px;color:var(--text-muted)">
-        ${a.CourseId ? `<span title="Course">📚 ${a.CourseId}</span>` : ''}
-        ${a.ModuleId ? `<span title="Module" style="margin-left:4px">📦 ${a.ModuleId}</span>` : ''}
-        ${!a.CourseId && !a.ModuleId ? '–' : ''}
-      </td>
-      <td style="text-align:center;font-weight:600">${qs}</td>
-      <td style="text-align:center;font-size:12px">${tl}</td>
-      <td style="text-align:center">
-        <button class="btn btn-outline btn-sm" onclick="loadSubmissionsPanel(${a.Id},'${escHtml(a.Title||'')}')" title="Xem kết quả">
-          <i class="fas fa-chart-bar"></i>
-        </button>
-      </td>
-      <td style="text-align:center">${pub}</td>
-      <td style="text-align:center">
-        <button class="btn btn-outline btn-sm" onclick="openAssessmentModal(${a.Id})" title="Sửa" style="margin-right:4px">
-          <i class="fas fa-pen"></i>
-        </button>
-        <button class="btn btn-sm" onclick="deleteAssessment(${a.Id})" title="Xoá"
-          style="background:#fef2f2;color:#b91c1c;border:1px solid #fecaca">
-          <i class="fas fa-trash"></i>
-        </button>
-      </td>
-    </tr>`;
-  }).join('');
 
-  const total = list.length;
-  const maxPage = Math.ceil(total / _assessPageSize);
-  document.getElementById('assess-page-info').textContent =
-    `${start + 1}–${Math.min(start + _assessPageSize, total)} / ${total} bài`;
-  document.getElementById('assess-prev').disabled = _assessPage <= 0;
-  document.getElementById('assess-next').disabled = _assessPage >= maxPage - 1;
+  // Group by type
+  const groups = {
+    graded_quiz:     { label: 'Đề kiểm tra có chấm điểm', items: [] },
+    practice_quiz:   { label: 'Bài tập luyện tập',         items: [] },
+    graded_survey:   { label: 'Khảo sát có chấm điểm',     items: [] },
+    ungraded_survey: { label: 'Khảo sát ẩn danh',           items: [] },
+  };
+  list.forEach(a => {
+    const g = groups[a.AssessmentType];
+    if (g) g.items.push(a);
+    else groups.graded_quiz.items.push(a); // fallback
+  });
+
+  // Canvas quiz icon SVG per type
+  const typeIcon = {
+    graded_quiz:     `<svg class="cv-quiz-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>`,
+    practice_quiz:   `<svg class="cv-quiz-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+    graded_survey:   `<svg class="cv-quiz-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>`,
+    ungraded_survey: `<svg class="cv-quiz-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+  };
+
+  container.innerHTML = Object.entries(groups)
+    .filter(([, g]) => g.items.length > 0)
+    .map(([type, g]) => `
+      <div class="cv-assess-group" id="ag-${type}">
+        <div class="cv-assess-group-hd" onclick="toggleAssessGroup('${type}')">
+          <i class="fas fa-chevron-down cv-ag-arrow" id="ag-arrow-${type}"></i>
+          <span class="cv-ag-label">${g.label}</span>
+          <span class="cv-ag-count">${g.items.length}</span>
+        </div>
+        <div class="cv-assess-group-body" id="ag-body-${type}">
+          ${g.items.map(a => {
+            const qs = (() => { try { return JSON.parse(a.Questions || '[]').length; } catch { return 0; } })();
+            const pts = a.TotalPoints || 10;
+            const tl = a.TimeLimitMinutes ? `${a.TimeLimitMinutes} phút` : null;
+            const pub = a.IsPublished !== false;
+            const icon = typeIcon[a.AssessmentType] || typeIcon.graded_quiz;
+            return `
+              <div class="cv-assess-item" data-id="${a.Id}">
+                <div class="cv-assess-item-icon" style="color:${ASSESS_TYPE_LABEL[a.AssessmentType]?.color || '#475569'}">${icon}</div>
+                <div class="cv-assess-item-info">
+                  <div class="cv-assess-item-name">${escHtml(a.Title || '')}</div>
+                  <div class="cv-assess-item-meta">
+                    <span>${pts} Điểm</span>
+                    <span class="cv-ai-sep">|</span>
+                    <span>${qs} Câu hỏi</span>
+                    ${tl ? `<span class="cv-ai-sep">|</span><span>${tl}</span>` : ''}
+                  </div>
+                </div>
+                <div class="cv-assess-item-actions">
+                  <button class="cv-item-copy-btn" title="Xem kết quả nộp bài"
+                    onclick="loadSubmissionsPanel(${a.Id},'${escHtml(a.Title||'')}')">
+                    <i class="fas fa-chart-bar" style="font-size:12px"></i>
+                  </button>
+                  <button class="cv-item-pub-btn ${pub ? 'cv-item-pub-on' : 'cv-item-pub-off'}"
+                    title="${pub ? 'Đang công bố' : 'Nháp — click để công bố'}">
+                    <i class="fas fa-check-circle"></i>
+                  </button>
+                  <div class="cv-mod-menu-wrap">
+                    <button class="cv-mod-icon-btn" onclick="toggleAssessMenu(${a.Id},this)">
+                      <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                    <div class="cv-mod-menu" id="amenu-${a.Id}" style="display:none">
+                      <button onclick="openAssessmentModal(${a.Id});closeAssessMenus()"><i class="fas fa-pen"></i> Chỉnh sửa</button>
+                      <button onclick="loadSubmissionsPanel(${a.Id},'${escHtml(a.Title||'')}');closeAssessMenus()"><i class="fas fa-chart-bar"></i> Kết quả</button>
+                      <div class="cv-menu-divider"></div>
+                      <button class="cv-menu-danger" onclick="deleteAssessment(${a.Id});closeAssessMenus()"><i class="fas fa-trash"></i> Xoá</button>
+                    </div>
+                  </div>
+                </div>
+              </div>`;
+          }).join('')}
+        </div>
+      </div>`).join('');
 }
+
+function toggleAssessGroup(type) {
+  const body = document.getElementById(`ag-body-${type}`);
+  const arrow = document.getElementById(`ag-arrow-${type}`);
+  if (!body) return;
+  const collapsed = body.classList.toggle('cv-ag-collapsed');
+  if (arrow) arrow.style.transform = collapsed ? 'rotate(-90deg)' : '';
+}
+
+function toggleAssessMenu(id, btn) {
+  closeAssessMenus();
+  const m = document.getElementById(`amenu-${id}`);
+  if (m) m.style.display = 'block';
+}
+function closeAssessMenus() {
+  document.querySelectorAll('[id^="amenu-"]').forEach(m => m.style.display = 'none');
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.cv-assess-item')) closeAssessMenus();
+});
 
 function updateAssessStats(list) {
   document.getElementById('astat-total').textContent = list.length;
