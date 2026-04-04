@@ -54,6 +54,7 @@
   <div class="sb-item" onclick="showPanel('qbank',this)"><i class="fas fa-database"></i> Ngân hàng đề</div>
   <div class="sb-item" onclick="showPanel('exams',this)"><i class="fas fa-file-pen"></i> Đề bài tập</div>
   <div class="sb-item" onclick="showPanel('analytics',this)"><i class="fas fa-graduation-cap"></i> Học tập</div>
+  <div class="sb-item" onclick="showPanel('assessments',this)"><i class="fas fa-clipboard-question"></i> Bài kiểm tra</div>
   <div class="sb-item" onclick="showPanel('settings',this)"><i class="fas fa-gear"></i> Cài đặt</div>
 
   <div class="sb-footer">
@@ -106,16 +107,29 @@
 
     <!-- ══ COURSES ══════════════════════════════ -->
     <div class="panel" id="panel-courses">
-      <div class="card">
-        <div class="sec-hd">
-          <h3>📚 Khoá học</h3>
-          <div class="actions">
-            <button class="btn btn-primary btn-sm" onclick="openCourseModal()"><i class="fas fa-plus"></i> Tạo khoá học</button>
-          </div>
+      <div class="panel-hd">
+        <div>
+          <div class="panel-title"><i class="fas fa-book-open"></i> Quản lý Khoá học</div>
+          <div class="panel-sub">Tạo, cấu hình, xuất bản khoá học · Quản lý modules · Danh sách ghi danh</div>
         </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="text" id="course-search" placeholder="🔍 Tìm khoá học..." class="inp"
+            style="width:180px;height:34px;padding:6px 10px;font-size:13px"
+            oninput="filterCoursesTable(this.value)">
+          <button class="btn btn-primary" onclick="openCourseModal()"><i class="fas fa-plus"></i> Tạo khoá học</button>
+        </div>
+      </div>
+
+      <div class="card" style="padding:0;overflow:hidden">
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Tên khoá học</th><th>Trạng thái</th><th>Modules</th><th>Cập nhật</th><th>Thao tác</th></tr></thead>
+            <thead><tr>
+              <th>Tên khoá học</th>
+              <th style="width:110px;text-align:center">Workflow</th>
+              <th style="width:70px;text-align:center">Modules</th>
+              <th style="width:90px;text-align:center">Học viên</th>
+              <th style="width:100px;text-align:center">Thao tác</th>
+            </tr></thead>
             <tbody id="courses-table"><tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:32px">Đang tải...</td></tr></tbody>
           </table>
         </div>
@@ -131,6 +145,59 @@
           </div>
         </div>
         <div id="modules-list" class="modules-list"></div>
+      </div>
+
+      <!-- Enrollment management panel -->
+      <div id="enrollment-panel" class="card" style="display:none;margin-top:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <div>
+            <h3 style="font-size:15px;font-weight:600;margin:0">👥 Danh sách ghi danh</h3>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:2px" id="enroll-course-name"></div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-primary btn-sm" onclick="openEnrollModal()">
+              <i class="fas fa-user-plus"></i> Thêm học viên
+            </button>
+            <button class="btn btn-outline btn-sm" onclick="closeEnrollmentPanel()">✕ Đóng</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>User ID</th>
+              <th style="width:160px">Vai trò</th>
+              <th style="width:120px;text-align:center">Trạng thái</th>
+              <th style="width:100px;text-align:center">Thao tác</th>
+            </tr></thead>
+            <tbody id="enrollment-table">
+              <tr><td colspan="4" style="text-align:center;padding:24px;color:var(--text-muted)">Đang tải...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Course workflow controls panel -->
+      <div id="course-workflow-panel" class="card" style="display:none;margin-top:16px">
+        <div style="margin-bottom:12px">
+          <h3 style="font-size:15px;font-weight:600;margin:0">🔄 Quản lý vòng đời khoá học</h3>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:2px" id="cwp-title"></div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-sm" onclick="publishCourse()" id="cwp-publish"
+            style="background:#f0fdf4;color:#16a34a;border:1.5px solid #86efac">
+            <i class="fas fa-circle-check"></i> Xuất bản (Available)
+          </button>
+          <button class="btn btn-sm" onclick="unpublishCourse()" id="cwp-unpublish"
+            style="background:#fef3c7;color:#92400e;border:1.5px solid #fcd34d">
+            <i class="fas fa-circle-pause"></i> Huỷ xuất bản (Claimed)
+          </button>
+          <button class="btn btn-sm" onclick="concludeCourse()" id="cwp-conclude"
+            style="background:#fef2f2;color:#991b1b;border:1.5px solid #fca5a5">
+            <i class="fas fa-circle-stop"></i> Kết thúc khoá học (Concluded)
+          </button>
+          <button class="btn btn-outline btn-sm" onclick="document.getElementById('course-workflow-panel').style.display='none'">✕ Đóng</button>
+        </div>
+        <div id="cwp-msg" style="margin-top:10px;font-size:13px;min-height:18px"></div>
       </div>
     </div>
 
@@ -199,6 +266,53 @@
         <div class="modal-ft">
           <button class="btn btn-outline" onclick="closeModuleModal()">Huỷ</button>
           <button class="btn btn-primary" onclick="saveModule()"><i class="fas fa-floppy-disk"></i> Lưu</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Enrollment modal ──────────────────────── -->
+    <div id="enroll-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeEnrollModal()">
+      <div class="modal-box" style="max-width:420px">
+        <div class="modal-hd">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div class="modal-hd-icon">👥</div>
+            <div class="modal-hd-info">
+              <h3>Thêm học viên / giảng viên</h3>
+              <p id="em-course-name" style="color:var(--text-muted);font-size:12px"></p>
+            </div>
+          </div>
+          <button class="modal-close" onclick="closeEnrollModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label><i class="fas fa-id-badge" style="color:#6366f1;margin-right:6px"></i>User ID <span style="color:#ef4444">*</span></label>
+            <input type="number" id="em-userid" class="inp" placeholder="ID của người dùng" min="1">
+            <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Tìm ID tại Quản lý Người dùng</div>
+          </div>
+          <div class="form-group">
+            <label><i class="fas fa-user-tag" style="color:#6366f1;margin-right:6px"></i>Vai trò</label>
+            <select id="em-role" class="inp" style="height:38px;padding:4px 10px">
+              <option value="StudentEnrollment">🎓 Học sinh (StudentEnrollment)</option>
+              <option value="TeacherEnrollment">👨‍🏫 Giảng viên (TeacherEnrollment)</option>
+              <option value="TaEnrollment">🧑‍💼 Trợ giảng (TaEnrollment)</option>
+              <option value="ObserverEnrollment">👁️ Quan sát (ObserverEnrollment)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label><i class="fas fa-toggle-on" style="color:#6366f1;margin-right:6px"></i>Trạng thái</label>
+            <select id="em-state" class="inp" style="height:38px;padding:4px 10px">
+              <option value="active">✅ Active (Đang học)</option>
+              <option value="invited">📩 Invited (Đã mời)</option>
+              <option value="inactive">⏸ Inactive (Tạm ngưng)</option>
+            </select>
+          </div>
+          <div id="em-msg" style="font-size:13px;min-height:18px;margin-top:4px"></div>
+        </div>
+        <div class="modal-ft">
+          <button class="btn btn-outline" onclick="closeEnrollModal()">Hủy</button>
+          <button class="btn btn-primary" onclick="saveEnrollment()" id="em-save-btn">
+            <i class="fas fa-user-plus"></i> Ghi danh
+          </button>
         </div>
       </div>
     </div>
@@ -760,6 +874,280 @@
               <i class="fas fa-save"></i> Lưu
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ ASSESSMENTS ══════════════════════════ -->
+    <div class="panel" id="panel-assessments">
+      <div class="panel-hd">
+        <div>
+          <div class="panel-title"><i class="fas fa-clipboard-question"></i> Bài kiểm tra & Khảo sát</div>
+          <div class="panel-sub">Quản lý Quiz, Khảo sát · Xem kết quả nộp bài · Chấm điểm thủ công</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="text" id="assess-search" placeholder="🔍 Tìm kiếm..." class="inp"
+            style="width:200px;height:34px;padding:6px 10px;font-size:13px"
+            oninput="filterAssessments(this.value)">
+          <select id="assess-type-filter" class="inp" style="width:160px;height:34px;padding:4px 8px;font-size:13px"
+            onchange="filterAssessments(document.getElementById('assess-search').value)">
+            <option value="">Tất cả loại</option>
+            <option value="graded_quiz">Trắc nghiệm có điểm</option>
+            <option value="practice_quiz">Luyện tập</option>
+            <option value="graded_survey">Khảo sát có điểm</option>
+            <option value="ungraded_survey">Khảo sát ẩn danh</option>
+          </select>
+          <button class="btn btn-primary" onclick="openAssessmentModal()">
+            <i class="fas fa-plus"></i> Tạo mới
+          </button>
+        </div>
+      </div>
+
+      <!-- Stats bar -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px" id="assess-stats-bar">
+        <div class="ustat-card">
+          <div class="ustat-icon" style="background:#eff6ff"><i class="fas fa-clipboard-question" style="color:#2563eb"></i></div>
+          <div><div class="ustat-val" id="astat-total">–</div><div class="ustat-lbl">Tổng bài</div></div>
+        </div>
+        <div class="ustat-card">
+          <div class="ustat-icon" style="background:#f0fdf4"><i class="fas fa-circle-check" style="color:#16a34a"></i></div>
+          <div><div class="ustat-val" id="astat-published">–</div><div class="ustat-lbl">Đã publish</div></div>
+        </div>
+        <div class="ustat-card">
+          <div class="ustat-icon" style="background:#fefce8"><i class="fas fa-hourglass-half" style="color:#ca8a04"></i></div>
+          <div><div class="ustat-val" id="astat-submissions">–</div><div class="ustat-lbl">Lượt nộp</div></div>
+        </div>
+        <div class="ustat-card">
+          <div class="ustat-icon" style="background:#fdf4ff"><i class="fas fa-pen-to-square" style="color:#9333ea"></i></div>
+          <div><div class="ustat-val" id="astat-pending">–</div><div class="ustat-lbl">Chờ chấm</div></div>
+        </div>
+      </div>
+
+      <!-- Main table -->
+      <div class="card" style="padding:0;overflow:hidden">
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th style="width:36px">#</th>
+              <th>Tên bài</th>
+              <th>Loại</th>
+              <th>Khoá học / Module</th>
+              <th style="width:70px;text-align:center">Câu hỏi</th>
+              <th style="width:80px;text-align:center">Thời gian</th>
+              <th style="width:80px;text-align:center">Nộp bài</th>
+              <th style="width:90px;text-align:center">Trạng thái</th>
+              <th style="width:130px;text-align:center">Thao tác</th>
+            </tr></thead>
+            <tbody id="assessments-table">
+              <tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:32px">Đang tải...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="assess-pagination" style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-top:1px solid var(--border);font-size:13px;color:var(--text-muted)">
+          <span id="assess-page-info"></span>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-outline btn-sm" id="assess-prev" onclick="assessPage(-1)" disabled>‹ Trước</button>
+            <button class="btn btn-outline btn-sm" id="assess-next" onclick="assessPage(1)" disabled>Sau ›</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Submissions sub-panel -->
+      <div id="assess-submissions-panel" class="card" style="display:none;margin-top:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div>
+            <h3 style="font-size:15px;font-weight:600;margin:0" id="asub-title">Kết quả nộp bài</h3>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:2px" id="asub-sub"></div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-outline btn-sm" onclick="exportAssessmentCSV()" title="Xuất CSV">
+              <i class="fas fa-file-csv" style="color:#15803d"></i> CSV
+            </button>
+            <button class="btn btn-outline btn-sm" onclick="closeSubmissionsPanel()">✕ Đóng</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Học sinh</th>
+              <th style="width:80px;text-align:center">Điểm</th>
+              <th style="width:80px;text-align:center">Đúng/Tổng</th>
+              <th style="width:110px;text-align:center">Bắt đầu</th>
+              <th style="width:110px;text-align:center">Nộp lúc</th>
+              <th style="width:80px;text-align:center">Trạng thái</th>
+              <th style="width:100px;text-align:center">Thao tác</th>
+            </tr></thead>
+            <tbody id="asub-table">
+              <tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-muted)">Chưa có lượt nộp</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Anti-cheat logs sub-panel -->
+      <div id="assess-logs-panel" class="card" style="display:none;margin-top:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div>
+            <h3 style="font-size:15px;font-weight:600;margin:0">🛡️ Log chống gian lận</h3>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:2px" id="alog-sub"></div>
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="document.getElementById('assess-logs-panel').style.display='none'">✕ Đóng</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Sự kiện</th>
+              <th>Thời điểm</th>
+              <th>IP</th>
+              <th>Ghi chú</th>
+            </tr></thead>
+            <tbody id="alog-table">
+              <tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-muted)">Không có dữ liệu</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- /panel-assessments -->
+
+    <!-- ── Assessment modal ──────────────────────────── -->
+    <div id="assessment-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeAssessmentModal()">
+      <div class="modal-box" style="max-width:640px">
+        <div class="modal-hd">
+          <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0">
+            <div class="modal-hd-icon">📋</div>
+            <div class="modal-hd-info">
+              <h3 id="assess-modal-title">Tạo bài kiểm tra</h3>
+              <p id="assess-modal-sub">Điền thông tin cơ bản</p>
+            </div>
+          </div>
+          <button class="modal-close" onclick="closeAssessmentModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="am-id">
+
+          <!-- Type picker -->
+          <div class="form-group" style="grid-column:1/-1">
+            <label><i class="fas fa-shapes" style="color:#6366f1;margin-right:6px"></i>Loại bài <span style="color:#ef4444">*</span></label>
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:4px">
+              <div class="cm-status-card" data-val="graded_quiz" onclick="setAssessType('graded_quiz')" style="cursor:pointer">
+                <span style="font-size:16px">📝</span>
+                <div><div style="font-weight:600;font-size:13px">Trắc nghiệm có điểm</div><div style="font-size:11px;color:var(--text-muted)">Có điểm số, tự chấm</div></div>
+              </div>
+              <div class="cm-status-card" data-val="practice_quiz" onclick="setAssessType('practice_quiz')" style="cursor:pointer">
+                <span style="font-size:16px">🔄</span>
+                <div><div style="font-weight:600;font-size:13px">Quiz luyện tập</div><div style="font-size:11px;color:var(--text-muted)">Không tính điểm, xem đáp án ngay</div></div>
+              </div>
+              <div class="cm-status-card" data-val="graded_survey" onclick="setAssessType('graded_survey')" style="cursor:pointer">
+                <span style="font-size:16px">📊</span>
+                <div><div style="font-weight:600;font-size:13px">Khảo sát có điểm</div><div style="font-size:11px;color:var(--text-muted)">Kết quả hiển thị kèm danh tính</div></div>
+              </div>
+              <div class="cm-status-card" data-val="ungraded_survey" onclick="setAssessType('ungraded_survey')" style="cursor:pointer">
+                <span style="font-size:16px">🕵️</span>
+                <div><div style="font-weight:600;font-size:13px">Khảo sát ẩn danh</div><div style="font-size:11px;color:var(--text-muted)">Không thể truy vết người trả lời</div></div>
+              </div>
+            </div>
+            <input type="hidden" id="am-type">
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:4px">
+            <div class="form-group" style="grid-column:1/-1">
+              <label><i class="fas fa-heading" style="color:#6366f1;margin-right:6px"></i>Tiêu đề <span style="color:#ef4444">*</span></label>
+              <input type="text" id="am-title" class="inp" placeholder="Ví dụ: Quiz Chương 3 - Hàm số">
+            </div>
+            <div class="form-group" style="grid-column:1/-1">
+              <label><i class="fas fa-align-left" style="color:#6366f1;margin-right:6px"></i>Mô tả</label>
+              <textarea id="am-desc" class="inp" rows="2" placeholder="Mô tả ngắn về bài kiểm tra..." style="resize:vertical"></textarea>
+            </div>
+            <div class="form-group">
+              <label><i class="fas fa-book" style="color:#6366f1;margin-right:6px"></i>Khoá học (ID)</label>
+              <input type="number" id="am-course" class="inp" placeholder="CourseId" min="1">
+            </div>
+            <div class="form-group">
+              <label><i class="fas fa-layer-group" style="color:#6366f1;margin-right:6px"></i>Module (ID)</label>
+              <input type="number" id="am-module" class="inp" placeholder="ModuleId" min="1">
+            </div>
+            <div class="form-group">
+              <label><i class="fas fa-clock" style="color:#6366f1;margin-right:6px"></i>Thời gian làm (phút)</label>
+              <input type="number" id="am-timelimit" class="inp" placeholder="0 = không giới hạn" min="0">
+            </div>
+            <div class="form-group">
+              <label><i class="fas fa-rotate" style="color:#6366f1;margin-right:6px"></i>Số lần làm tối đa</label>
+              <input type="number" id="am-maxattempts" class="inp" placeholder="0 = không giới hạn" min="0">
+            </div>
+            <div class="form-group">
+              <label><i class="fas fa-calendar-check" style="color:#6366f1;margin-right:6px"></i>Mở từ</label>
+              <input type="datetime-local" id="am-availfrom" class="inp">
+            </div>
+            <div class="form-group">
+              <label><i class="fas fa-calendar-xmark" style="color:#6366f1;margin-right:6px"></i>Đóng lúc</label>
+              <input type="datetime-local" id="am-availto" class="inp">
+            </div>
+            <div class="form-group">
+              <label><i class="fas fa-key" style="color:#6366f1;margin-right:6px"></i>Mã tham gia (tuỳ chọn)</label>
+              <input type="text" id="am-accesscode" class="inp" placeholder="Để trống nếu không cần mã">
+            </div>
+            <div class="form-group" style="display:flex;align-items:center;gap:10px;padding-top:22px">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:500">
+                <input type="checkbox" id="am-shuffle" style="width:16px;height:16px;cursor:pointer;accent-color:#6366f1">
+                Xáo trộn câu hỏi
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:500">
+                <input type="checkbox" id="am-published" style="width:16px;height:16px;cursor:pointer;accent-color:#16a34a">
+                Xuất bản ngay
+              </label>
+            </div>
+          </div>
+
+          <!-- Question editor -->
+          <div style="margin-top:16px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+              <label style="font-weight:600;font-size:13px"><i class="fas fa-list-check" style="color:#6366f1;margin-right:6px"></i>Câu hỏi <span id="am-q-count" style="color:var(--text-muted);font-weight:400"></span></label>
+              <button type="button" class="btn btn-outline btn-sm" onclick="addAssessQuestion()">
+                <i class="fas fa-plus"></i> Thêm câu
+              </button>
+            </div>
+            <div id="am-questions" style="display:flex;flex-direction:column;gap:10px"></div>
+          </div>
+
+          <div id="am-msg" style="margin-top:10px;font-size:13px;min-height:18px"></div>
+        </div>
+        <div class="modal-ft">
+          <button class="btn btn-outline" onclick="closeAssessmentModal()">Hủy</button>
+          <button class="btn btn-primary" onclick="saveAssessment()" id="am-save-btn">
+            <i class="fas fa-save"></i> Lưu bài kiểm tra
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Grade modal ──────────────────────────── -->
+    <div id="grade-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeGradeModal()">
+      <div class="modal-box" style="max-width:520px">
+        <div class="modal-hd">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div class="modal-hd-icon">✏️</div>
+            <div class="modal-hd-info">
+              <h3>Chấm điểm thủ công</h3>
+              <p id="gm-sub-info" style="color:var(--text-muted);font-size:12px"></p>
+            </div>
+          </div>
+          <button class="modal-close" onclick="closeGradeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="gm-sub-id">
+          <div class="form-group">
+            <label>Điểm số</label>
+            <input type="number" id="gm-score" class="inp" min="0" step="0.5" placeholder="0">
+          </div>
+          <div class="form-group">
+            <label>Nhận xét cho học sinh <span style="color:var(--text-muted);font-weight:400">(tuỳ chọn)</span></label>
+            <textarea id="gm-feedback" class="inp" rows="3" placeholder="Nhận xét về bài làm..." style="resize:vertical"></textarea>
+          </div>
+          <div id="gm-msg" style="font-size:13px;min-height:18px"></div>
+        </div>
+        <div class="modal-ft">
+          <button class="btn btn-outline" onclick="closeGradeModal()">Hủy</button>
+          <button class="btn btn-primary" onclick="submitGrade()"><i class="fas fa-check"></i> Lưu điểm</button>
         </div>
       </div>
     </div>

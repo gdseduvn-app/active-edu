@@ -15,6 +15,18 @@ import { handleProgressGet, handleProgressPost, handleReactions, handleAnalytics
 import { handleQuizGet, handleQuizSubmit } from './src/handlers/quizHandler.js';
 import { handleExamList, handleQBankList, handleExamGet, handleExamSubmit } from './src/handlers/examHandler.js';
 import { handlePrereqCheck, handleModuleUnlock, handleCourseUnlockStatus } from './src/handlers/courseHandler.js';
+import {
+  handleEnrollmentList,
+  handleSelfEnroll,
+  handleAdminEnrollmentList,
+  handleAdminEnroll,
+  handleAdminEnrollmentUpdate,
+  handleAdminUnenroll,
+  handleCoursePublish,
+  handleCourseUnpublish,
+  handleCourseConclude,
+  handleCourseAccessCheck,
+} from './src/handlers/enrollmentHandler.js';
 import { handleSocratic } from './src/handlers/aiHandler.js';
 import { handleDriveUpload, handleDriveFetch } from './src/handlers/driveHandler.js';
 import {
@@ -27,6 +39,22 @@ import {
   handleSafeExamDelete,
   handleSafeQuestionBankDelete,
 } from './src/handlers/adminHandler.js';
+import {
+  handleAssessmentList,
+  handleAssessmentGet,
+  handleAssessmentStart,
+  handleSubmissionSave,
+  handleActionLogEvent,
+  handleSubmissionSubmit,
+  handleSubmissionResult,
+  handleAdminSubmissions,
+  handleAdminGrade,
+  handleAssessmentExport,
+  handleAssessmentDelete,
+  handleAdminActionLogs,
+  handleAssessmentCreate,
+  handleAssessmentUpdate,
+} from './src/handlers/assessmentHandler.js';
 
 // ── Route tables ──────────────────────────────────────────────
 
@@ -50,8 +78,10 @@ const ADMIN_PROXY_ROUTES = {
   '/admin/question-banks':  env => `/api/v2/tables/${env.NOCO_QBANK}/records`,
   '/admin/exams':           env => `/api/v2/tables/${env.NOCO_EXAMS}/records`,
   '/admin/exam-sections':   env => `/api/v2/tables/${env.NOCO_EXAM_SECTIONS}/records`,
-  '/admin/fields/articles': env => `/api/v2/tables/${env.NOCO_ARTICLE}/fields`,
-  '/admin/fields/users':    env => `/api/v2/tables/${env.NOCO_USERS}/fields`,
+  '/admin/fields/articles':    env => `/api/v2/tables/${env.NOCO_ARTICLE}/fields`,
+  '/admin/fields/users':       env => `/api/v2/tables/${env.NOCO_USERS}/fields`,
+  '/admin/assessments-proxy':  env => `/api/v2/tables/${env.NOCO_ASSESSMENTS}/records`,
+  '/admin/assess-questions':   env => `/api/v2/tables/${env.NOCO_ASSESS_QUESTIONS}/records`,
 };
 
 const CACHE_TTL = {
@@ -138,6 +168,38 @@ export default {
     if (path.startsWith('/api/exam/') && !path.includes('/submit') && request.method === 'GET')
       return handleExamGet(request, env, ctx);
 
+    // ── Course workflow (FR-C03, FR-C04) ──────────────────
+    if (path === '/admin/courses/publish' && request.method === 'POST')
+      return handleCoursePublish(request, env, ctx);
+
+    if (path === '/admin/courses/unpublish' && request.method === 'POST')
+      return handleCourseUnpublish(request, env, ctx);
+
+    if (path === '/admin/courses/conclude' && request.method === 'POST')
+      return handleCourseConclude(request, env, ctx);
+
+    // ── Enrollments (FR-C09, C10, C11) ────────────────────
+    if (path.match(/^\/api\/courses\/\d+\/enrollments$/) && request.method === 'GET')
+      return handleEnrollmentList(request, env, ctx);
+
+    if (path.match(/^\/api\/courses\/\d+\/enroll$/) && request.method === 'POST')
+      return handleSelfEnroll(request, env, ctx);
+
+    if (path.match(/^\/api\/courses\/\d+\/access$/) && request.method === 'GET')
+      return handleCourseAccessCheck(request, env, ctx);
+
+    if (path.match(/^\/admin\/courses\/\d+\/enrollments$/) && request.method === 'GET')
+      return handleAdminEnrollmentList(request, env, ctx);
+
+    if (path.match(/^\/admin\/courses\/\d+\/enrollments$/) && request.method === 'POST')
+      return handleAdminEnroll(request, env, ctx);
+
+    if (path.match(/^\/admin\/enrollments\/\d+$/) && request.method === 'PATCH')
+      return handleAdminEnrollmentUpdate(request, env, ctx);
+
+    if (path.match(/^\/admin\/enrollments\/\d+$/) && request.method === 'DELETE')
+      return handleAdminUnenroll(request, env, ctx);
+
     // ── Course / module unlock ──────────────────────────────
     if (path.startsWith('/api/prereq/') && request.method === 'GET')
       return handlePrereqCheck(request, env, ctx);
@@ -185,6 +247,53 @@ export default {
     if (path.startsWith('/admin/module-item/') && request.method === 'PATCH')
       return handleModuleItemToggle(request, env, ctx);
 
+    // ── Assessments: student routes ─────────────────────────
+    if (path === '/api/assessments' && request.method === 'GET')
+      return handleAssessmentList(request, env, ctx);
+
+    if (path.match(/^\/api\/assessments\/\d+$/) && request.method === 'GET')
+      return handleAssessmentGet(request, env, ctx);
+
+    if (path.match(/^\/api\/assessments\/\d+\/start$/) && request.method === 'POST')
+      return handleAssessmentStart(request, env, ctx);
+
+    if (path.match(/^\/api\/submissions\/\d+\/save$/) && request.method === 'POST')
+      return handleSubmissionSave(request, env, ctx);
+
+    if (path.match(/^\/api\/submissions\/\d+\/event$/) && request.method === 'POST')
+      return handleActionLogEvent(request, env, ctx);
+
+    if (path.match(/^\/api\/submissions\/\d+\/submit$/) && request.method === 'POST')
+      return handleSubmissionSubmit(request, env, ctx);
+
+    if (path.match(/^\/api\/submissions\/\d+\/result$/) && request.method === 'GET')
+      return handleSubmissionResult(request, env, ctx);
+
+    // ── Assessments: admin routes ───────────────────────────
+    if (path === '/admin/assessments' && request.method === 'GET')
+      return handleAdminSubmissions(request, env, ctx);
+
+    if (path === '/admin/assessments' && request.method === 'POST')
+      return handleAssessmentCreate(request, env, ctx);
+
+    if (path.match(/^\/admin\/assessments\/\d+$/) && request.method === 'PATCH')
+      return handleAssessmentUpdate(request, env, ctx);
+
+    if (path.match(/^\/admin\/assessments\/\d+$/) && request.method === 'DELETE')
+      return handleAssessmentDelete(request, env, ctx);
+
+    if (path.match(/^\/admin\/assessments\/\d+\/submissions$/) && request.method === 'GET')
+      return handleAdminSubmissions(request, env, ctx);
+
+    if (path.match(/^\/admin\/submissions\/\d+\/grade$/) && request.method === 'PATCH')
+      return handleAdminGrade(request, env, ctx);
+
+    if (path.match(/^\/admin\/assessments\/\d+\/export$/) && request.method === 'GET')
+      return handleAssessmentExport(request, env, ctx);
+
+    if (path.match(/^\/admin\/assessments\/\d+\/action-logs$/) && request.method === 'GET')
+      return handleAdminActionLogs(request, env, ctx);
+
     // ── Admin: generic proxy routes ─────────────────────────
     let adminNoco = null;
     for (const [route, resolver] of Object.entries(ADMIN_PROXY_ROUTES)) {
@@ -206,11 +315,18 @@ export default {
       }
 
       const body = ['GET', 'HEAD'].includes(request.method) ? undefined : await request.text();
-      const r = await fetch(`${env.NOCO_URL}${adminNoco}${url.search}`, {
+      const adminFetchOpts = {
         method: request.method,
         headers: { 'xc-token': env.NOCO_TOKEN, 'Content-Type': 'application/json' },
         body,
-      });
+      };
+      const adminFetchUrl = `${env.NOCO_URL}${adminNoco}${url.search}`;
+      let r;
+      for (let i = 0; i < 3; i++) {
+        r = await fetch(adminFetchUrl, adminFetchOpts);
+        if (r.status !== 429) break;
+        if (i < 2) await new Promise(res => setTimeout(res, 300 * Math.pow(2, i)));
+      }
       const respText = await r.text();
 
       // Audit log for write operations (fire-and-forget)

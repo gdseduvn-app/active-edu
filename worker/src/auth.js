@@ -71,19 +71,23 @@ export async function verifyAdminToken(token, secret) {
 }
 
 export async function verifyAdminAuth(request, env) {
-  // 1. Accept Admin-Token header (dedicated admin session from /admin/auth)
+  const secret = getTokenSecret(env);
+
+  // 1. Admin-Token header (legacy / explicit)
   const adminToken = request.headers.get('Admin-Token');
-  if (adminToken) {
-    const secret = getTokenSecret(env);
-    if (await verifyAdminToken(adminToken, secret + ':admin')) return true;
-  }
-  // 2. Accept Authorization Bearer from role=admin users (unified login flow)
+  if (adminToken && await verifyAdminToken(adminToken, secret + ':admin')) return true;
+
+  // 2. Authorization: Bearer — 2 loại token có thể đến qua đây:
   const authHeader = request.headers.get('Authorization') || '';
   if (authHeader.startsWith('Bearer ')) {
-    const secret = getTokenSecret(env);
-    const session = await verifyToken(authHeader.replace('Bearer ', ''), secret);
+    const token = authHeader.replace('Bearer ', '');
+    // 2a. Admin token từ /admin/auth (unified login gửi qua Bearer)
+    if (await verifyAdminToken(token, secret + ':admin')) return true;
+    // 2b. User token với role=admin (NocoDB admin account)
+    const session = await verifyToken(token, secret);
     if (session && session.role === 'admin') return true;
   }
+
   return false;
 }
 

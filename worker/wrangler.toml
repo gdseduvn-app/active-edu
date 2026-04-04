@@ -32,10 +32,20 @@ compatibility_flags = ["nodejs_compat"]
 #   wrangler secret put TOKEN_SECRET
 #   wrangler secret put ANTHROPIC_API_KEY  (Claude Haiku Socratic AI)
 #   wrangler secret put GDRIVE_SA_JSON   (optional)
-#   wrangler secret put NOCO_AUDIT        (AuditLog table ID)
-#   wrangler secret put RESEND_API_KEY    (Resend.com API key — email gửi reset password)
-#   wrangler secret put EMAIL_FROM        (optional: "ActiveEdu <no-reply@gds.edu.vn>")
-#   wrangler secret put APP_URL           (optional: "https://activelearning.gds.edu.vn")
+#   wrangler secret put NOCO_AUDIT           (AuditLog table ID)
+#   wrangler secret put RESEND_API_KEY       (Resend.com API key — email gửi reset password)
+#   wrangler secret put EMAIL_FROM           (optional: "ActiveEdu <no-reply@gds.edu.vn>")
+#   wrangler secret put APP_URL              (optional: "https://activelearning.gds.edu.vn")
+#
+# ── Quizzes & Surveys module (FR-01 to FR-14) ────────────────
+#   wrangler secret put NOCO_ASSESSMENTS      → mqqj02yoar19vyp
+#   wrangler secret put NOCO_ASSESS_QUESTIONS → mi7xia4503dwksg
+#   wrangler secret put NOCO_SUBMISSIONS      → m1ea1g7vgk6t24z
+#   wrangler secret put NOCO_SUB_ANSWERS      → me8tjveubb1i36x
+#   wrangler secret put NOCO_ACTION_LOGS      → mu704b9cms2jkcd
+#
+# ── Course Management module (FR-C01 to FR-C11) ──────────────
+#   wrangler secret put NOCO_ENROLLMENTS      → m3vjp8zn51kx7e4
 
 # ── Custom Domain ─────────────────────────────────────────────
 routes = [

@@ -2339,6 +2339,8 @@ function showPanel(id, navEl) {
     loadExams();
   } else if (id === 'analytics') {
     loadAnalytics();
+  } else if (id === 'assessments') {
+    loadAssessments();
   }
 }
 
@@ -4764,20 +4766,38 @@ async function loadCourses() {
       return;
     }
 
-    tbody.innerHTML = _courses.map(c => `
-      <tr>
-        <td><strong>${_esc(c.Title)}</strong>${c.Description ? `<div style="font-size:12px;color:var(--text-muted);margin-top:2px">${_esc(c.Description.slice(0,80))}${c.Description.length>80?'…':''}</div>` : ''}</td>
-        <td><span class="badge ${c.Status==='published'?'badge-green':c.Status==='archived'?'badge-red':'badge-gray'}">${c.Status||'draft'}</span></td>
-        <td style="text-align:center">—</td>
-        <td style="font-size:12px;color:var(--text-muted)">${c.UpdatedAt ? new Date(c.UpdatedAt).toLocaleDateString('vi') : '—'}</td>
+    tbody.innerHTML = _courses.map(c => {
+      const wf = c.WorkflowState || (c.Status === 'published' ? 'available' : c.Status === 'archived' ? 'completed' : 'created');
+      const wfBadge = {
+        available: `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:#f0fdf4;color:#16a34a">✅ Available</span>`,
+        created:   `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:#f8fafc;color:#64748b">📝 Created</span>`,
+        claimed:   `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:#fefce8;color:#92400e">🔒 Claimed</span>`,
+        completed: `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:#fef2f2;color:#991b1b">🔴 Concluded</span>`,
+        deleted:   `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:#fee2e2;color:#b91c1c">🗑️ Deleted</span>`,
+      }[wf] || `<span style="font-size:11px;color:var(--text-muted)">${wf}</span>`;
+      return `<tr>
         <td>
-          <div style="display:flex;gap:6px">
-            <button class="btn btn-outline btn-sm" onclick="openModuleBuilder(${c.Id})"><i class="fas fa-layer-group"></i> Modules</button>
-            <button class="btn btn-outline btn-sm" onclick="openCourseModal(${c.Id})"><i class="fas fa-pen"></i></button>
-            <button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:none" onclick="deleteCourse(${c.Id}, '${_esc(c.Title)}')"><i class="fas fa-trash"></i></button>
+          <strong>${_esc(c.Title)}</strong>
+          ${c.CourseCode ? `<span style="margin-left:6px;font-size:11px;background:#f1f5f9;color:#475569;padding:1px 6px;border-radius:4px">${_esc(c.CourseCode)}</span>` : ''}
+          ${c.Description ? `<div style="font-size:12px;color:var(--text-muted);margin-top:2px">${_esc(c.Description.slice(0,80))}${c.Description.length>80?'…':''}</div>` : ''}
+        </td>
+        <td style="text-align:center">${wfBadge}</td>
+        <td style="text-align:center;color:var(--text-muted)">—</td>
+        <td style="text-align:center">
+          <button class="btn btn-outline btn-sm" onclick="openEnrollmentPanel(${c.Id},'${_esc(c.Title)}')" title="Quản lý ghi danh">
+            <i class="fas fa-users"></i>
+          </button>
+        </td>
+        <td style="text-align:center">
+          <div style="display:flex;gap:4px;justify-content:center;flex-wrap:wrap">
+            <button class="btn btn-outline btn-sm" onclick="openModuleBuilder(${c.Id})" title="Modules"><i class="fas fa-layer-group"></i></button>
+            <button class="btn btn-outline btn-sm" onclick="openCourseWorkflowPanel(${c.Id},'${_esc(c.Title)}')" title="Workflow"><i class="fas fa-rotate"></i></button>
+            <button class="btn btn-outline btn-sm" onclick="openCourseModal(${c.Id})" title="Sửa"><i class="fas fa-pen"></i></button>
+            <button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:1px solid #fecaca" onclick="deleteCourse(${c.Id},'${_esc(c.Title)}')" title="Xoá"><i class="fas fa-trash"></i></button>
           </div>
         </td>
-      </tr>`).join('');
+      </tr>`;
+    }).join('');
   } catch(e) {
     tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#dc2626;padding:24px">Lỗi: ${e.message}</td></tr>`;
   }
@@ -4856,6 +4876,238 @@ async function deleteCourse(id, title) {
   } catch(e) {
     showToast('Lỗi: ' + e.message, 'error');
   } finally { hideLoading(); }
+}
+
+// ── Course search filter ──
+function filterCoursesTable(q) {
+  if (!_courses.length) return;
+  const lq = q.toLowerCase();
+  const rows = document.querySelectorAll('#courses-table tr');
+  rows.forEach(row => {
+    const text = row.textContent.toLowerCase();
+    row.style.display = !q || text.includes(lq) ? '' : 'none';
+  });
+}
+
+// ── Course Workflow Panel (FR-C03, FR-C04) ──────────────────────
+let _workflowCourseId = null;
+
+function openCourseWorkflowPanel(courseId, title) {
+  _workflowCourseId = courseId;
+  document.getElementById('cwp-title').textContent = `Khoá học: ${title} (ID: ${courseId})`;
+  document.getElementById('cwp-msg').textContent = '';
+  document.getElementById('course-workflow-panel').style.display = '';
+  document.getElementById('enrollment-panel').style.display = 'none';
+  setTimeout(() => document.getElementById('course-workflow-panel').scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+}
+
+async function publishCourse() {
+  if (!_workflowCourseId) return;
+  try {
+    showLoading('Đang xuất bản...');
+    const r = await fetch(`${PROXY}/admin/courses/publish`, {
+      method: 'POST',
+      headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ courseId: _workflowCourseId }),
+    });
+    const text = await r.text();
+    const data = (() => { try { return JSON.parse(text); } catch { return {}; } })();
+    if (!r.ok) throw new Error(data.error || text);
+    document.getElementById('cwp-msg').innerHTML = '<span style="color:#16a34a">✅ Khoá học đã xuất bản (Available)</span>';
+    showToast('Đã xuất bản khoá học!', 'success');
+    await loadCourses();
+  } catch(e) {
+    document.getElementById('cwp-msg').innerHTML = `<span style="color:#ef4444">❌ ${e.message}</span>`;
+    showToast(e.message, 'error');
+  } finally { hideLoading(); }
+}
+
+async function unpublishCourse() {
+  if (!_workflowCourseId) return;
+  if (!confirm('Huỷ xuất bản khoá học? Sinh viên sẽ không thể truy cập cho đến khi xuất bản lại.')) return;
+  try {
+    showLoading('Đang huỷ xuất bản...');
+    const r = await fetch(`${PROXY}/admin/courses/unpublish`, {
+      method: 'POST',
+      headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ courseId: _workflowCourseId }),
+    });
+    const text = await r.text();
+    const data = (() => { try { return JSON.parse(text); } catch { return {}; } })();
+    if (!r.ok) throw new Error(data.error || text);
+    document.getElementById('cwp-msg').innerHTML = '<span style="color:#92400e">⚠️ Khoá học đã được huỷ xuất bản (Claimed)</span>';
+    showToast('Đã huỷ xuất bản!', 'success');
+    await loadCourses();
+  } catch(e) {
+    document.getElementById('cwp-msg').innerHTML = `<span style="color:#ef4444">❌ ${e.message}</span>`;
+    showToast(e.message, 'error');
+  } finally { hideLoading(); }
+}
+
+async function concludeCourse() {
+  if (!_workflowCourseId) return;
+  if (!confirm('Kết thúc khoá học?\n⚠️ Khoá học sẽ chuyển sang chế độ Chỉ đọc cho tất cả sinh viên.')) return;
+  try {
+    showLoading('Đang kết thúc khoá học...');
+    const r = await fetch(`${PROXY}/admin/courses/conclude`, {
+      method: 'POST',
+      headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ courseId: _workflowCourseId }),
+    });
+    const text = await r.text();
+    const data = (() => { try { return JSON.parse(text); } catch { return {}; } })();
+    if (!r.ok) throw new Error(data.error || text);
+    document.getElementById('cwp-msg').innerHTML = '<span style="color:#991b1b">🔴 Khoá học đã kết thúc (Concluded/Read-only)</span>';
+    showToast('Khoá học đã kết thúc!', 'success');
+    await loadCourses();
+  } catch(e) {
+    document.getElementById('cwp-msg').innerHTML = `<span style="color:#ef4444">❌ ${e.message}</span>`;
+    showToast(e.message, 'error');
+  } finally { hideLoading(); }
+}
+
+// ── Enrollment Management ───────────────────────────────────────
+let _enrollCourseId = null;
+let _enrollments = [];
+
+async function openEnrollmentPanel(courseId, title) {
+  _enrollCourseId = courseId;
+  document.getElementById('enroll-course-name').textContent = `Khoá học: ${title} (ID: ${courseId})`;
+  document.getElementById('enrollment-panel').style.display = '';
+  document.getElementById('course-workflow-panel').style.display = 'none';
+  await loadEnrollments();
+  setTimeout(() => document.getElementById('enrollment-panel').scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+}
+
+function closeEnrollmentPanel() {
+  document.getElementById('enrollment-panel').style.display = 'none';
+  _enrollCourseId = null;
+}
+
+async function loadEnrollments() {
+  if (!_enrollCourseId) return;
+  const tb = document.getElementById('enrollment-table');
+  tb.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px">Đang tải...</td></tr>';
+  try {
+    const r = await fetch(`${PROXY}/admin/courses/${_enrollCourseId}/enrollments`, { headers: adminHeaders() });
+    const data = await r.json();
+    _enrollments = data.list || [];
+    if (!_enrollments.length) {
+      tb.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-muted)">Chưa có học viên nào được ghi danh</td></tr>';
+      return;
+    }
+    const ROLE_LABELS = {
+      StudentEnrollment: '🎓 Học sinh',
+      TeacherEnrollment: '👨‍🏫 Giảng viên',
+      TaEnrollment: '🧑‍💼 Trợ giảng',
+      ObserverEnrollment: '👁️ Quan sát',
+    };
+    const STATE_STYLES = {
+      active:    'color:#16a34a;font-weight:600',
+      invited:   'color:#0891b2',
+      inactive:  'color:#94a3b8',
+      completed: 'color:#7c3aed',
+      rejected:  'color:#ef4444',
+    };
+    tb.innerHTML = _enrollments.map(e => `<tr>
+      <td style="font-size:13px">#${e.UserId}</td>
+      <td style="font-size:13px">${ROLE_LABELS[e.Role] || e.Role}</td>
+      <td style="text-align:center">
+        <span style="${STATE_STYLES[e.WorkflowState] || ''}">${e.WorkflowState}</span>
+      </td>
+      <td style="text-align:center">
+        ${e.WorkflowState === 'active' ? `
+          <button class="btn btn-outline btn-sm" onclick="toggleEnrollState(${e.Id},'inactive')" title="Tạm ngưng" style="margin-right:4px">⏸</button>
+        ` : e.WorkflowState === 'inactive' ? `
+          <button class="btn btn-outline btn-sm" onclick="toggleEnrollState(${e.Id},'active')" title="Kích hoạt lại" style="margin-right:4px">▶️</button>
+        ` : ''}
+        <button class="btn btn-sm" onclick="removeEnrollment(${e.Id})" title="Xoá ghi danh"
+          style="background:#fef2f2;color:#b91c1c;border:1px solid #fecaca">
+          <i class="fas fa-user-minus"></i>
+        </button>
+      </td>
+    </tr>`).join('');
+  } catch(e) {
+    tb.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--danger)">${e.message}</td></tr>`;
+  }
+}
+
+function openEnrollModal() {
+  document.getElementById('em-userid').value = '';
+  document.getElementById('em-role').value = 'StudentEnrollment';
+  document.getElementById('em-state').value = 'active';
+  document.getElementById('em-msg').textContent = '';
+  const course = _courses.find(c => c.Id === _enrollCourseId);
+  document.getElementById('em-course-name').textContent = course ? course.Title : `ID: ${_enrollCourseId}`;
+  document.getElementById('enroll-modal').style.display = 'flex';
+}
+
+function closeEnrollModal() {
+  document.getElementById('enroll-modal').style.display = 'none';
+}
+
+async function saveEnrollment() {
+  const userId = parseInt(document.getElementById('em-userid').value);
+  const msgEl = document.getElementById('em-msg');
+  if (!userId) { msgEl.innerHTML = '<span style="color:#ef4444">Vui lòng nhập User ID!</span>'; return; }
+
+  const btn = document.getElementById('em-save-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang ghi danh...';
+  msgEl.textContent = '';
+
+  try {
+    showLoading('Đang ghi danh...');
+    const r = await fetch(`${PROXY}/admin/courses/${_enrollCourseId}/enrollments`, {
+      method: 'POST',
+      headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        UserId: userId,
+        Role: document.getElementById('em-role').value,
+        WorkflowState: document.getElementById('em-state').value,
+      }),
+    });
+    const text = await r.text();
+    const data = (() => { try { return JSON.parse(text); } catch { return {}; } })();
+    if (!r.ok) throw new Error(data.error || text);
+    showToast(data.reactivated ? 'Đã kích hoạt lại ghi danh!' : 'Đã ghi danh thành công!', 'success');
+    closeEnrollModal();
+    await loadEnrollments();
+  } catch(e) {
+    msgEl.innerHTML = `<span style="color:#ef4444">❌ ${e.message}</span>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-user-plus"></i> Ghi danh';
+    hideLoading();
+  }
+}
+
+async function toggleEnrollState(enrollId, newState) {
+  try {
+    showLoading('Đang cập nhật...');
+    const r = await fetch(`${PROXY}/admin/enrollments/${enrollId}`, {
+      method: 'PATCH',
+      headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ WorkflowState: newState }),
+    });
+    if (!r.ok) { const d = await r.json().catch(()=>({})); throw new Error(d?.error || `HTTP ${r.status}`); }
+    showToast(newState === 'active' ? 'Đã kích hoạt lại!' : 'Đã tạm ngưng!', 'success');
+    await loadEnrollments();
+  } catch(e) { showToast(e.message, 'error'); } finally { hideLoading(); }
+}
+
+async function removeEnrollment(enrollId) {
+  if (!confirm('Xoá ghi danh này?\nDữ liệu học tập của sinh viên vẫn được giữ lại.')) return;
+  try {
+    showLoading('Đang xoá...');
+    const r = await fetch(`${PROXY}/admin/enrollments/${enrollId}`, {
+      method: 'DELETE',
+      headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
+    });
+    if (!r.ok) { const d = await r.json().catch(()=>({})); throw new Error(d?.error || `HTTP ${r.status}`); }
+    showToast('Đã xoá ghi danh!', 'success');
+    await loadEnrollments();
+  } catch(e) { showToast(e.message, 'error'); } finally { hideLoading(); }
 }
 
 // ── Module builder ──
@@ -5542,4 +5794,576 @@ async function deleteExamSection(id) {
     showToast('Đã xoá phần!', 'success');
     await loadExamSections(_activeExamId);
   } catch(e) { showToast('Lỗi: ' + e.message, 'error'); } finally { hideLoading(); }
+}
+
+// ═══════════════════════════════════════════════════
+// ASSESSMENTS (Quizzes & Surveys)
+// ═══════════════════════════════════════════════════
+
+let _assessmentsCache = [];
+let _assessPage = 0;
+const _assessPageSize = 20;
+let _activeAssessId = null;
+let _assessQuestions = []; // local question builder state
+
+// ── Label helpers ──────────────────────────────────
+const ASSESS_TYPE_LABEL = {
+  graded_quiz:     { label: 'Trắc nghiệm có điểm', color: '#2563eb', bg: '#eff6ff', icon: '📝' },
+  practice_quiz:   { label: 'Luyện tập',           color: '#7c3aed', bg: '#f5f3ff', icon: '🔄' },
+  graded_survey:   { label: 'Khảo sát có điểm',    color: '#0891b2', bg: '#ecfeff', icon: '📊' },
+  ungraded_survey: { label: 'Khảo sát ẩn danh',    color: '#854d0e', bg: '#fefce8', icon: '🕵️' },
+};
+
+function assessTypeBadge(type) {
+  const t = ASSESS_TYPE_LABEL[type] || { label: type, color: '#64748b', bg: '#f1f5f9', icon: '❓' };
+  return `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:${t.bg};color:${t.color}">${t.icon} ${t.label}</span>`;
+}
+
+// ── Load / render ──────────────────────────────────
+async function loadAssessments() {
+  try {
+    const typeFilter = document.getElementById('assess-type-filter')?.value || '';
+    let where = '';
+    if (typeFilter) where = `?where=(AssessmentType,eq,${typeFilter})`;
+    const r = await fetch(`${PROXY}/admin/assessments-proxy${where}&sort=-Id&limit=200`, {
+      headers: adminHeaders(),
+    });
+    const data = await r.json();
+    _assessmentsCache = data.list || [];
+    _assessPage = 0;
+    renderAssessmentsTable(_assessmentsCache);
+    updateAssessStats(_assessmentsCache);
+  } catch(e) {
+    document.getElementById('assessments-table').innerHTML =
+      `<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--danger)">${e.message}</td></tr>`;
+  }
+}
+
+function filterAssessments(q) {
+  const typeFilter = document.getElementById('assess-type-filter')?.value || '';
+  let list = _assessmentsCache;
+  if (typeFilter) list = list.filter(a => a.AssessmentType === typeFilter);
+  if (q.trim()) {
+    const lq = q.toLowerCase();
+    list = list.filter(a => (a.Title || '').toLowerCase().includes(lq));
+  }
+  _assessPage = 0;
+  renderAssessmentsTable(list);
+}
+
+function assessPage(dir) {
+  const list = _assessmentsCache;
+  const maxPage = Math.ceil(list.length / _assessPageSize) - 1;
+  _assessPage = Math.max(0, Math.min(maxPage, _assessPage + dir));
+  renderAssessmentsTable(list);
+}
+
+function renderAssessmentsTable(list) {
+  const tb = document.getElementById('assessments-table');
+  if (!list.length) {
+    tb.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--text-muted)">Chưa có bài kiểm tra nào</td></tr>';
+    document.getElementById('assess-page-info').textContent = '';
+    document.getElementById('assess-prev').disabled = true;
+    document.getElementById('assess-next').disabled = true;
+    return;
+  }
+  const start = _assessPage * _assessPageSize;
+  const page = list.slice(start, start + _assessPageSize);
+  tb.innerHTML = page.map((a, i) => {
+    const typeInfo = ASSESS_TYPE_LABEL[a.AssessmentType] || {};
+    const qs = (() => { try { return JSON.parse(a.Questions || '[]').length; } catch { return '–'; } })();
+    const pub = a.IsPublished ? `<span style="color:#16a34a;font-weight:600">✅ Live</span>` : `<span style="color:#94a3b8">Draft</span>`;
+    const tl = a.TimeLimitMinutes ? `${a.TimeLimitMinutes} phút` : '∞';
+    return `<tr>
+      <td style="color:var(--text-muted);font-size:12px">${start + i + 1}</td>
+      <td>
+        <div style="font-weight:600;font-size:13px">${escHtml(a.Title || '')}</div>
+        ${a.Description ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${escHtml((a.Description||'').slice(0,60))}</div>` : ''}
+      </td>
+      <td>${assessTypeBadge(a.AssessmentType)}</td>
+      <td style="font-size:12px;color:var(--text-muted)">
+        ${a.CourseId ? `<span title="Course">📚 ${a.CourseId}</span>` : ''}
+        ${a.ModuleId ? `<span title="Module" style="margin-left:4px">📦 ${a.ModuleId}</span>` : ''}
+        ${!a.CourseId && !a.ModuleId ? '–' : ''}
+      </td>
+      <td style="text-align:center;font-weight:600">${qs}</td>
+      <td style="text-align:center;font-size:12px">${tl}</td>
+      <td style="text-align:center">
+        <button class="btn btn-outline btn-sm" onclick="loadSubmissionsPanel(${a.Id},'${escHtml(a.Title||'')}')" title="Xem kết quả">
+          <i class="fas fa-chart-bar"></i>
+        </button>
+      </td>
+      <td style="text-align:center">${pub}</td>
+      <td style="text-align:center">
+        <button class="btn btn-outline btn-sm" onclick="openAssessmentModal(${a.Id})" title="Sửa" style="margin-right:4px">
+          <i class="fas fa-pen"></i>
+        </button>
+        <button class="btn btn-sm" onclick="deleteAssessment(${a.Id})" title="Xoá"
+          style="background:#fef2f2;color:#b91c1c;border:1px solid #fecaca">
+          <i class="fas fa-trash"></i>
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  const total = list.length;
+  const maxPage = Math.ceil(total / _assessPageSize);
+  document.getElementById('assess-page-info').textContent =
+    `${start + 1}–${Math.min(start + _assessPageSize, total)} / ${total} bài`;
+  document.getElementById('assess-prev').disabled = _assessPage <= 0;
+  document.getElementById('assess-next').disabled = _assessPage >= maxPage - 1;
+}
+
+function updateAssessStats(list) {
+  document.getElementById('astat-total').textContent = list.length;
+  document.getElementById('astat-published').textContent = list.filter(a => a.IsPublished).length;
+  // Submissions count requires a separate call — skip for now, show placeholder
+  document.getElementById('astat-submissions').textContent = '–';
+  document.getElementById('astat-pending').textContent = '–';
+}
+
+// ── Assessment modal ───────────────────────────────
+function setAssessType(val) {
+  document.getElementById('am-type').value = val;
+  document.querySelectorAll('#assessment-modal .cm-status-card').forEach(c => {
+    c.classList.toggle('active', c.dataset.val === val);
+  });
+}
+
+async function openAssessmentModal(id = null) {
+  _activeAssessId = id;
+  _assessQuestions = [];
+  const titleEl = document.getElementById('assess-modal-title');
+  const subEl = document.getElementById('assess-modal-sub');
+  document.getElementById('am-msg').textContent = '';
+
+  // Reset form
+  ['am-id','am-type','am-title','am-desc','am-course','am-module',
+   'am-timelimit','am-maxattempts','am-availfrom','am-availto','am-accesscode'].forEach(fid => {
+    const el = document.getElementById(fid);
+    if (el) el.value = '';
+  });
+  document.getElementById('am-shuffle').checked = false;
+  document.getElementById('am-published').checked = false;
+  document.querySelectorAll('#assessment-modal .cm-status-card').forEach(c => c.classList.remove('active'));
+  document.getElementById('am-questions').innerHTML = '';
+  document.getElementById('am-q-count').textContent = '';
+
+  if (id) {
+    titleEl.textContent = 'Sửa bài kiểm tra';
+    subEl.textContent = `ID #${id}`;
+    try {
+      showLoading('Đang tải...');
+      const r = await fetch(`${PROXY}/admin/assessments-proxy/${id}`, { headers: adminHeaders() });
+      const a = await r.json();
+      document.getElementById('am-id').value = a.Id;
+      document.getElementById('am-title').value = a.Title || '';
+      document.getElementById('am-desc').value = a.Description || '';
+      document.getElementById('am-course').value = a.CourseId || '';
+      document.getElementById('am-module').value = a.ModuleId || '';
+      document.getElementById('am-timelimit').value = a.TimeLimitMinutes || '';
+      document.getElementById('am-maxattempts').value = a.MaxAttempts || '';
+      document.getElementById('am-availfrom').value = a.AvailableFrom ? a.AvailableFrom.slice(0,16) : '';
+      document.getElementById('am-availto').value = a.AvailableUntil ? a.AvailableUntil.slice(0,16) : '';
+      document.getElementById('am-accesscode').value = a.AccessCode || '';
+      document.getElementById('am-shuffle').checked = !!a.ShuffleQuestions;
+      document.getElementById('am-published').checked = !!a.IsPublished;
+      if (a.AssessmentType) setAssessType(a.AssessmentType);
+      // Load questions
+      try { _assessQuestions = JSON.parse(a.Questions || '[]'); } catch { _assessQuestions = []; }
+      renderAssessQuestions();
+    } catch(e) { showToast('Lỗi tải: ' + e.message, 'error'); }
+    finally { hideLoading(); }
+  } else {
+    titleEl.textContent = 'Tạo bài kiểm tra mới';
+    subEl.textContent = 'Điền thông tin và câu hỏi';
+    setAssessType('graded_quiz');
+  }
+
+  document.getElementById('assessment-modal').style.display = 'flex';
+}
+
+function closeAssessmentModal() {
+  document.getElementById('assessment-modal').style.display = 'none';
+}
+
+// ── Question builder ───────────────────────────────
+const Q_TYPES = [
+  { val: 'multiple_choice', label: 'Trắc nghiệm' },
+  { val: 'true_false',      label: 'Đúng/Sai' },
+  { val: 'short_text',      label: 'Trả lời ngắn' },
+  { val: 'essay',           label: 'Tự luận' },
+  { val: 'rating',          label: 'Đánh giá (1–5)' },
+];
+
+function addAssessQuestion() {
+  _assessQuestions.push({
+    id: Date.now(),
+    type: 'multiple_choice',
+    content: '',
+    options: ['', '', '', ''],
+    correct: 0,
+    points: 1,
+    required: true,
+  });
+  renderAssessQuestions();
+  // Scroll to last question
+  const container = document.getElementById('am-questions');
+  setTimeout(() => container.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+}
+
+function removeAssessQuestion(idx) {
+  _assessQuestions.splice(idx, 1);
+  renderAssessQuestions();
+}
+
+function moveAssessQuestion(idx, dir) {
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= _assessQuestions.length) return;
+  [_assessQuestions[idx], _assessQuestions[newIdx]] = [_assessQuestions[newIdx], _assessQuestions[idx]];
+  renderAssessQuestions();
+}
+
+function renderAssessQuestions() {
+  const container = document.getElementById('am-questions');
+  document.getElementById('am-q-count').textContent = `(${_assessQuestions.length} câu)`;
+  if (!_assessQuestions.length) {
+    container.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;border:2px dashed var(--border);border-radius:10px">
+      Chưa có câu hỏi. Nhấn <b>Thêm câu</b> để bắt đầu.
+    </div>`;
+    return;
+  }
+  container.innerHTML = _assessQuestions.map((q, idx) => {
+    const typeOpts = Q_TYPES.map(t =>
+      `<option value="${t.val}" ${q.type === t.val ? 'selected' : ''}>${t.label}</option>`
+    ).join('');
+
+    let optionsHtml = '';
+    if (q.type === 'multiple_choice') {
+      optionsHtml = `<div style="margin-top:8px">
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Lựa chọn (✓ = đáp án đúng):</div>
+        ${(q.options || ['','','','']).map((opt, oi) => `
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+            <input type="radio" name="correct_${idx}" value="${oi}" ${q.correct === oi ? 'checked' : ''}
+              onchange="assessQField(${idx},'correct',parseInt(this.value))" style="accent-color:#16a34a;cursor:pointer">
+            <input type="text" class="inp" value="${escHtml(opt)}" placeholder="Lựa chọn ${oi+1}"
+              style="flex:1;height:32px;padding:4px 8px;font-size:13px"
+              oninput="assessQOption(${idx},${oi},this.value)">
+            ${q.options.length > 2 ? `<button type="button" onclick="removeAssessOption(${idx},${oi})"
+              style="background:none;border:none;color:#ef4444;cursor:pointer;padding:2px 4px;font-size:14px">✕</button>` : ''}
+          </div>`).join('')}
+        <button type="button" class="btn btn-outline btn-sm" onclick="addAssessOption(${idx})" style="margin-top:2px">
+          <i class="fas fa-plus"></i> Thêm lựa chọn
+        </button>
+      </div>`;
+    } else if (q.type === 'true_false') {
+      optionsHtml = `<div style="margin-top:8px;display:flex;gap:16px">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="radio" name="tf_${idx}" value="true" ${q.correct === true || q.correct === 'true' ? 'checked' : ''}
+            onchange="assessQField(${idx},'correct',true)" style="accent-color:#16a34a">
+          <span style="font-weight:500">✅ Đúng</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="radio" name="tf_${idx}" value="false" ${q.correct === false || q.correct === 'false' ? 'checked' : ''}
+            onchange="assessQField(${idx},'correct',false)" style="accent-color:#ef4444">
+          <span style="font-weight:500">❌ Sai</span>
+        </label>
+      </div>`;
+    } else if (q.type === 'short_text') {
+      optionsHtml = `<div style="margin-top:8px">
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Đáp án mẫu (tự chấm):</div>
+        <input type="text" class="inp" value="${escHtml(q.correct||'')}" placeholder="Đáp án tham khảo"
+          style="height:32px;padding:4px 8px;font-size:13px"
+          oninput="assessQField(${idx},'correct',this.value)">
+      </div>`;
+    } else if (q.type === 'essay') {
+      optionsHtml = `<div style="margin-top:6px;font-size:12px;color:var(--text-muted)">
+        📝 Tự luận — Giáo viên chấm điểm thủ công
+      </div>`;
+    } else if (q.type === 'rating') {
+      optionsHtml = `<div style="margin-top:6px;font-size:12px;color:var(--text-muted)">
+        ⭐ Đánh giá từ 1 đến 5 sao
+      </div>`;
+    }
+
+    return `<div style="border:1.5px solid var(--border);border-radius:10px;padding:12px;background:var(--card-bg)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:12px;font-weight:700;color:var(--text-muted);min-width:24px">Q${idx+1}</span>
+        <select class="inp" style="flex:0 0 auto;width:160px;height:32px;padding:2px 6px;font-size:12px"
+          onchange="assessQField(${idx},'type',this.value);renderAssessQuestions()">
+          ${typeOpts}
+        </select>
+        <input type="number" class="inp" value="${q.points||1}" min="0.5" step="0.5"
+          style="flex:0 0 56px;height:32px;padding:4px 6px;font-size:12px" title="Điểm"
+          oninput="assessQField(${idx},'points',parseFloat(this.value)||1)">
+        <span style="font-size:11px;color:var(--text-muted)">điểm</span>
+        <div style="flex:1"></div>
+        <button type="button" onclick="moveAssessQuestion(${idx},-1)" ${idx===0?'disabled':''} title="Lên"
+          style="background:none;border:none;cursor:pointer;color:var(--text-muted);padding:2px 4px">↑</button>
+        <button type="button" onclick="moveAssessQuestion(${idx},1)" ${idx===_assessQuestions.length-1?'disabled':''} title="Xuống"
+          style="background:none;border:none;cursor:pointer;color:var(--text-muted);padding:2px 4px">↓</button>
+        <button type="button" onclick="removeAssessQuestion(${idx})"
+          style="background:none;border:none;cursor:pointer;color:#ef4444;padding:2px 6px;font-size:14px">✕</button>
+      </div>
+      <textarea class="inp" rows="2" placeholder="Nội dung câu hỏi..." style="resize:vertical;padding:6px 8px;font-size:13px"
+        oninput="assessQField(${idx},'content',this.value)">${escHtml(q.content||'')}</textarea>
+      ${optionsHtml}
+    </div>`;
+  }).join('');
+}
+
+function assessQField(idx, field, val) {
+  if (_assessQuestions[idx]) _assessQuestions[idx][field] = val;
+}
+function assessQOption(idx, oi, val) {
+  if (_assessQuestions[idx] && _assessQuestions[idx].options) _assessQuestions[idx].options[oi] = val;
+}
+function addAssessOption(idx) {
+  if (_assessQuestions[idx]) { _assessQuestions[idx].options.push(''); renderAssessQuestions(); }
+}
+function removeAssessOption(idx, oi) {
+  if (!_assessQuestions[idx]) return;
+  _assessQuestions[idx].options.splice(oi, 1);
+  if (_assessQuestions[idx].correct >= _assessQuestions[idx].options.length)
+    _assessQuestions[idx].correct = 0;
+  renderAssessQuestions();
+}
+
+// ── Save assessment ────────────────────────────────
+async function saveAssessment() {
+  const msgEl = document.getElementById('am-msg');
+  const type = document.getElementById('am-type').value;
+  const title = document.getElementById('am-title').value.trim();
+  if (!type) { msgEl.innerHTML = '<span style="color:#ef4444">Vui lòng chọn loại bài!</span>'; return; }
+  if (!title) { msgEl.innerHTML = '<span style="color:#ef4444">Tiêu đề không được để trống!</span>'; return; }
+
+  const id = document.getElementById('am-id').value;
+  const body = {
+    Title: title,
+    AssessmentType: type,
+    Description: document.getElementById('am-desc').value.trim() || null,
+    CourseId: parseInt(document.getElementById('am-course').value) || null,
+    ModuleId: parseInt(document.getElementById('am-module').value) || null,
+    TimeLimitMinutes: parseInt(document.getElementById('am-timelimit').value) || null,
+    MaxAttempts: parseInt(document.getElementById('am-maxattempts').value) || null,
+    AvailableFrom: document.getElementById('am-availfrom').value || null,
+    AvailableUntil: document.getElementById('am-availto').value || null,
+    AccessCode: document.getElementById('am-accesscode').value.trim() || null,
+    ShuffleQuestions: document.getElementById('am-shuffle').checked,
+    IsPublished: document.getElementById('am-published').checked,
+    Questions: JSON.stringify(_assessQuestions),
+  };
+
+  const btn = document.getElementById('am-save-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang lưu...';
+  msgEl.textContent = '';
+
+  try {
+    showLoading('Đang lưu...');
+    const url = id ? `/admin/assessments/${id}` : '/admin/assessments';
+    const method = id ? 'PATCH' : 'POST';
+    const r = await fetch(`${PROXY}${url}`, {
+      method,
+      headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const text = await r.text();
+    const data = (() => { try { return JSON.parse(text); } catch { return {}; } })();
+    if (!r.ok) throw new Error(data.error || text || `HTTP ${r.status}`);
+    showToast(id ? 'Đã cập nhật bài kiểm tra!' : 'Đã tạo bài kiểm tra!', 'success');
+    closeAssessmentModal();
+    await loadAssessments();
+  } catch(e) {
+    msgEl.innerHTML = `<span style="color:#ef4444">❌ ${e.message}</span>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-save"></i> Lưu bài kiểm tra';
+    hideLoading();
+  }
+}
+
+// ── Delete assessment ──────────────────────────────
+async function deleteAssessment(id) {
+  if (!confirm(`Xoá bài kiểm tra #${id}?\nThao tác này sẽ xoá tất cả kết quả nộp bài liên quan.`)) return;
+  try {
+    showLoading('Đang xoá...');
+    const r = await fetch(`${PROXY}/admin/assessments/${id}`, {
+      method: 'DELETE',
+      headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
+    });
+    if (!r.ok) { const d = await r.json().catch(()=>{}); throw new Error(d?.error || `HTTP ${r.status}`); }
+    showToast('Đã xoá bài kiểm tra!', 'success');
+    await loadAssessments();
+    closeSubmissionsPanel();
+  } catch(e) { showToast('Lỗi: ' + e.message, 'error'); } finally { hideLoading(); }
+}
+
+// ── Submissions panel ──────────────────────────────
+async function loadSubmissionsPanel(assessId, title) {
+  _activeAssessId = assessId;
+  document.getElementById('asub-title').textContent = `Kết quả: ${title}`;
+  document.getElementById('asub-sub').textContent = `Bài #${assessId}`;
+  document.getElementById('assess-submissions-panel').style.display = '';
+  document.getElementById('assess-logs-panel').style.display = 'none';
+  const tb = document.getElementById('asub-table');
+  tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px">Đang tải...</td></tr>';
+
+  try {
+    const r = await fetch(`${PROXY}/admin/assessments/${assessId}/submissions`, { headers: adminHeaders() });
+    const data = await r.json();
+    const list = data.list || [];
+    if (!list.length) {
+      tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-muted)">Chưa có lượt nộp nào</td></tr>';
+      document.getElementById('astat-submissions').textContent = '0';
+      return;
+    }
+    document.getElementById('astat-submissions').textContent = list.length;
+    const pending = list.filter(s => s.Status === 'submitted' && s.Score == null).length;
+    document.getElementById('astat-pending').textContent = pending;
+
+    tb.innerHTML = list.map(s => {
+      const statusBadge = s.Status === 'submitted'
+        ? (s.Score != null
+          ? `<span style="color:#16a34a;font-weight:600">✅ Đã chấm</span>`
+          : `<span style="color:#ca8a04;font-weight:600">⏳ Chờ chấm</span>`)
+        : `<span style="color:#64748b">Đang làm</span>`;
+      const score = s.Score != null ? `<b>${s.Score}</b>/${s.MaxScore||'–'}` : '–';
+      const correct = s.CorrectCount != null ? `${s.CorrectCount}/${s.TotalQuestions||'?'}` : '–';
+      const startAt = s.StartTime ? new Date(s.StartTime).toLocaleString('vi-VN') : '–';
+      const subAt = s.SubmittedAt ? new Date(s.SubmittedAt).toLocaleString('vi-VN') : '–';
+      const userId = s.UserId || (s.IsAnonymous ? '<i>Ẩn danh</i>' : '–');
+      return `<tr>
+        <td style="font-size:13px">${userId}</td>
+        <td style="text-align:center;font-size:13px">${score}</td>
+        <td style="text-align:center;font-size:13px">${correct}</td>
+        <td style="text-align:center;font-size:12px;color:var(--text-muted)">${startAt}</td>
+        <td style="text-align:center;font-size:12px;color:var(--text-muted)">${subAt}</td>
+        <td style="text-align:center">${statusBadge}</td>
+        <td style="text-align:center">
+          ${s.Status === 'submitted' && s.Score == null ? `
+            <button class="btn btn-outline btn-sm" onclick="openGradeModal(${s.Id},'${userId}')" title="Chấm điểm">
+              <i class="fas fa-pen"></i>
+            </button>` : ''}
+          <button class="btn btn-outline btn-sm" onclick="loadActionLogs(${s.Id},'${userId}')" title="Log hành vi" style="margin-left:4px">
+            <i class="fas fa-shield-halved"></i>
+          </button>
+        </td>
+      </tr>`;
+    }).join('');
+  } catch(e) {
+    tb.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--danger)">${e.message}</td></tr>`;
+  }
+
+  // Scroll into view
+  setTimeout(() => document.getElementById('assess-submissions-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+}
+
+function closeSubmissionsPanel() {
+  document.getElementById('assess-submissions-panel').style.display = 'none';
+  document.getElementById('assess-logs-panel').style.display = 'none';
+  _activeAssessId = null;
+}
+
+// ── Grade modal ────────────────────────────────────
+function openGradeModal(subId, userName) {
+  document.getElementById('gm-sub-id').value = subId;
+  document.getElementById('gm-sub-info').textContent = `Học sinh: ${userName} · Submission #${subId}`;
+  document.getElementById('gm-score').value = '';
+  document.getElementById('gm-feedback').value = '';
+  document.getElementById('gm-msg').textContent = '';
+  document.getElementById('grade-modal').style.display = 'flex';
+}
+
+function closeGradeModal() {
+  document.getElementById('grade-modal').style.display = 'none';
+}
+
+async function submitGrade() {
+  const subId = document.getElementById('gm-sub-id').value;
+  const score = parseFloat(document.getElementById('gm-score').value);
+  const feedback = document.getElementById('gm-feedback').value.trim();
+  const msgEl = document.getElementById('gm-msg');
+  if (isNaN(score)) { msgEl.innerHTML = '<span style="color:#ef4444">Vui lòng nhập điểm số!</span>'; return; }
+
+  try {
+    showLoading('Đang lưu điểm...');
+    const r = await fetch(`${PROXY}/admin/submissions/${subId}/grade`, {
+      method: 'PATCH',
+      headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ score, feedback }),
+    });
+    const text = await r.text();
+    const data = (() => { try { return JSON.parse(text); } catch { return {}; } })();
+    if (!r.ok) throw new Error(data.error || text);
+    showToast('Đã lưu điểm!', 'success');
+    closeGradeModal();
+    if (_activeAssessId) {
+      const titleEl = document.getElementById('asub-title');
+      await loadSubmissionsPanel(_activeAssessId, titleEl.textContent.replace('Kết quả: ',''));
+    }
+  } catch(e) {
+    msgEl.innerHTML = `<span style="color:#ef4444">${e.message}</span>`;
+  } finally { hideLoading(); }
+}
+
+// ── Action logs ────────────────────────────────────
+async function loadActionLogs(subId, userName) {
+  document.getElementById('alog-sub').textContent = `Submission #${subId} · ${userName}`;
+  document.getElementById('assess-logs-panel').style.display = '';
+  const tb = document.getElementById('alog-table');
+  tb.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px">Đang tải...</td></tr>';
+
+  try {
+    const r = await fetch(`${PROXY}/admin/assessments/${_activeAssessId}/action-logs?submissionId=${subId}`, {
+      headers: adminHeaders(),
+    });
+    const data = await r.json();
+    const list = data.list || [];
+    if (!list.length) {
+      tb.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-muted)">Không có log</td></tr>';
+      return;
+    }
+    const EVENT_ICONS = {
+      focus_lost: '👁️‍🗨️', focus_gained: '👀', answer_saved: '💾',
+      submitted: '✅', started: '▶️',
+    };
+    tb.innerHTML = list.map(l => {
+      const icon = EVENT_ICONS[l.EventType] || '📌';
+      const ts = l.Timestamp ? new Date(l.Timestamp).toLocaleString('vi-VN') : '–';
+      const meta = l.Metadata ? `<code style="font-size:11px;color:var(--text-muted)">${escHtml(l.Metadata)}</code>` : '–';
+      return `<tr>
+        <td>${icon} <span style="font-weight:600">${l.EventType||'–'}</span></td>
+        <td style="font-size:12px;color:var(--text-muted)">${ts}</td>
+        <td style="font-size:12px">${l.IpAddress||'–'}</td>
+        <td>${meta}</td>
+      </tr>`;
+    }).join('');
+  } catch(e) {
+    tb.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--danger)">${e.message}</td></tr>`;
+  }
+
+  setTimeout(() => document.getElementById('assess-logs-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+}
+
+// ── CSV export ─────────────────────────────────────
+async function exportAssessmentCSV() {
+  if (!_activeAssessId) return;
+  try {
+    showLoading('Đang xuất CSV...');
+    const r = await fetch(`${PROXY}/admin/assessments/${_activeAssessId}/export`, { headers: adminHeaders() });
+    if (!r.ok) throw new Error('Không thể xuất CSV');
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `assessment_${_activeAssessId}_results.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    showToast('Đã xuất CSV!', 'success');
+  } catch(e) { showToast('Lỗi: ' + e.message, 'error'); } finally { hideLoading(); }
+}
+
+// ── escHtml helper (if not defined elsewhere) ──────
+if (typeof escHtml === 'undefined') {
+  window.escHtml = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
