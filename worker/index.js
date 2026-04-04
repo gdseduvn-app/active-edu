@@ -18,6 +18,9 @@ import { handlePrereqCheck, handleModuleUnlock, handleCourseUnlockStatus } from 
 import {
   handleEnrollmentList,
   handleSelfEnroll,
+  handleMyEnrollments,
+  handleSelfEnrollShort,
+  handleSelfUnenroll,
   handleAdminEnrollmentList,
   handleAdminEnroll,
   handleAdminEnrollmentUpdate,
@@ -186,6 +189,18 @@ export default {
       return handleCourseConclude(request, env, ctx);
 
     // ── Enrollments (FR-C09, C10, C11) ────────────────────
+    // Student: my enrolled courses
+    if (path === '/api/enrollments/my' && request.method === 'GET')
+      return handleMyEnrollments(request, env, ctx);
+
+    // Student: enroll (shorthand POST /api/enrollments {courseId})
+    if (path === '/api/enrollments' && request.method === 'POST')
+      return handleSelfEnrollShort(request, env, ctx);
+
+    // Student: unenroll DELETE /api/enrollments/:courseId
+    if (path.match(/^\/api\/enrollments\/\d+$/) && request.method === 'DELETE')
+      return handleSelfUnenroll(request, env, ctx);
+
     if (path.match(/^\/api\/courses\/\d+\/enrollments$/) && request.method === 'GET')
       return handleEnrollmentList(request, env, ctx);
 

@@ -294,6 +294,69 @@ export async function handleCourseConclude(request, env, { json, cors }) {
   return new Response(text, { status: r.status, headers: { ...cors, 'Content-Type': 'application/json' } });
 }
 
+// GET /api/enrollments/my — list all courses student is enrolled in
+export async function handleMyEnrollments(request, env, { json }) {
+  const session = await getSession(request, env);
+  if (!session) return json({ error: 'Chưa đăng nhập' }, 401);
+  if (!env.NOCO_ENROLLMENTS) return json({ list: [] });
+
+  const r = await nocoFetch(env,
+    `/api/v2/tables/${env.NOCO_ENROLLMENTS}/records?where=(UserId,eq,${session.userId})~and(WorkflowState,eq,active)&limit=200&fields=Id,CourseId,WorkflowState`
+  );
+  if (!r.ok) return json({ list: [] });
+  return json(await r.json());
+}
+
+// POST /api/enrollments — enroll self (shorthand, body: {courseId})
+export async function handleSelfEnrollShort(request, env, { json }) {
+  const session = await getSession(request, env);
+  if (!session) return json({ error: 'Chưa đăng nhập' }, 401);
+
+  const body = await request.json().catch(() => ({}));
+  const courseId = parseInt(body.courseId);
+  if (!courseId || !env.NOCO_ENROLLMENTS) return json({ error: 'CourseId không hợp lệ' }, 400);
+
+  // Check not already enrolled
+  const dupR = await nocoFetch(env,
+    `/api/v2/tables/${env.NOCO_ENROLLMENTS}/records?where=(CourseId,eq,${courseId})~and(UserId,eq,${session.userId})&limit=1&fields=Id,WorkflowState`
+  );
+  if (dupR.ok) {
+    const dup = await dupR.json();
+    if ((dup.list || []).length) {
+      const ex = dup.list[0];
+      if (ex.WorkflowState === 'active') return json({ ok: true, alreadyEnrolled: true });
+      await nocoFetch(env, `/api/v2/tables/${env.NOCO_ENROLLMENTS}/records`, 'PATCH', [{ Id: ex.Id, WorkflowState: 'active' }]);
+      return json({ ok: true, reactivated: true });
+    }
+  }
+
+  const r = await nocoFetch(env, `/api/v2/tables/${env.NOCO_ENROLLMENTS}/records`, 'POST', {
+    UserId: session.userId, CourseId: courseId, Role: 'StudentEnrollment', WorkflowState: 'active',
+  });
+  return new Response(await r.text(), { status: r.ok ? 201 : r.status, headers: { 'Content-Type': 'application/json' } });
+}
+
+// DELETE /api/enrollments/:courseId — unenroll self
+export async function handleSelfUnenroll(request, env, { json, path }) {
+  const session = await getSession(request, env);
+  if (!session) return json({ error: 'Chưa đăng nhập' }, 401);
+
+  const courseId = path.match(/\/api\/enrollments\/(\d+)/)?.[1];
+  if (!courseId || !env.NOCO_ENROLLMENTS) return json({ error: 'CourseId không hợp lệ' }, 400);
+
+  // Find enrollment record
+  const fr = await nocoFetch(env,
+    `/api/v2/tables/${env.NOCO_ENROLLMENTS}/records?where=(CourseId,eq,${courseId})~and(UserId,eq,${session.userId})&limit=1&fields=Id`
+  );
+  if (!fr.ok) return json({ error: 'Không tìm thấy ghi danh' }, 404);
+  const fd = await fr.json();
+  if (!(fd.list || []).length) return json({ error: 'Bạn chưa ghi danh khoá học này' }, 404);
+
+  // Soft-delete: set WorkflowState = inactive
+  await nocoFetch(env, `/api/v2/tables/${env.NOCO_ENROLLMENTS}/records`, 'PATCH', [{ Id: fd.list[0].Id, WorkflowState: 'inactive' }]);
+  return json({ ok: true });
+}
+
 // GET /api/courses/:id/access — 3-tier RBAC check for a student (FR-C11)
 export async function handleCourseAccessCheck(request, env, { json, path }) {
   const session = await getSession(request, env);

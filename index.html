@@ -260,25 +260,56 @@
 
     <!-- COURSES LIST -->
     <div id="courses-view" style="display:none">
-      <button class="back-btn" onclick="showHome()"><i class="fas fa-arrow-left"></i> Trang chủ</button>
-      <div class="sec-header" style="margin-top:16px"><h2><i class="fas fa-book-open" style="color:var(--primary)"></i> Khoá học</h2></div>
-      <div id="courses-grid" class="cards-grid"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:4px">
+        <button class="back-btn" onclick="showHome()"><i class="fas fa-arrow-left"></i> Trang chủ</button>
+        <div class="cv-mylearn-tabs">
+          <button class="cv-mylearn-tab active" id="tab-all-courses" onclick="switchCourseTab('all')">Tất cả khoá học</button>
+          <button class="cv-mylearn-tab" id="tab-my-courses" onclick="switchCourseTab('my')">
+            <i class="fas fa-graduation-cap" style="font-size:11px"></i> Khoá học của tôi
+          </button>
+        </div>
+      </div>
+      <div id="courses-grid" class="cv-student-course-grid"></div>
     </div>
 
     <!-- COURSE DETAIL (modules view) -->
     <div id="course-detail-view" style="display:none">
       <button class="back-btn" onclick="showCoursesView()"><i class="fas fa-arrow-left"></i> Tất cả khoá học</button>
-      <div class="article-wrap" style="margin-top:16px">
-        <div class="article-hd">
-          <div>
-            <div class="article-hd-tags" id="course-tags"></div>
-            <h1 id="course-detail-title">Tên khoá học</h1>
-            <div class="article-hd-meta" id="course-detail-desc"></div>
-          </div>
-          <i class="fas fa-book-open article-hd-icon"></i>
+      <!-- Hero Banner -->
+      <div id="cv-course-hero" class="cv-course-hero" style="margin-top:16px">
+        <div class="cv-course-hero-actions">
+          <button id="cv-enroll-btn" class="cv-enroll-btn primary" onclick="toggleEnrollment()" style="display:none">
+            <i class="fas fa-plus-circle"></i> Đăng ký khoá học
+          </button>
         </div>
-        <div id="modules-container" style="padding:24px 0"></div>
+        <div class="cv-course-hero-content">
+          <div id="course-tags" style="margin-bottom:8px"></div>
+          <h1 id="course-detail-title">Tên khoá học</h1>
+          <div class="cv-course-hero-desc" id="course-detail-desc"></div>
+          <div class="cv-course-hero-stats" id="cv-course-hero-stats" style="margin-top:10px"></div>
+        </div>
       </div>
+      <!-- Progress bar (chỉ hiện khi đã enroll) -->
+      <div id="cv-course-progress-wrap" class="cv-course-progress-wrap" style="display:none">
+        <div style="flex:1">
+          <div class="cv-course-progress-label" id="cv-progress-label">Tiến độ hoàn thành</div>
+          <div class="cv-course-progress-bar" style="margin-top:6px">
+            <div class="cv-course-progress-fill" id="cv-progress-fill" style="width:0%"></div>
+          </div>
+        </div>
+        <div class="cv-course-progress-pct" id="cv-progress-pct">0%</div>
+      </div>
+      <!-- Continue learning banner -->
+      <div id="cv-continue-banner" class="cv-continue-banner" style="display:none" onclick="_continueLastItem()">
+        <div class="cv-continue-banner-icon"><i class="fas fa-play"></i></div>
+        <div class="cv-continue-banner-text">
+          <div class="cv-continue-banner-label">Tiếp tục học</div>
+          <div class="cv-continue-banner-title" id="cv-continue-title">—</div>
+        </div>
+        <i class="fas fa-arrow-right cv-continue-banner-arrow"></i>
+      </div>
+      <!-- Modules -->
+      <div id="modules-container" class="cv-student-modules"></div>
     </div>
 
     <!-- EXAM VIEW -->

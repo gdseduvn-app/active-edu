@@ -1885,44 +1885,116 @@ function _showOfflineBanner(reason) {
 // COURSES — Canvas LMS model (student view)
 // ═══════════════════════════════════════════════════
 
+const COURSE_BANNER_COLORS = [
+  ['#4F46E5','#7C3AED'], ['#0369A1','#0891B2'], ['#065F46','#059669'],
+  ['#92400E','#B45309'], ['#881337','#BE185D'], ['#1E3A5F','#1D4ED8'],
+  ['#3730A3','#6D28D9'], ['#14532D','#15803D'], ['#7C2D12','#C2410C'],
+  ['#1A1A2E','#4F46E5'],
+];
+function _courseBannerColor(id) {
+  return COURSE_BANNER_COLORS[(id || 0) % COURSE_BANNER_COLORS.length];
+}
+
 let _coursesCache = null;
 let _modulesCache = {};
+let _enrolledCourseIds = new Set();
+let _currentCourseId = null;
+let _lastItemId = null;
+let _completedItems = new Set();
 
 async function showCoursesView() {
+  // Bắt buộc đăng nhập
+  if (!isLoggedIn()) {
+    showLoginModal(false);
+    return;
+  }
   _hideAllViews();
   document.getElementById('courses-view').style.display = 'block';
   document.getElementById('content-area').classList.remove('article-mode');
   history.pushState(null, '', '/courses');
   document.title = 'Khoá học — ActiveEdu';
-  await _renderCoursesList();
+  // Default tab = all
+  document.getElementById('tab-all-courses')?.classList.add('active');
+  document.getElementById('tab-my-courses')?.classList.remove('active');
+  await _loadEnrolledIds();
+  await _renderCoursesList('all');
 }
 
-async function _renderCoursesList() {
+async function _loadEnrolledIds() {
+  if (!isLoggedIn()) return;
+  try {
+    const proxyBase = (PROXY_URL || 'https://api.gds.edu.vn').replace(/\/$/, '');
+    const r = await fetch(`${proxyBase}/api/enrollments/my`, {
+      headers: { 'Authorization': `Bearer ${getUser()?.token || ''}` }
+    });
+    if (r.ok) {
+      const data = await r.json();
+      _enrolledCourseIds = new Set((data.list || []).map(e => String(e.CourseId)));
+    }
+  } catch { /* best-effort */ }
+}
+
+let _currentCourseTab = 'all';
+async function switchCourseTab(tab) {
+  _currentCourseTab = tab;
+  document.getElementById('tab-all-courses').classList.toggle('active', tab === 'all');
+  document.getElementById('tab-my-courses').classList.toggle('active', tab === 'my');
+  await _renderCoursesList(tab);
+}
+
+async function _renderCoursesList(tab = 'all') {
   const grid = document.getElementById('courses-grid');
   grid.innerHTML = '<div style="text-align:center;padding:40px;color:#64748b"><i class="fas fa-spinner fa-spin"></i> Đang tải khoá học...</div>';
 
   try {
     const proxyBase = (PROXY_URL || 'https://api.gds.edu.vn').replace(/\/$/, '');
-    const r = await fetch(`${proxyBase}/api/courses?where=(Status,eq,published)&sort=Title&limit=100`);
-    if (!r.ok) throw new Error('Không tải được danh sách khoá học');
-    const data = await r.json();
-    _coursesCache = data.list || [];
+    if (!_coursesCache) {
+      const r = await fetch(`${proxyBase}/api/courses?where=(Status,eq,published)&sort=Title&limit=100`);
+      if (!r.ok) throw new Error('Không tải được danh sách khoá học');
+      const data = await r.json();
+      _coursesCache = data.list || [];
+    }
 
-    if (!_coursesCache.length) {
-      grid.innerHTML = '<div style="text-align:center;padding:60px;color:#64748b">Chưa có khoá học nào được công bố.</div>';
+    let list = _coursesCache;
+    if (tab === 'my') {
+      list = list.filter(c => _enrolledCourseIds.has(String(c.Id)));
+    }
+
+    if (!list.length) {
+      const msg = tab === 'my'
+        ? '<div style="text-align:center;padding:60px;color:#64748b"><i class="fas fa-graduation-cap" style="font-size:40px;opacity:.3;display:block;margin-bottom:12px"></i>Bạn chưa đăng ký khoá học nào.<br><span style="font-size:13px">Chuyển sang tab <b>Tất cả khoá học</b> để đăng ký.</span></div>'
+        : '<div style="text-align:center;padding:60px;color:#64748b">Chưa có khoá học nào được công bố.</div>';
+      grid.innerHTML = msg;
       return;
     }
 
     grid.innerHTML = '';
-    _coursesCache.forEach(course => {
+    list.forEach(course => {
+      const [c1, c2] = _courseBannerColor(course.Id);
+      const enrolled = _enrolledCourseIds.has(String(course.Id));
       const card = document.createElement('div');
-      card.className = 'course-card';
+      card.className = 'cv-student-card';
       card.innerHTML = `
-        <div class="course-card-title"><i class="fas fa-book-open" style="color:var(--primary);margin-right:6px"></i>${esc(course.Title)}</div>
-        ${course.Description ? `<div class="course-card-desc">${esc(course.Description)}</div>` : ''}
-        <div class="course-card-meta">
-          <span><i class="fas fa-layer-group"></i> Các modules</span>
-          <span style="margin-left:auto;color:var(--primary);font-weight:600">Xem khoá học <i class="fas fa-arrow-right"></i></span>
+        <div class="cv-student-card-banner" style="background:linear-gradient(135deg,${c1},${c2})">
+          <i class="fas fa-book-open cv-student-card-banner-icon"></i>
+          <div class="cv-student-card-title">${esc(course.Title)}</div>
+        </div>
+        <div class="cv-student-card-body">
+          ${course.Description ? `<div class="cv-student-card-desc">${esc(course.Description)}</div>` : ''}
+          <div class="cv-student-card-meta">
+            <span><i class="fas fa-layer-group"></i> ${course.ModuleCount || 'Nhiều'} modules</span>
+            ${course.Teacher ? `<span><i class="fas fa-chalkboard-teacher"></i> ${esc(course.Teacher)}</span>` : ''}
+          </div>
+          ${enrolled ? `<div class="cv-student-card-progress"><div class="cv-student-card-progress-fill" style="width:${course._pct || 0}%"></div></div>` : ''}
+        </div>
+        <div class="cv-student-card-footer">
+          <span class="cv-enroll-badge ${enrolled ? 'enrolled' : ''}">
+            ${enrolled ? '<i class="fas fa-check-circle"></i> Đã đăng ký' : '<i class="fas fa-plus-circle"></i> Đăng ký'}
+          </span>
+          <span class="cv-continue-link">
+            ${enrolled ? 'Tiếp tục học' : 'Xem chi tiết'}
+            <i class="fas fa-arrow-right"></i>
+          </span>
         </div>`;
       card.onclick = () => showCourseDetail(course.Id);
       grid.appendChild(card);
@@ -1933,13 +2005,18 @@ async function _renderCoursesList() {
 }
 
 async function showCourseDetail(courseId) {
+  // Bắt buộc đăng nhập
+  if (!isLoggedIn()) { showLoginModal(false); return; }
+
   _hideAllViews();
+  _currentCourseId = courseId;
   document.getElementById('course-detail-view').style.display = 'block';
   document.getElementById('content-area').classList.remove('article-mode');
   history.pushState(null, '', `/course/${courseId}`);
 
-  // Lấy thông tin khoá học
   const proxyBase = (PROXY_URL || 'https://api.gds.edu.vn').replace(/\/$/, '');
+
+  // Thông tin khoá học
   let course = _coursesCache?.find(c => c.Id === courseId);
   if (!course) {
     try {
@@ -1948,54 +2025,118 @@ async function showCourseDetail(courseId) {
     } catch { }
   }
 
-  document.getElementById('course-detail-title').textContent = course?.Title || 'Khoá học';
-  document.getElementById('course-detail-desc').textContent = course?.Description || '';
-  document.getElementById('course-tags').innerHTML = `<span class="article-hd-tag">${esc(course?.Status || 'published')}</span>`;
   document.title = `${course?.Title || 'Khoá học'} — ActiveEdu`;
 
-  // Load modules
+  // Render hero banner
+  const [c1, c2] = _courseBannerColor(courseId);
+  const hero = document.getElementById('cv-course-hero');
+  if (hero) hero.style.background = `linear-gradient(135deg,${c1},${c2})`;
+  document.getElementById('course-detail-title').textContent = course?.Title || 'Khoá học';
+  document.getElementById('course-detail-desc').textContent = course?.Description || '';
+  document.getElementById('course-tags').innerHTML =
+    `<span style="background:rgba(255,255,255,.25);color:#fff;padding:3px 12px;border-radius:20px;font-size:11px;font-weight:600">${esc(course?.Status || 'published')}</span>`;
+
+  // Enroll button
+  const enrolled = _enrolledCourseIds.has(String(courseId));
+  const enrollBtn = document.getElementById('cv-enroll-btn');
+  if (enrollBtn) {
+    enrollBtn.style.display = '';
+    if (enrolled) {
+      enrollBtn.className = 'cv-enroll-btn enrolled-btn';
+      enrollBtn.innerHTML = '<i class="fas fa-check-circle"></i> Đã đăng ký';
+    } else {
+      enrollBtn.className = 'cv-enroll-btn primary';
+      enrollBtn.innerHTML = '<i class="fas fa-plus-circle"></i> Đăng ký khoá học';
+    }
+  }
+
+  // Progress bar (if enrolled)
+  const progWrap = document.getElementById('cv-course-progress-wrap');
+  if (progWrap) progWrap.style.display = enrolled ? '' : 'none';
+
+  // Load modules + progress concurrently
   const container = document.getElementById('modules-container');
   container.innerHTML = '<div style="text-align:center;padding:40px;color:#64748b"><i class="fas fa-spinner fa-spin"></i> Đang tải modules...</div>';
+  document.getElementById('cv-continue-banner').style.display = 'none';
 
   try {
-    const r = await fetch(`${proxyBase}/api/modules?where=(CourseId,eq,${courseId})&sort=Position&limit=100`);
-    if (!r.ok) throw new Error('Không tải được modules');
-    const data = await r.json();
-    const modules = data.list || [];
+    const [modResp, artResp, examResp, progResp] = await Promise.all([
+      fetch(`${proxyBase}/api/modules?where=(CourseId,eq,${courseId})&sort=Position&limit=100`),
+      fetch(`${proxyBase}/api/articles?where=(ModuleId,nnull,true)&fields=Id,Title,Access,ItemType,ModuleId,Position,Published&limit=500`).catch(() => null),
+      fetch(`${proxyBase}/api/exams?where=(ModuleId,nnull,true)&fields=Id,Title,ModuleId,TimeLimit,PassScore,Status`).catch(() => null),
+      isLoggedIn() ? fetch(`${proxyBase}/api/progress`, {
+        headers: { 'Authorization': `Bearer ${getUser()?.token || ''}` }
+      }).catch(() => null) : Promise.resolve(null),
+    ]);
+
+    if (!modResp.ok) throw new Error('Không tải được modules');
+    const modules = (await modResp.json()).list || [];
     _modulesCache[courseId] = modules;
 
+    const allItems = artResp?.ok ? (await artResp.json()).list?.filter(a => a.Published !== false) || [] : [];
+    const allExams = examResp?.ok ? (await examResp.json()).list?.filter(e => e.Status === 'published') || [] : [];
+
+    // Build completed set from progress
+    _completedItems = new Set();
+    if (progResp?.ok) {
+      const pd = await progResp.json();
+      (pd.list || []).forEach(p => { if (p.Completed) _completedItems.add(String(p.ArticleId)); });
+    }
+
+    // Count overall progress
+    const totalItems = allItems.filter(a => modules.some(m => String(m.Id) === String(a.ModuleId))).length;
+    const doneItems = allItems.filter(a => modules.some(m => String(m.Id) === String(a.ModuleId)) && _completedItems.has(String(a.Id))).length;
+    const pct = totalItems ? Math.round((doneItems / totalItems) * 100) : 0;
+
+    if (enrolled) {
+      document.getElementById('cv-progress-fill').style.width = pct + '%';
+      document.getElementById('cv-progress-pct').textContent = pct + '%';
+      document.getElementById('cv-progress-label').textContent = `${doneItems}/${totalItems} bài học hoàn thành`;
+    }
+
+    // Hero stats
+    document.getElementById('cv-course-hero-stats').innerHTML = `
+      <span><i class="fas fa-layer-group"></i> ${modules.length} modules</span>
+      <span><i class="fas fa-file-alt"></i> ${totalItems} bài học</span>
+      ${enrolled ? `<span><i class="fas fa-chart-line"></i> ${pct}% hoàn thành</span>` : ''}
+    `;
+
+    // Continue banner — last incomplete item
+    if (enrolled) {
+      let lastItem = null;
+      for (const mod of modules) {
+        const items = allItems.filter(a => String(a.ModuleId) === String(mod.Id))
+          .sort((a, b) => (a.Position || 0) - (b.Position || 0));
+        const next = items.find(i => !_completedItems.has(String(i.Id)));
+        if (next) { lastItem = next; break; }
+      }
+      if (lastItem) {
+        _lastItemId = lastItem.Id;
+        document.getElementById('cv-continue-title').textContent = lastItem.Title || `Bài ${lastItem.Id}`;
+        document.getElementById('cv-continue-banner').style.display = '';
+      }
+    }
+
+    // Unlock status
+    const unlockResults = {};
+    if (modules.some(m => m.UnlockCondition)) {
+      try {
+        const ur = await fetch(`${proxyBase}/api/course/${courseId}/unlock-status`, {
+          headers: { 'Authorization': `Bearer ${getUser()?.token || ''}` }
+        });
+        if (ur.ok) Object.assign(unlockResults, (await ur.json()).statuses || {});
+      } catch { }
+    }
+
+    // Render modules
     if (!modules.length) {
       container.innerHTML = '<div style="text-align:center;padding:40px;color:#64748b">Khoá học này chưa có module nào.</div>';
       return;
     }
-
-    // Load articles for this course (có ModuleId) + exams cho course này
-    const [artResp, examResp] = await Promise.all([
-      fetch(`${proxyBase}/api/articles?where=(ModuleId,nnull,true)&fields=Id,Title,Access,ItemType,ModuleId,Position,Published&limit=500`).catch(() => null),
-      fetch(`${proxyBase}/api/exams?where=(ModuleId,nnull,true)&fields=Id,Title,ModuleId,TimeLimit,PassScore,TotalPoints,Status`).catch(() => null),
-    ]);
-    const artData = artResp?.ok ? await artResp.json() : { list: [] };
-    const examData = examResp?.ok ? await examResp.json() : { list: [] };
-    // Chỉ hiện items đã được publish (Published !== false)
-    const allItems = (artData.list || []).filter(a => a.Published !== false);
-    const allExams = (examData.list || []).filter(e => e.Status === 'published');
-
-    // Kiểm tra unlock condition — 1 request batch thay vì N requests (perf fix)
-    const unlockResults = {};
-    if (isLoggedIn() && modules.some(m => m.UnlockCondition)) {
-      try {
-        const batchR = await fetch(`${proxyBase}/api/course/${courseId}/unlock-status`, {
-          headers: { 'Authorization': `Bearer ${getUser()?.token || ''}` }
-        });
-        if (batchR.ok) {
-          const batchData = await batchR.json();
-          Object.assign(unlockResults, batchData.statuses || {});
-        }
-      } catch { /* best-effort */ }
-    }
-
     container.innerHTML = '';
-    const typeLabel = { article: 'Bài đọc', interactive: 'Tương tác', quiz: 'Trắc nghiệm' };
+
+    const typeLabel  = { article:'Bài đọc', video:'Video', interactive:'Tương tác', quiz:'Trắc nghiệm' };
+    const typeIcon   = { article:'fas fa-file-alt', video:'fas fa-play-circle', interactive:'fas fa-puzzle-piece', quiz:'fas fa-question-circle' };
 
     modules.forEach((mod, idx) => {
       const items = allItems.filter(a => String(a.ModuleId) === String(mod.Id))
@@ -2003,44 +2144,130 @@ async function showCourseDetail(courseId) {
       const exams = allExams.filter(e => String(e.ModuleId) === String(mod.Id));
       const unlock = unlockResults[mod.Id] || { ok: !mod.UnlockCondition };
       const isLocked = !unlock.ok;
+      const modDone  = items.filter(i => _completedItems.has(String(i.Id))).length;
+      const modTotal = items.length;
+      const allDone  = modTotal > 0 && modDone === modTotal;
 
-      const block = document.createElement('div');
-      block.className = `module-block${isLocked ? ' module-locked' : ''}`;
-      block.innerHTML = `
-        <div class="module-block-hd">
-          <div class="module-block-num" style="${isLocked ? 'background:#94a3b8' : ''}">${isLocked ? '🔒' : (mod.Position || idx + 1)}</div>
-          <div class="module-block-title">${esc(mod.Title)}</div>
-          ${isLocked
-            ? `<span class="module-lock-badge" title="${esc(unlock.reason || 'Cần hoàn thành module trước')}"><i class="fas fa-lock"></i> Chưa mở khoá</span>`
-            : (mod.UnlockCondition ? '<span style="margin-left:auto;font-size:11px;color:#16a34a"><i class="fas fa-lock-open"></i> Đã mở</span>' : '')}
+      const wrap = document.createElement('div');
+      wrap.className = `cv-student-module${idx === 0 ? ' open' : ''}${isLocked ? ' locked' : ''}`;
+      wrap.innerHTML = `
+        <div class="cv-student-module-hd${isLocked ? ' locked' : ''}" onclick="toggleStudentModule(this)">
+          <div class="cv-module-num ${isLocked ? 'locked-num' : allDone ? 'done-num' : ''}">
+            ${isLocked ? '<i class="fas fa-lock" style="font-size:10px"></i>' : allDone ? '<i class="fas fa-check" style="font-size:10px"></i>' : (mod.Position || idx + 1)}
+          </div>
+          <div style="flex:1">
+            <div class="cv-module-name">${esc(mod.Title)}</div>
+            ${mod.Description ? `<div style="font-size:11.5px;color:#94a3b8;margin-top:2px">${esc(mod.Description)}</div>` : ''}
+          </div>
+          <div class="cv-module-meta">
+            ${modTotal > 0 ? `<span>${modDone}/${modTotal}</span>` : ''}
+            ${allDone ? '<span class="cv-module-prog"><i class="fas fa-check"></i> Xong</span>' : ''}
+          </div>
+          <i class="fas fa-chevron-right cv-module-chevron"></i>
         </div>
-        ${isLocked
-          ? `<div class="module-lock-overlay"><i class="fas fa-lock"></i> ${esc(unlock.reason || 'Hoàn thành module trước để mở khoá')}</div>`
-          : `<div class="module-block-items">
-              ${items.map(item => {
-                const type = item.ItemType || 'article';
-                const isPrivate = item.Access === 'private';
-                return `<div class="module-item-row" onclick="_openModuleItemWithPrereqCheck(${item.Id}, '${esc(item.Title || '')}')">
-                  <span class="module-item-type type-${type}">${typeLabel[type] || type}</span>
-                  <span style="flex:1;font-size:13px">${esc(item.Title || `Bài ${item.Id}`)}</span>
-                  ${isPrivate ? '<i class="fas fa-lock" style="color:#94a3b8;font-size:11px" title="Cần đăng nhập"></i>' : ''}
-                  <i class="fas fa-chevron-right" style="color:#94a3b8;font-size:11px"></i>
-                </div>`;
-              }).join('')}
-              ${exams.map(exam => `
-                <div class="module-item-row" onclick="openExamView(${exam.Id})">
-                  <span class="module-item-type type-quiz">📝 Đề thi</span>
-                  <span style="flex:1;font-size:13px">${esc(exam.Title)}</span>
-                  ${exam.TimeLimit ? `<span style="font-size:11px;color:#64748b"><i class="fas fa-clock"></i> ${exam.TimeLimit} phút</span>` : ''}
-                  <i class="fas fa-chevron-right" style="color:#94a3b8;font-size:11px"></i>
-                </div>`).join('')}
-              ${!items.length && !exams.length ? '<div style="padding:12px 18px;font-size:13px;color:#94a3b8">Module này chưa có bài học.</div>' : ''}
-            </div>`}`;
-      container.appendChild(block);
+        <div class="cv-student-module-items">
+          ${isLocked ? `
+            <div class="cv-module-lock-banner">
+              <i class="fas fa-lock"></i>
+              <div>
+                <div style="font-weight:600;margin-bottom:2px">Module bị khoá</div>
+                <div style="font-size:12px">${esc(unlock.reason || 'Hoàn thành module trước để mở khoá')}</div>
+              </div>
+            </div>` :
+            [...items.map(item => {
+              const type = item.ItemType || 'article';
+              const done = _completedItems.has(String(item.Id));
+              return `<div class="cv-student-item-row${done ? ' completed' : ''}" onclick="_openCourseItem(${item.Id}, '${esc(item.Title || '')}', ${enrolled})">
+                <span class="cv-item-type-badge type-${type}">
+                  <i class="${typeIcon[type] || 'fas fa-file-alt'}" style="margin-right:4px"></i>${typeLabel[type] || type}
+                </span>
+                <span class="cv-item-title">${esc(item.Title || `Bài ${item.Id}`)}</span>
+                <div class="cv-item-check ${done ? 'done' : ''}">${done ? '<i class="fas fa-check"></i>' : ''}</div>
+              </div>`;
+            }),
+            ...exams.map(exam => `
+              <div class="cv-student-item-row" onclick="openExamView(${exam.Id})">
+                <span class="cv-item-type-badge type-exam">
+                  <i class="fas fa-file-pen" style="margin-right:4px"></i>Đề thi
+                </span>
+                <span class="cv-item-title">${esc(exam.Title)}</span>
+                ${exam.TimeLimit ? `<span style="font-size:11px;color:#94a3b8"><i class="fas fa-clock"></i> ${exam.TimeLimit}p</span>` : ''}
+                <div class="cv-item-check"><i class="fas fa-chevron-right" style="color:#cbd5e1;font-size:9px"></i></div>
+              </div>`)
+            ].join('') || '<div style="padding:14px 20px;font-size:13px;color:#94a3b8">Module này chưa có bài học.</div>'
+          }
+        </div>`;
+      container.appendChild(wrap);
     });
   } catch(e) {
     container.innerHTML = `<div style="text-align:center;padding:40px;color:#dc2626">${e.message}</div>`;
   }
+}
+
+function toggleStudentModule(hd) {
+  const mod = hd.closest('.cv-student-module');
+  if (mod.classList.contains('locked')) return;
+  mod.classList.toggle('open');
+}
+
+function _continueLastItem() {
+  if (_lastItemId) _openCourseItem(_lastItemId, '', true);
+}
+
+async function toggleEnrollment() {
+  if (!isLoggedIn()) { showLoginModal(false); return; }
+  const courseId = _currentCourseId;
+  const enrolled = _enrolledCourseIds.has(String(courseId));
+  const proxyBase = (PROXY_URL || 'https://api.gds.edu.vn').replace(/\/$/, '');
+  const btn = document.getElementById('cv-enroll-btn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
+  try {
+    if (enrolled) {
+      // Unenroll
+      await fetch(`${proxyBase}/api/enrollments/${courseId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${getUser()?.token || ''}` }
+      });
+      _enrolledCourseIds.delete(String(courseId));
+    } else {
+      // Enroll
+      await fetch(`${proxyBase}/api/enrollments`, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', 'Authorization': `Bearer ${getUser()?.token || ''}` },
+        body: JSON.stringify({ courseId })
+      });
+      _enrolledCourseIds.add(String(courseId));
+    }
+    // Reload detail
+    await showCourseDetail(courseId);
+  } catch(e) {
+    if (btn) { btn.disabled = false; btn.innerHTML = enrolled ? '<i class="fas fa-check-circle"></i> Đã đăng ký' : '<i class="fas fa-plus-circle"></i> Đăng ký khoá học'; }
+    _showToast('Lỗi: ' + e.message, 'error');
+  }
+}
+
+function _openCourseItem(articleId, title, enrolled) {
+  // Nếu chưa enroll, nhắc đăng ký
+  if (!enrolled) {
+    _showToast('Hãy đăng ký khoá học để mở bài học này!', 'warn');
+    const btn = document.getElementById('cv-enroll-btn');
+    if (btn) btn.style.animation = 'none', btn.offsetHeight, btn.style.animation = 'pulse .5s 2';
+    return;
+  }
+  _lastItemId = articleId;
+  _openModuleItemWithPrereqCheck(articleId, title);
+}
+
+function _showToast(msg, type = 'info') {
+  const existing = document.getElementById('cv-toast');
+  if (existing) existing.remove();
+  const d = document.createElement('div');
+  d.id = 'cv-toast';
+  const bg = type === 'error' ? '#dc2626' : type === 'warn' ? '#f59e0b' : '#4F46E5';
+  d.style.cssText = `position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:9999;background:${bg};color:#fff;padding:12px 22px;border-radius:12px;font-size:13px;font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,.25);white-space:nowrap`;
+  d.textContent = msg;
+  document.body.appendChild(d);
+  setTimeout(() => d.remove(), 3500);
 }
 
 function showCoursesView_back() { showCoursesView(); }
