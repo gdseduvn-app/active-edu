@@ -2693,3 +2693,905 @@ Pressman Ch.29 xác định các xu hướng nổi bật phù hợp với AURA:
 
 *Tài liệu tổng hợp: SRS v1.0 (QĐ 791/QĐ-SGDĐT) + ThietKeBaiHoc v1.0 + schema_791 (784 YCCĐ) + Pressman 9th Ed.*
 *Cập nhật: 2026-04-06 | THPT Thủ Thiêm — Tổ Tin học*
+
+---
+
+# PHẦN C — KHUNG SƯ PHẠM HIỆN ĐẠI (Pedagogical Frameworks)
+
+> **Nguồn:** Biggs & Tang *Teaching for Quality Learning at University* (5th ed) · Anders *Designing Instruction with Generative AI* (2026) · Southworth et al. *Developing a Model for AI Across the Curriculum* (2023, Computers & Education: AI vol.4)
+
+---
+
+## C.1 Biggs & Tang — Constructive Alignment (Thiết kế Căn chỉnh Kiến tạo)
+
+### C.1.1 Nguyên lý Cốt lõi
+
+**Constructive Alignment** = đảm bảo 3 thành tố căn chỉnh nhất quán:
+
+```
+ILO (Intended Learning Outcome)
+  ↓ "Verb + Topic + Context/Standard"
+TLA (Teaching-Learning Activity)  
+  ↓ hoạt động giúp đạt ILO
+AT (Assessment Task)
+  ↓ đánh giá có đo đúng ILO không?
+```
+
+**Nguyên tắc then chốt (Biggs):**
+- "The verb in the ILO has two main functions: it says what the student is to be able to DO with the topic AND at what level"
+- Học sinh tự kiến tạo nghĩa qua hoạt động học — giáo viên **thiết kế bối cảnh** (not content delivery)
+- **Declarative Knowledge**: biết VỀ điều gì (sự kiện, khái niệm, lý thuyết) → cần ghi nhớ, hiểu
+- **Functioning Knowledge**: biết CÁC DÙNG điều đó trong thực tế → cần áp dụng, phân tích, tạo ra
+
+### C.1.2 SOLO Taxonomy (Structure of Observed Learning Outcomes)
+
+Thay thế / bổ sung Bloom's 6 cấp bằng **5 mức cấu trúc nhận thức quan sát được**:
+
+| Level | Code | Mô tả | Ví dụ Toán học | Bloom tương đương |
+|-------|------|--------|----------------|-------------------|
+| 1 | SOLO_1 | **Prestructural** — Không hiểu; câu trả lời lạc đề | "Em không biết" hoặc hoàn toàn sai | — |
+| 2 | SOLO_2 | **Unistructural** — Hiểu 1 khía cạnh; trả lời đơn giản | Nhắc lại công thức đúng nhưng không dùng được | Remember |
+| 3 | SOLO_3 | **Multistructural** — Hiểu nhiều khía cạnh riêng lẻ | Giải được từng bước nhưng chưa kết nối | Understand |
+| 4 | SOLO_4 | **Relational** — Kết nối các phần thành tổng thể | Hiểu vì sao mỗi bước cần thiết, áp dụng linh hoạt | Apply/Analyse |
+| 5 | SOLO_5 | **Extended Abstract** — Khái quát hóa, áp dụng ngoài bối cảnh | Tạo bài toán mới, dạy lại, phát hiện ứng dụng mới | Evaluate/Create |
+
+**Ý nghĩa cho AURA:**
+- SOLO_1 → học sinh chưa học được → cần **Repair** pathway ngay lập tức
+- SOLO_2-3 → đang học → tiếp tục TLA với scaffold
+- SOLO_4 → đã đạt → chuyển sang Practice/Extend
+- SOLO_5 → mastery → Teaching/Peer Expert, dự án mở
+
+### C.1.3 Threshold Concepts
+
+Một số khái niệm có tính **Threshold** — khi hiểu được, toàn bộ nhận thức thay đổi; khi chưa hiểu, gây block tiến bộ:
+
+Ví dụ trong Toán:
+- Số âm và trục số (lớp 6)
+- Giới hạn và vô cực (lớp 11-12)
+- Xác suất và biến ngẫu nhiên (lớp 11)
+- Đạo hàm như "tỉ lệ thay đổi" (lớp 11)
+
+**Thiết kế AURA**: khi `threshold_concept = 1`, agent ưu tiên **Repair** sâu hơn bình thường; không chuyển bài cho đến khi threshold được vượt qua.
+
+### C.1.4 Formative Feedback Loop
+
+Biggs nhấn mạnh **Formative Assessment** (đánh giá vì học) > Summative (đánh giá kết quả):
+
+```
+Student attempts → Agent observes SOLO level → 
+Feedback (sửa lỗi + gợi ý cụ thể) → Student revises → 
+SOLO level tăng → Agent confirms + moves forward
+```
+
+Feedback hiệu quả: "Feed-forward" (chỉ cách tiến) + "Feed-back" (xác nhận điều đúng) + "Feed-up" (nhắc mục tiêu ILO).
+
+---
+
+## C.2 Anders (2026) — Instructional Design với Generative AI
+
+### C.2.1 ADDIE Model ánh xạ sang AURA Lesson Builder
+
+| ADDIE Stage | Mô tả | AURA Implementation |
+|-------------|-------|---------------------|
+| **A**nalysis | Xác định nhu cầu học, đặc điểm người học, context | `learner_models` profile + `events` history; 784 YCCĐ đã có sẵn |
+| **D**esign | ILO → TLA → AT; chọn lesson model, phương thức assessment | `lesson_design` table: `ilos`, `tlas`, `assessment_tasks` (JSON) |
+| **D**evelopment | Tạo nội dung thực tế (câu hỏi, bài đọc, video) | Cloudflare Pages content + NocoDB articles/assessments |
+| **I**mplementation | Triển khai với học sinh thực tế | Event log từ student sessions |
+| **E**valuation | Đánh giá hiệu quả, cải tiến | Analytics: mastery rate, time-on-task, agent decision accuracy |
+
+### C.2.2 Backward Design (Wiggins & McTighe) trong AURA
+
+```
+Stage 1: Desired Results (ILOs)
+  "Học sinh sẽ có thể ___" — dùng SOLO verb + Bloom verb
+  
+Stage 2: Evidence (AT)  
+  "Học sinh chứng minh ILO qua ___" — quiz, project, peer teach
+  
+Stage 3: Learning Plan (TLA)
+  "Học sinh sẽ trải qua ___" — 5-Stage Lesson Structure
+```
+
+### C.2.3 Kolb's Experiential Learning Cycle
+
+Mỗi **lesson session** lý tưởng đi qua 4 pha:
+
+| Kolb Phase | AURA Stage | Hoạt động mẫu |
+|------------|------------|----------------|
+| **Concrete Experience** | Kích hoạt (Stage 1) | Quiz kiến thức cũ, tình huống thực tế, câu hỏi mở |
+| **Reflective Observation** | Phản chiếu (Stage 4) | "Em nhận ra điều gì?", self-assessment, so sánh với bài làm cũ |
+| **Abstract Conceptualization** | Kiến tạo (Stage 2) | Giải thích công thức, xây dựng rule tổng quát |
+| **Active Experimentation** | Hành động (Stage 3) | Bài tập áp dụng, bài toán mới, dự án thực |
+
+**AURA field**: `kolb_phase` trong `lessons` table cho biết lesson chủ yếu ở pha nào của Kolb.
+
+### C.2.4 AI Literacy Framework (Anders 4 thành phần)
+
+| Component | Định nghĩa | Thể hiện trong AURA |
+|-----------|-----------|---------------------|
+| **Awareness** | Nhận biết AI xuất hiện ở đâu, ảnh hưởng thế nào | Banner "AI Agent đang hỗ trợ bạn" + explain decisions |
+| **Capability** | Biết cách dùng AI hiệu quả (prompt engineering) | TICRR Prompt Builder trong AI Tutor interface |
+| **Knowledge** | Hiểu AI hoạt động ra sao (cơ bản) | AI Literacy module trong curriculum |
+| **Critical Thinking** | Đánh giá, kiểm tra output của AI | "Kiểm tra lại bước này với AI?" CTA button |
+
+**TICRR Prompt Formula (Anders):**
+```
+T — Task: Nhiệm vụ cụ thể
+I — Instruction: Hướng dẫn chi tiết cách làm
+C — Context: Bối cảnh, đối tượng, ngữ cảnh
+R — Restriction: Giới hạn, ràng buộc
+R — Reference: Nguồn tham chiếu, ví dụ mẫu
+```
+
+---
+
+## C.3 Southworth et al. (2023) — AI Literacy SLOs
+
+### C.3.1 Năm loại AI Literacy (UF Model)
+
+| # | Literacy Type | SLO Cốt lõi | Assessment Indicator |
+|---|--------------|-------------|---------------------|
+| 1 | **Know & Understand** | Giải thích AI là gì, phân biệt AI mạnh/yếu, nhận ra bias | Câu hỏi khái niệm MCQ/True-False |
+| 2 | **Use & Apply** | Dùng AI tools để hoàn thành nhiệm vụ thực tế | Task-completion rate với AI tool |
+| 3 | **Evaluate & Create** | Đánh giá chất lượng AI output, tạo prompt hiệu quả | Rubric-based peer assessment |
+| 4 | **Ethics** | Nhận biết vấn đề đạo đức AI: privacy, bias, accountability | Case study analysis |
+| 5 | **Professional/Career** | Biết AI thay đổi ngành nghề thế nào, upskill phù hợp | Career reflection essay |
+
+### C.3.2 Rubric-based Mastery cho AI Literacy
+
+Mỗi SLO được đánh giá qua rubric 4 mức:
+
+| Mức | Mô tả |
+|-----|-------|
+| **4 — Exemplary** | Vượt kỳ vọng; có thể giải thích/dạy lại cho người khác |
+| **3 — Proficient** | Đáp ứng đầy đủ SLO; độc lập thực hiện |
+| **2 — Developing** | Đang tiến bộ; cần hỗ trợ một số phần |
+| **1 — Beginning** | Mới bắt đầu; cần hướng dẫn trực tiếp |
+
+### C.3.3 Ánh xạ AI Literacy → Curriculum AURA
+
+| Course Module | AI Literacy Type | Bài học mẫu |
+|---------------|-----------------|-------------|
+| Toán cơ bản | Know & Understand | "AI giải bài toán này thế nào?" |
+| Lập trình | Use & Apply | "Dùng Copilot viết function, kiểm tra output" |
+| Ngữ văn | Evaluate & Create | "So sánh bài luận AI vs bài của em" |
+| GDCD | Ethics | "Bài toán tuyển dụng dùng AI có công bằng?" |
+| Hướng nghiệp | Professional/Career | "10 nghề nào thay đổi nhất vì AI?" |
+
+---
+
+## C.4 Tích hợp 3 Khung vào AURA System
+
+### C.4.1 Kiến trúc tổng hợp (Biggs + Anders + Southworth)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              CONSTRUCTIVE ALIGNMENT LAYER (Biggs)           │
+│                                                             │
+│  ILO ──────────────────────────────────────────→ AT        │
+│  (SOLO verb + topic)           (rubric-based)              │
+│              ↓                                              │
+│           TLA (5-Stage Lesson + Kolb Cycle)                │
+└─────────────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────────────┐
+│              ADDIE DESIGN LAYER (Anders)                    │
+│                                                             │
+│  Analysis → Design → Development → Implementation →        │
+│  Evaluation (đo SOLO level sau mỗi session)                │
+└─────────────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────────────┐
+│              AI LITERACY LAYER (Southworth)                 │
+│                                                             │
+│  AI xuất hiện trong từng bài → học sinh thấy AI thinking   │
+│  → Tuần 1 lesson "AI là gì" → SLO tracking                 │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### C.4.2 Lesson Design Flow nâng cấp (có Constructive Alignment)
+
+```
+Teacher/Admin tạo bài học:
+  1. Nhập lesson_id (từ 784 YCCĐ)
+  2. Hệ thống gợi ý SOLO level phù hợp (từ Bloom level của YCCĐ)
+  3. Hệ thống gợi ý ILO template: "Sau bài này, HS có thể [SOLO verb] [topic]"
+  4. Chọn TLA (Teaching-Learning Activity):
+     - Stage 1: Kích hoạt (Kolb: CE)
+     - Stage 2: Kiến tạo (Kolb: AC)
+     - Stage 3: Hành động (Kolb: AE)
+     - Stage 4: Phản chiếu (Kolb: RO)
+     - Stage 5: Tổng kết
+  5. Chọn Assessment Type (AT) phù hợp với ILO verb
+  6. Lưu vào lesson_design table + cập nhật constructive_alignment JSON
+```
+
+### C.4.3 Adaptive Engine nâng cấp
+
+Bổ sung vào 9 quy tắc R01-R09 (từ Phần A):
+
+| Rule | Trigger mới | Hành động mới |
+|------|------------|---------------|
+| **R01 (Repair)** | `solo_level <= 2` OR `threshold_concept = 1 AND mastery < 0.6` | Repair pathway bắt buộc trước khi tiến |
+| **R02 (Downgrade)** | `consecutive_fail >= 2 AND solo_level > target_solo` | Giảm SOLO target, không chỉ giảm Bloom |
+| **R06 (Timing)** | Kolb phase mismatch: e.g., học CE khi HS cần AE | Chuyển sang Kolb phase phù hợp với trạng thái HS |
+| **R_NEW (Deep vs Surface)** | `learning_approach = 'surface' AND consecutive_pass >= 3` | Chuyển sang bài yêu cầu Functioning Knowledge |
+
+---
+
+## C.5 Cập nhật Schema D1 — Migrations mới
+
+### C.5.1 Migration 0004 — Bảng `lessons` nâng cấp (Pedagogical fields)
+
+**File:** `worker/migrations/0004_aura_lessons.sql`
+
+```sql
+-- Migration 0004: Lessons table với pedagogical framework fields
+-- Biggs & Tang: SOLO taxonomy, Constructive Alignment, Threshold Concepts
+-- Anders: Kolb cycle, ADDIE, Knowledge Type
+-- Southworth: AI Literacy integration
+
+CREATE TABLE IF NOT EXISTS lessons (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  
+  -- Core fields (từ schema_791 và SRS)
+  lesson_id TEXT NOT NULL UNIQUE,           -- e.g., "020108.0202d3" 
+  subject TEXT NOT NULL DEFAULT 'toan',
+  grade_num INTEGER NOT NULL,               -- 1-12
+  title TEXT NOT NULL,
+  description TEXT,
+  status TEXT NOT NULL DEFAULT 'draft'      -- draft | active | archived
+    CHECK (status IN ('draft','active','archived')),
+  
+  -- Bloom's Taxonomy (từ schema_791)
+  bloom_level INTEGER NOT NULL DEFAULT 1    -- 1-6
+    CHECK (bloom_level BETWEEN 1 AND 6),
+  bloom_vi TEXT,                            -- Nhớ | Hiểu | Vận dụng | Phân tích | Đánh giá | Sáng tạo
+  
+  -- SOLO Taxonomy (Biggs & Tang)
+  solo_level INTEGER NOT NULL DEFAULT 3     -- 1-5 (1=Prestructural...5=Extended Abstract)
+    CHECK (solo_level BETWEEN 1 AND 5),
+  solo_target INTEGER NOT NULL DEFAULT 4    -- target SOLO level sau khi học xong
+    CHECK (solo_target BETWEEN 2 AND 5),
+  
+  -- Knowledge Type (Biggs & Tang: Declarative vs Functioning)
+  knowledge_type TEXT NOT NULL DEFAULT 'declarative'
+    CHECK (knowledge_type IN ('declarative','functioning','both')),
+  
+  -- Threshold Concept (Biggs & Tang)
+  threshold_concept INTEGER NOT NULL DEFAULT 0  -- 0=no, 1=yes (boolean)
+    CHECK (threshold_concept IN (0,1)),
+  threshold_notes TEXT,                     -- Giải thích tại sao là threshold concept
+  
+  -- Kolb's Experiential Learning Cycle (Anders)
+  kolb_phase TEXT DEFAULT 'all'             -- CE | RO | AC | AE | all
+    CHECK (kolb_phase IN ('CE','RO','AC','AE','all')),
+  
+  -- Lesson Model (từ SRS)
+  lesson_model TEXT NOT NULL DEFAULT 'scaffold'
+    CHECK (lesson_model IN ('scaffold','practice','case','teach','explore','repair','project','reflect')),
+  lesson_level TEXT NOT NULL DEFAULT 'nen_tang'
+    CHECK (lesson_level IN ('nen_tang','mo_rong','chuyen_sau')),
+  
+  -- Navigation (từ schema_791)
+  next_if_pass TEXT,                        -- lesson_id của bài tiếp nếu đạt
+  next_if_fail TEXT,                        -- lesson_id của bài tiếp nếu không đạt
+  prerequisite_ids TEXT DEFAULT '[]',       -- JSON array of lesson_ids
+  
+  -- Constructive Alignment (Biggs & Tang + Anders ADDIE)
+  constructive_alignment TEXT DEFAULT '{}',
+  -- JSON: {
+  --   "ilos": ["Sau bài này HS có thể [verb] [topic]"],
+  --   "tlas": ["Stage 1: ...", "Stage 2: ...", "Stage 3: ..."],
+  --   "ats": [{"type":"quiz","criteria":"solo_level >= 4"}],
+  --   "addie": {"analysis":"...","design":"...","evaluation_method":"..."}
+  -- }
+
+  -- AI Literacy Integration (Southworth)
+  ai_literacy_type TEXT DEFAULT NULL       -- null | know_understand | use_apply | evaluate_create | ethics | career
+    CHECK (ai_literacy_type IS NULL OR ai_literacy_type IN (
+      'know_understand','use_apply','evaluate_create','ethics','career'
+    )),
+  
+  -- Metadata
+  content_url TEXT,                         -- URL đến nội dung thực tế (NocoDB article)
+  estimated_minutes INTEGER DEFAULT 20,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_lessons_lesson_id ON lessons(lesson_id);
+CREATE INDEX IF NOT EXISTS idx_lessons_grade ON lessons(grade_num);
+CREATE INDEX IF NOT EXISTS idx_lessons_bloom ON lessons(bloom_level);
+CREATE INDEX IF NOT EXISTS idx_lessons_solo ON lessons(solo_level);
+CREATE INDEX IF NOT EXISTS idx_lessons_threshold ON lessons(threshold_concept);
+CREATE INDEX IF NOT EXISTS idx_lessons_knowledge_type ON lessons(knowledge_type);
+```
+
+### C.5.2 Migration 0005 — Learner Model, Events, Agent Decisions nâng cấp
+
+**File:** `worker/migrations/0005_aura_learner_agent.sql`
+
+```sql
+-- Migration 0005: Learner Model + Agent Architecture
+-- Biggs: SOLO profile, Declarative vs Functioning mastery, Learning Approach
+-- Southworth: AI Literacy score
+-- SRS: Curriculum rules, Planner R01-R09
+
+-- ══════════════════════════════════════════════════════════
+-- LEARNER MODELS
+-- ══════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS learner_models (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL UNIQUE,
+  
+  -- Core mastery (từ SRS)
+  mastery_map TEXT NOT NULL DEFAULT '{}',
+  -- JSON: { "020108.0202d3": 0.72, ... } keyed by lesson_id
+  
+  bloom_profile TEXT NOT NULL DEFAULT '{}',
+  -- JSON: { "1": 0.9, "2": 0.8, "3": 0.6, "4": 0.4, "5": 0.2, "6": 0.1 }
+  
+  error_patterns TEXT NOT NULL DEFAULT '{}',
+  -- JSON: { "lesson_id": ["type_error_1", "type_error_2"] }
+  
+  speed_profile TEXT NOT NULL DEFAULT '{}',
+  -- JSON: { "nen_tang": 180, "mo_rong": 240, "chuyen_sau": 420 } (seconds per problem)
+  
+  -- SOLO Profile (Biggs & Tang) — new
+  solo_profile TEXT NOT NULL DEFAULT '{}',
+  -- JSON: { "lesson_id": {"achieved":3,"target":4,"last_assessed":"2026-04-06"} }
+  
+  -- Knowledge Type Mastery (Biggs & Tang) — new
+  declarative_mastery TEXT NOT NULL DEFAULT '{}',
+  -- JSON: { "lesson_id": 0.85 } — biết VỀ khái niệm
+  functioning_mastery TEXT NOT NULL DEFAULT '{}',
+  -- JSON: { "lesson_id": 0.65 } — biết DÙNG trong thực tế
+  
+  -- Learning Approach (Biggs) — new
+  learning_approach TEXT NOT NULL DEFAULT 'strategic'
+    CHECK (learning_approach IN ('surface','deep','strategic')),
+  -- surface: chỉ học để qua bài; deep: muốn hiểu thật sự; strategic: tối ưu điểm số
+  
+  -- AI Literacy Score (Southworth) — new
+  ai_literacy_score TEXT NOT NULL DEFAULT '{}',
+  -- JSON: {
+  --   "know_understand": 0.0,    -- 0.0 to 1.0
+  --   "use_apply": 0.0,
+  --   "evaluate_create": 0.0,
+  --   "ethics": 0.0,
+  --   "career": 0.0,
+  --   "last_assessed": null
+  -- }
+  
+  -- State (từ SRS)
+  current_lesson_id TEXT,
+  current_level TEXT DEFAULT 'nen_tang',
+  engagement_score REAL DEFAULT 0.5,
+  preferred_model TEXT DEFAULT 'scaffold',
+  consecutive_pass INTEGER DEFAULT 0,
+  consecutive_fail INTEGER DEFAULT 0,
+  
+  -- Timestamps
+  last_active TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_learner_user ON learner_models(user_id);
+
+-- ══════════════════════════════════════════════════════════
+-- EVENT LOG
+-- ══════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL,
+  lesson_id TEXT,
+  event_type TEXT NOT NULL
+    CHECK (event_type IN (
+      'quiz_submitted','assignment_submitted','video_progress',
+      'session_started','session_ended','discussion_posted',
+      'peer_review_given','lesson_completed','teacher_override',
+      'ai_literacy_assessed','solo_assessed'   -- new event types
+    )),
+  payload TEXT NOT NULL DEFAULT '{}',
+  -- For quiz_submitted: {"score":0.8,"bloom_level":3,"solo_level":4,"time_seconds":180,"errors":["type_A"]}
+  -- For solo_assessed: {"solo_level":4,"assessor":"agent|teacher","notes":"..."}
+  -- For ai_literacy_assessed: {"type":"use_apply","score":0.7,"rubric_score":3}
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_events_user ON events(user_id);
+CREATE INDEX IF NOT EXISTS idx_events_lesson ON events(lesson_id);
+CREATE INDEX IF NOT EXISTS idx_events_type ON events(event_type);
+CREATE INDEX IF NOT EXISTS idx_events_created ON events(created_at);
+
+-- ══════════════════════════════════════════════════════════
+-- AGENT DECISIONS (Curriculum Planner output)
+-- ══════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS agent_decisions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL,
+  triggered_by_event_id INTEGER REFERENCES events(id),
+  rule_fired TEXT NOT NULL,           -- R01, R02, ..., R09, R_DEEP, R_THRESHOLD
+  decision TEXT NOT NULL,             -- lesson_id được giao tiếp theo
+  reason TEXT NOT NULL,               -- Giải thích bằng tiếng Việt (XAI requirement)
+  confidence REAL DEFAULT 0.8,        -- 0.0-1.0
+  accepted INTEGER DEFAULT NULL,      -- NULL=pending, 1=accepted, 0=rejected by teacher/student
+  outcome TEXT,                       -- mastery delta sau khi học xong bài được giao
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_decisions_user ON agent_decisions(user_id);
+
+-- ══════════════════════════════════════════════════════════
+-- CURRICULUM RULES
+-- ══════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS curriculum_rules (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  rule_id TEXT NOT NULL UNIQUE,       -- R01, R02, ..., R09, R_DEEP, R_THRESHOLD
+  name TEXT NOT NULL,
+  description TEXT NOT NULL,
+  trigger_condition TEXT NOT NULL,    -- JS-like pseudocode for documentation
+  action TEXT NOT NULL,
+  priority INTEGER NOT NULL DEFAULT 5,   -- 1 (highest) to 10 (lowest)
+  is_active INTEGER NOT NULL DEFAULT 1,
+  -- Pedagogical source (new)
+  framework_source TEXT DEFAULT 'SRS',   -- SRS | Biggs | Anders | Southworth
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+-- Seed rules R01-R09 + new pedagogical rules
+INSERT OR IGNORE INTO curriculum_rules (rule_id, name, description, trigger_condition, action, priority, framework_source) VALUES
+  ('R01', 'Repair Trigger', 'Kích hoạt sửa chữa khi điểm thấp liên tiếp hoặc threshold concept chưa vượt qua',
+   'consecutive_fail >= 3 OR (threshold_concept = 1 AND mastery < 0.6)',
+   'assign lesson_model=repair, solo_target -= 1', 1, 'SRS+Biggs'),
+  ('R02', 'Downgrade Level', 'Giảm độ khó khi học sinh không theo kịp',
+   'consecutive_fail >= 2 AND current_level != nen_tang',
+   'current_level -= 1 step (chuyen_sau→mo_rong→nen_tang)', 2, 'SRS'),
+  ('R03', 'Upgrade Level', 'Tăng độ khó khi học sinh vượt kỳ vọng',
+   'consecutive_pass >= 3 AND mastery >= 0.85',
+   'current_level += 1 step', 3, 'SRS'),
+  ('R04', 'Dormant Review', 'Ôn lại bài không học trong 7 ngày',
+   'days_since_last_active >= 7',
+   'assign spaced-repetition review lesson', 4, 'SRS'),
+  ('R05', 'Bloom Gap', 'Lấp đầy khoảng trống Bloom khi HS giỏi nhớ nhưng kém vận dụng',
+   'bloom_profile[1..2] > 0.8 AND bloom_profile[3..4] < 0.5',
+   'assign case-based or project lesson (bloom 3-4)', 5, 'SRS'),
+  ('R06', 'Timing Optimization', 'Điều chỉnh thời điểm học theo Kolb phase của học sinh',
+   'session_context indicates Kolb mismatch',
+   'reassign lesson with matching kolb_phase', 6, 'SRS+Anders'),
+  ('R07', 'Peer Expert', 'Chuyển HS giỏi sang vai trò dạy bạn',
+   'consecutive_pass >= 5 AND mastery >= 0.9',
+   'assign lesson_model=teach, create peer_review opportunity', 7, 'SRS'),
+  ('R08', 'Preferred Model', 'Dùng mô hình học sinh ưa thích khi cần tăng engagement',
+   'engagement_score < 0.4',
+   'assign lesson with preferred_model', 8, 'SRS'),
+  ('R09', 'Variety', 'Tránh lặp lại cùng lesson_model quá 3 lần',
+   'last_3_models all same',
+   'rotate to different lesson_model', 9, 'SRS'),
+  ('R_THRESHOLD', 'Threshold Concept Block', 'Không cho tiến khi threshold concept chưa vượt qua',
+   'threshold_concept = 1 AND solo_level <= 2',
+   'force repair pathway; block next_if_pass navigation', 1, 'Biggs'),
+  ('R_DEEP', 'Surface to Deep Learning', 'Chuyển học sinh surface sang deep learning khi đủ nền tảng',
+   'learning_approach = surface AND consecutive_pass >= 3 AND knowledge_type = declarative',
+   'assign functioning knowledge lesson (apply in context)', 5, 'Biggs');
+
+-- ══════════════════════════════════════════════════════════
+-- LESSON SESSIONS (individual student sessions per lesson)
+-- ══════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS lesson_sessions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL,
+  lesson_id TEXT NOT NULL,
+  session_start TEXT NOT NULL,
+  session_end TEXT,
+  stage_reached INTEGER DEFAULT 1,    -- 1-5 (5-Stage lesson model)
+  kolb_phase_experienced TEXT,        -- which Kolb phase this session covered
+  solo_level_before INTEGER,          -- SOLO level assessed before session
+  solo_level_after INTEGER,           -- SOLO level assessed after session
+  bloom_score REAL,                   -- 0.0-1.0 for this session
+  time_on_task_seconds INTEGER DEFAULT 0,
+  interactions INTEGER DEFAULT 0,     -- number of AI tutor interactions
+  hint_count INTEGER DEFAULT 0,
+  ai_literacy_practiced TEXT,         -- which AI literacy type practiced this session
+  status TEXT DEFAULT 'active'
+    CHECK (status IN ('active','completed','abandoned')),
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_user ON lesson_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_lesson ON lesson_sessions(lesson_id);
+```
+
+### C.5.3 Migration 0006 — Pedagogical Design Tables
+
+**File:** `worker/migrations/0006_aura_pedagogical.sql`
+
+```sql
+-- Migration 0006: Pedagogical Framework Support Tables
+-- Biggs: Constructive Alignment detail, SOLO assessments
+-- Southworth: AI Literacy assessments
+-- Anders: ADDIE lesson design records
+
+-- ══════════════════════════════════════════════════════════
+-- LESSON DESIGN (ADDIE + Constructive Alignment records)
+-- ══════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS lesson_design (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  lesson_id TEXT NOT NULL,
+  version INTEGER NOT NULL DEFAULT 1,
+  
+  -- ILOs (Intended Learning Outcomes) — Biggs: verb + topic + context
+  ilos TEXT NOT NULL DEFAULT '[]',
+  -- JSON: [
+  --   {"level": 4, "verb": "phân tích", "topic": "phương trình bậc 2", "context": "trong bài toán thực tế"},
+  --   {"level": 3, "verb": "áp dụng", "topic": "công thức nghiệm", "context": "giải bài tập cơ bản"}
+  -- ]
+  
+  -- Teaching-Learning Activities — Kolb cycle + 5-Stage
+  tlas TEXT NOT NULL DEFAULT '[]',
+  -- JSON: [
+  --   {"stage": 1, "kolb": "CE", "activity": "Xem video tình huống thực tế", "duration_min": 3},
+  --   {"stage": 2, "kolb": "AC", "activity": "Xây dựng công thức từ ví dụ", "duration_min": 10},
+  --   {"stage": 3, "kolb": "AE", "activity": "Giải 5 bài tập có hướng dẫn", "duration_min": 15},
+  --   {"stage": 4, "kolb": "RO", "activity": "So sánh cách giải của mình", "duration_min": 5},
+  --   {"stage": 5, "kolb": "all", "activity": "Tóm tắt và tự kiểm tra", "duration_min": 5}
+  -- ]
+  
+  -- Assessment Tasks — aligned with ILOs
+  assessment_tasks TEXT NOT NULL DEFAULT '[]',
+  -- JSON: [
+  --   {"type":"quiz","format":"MCQ","bloom_level":3,"solo_target":4,"rubric_score_pass":3},
+  --   {"type":"project","format":"open_ended","bloom_level":5,"solo_target":5}
+  -- ]
+  
+  -- ADDIE stages documentation
+  addie_analysis TEXT,                -- Nhu cầu học, đặc điểm HS, constraints
+  addie_design TEXT,                  -- Quyết định thiết kế + rationale
+  addie_development TEXT,             -- Nội dung được tạo ra
+  addie_evaluation_plan TEXT,         -- Cách đo hiệu quả bài học
+  
+  -- Backward Design (Wiggins & McTighe)
+  desired_results TEXT,               -- Stage 1: Students will be able to...
+  evidence_of_learning TEXT,          -- Stage 2: AT descriptions
+  learning_plan TEXT,                 -- Stage 3: TLA summary
+  
+  is_current INTEGER DEFAULT 1,       -- 1 = current version
+  created_by TEXT,                    -- teacher/admin user_id
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_design_lesson ON lesson_design(lesson_id);
+CREATE INDEX IF NOT EXISTS idx_design_current ON lesson_design(lesson_id, is_current);
+
+-- ══════════════════════════════════════════════════════════
+-- SOLO ASSESSMENTS
+-- ══════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS solo_assessments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL,
+  lesson_id TEXT NOT NULL,
+  solo_level INTEGER NOT NULL CHECK (solo_level BETWEEN 1 AND 5),
+  assessor_type TEXT NOT NULL DEFAULT 'agent'
+    CHECK (assessor_type IN ('agent','teacher','self','peer')),
+  evidence TEXT,                      -- Ví dụ: câu trả lời của HS dẫn đến đánh giá này
+  notes TEXT,                         -- Ghi chú của assessor
+  session_id INTEGER REFERENCES lesson_sessions(id),
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_solo_user_lesson ON solo_assessments(user_id, lesson_id);
+CREATE INDEX IF NOT EXISTS idx_solo_created ON solo_assessments(created_at);
+
+-- ══════════════════════════════════════════════════════════
+-- AI LITERACY ASSESSMENTS (Southworth 5-type framework)
+-- ══════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS ai_literacy_assessments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL,
+  literacy_type TEXT NOT NULL
+    CHECK (literacy_type IN ('know_understand','use_apply','evaluate_create','ethics','career')),
+  rubric_score INTEGER NOT NULL CHECK (rubric_score BETWEEN 1 AND 4),
+  -- 1=Beginning, 2=Developing, 3=Proficient, 4=Exemplary (Southworth rubric)
+  normalized_score REAL NOT NULL CHECK (normalized_score BETWEEN 0.0 AND 1.0),
+  evidence TEXT,                      -- Sản phẩm học/bài làm dẫn đến điểm này
+  lesson_context TEXT,                -- lesson_id hoặc module context
+  assessor_type TEXT DEFAULT 'agent'
+    CHECK (assessor_type IN ('agent','teacher','self','peer')),
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_lit_user ON ai_literacy_assessments(user_id);
+CREATE INDEX IF NOT EXISTS idx_ai_lit_type ON ai_literacy_assessments(literacy_type);
+
+-- ══════════════════════════════════════════════════════════
+-- THRESHOLD CONCEPT TRACKING
+-- ══════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS threshold_progress (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL,
+  lesson_id TEXT NOT NULL,            -- lesson với threshold_concept = 1
+  status TEXT NOT NULL DEFAULT 'blocked'
+    CHECK (status IN ('blocked','liminal','passed')),
+  -- blocked: chưa hiểu; liminal: đang trong quá trình; passed: đã vượt qua
+  attempts INTEGER DEFAULT 0,         -- số lần thử
+  first_attempt TEXT,
+  breakthrough_at TEXT,               -- khi nào vượt threshold
+  notes TEXT,                         -- ghi chú từ teacher
+  UNIQUE(user_id, lesson_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_threshold_user ON threshold_progress(user_id);
+CREATE INDEX IF NOT EXISTS idx_threshold_status ON threshold_progress(status);
+```
+
+---
+
+## C.6 Cập nhật Curriculum Planner — Pseudocode nâng cấp
+
+### C.6.1 `curriculumPlanner.js` — Thêm xử lý SOLO + Threshold
+
+```javascript
+// ══════════════════════════════════════════════════════════
+// curriculumPlanner.js — Nâng cấp với Biggs & Tang framework
+// ══════════════════════════════════════════════════════════
+
+/**
+ * R_THRESHOLD — Threshold Concept Block (Biggs)
+ * Priority 1: Nếu lesson là threshold concept và HS chưa vượt qua
+ * → Block tiến bộ, force repair mode
+ */
+async function checkThresholdBlock(learner, lesson, db) {
+  if (!lesson.threshold_concept) return null;
+  
+  const progress = await db.prepare(
+    'SELECT status, attempts FROM threshold_progress WHERE user_id = ? AND lesson_id = ?'
+  ).bind(learner.user_id, lesson.lesson_id).first();
+  
+  if (!progress || progress.status === 'blocked') {
+    return {
+      rule: 'R_THRESHOLD',
+      decision: lesson.lesson_id, // Stay on same lesson
+      lesson_model: 'repair',
+      reason: `"${lesson.title}" là Threshold Concept — cần vượt qua trước khi tiến. ` +
+              `Đây là khái niệm cốt lõi thay đổi cách hiểu. Tiếp tục luyện tập với hỗ trợ.`,
+      confidence: 0.95
+    };
+  }
+  return null; // threshold passed, continue normal flow
+}
+
+/**
+ * R_DEEP — Surface to Deep Learning (Biggs)
+ * Nếu HS dùng surface approach và đã qua declarative phase
+ * → Chuyển sang functioning knowledge
+ */
+function checkDeepLearning(learner, lesson) {
+  if (learner.learning_approach !== 'surface') return null;
+  if (learner.consecutive_pass < 3) return null;
+  if (lesson.knowledge_type !== 'declarative') return null;
+  
+  return {
+    rule: 'R_DEEP',
+    lesson_model: 'case',  // case-based để kích hoạt functioning knowledge
+    reason: `Em đã nhớ tốt phần lý thuyết (declarative). ` +
+            `Giờ là lúc thử áp dụng vào bài toán thực tế (functioning knowledge).`,
+    confidence: 0.75
+  };
+}
+
+/**
+ * Tính SOLO level tiếp theo cần đạt
+ */
+function getNextSoloTarget(currentSolo, bloomLevel) {
+  // Map Bloom level → expected SOLO target
+  const bloomToSolo = { 1: 2, 2: 3, 3: 4, 4: 4, 5: 5, 6: 5 };
+  const targetFromBloom = bloomToSolo[bloomLevel] || 3;
+  return Math.min(targetFromBloom, currentSolo + 1);
+}
+
+/**
+ * Main planner function — nâng cấp
+ */
+export async function planNextLesson(learner, db) {
+  const currentLesson = await getLessonById(learner.current_lesson_id, db);
+  
+  // Priority 1: Threshold block (Biggs)
+  const thresholdBlock = await checkThresholdBlock(learner, currentLesson, db);
+  if (thresholdBlock) return thresholdBlock;
+  
+  // Priority 2: R01 Repair trigger (tích hợp SOLO)
+  const soloProfile = JSON.parse(learner.solo_profile || '{}');
+  const currentSolo = soloProfile[learner.current_lesson_id]?.achieved || 3;
+  if (learner.consecutive_fail >= 3 || currentSolo <= 2) {
+    return {
+      rule: 'R01',
+      decision: currentLesson.lesson_id, // repair current lesson
+      lesson_model: 'repair',
+      reason: `Em gặp khó khăn liên tiếp (SOLO level: ${currentSolo}/5). ` +
+              `Hãy ôn lại từ đầu với hướng dẫn chi tiết hơn.`,
+      confidence: 0.9
+    };
+  }
+  
+  // Priority 3: Deep learning shift (Biggs R_DEEP)
+  const deepShift = checkDeepLearning(learner, currentLesson);
+  if (deepShift) return deepShift;
+  
+  // ... tiếp tục R02-R09 như cũ ...
+}
+```
+
+### C.6.2 SOLO Assessment Engine
+
+```javascript
+/**
+ * assessSOLOLevel() — Tự động đánh giá SOLO level từ quiz response
+ * Input: câu trả lời HS + metadata bài
+ * Output: SOLO level 1-5 với evidence
+ */
+export function assessSOLOLevel(response, lesson) {
+  const { score, errors, hint_count, time_seconds, answer_text } = response;
+  
+  // Level 1 (Prestructural): không trả lời / hoàn toàn sai
+  if (score < 0.1 && errors.length > 3) return { level: 1, evidence: 'Câu trả lời hoàn toàn sai hoặc không liên quan' };
+  
+  // Level 2 (Unistructural): nhớ đúng công thức nhưng không áp dụng được
+  if (score >= 0.3 && score < 0.5 && hint_count >= 2) return { level: 2, evidence: 'Nhớ công thức nhưng cần gợi ý khi áp dụng' };
+  
+  // Level 3 (Multistructural): làm đúng từng bước riêng lẻ, không kết nối
+  if (score >= 0.5 && score < 0.7) return { level: 3, evidence: 'Làm đúng các bước cơ bản nhưng chưa liên kết tổng thể' };
+  
+  // Level 4 (Relational): hiểu kết nối, áp dụng đúng ngữ cảnh
+  if (score >= 0.7 && score < 0.9) return { level: 4, evidence: 'Áp dụng đúng trong ngữ cảnh, hiểu tại sao từng bước cần thiết' };
+  
+  // Level 5 (Extended Abstract): vượt ra ngoài bài, tổng quát hóa
+  if (score >= 0.9 && time_seconds < lesson.estimated_minutes * 30) 
+    return { level: 5, evidence: 'Giải nhanh, chính xác — có thể tổng quát hóa bài toán' };
+  
+  return { level: 4, evidence: 'Đạt yêu cầu cơ bản' };
+}
+```
+
+---
+
+## C.7 Lesson Builder UI — Nâng cấp Constructive Alignment
+
+### C.7.1 Form tạo bài học (Teacher Dashboard)
+
+Bổ sung vào form tạo bài học tại `teacher/dashboard.html`:
+
+```html
+<!-- Section: Constructive Alignment (Biggs) -->
+<div class="ca-section" style="border:1px solid var(--border);border-radius:8px;padding:16px;margin-top:16px;">
+  <h4 style="margin:0 0 12px;color:var(--primary);">
+    <i class="fas fa-bullseye"></i> Thiết kế Căn chỉnh (Constructive Alignment)
+  </h4>
+  
+  <!-- ILO Builder -->
+  <label>Mục tiêu học tập (ILOs) — "Sau bài này, học sinh có thể..."</label>
+  <div id="ilo-list">
+    <div class="ilo-row" style="display:flex;gap:8px;margin-bottom:8px;">
+      <select class="ilo-solo" style="width:120px;">
+        <option value="2">SOLO 2 — Nhắc lại</option>
+        <option value="3">SOLO 3 — Mô tả</option>
+        <option value="4" selected>SOLO 4 — Kết nối</option>
+        <option value="5">SOLO 5 — Khái quát</option>
+      </select>
+      <input type="text" class="ilo-verb" placeholder="Động từ (phân tích, áp dụng...)" style="width:160px;">
+      <input type="text" class="ilo-topic" placeholder="Chủ đề" style="flex:1;">
+      <button onclick="removeILO(this)">✕</button>
+    </div>
+  </div>
+  <button class="btn btn-outline btn-sm" onclick="addILO()">+ Thêm ILO</button>
+  
+  <!-- Knowledge Type -->
+  <div style="margin-top:12px;display:flex;gap:16px;">
+    <label><input type="radio" name="knowledge_type" value="declarative" checked> Declarative (biết VỀ)</label>
+    <label><input type="radio" name="knowledge_type" value="functioning"> Functioning (biết DÙNG)</label>
+    <label><input type="radio" name="knowledge_type" value="both"> Cả hai</label>
+  </div>
+  
+  <!-- Threshold Concept toggle -->
+  <div style="margin-top:8px;">
+    <label>
+      <input type="checkbox" id="threshold-toggle">
+      <b>Threshold Concept</b> — Khái niệm cốt lõi cần vượt trước khi tiến
+    </label>
+  </div>
+</div>
+
+<!-- Section: Kolb Cycle -->
+<div style="margin-top:12px;">
+  <label>Pha Kolb chính của bài học</label>
+  <select id="kolb-phase">
+    <option value="all">Đầy đủ 4 pha</option>
+    <option value="CE">CE — Trải nghiệm cụ thể</option>
+    <option value="RO">RO — Quan sát phản chiếu</option>
+    <option value="AC">AC — Khái niệm hóa trừu tượng</option>
+    <option value="AE">AE — Thử nghiệm chủ động</option>
+  </select>
+</div>
+```
+
+---
+
+## C.8 AI Literacy Dashboard (Student View)
+
+### C.8.1 Widget hiển thị AI Literacy Progress
+
+Bổ sung vào `student/dashboard.html`:
+
+```html
+<!-- AI Literacy Progress Card -->
+<div class="card" id="ai-literacy-card">
+  <div class="card-header">
+    <i class="fas fa-robot"></i> AI Literacy Progress
+    <span class="badge-info">Powered by Southworth Framework</span>
+  </div>
+  <div class="card-body">
+    <div id="ai-literacy-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <!-- Generated by JS -->
+    </div>
+  </div>
+</div>
+```
+
+```javascript
+const AI_LITERACY_LABELS = {
+  know_understand:  { label: 'Hiểu AI',        icon: 'fa-lightbulb',    color: '#2563EB' },
+  use_apply:        { label: 'Dùng AI',         icon: 'fa-tools',        color: '#16A34A' },
+  evaluate_create:  { label: 'Đánh giá AI',     icon: 'fa-balance-scale',color: '#D97706' },
+  ethics:           { label: 'Đạo đức AI',      icon: 'fa-shield-alt',   color: '#7C3AED' },
+  career:           { label: 'AI & Nghề nghiệp',icon: 'fa-briefcase',    color: '#E66000' },
+};
+
+function renderAILiteracyWidget(scores) {
+  const grid = document.getElementById('ai-literacy-grid');
+  if (!grid) return;
+  grid.innerHTML = Object.entries(AI_LITERACY_LABELS).map(([key, meta]) => {
+    const score = (scores[key] || 0) * 100;
+    const rubric = Math.ceil(score / 25); // 1-4 rubric score
+    const rubricLabels = ['', 'Beginning', 'Developing', 'Proficient', 'Exemplary'];
+    return `
+      <div style="background:var(--bg);border-radius:8px;padding:12px;">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+          <i class="fas ${meta.icon}" style="color:${meta.color}"></i>
+          <span style="font-size:12px;font-weight:600;">${meta.label}</span>
+        </div>
+        <div style="height:6px;background:var(--border);border-radius:100px;overflow:hidden;">
+          <div style="height:100%;width:${score}%;background:${meta.color};border-radius:100px;transition:width .5s;"></div>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">${rubricLabels[rubric]||'Chưa đánh giá'} (${Math.round(score)}%)</div>
+      </div>`;
+  }).join('');
+}
+```
+
+---
+
+## C.9 Tóm tắt ánh xạ 3 Khung → AURA
+
+| Khái niệm Sư phạm | Nguồn | AURA Implementation |
+|-------------------|-------|---------------------|
+| Constructive Alignment ILO→TLA→AT | Biggs & Tang | `lesson_design.ilos`, `lesson_design.tlas`, `lesson_design.assessment_tasks` |
+| SOLO Taxonomy 5 levels | Biggs & Tang | `lessons.solo_level`, `solo_assessments` table, `assessSOLOLevel()` function |
+| Declarative vs Functioning Knowledge | Biggs & Tang | `lessons.knowledge_type`, `learner_models.declarative_mastery`, `learner_models.functioning_mastery` |
+| Threshold Concepts | Biggs & Tang | `lessons.threshold_concept`, `threshold_progress` table, `R_THRESHOLD` rule |
+| Learning Approach surface/deep | Biggs & Tang | `learner_models.learning_approach`, `R_DEEP` rule |
+| ADDIE Model | Anders | `lesson_design.addie_*` fields |
+| Backward Design | Anders (Wiggins) | `lesson_design.desired_results`, `evidence_of_learning`, `learning_plan` |
+| Kolb's Cycle 4 phases | Anders | `lessons.kolb_phase`, `lesson_sessions.kolb_phase_experienced`, `R06` updated |
+| AI Literacy 4 components (TICRR) | Anders | AI Tutor prompt builder, `learner_models.ai_literacy_score` |
+| 5 AI Literacy SLOs | Southworth | `ai_literacy_assessments` table, `AI_LITERACY_LABELS` widget |
+| Rubric-based Mastery (4 levels) | Southworth | `ai_literacy_assessments.rubric_score` (1-4) |
+| Interdisciplinary AI integration | Southworth | `lessons.ai_literacy_type` field per lesson |
+
+---
+
+*Phần C tích hợp 3 khung sư phạm hiện đại vào kiến trúc AURA, đảm bảo hệ thống không chỉ là LMS kỹ thuật mà còn là hệ thống học tập thích nghi có căn cứ lý thuyết vững chắc.*
+
+*Cập nhật: 2026-04-06 | Nguồn bổ sung: Biggs & Tang (5th ed) + Anders (2026) + Southworth et al. (2023)*
