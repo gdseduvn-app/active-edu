@@ -55,6 +55,7 @@
   <div class="sb-item" onclick="showPanel('exams',this)"><i class="fas fa-file-pen"></i> Đề bài tập</div>
   <div class="sb-item" onclick="showPanel('analytics',this)"><i class="fas fa-graduation-cap"></i> Học tập</div>
   <div class="sb-item" onclick="showPanel('assessments',this)"><i class="fas fa-clipboard-question"></i> Bài kiểm tra</div>
+  <div class="sb-item" onclick="showPanel('outcomes',this)"><i class="fas fa-sitemap"></i> Chuẩn đầu ra</div>
   <div class="sb-item" onclick="showPanel('ai-agents',this)"><i class="fas fa-robot"></i> AI Agents</div>
   <div class="sb-item" onclick="showPanel('settings',this)"><i class="fas fa-gear"></i> Cài đặt</div>
 
@@ -161,6 +162,29 @@
           </div>
         </div>
 
+      </div>
+
+      <!-- System stats from /admin/stats -->
+      <div id="admin-sys-stats" style="margin-top:16px;display:none;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:10px;">Thống kê thời gian thực</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;">
+          <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;">
+            <div style="font-size:22px;font-weight:800;color:var(--primary)" id="rs-submissions">—</div>
+            <div style="font-size:11px;color:var(--text-muted)">Bài nộp hôm nay</div>
+          </div>
+          <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;">
+            <div style="font-size:22px;font-weight:800;color:#2563EB" id="rs-ai-queries">—</div>
+            <div style="font-size:11px;color:var(--text-muted)">AI queries hôm nay</div>
+          </div>
+          <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;">
+            <div style="font-size:22px;font-weight:800;color:#16A34A" id="rs-active-courses">—</div>
+            <div style="font-size:11px;color:var(--text-muted)">Khoá học đang mở</div>
+          </div>
+          <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;">
+            <div style="font-size:22px;font-weight:800;color:#7C3AED" id="rs-total-users">—</div>
+            <div style="font-size:11px;color:var(--text-muted)">Tổng người dùng</div>
+          </div>
+        </div>
       </div>
 
       <!-- hidden compat elements -->
@@ -1373,6 +1397,105 @@
     </div>
 
     <!-- ══ AI AGENTS ══════════════════════════════════ -->
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <!-- PANEL: OUTCOMES (CT GDPT 2018)                           -->
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <div class="panel" id="panel-outcomes">
+      <div class="page-header">
+        <div class="page-header-left">
+          <div class="page-title"><i class="fas fa-sitemap"></i> Chuẩn đầu ra (CT GDPT 2018)</div>
+          <div class="page-subtitle">Quản lý chuẩn đầu ra theo TT17/2025 · Gán Item → Outcome</div>
+        </div>
+        <div class="page-header-right" style="gap:8px">
+          <select id="outcomes-filter-subject" class="form-control" style="width:120px;font-size:13px" onchange="loadOutcomes()">
+            <option value="">Tất cả môn</option>
+            <option value="TOAN">Toán</option>
+            <option value="VAN">Ngữ Văn</option>
+            <option value="ENG">Tiếng Anh</option>
+            <option value="LY">Vật lý</option>
+            <option value="HOA">Hóa học</option>
+            <option value="SINH">Sinh học</option>
+            <option value="SU">Lịch sử</option>
+            <option value="DIA">Địa lý</option>
+            <option value="CHUNG">Phẩm chất / NL chung</option>
+          </select>
+          <select id="outcomes-filter-grade" class="form-control" style="width:110px;font-size:13px" onchange="loadOutcomes()">
+            <option value="">Tất cả lớp</option>
+            <option value="ALL">Chung</option>
+            <option value="L01">Lớp 1</option><option value="L02">Lớp 2</option>
+            <option value="L03">Lớp 3</option><option value="L04">Lớp 4</option>
+            <option value="L05">Lớp 5</option><option value="L06">Lớp 6</option>
+            <option value="L07">Lớp 7</option><option value="L08">Lớp 8</option>
+            <option value="L09">Lớp 9</option><option value="L10">Lớp 10</option>
+            <option value="L11">Lớp 11</option><option value="L12">Lớp 12</option>
+          </select>
+          <button class="btn btn-primary" onclick="loadOutcomes()"><i class="fas fa-sync-alt"></i> Tải</button>
+          <button class="btn btn-success" onclick="showAddOutcomeModal()"><i class="fas fa-plus"></i> Thêm chuẩn</button>
+        </div>
+      </div>
+
+      <!-- Stats strip -->
+      <div style="display:flex;gap:12px;margin-bottom:18px;flex-wrap:wrap" id="outcomes-stats"></div>
+
+      <!-- Outcomes table -->
+      <div class="table-container">
+        <table class="data-table" id="outcomes-table">
+          <thead>
+            <tr>
+              <th style="width:140px">Mã chuẩn</th>
+              <th style="width:80px">Môn</th>
+              <th style="width:70px">Lớp</th>
+              <th>Tên chuẩn đầu ra</th>
+              <th style="width:80px">Cấp độ</th>
+              <th style="width:70px">Giờ</th>
+              <th style="width:100px">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody id="outcomes-tbody">
+            <tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:32px">
+              Nhấn <b>Tải</b> để xem danh sách chuẩn đầu ra. Nếu bảng chưa tồn tại, vào <b>Cài đặt → Phase 1</b>.
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Research Agent quick-launch -->
+      <div style="margin-top:24px;padding:18px 20px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px">
+        <div style="font-weight:600;font-size:14px;color:#1e3a5f;margin-bottom:10px">
+          <i class="fas fa-flask" style="color:#7c3aed;margin-right:6px"></i>Research Agent — Chẩn đoán nhanh học sinh
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+          <div style="flex:1;min-width:180px">
+            <label style="font-size:12px;color:var(--text-muted);margin-bottom:4px;display:block">Student ID</label>
+            <input type="text" id="ra-student-id" class="form-control" placeholder="VD: 42" style="font-size:13px">
+          </div>
+          <div style="flex:1;min-width:180px">
+            <label style="font-size:12px;color:var(--text-muted);margin-bottom:4px;display:block">Course ID</label>
+            <input type="text" id="ra-course-id" class="form-control" placeholder="VD: 5" style="font-size:13px">
+          </div>
+          <div style="flex:1;min-width:160px">
+            <label style="font-size:12px;color:var(--text-muted);margin-bottom:4px;display:block">Chế độ</label>
+            <select id="ra-mode" class="form-control" style="font-size:13px">
+              <option value="diagnose">Chẩn đoán (diagnose)</option>
+              <option value="predict">Dự đoán (predict)</option>
+              <option value="plan">Lập kế hoạch (plan)</option>
+              <option value="risk">Phân tích lớp (risk)</option>
+              <option value="freeform">Tự do (freeform)</option>
+            </select>
+          </div>
+          <div style="flex:2;min-width:220px">
+            <label style="font-size:12px;color:var(--text-muted);margin-bottom:4px;display:block">Task / câu hỏi nghiên cứu</label>
+            <input type="text" id="ra-task" class="form-control" placeholder="VD: Phân tích điểm yếu môn Toán của học sinh này" style="font-size:13px">
+          </div>
+          <button class="btn btn-primary" onclick="runResearchAgent()" id="btn-run-agent">
+            <i class="fas fa-flask"></i> Chạy Agent
+          </button>
+        </div>
+        <div id="ra-result" style="display:none;margin-top:14px;padding:14px 16px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;max-height:400px;overflow:auto">
+        </div>
+      </div>
+    </div>
+
     <div class="panel" id="panel-ai-agents">
 
       <!-- Header -->
@@ -1595,6 +1718,73 @@
         </div>
       </div>
 
+      <!-- Google Drive Storage -->
+      <div class="settings-section" id="drive-settings-section">
+        <div class="settings-hd"><i class="fab fa-google-drive" style="color:#1FA463"></i> Google Drive — Lưu trữ tài liệu</div>
+        <div class="settings-body">
+
+          <!-- Current status card -->
+          <div id="drive-status-card" style="padding:12px 14px;background:var(--hover);border-radius:8px;border-left:3px solid #ccc;font-size:13px;color:var(--text);line-height:1.8;margin-bottom:16px;">
+            <i class="fas fa-spinner fa-spin" style="margin-right:6px;color:var(--text-muted)"></i> Đang kiểm tra cấu hình...
+          </div>
+
+          <!-- Folder input -->
+          <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:flex-end;margin-bottom:12px;">
+            <div class="form-group" style="margin:0">
+              <label style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:6px;">
+                URL hoặc Folder ID thư mục Google Drive
+              </label>
+              <input type="text" id="drive-folder-input"
+                class="form-control"
+                placeholder="https://drive.google.com/drive/folders/1ABC…  hoặc  1ABC123XYZ"
+                style="font-family:monospace;font-size:13px;">
+              <div style="font-size:11px;color:var(--text-muted);margin-top:5px;">
+                <i class="fas fa-info-circle"></i>
+                Dán link thư mục Drive hoặc nhập trực tiếp Folder ID. Phải chia sẻ thư mục với email Service Account.
+              </div>
+            </div>
+            <button class="btn btn-success" onclick="saveDriveFolder()" id="btn-save-drive" style="white-space:nowrap;height:40px;">
+              <i class="fas fa-save"></i> Lưu
+            </button>
+          </div>
+
+          <!-- Action buttons -->
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+            <button class="btn" style="background:#1FA463;color:#fff;" onclick="testDriveConnection()" id="btn-test-drive">
+              <i class="fas fa-plug"></i> Kiểm tra kết nối
+            </button>
+            <button class="btn btn-outline" onclick="loadDriveSettings()" id="btn-refresh-drive">
+              <i class="fas fa-rotate"></i> Làm mới
+            </button>
+            <a id="drive-folder-link" href="#" target="_blank" style="display:none;" class="btn btn-outline">
+              <i class="fab fa-google-drive"></i> Mở thư mục Drive
+            </a>
+          </div>
+
+          <div id="drive-action-result" style="display:none;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:12px;"></div>
+
+          <!-- Setup guide (collapsible) -->
+          <details style="background:var(--hover);border-radius:8px;padding:2px;">
+            <summary style="padding:10px 14px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text-muted);">
+              <i class="fas fa-book-open" style="margin-right:6px;"></i> Hướng dẫn cấu hình Google Drive
+            </summary>
+            <div style="padding:12px 16px 14px;font-size:13px;line-height:1.9;border-top:1px solid var(--border);margin-top:2px;">
+              <b>Bước 1 — Tạo Service Account (nếu chưa có)</b><br>
+              Vào <a href="https://console.cloud.google.com/iam-admin/serviceaccounts" target="_blank">Google Cloud Console</a> → tạo Service Account → tạo JSON Key → copy toàn bộ nội dung file JSON.<br><br>
+              <b>Bước 2 — Cấu hình Cloudflare Worker Secrets</b><br>
+              <code style="background:var(--card);padding:2px 6px;border-radius:4px;font-size:12px;">GDRIVE_SA_JSON</code> = toàn bộ nội dung file JSON service account<br><br>
+              <b>Bước 3 — Tạo thư mục Google Drive</b><br>
+              Tạo thư mục mới trong Google Drive → chuột phải → <b>Chia sẻ</b> → nhập email của Service Account → cấp quyền <b>Editor</b>.<br><br>
+              <b>Bước 4 — Cấu hình bảng Settings (cho lưu trữ động)</b><br>
+              Tạo bảng <code style="background:var(--card);padding:2px 6px;border-radius:4px;font-size:12px;">Settings</code> trong NocoDB với 3 cột: <code>Key</code> (Text), <code>Value</code> (Long Text), <code>UpdatedAt</code> (DateTime).<br>
+              Copy Table ID → Cloudflare → Worker → Environment Variables → thêm <code>NOCO_SETTINGS = &lt;Table ID&gt;</code> → Deploy lại.<br><br>
+              <b>Bước 5</b><br>
+              Quay lại trang này → nhập URL thư mục Drive → nhấn <b>Kiểm tra kết nối</b> → nhấn <b>Lưu</b>.
+            </div>
+          </details>
+        </div>
+      </div>
+
       <!-- NocoDB -->
       <div class="settings-section">
         <div class="settings-hd"><i class="fas fa-database" style="color:var(--teal)"></i> Kết nối NocoDB</div>
@@ -1635,6 +1825,44 @@
               </button>
             </div>
             <div id="setup-ai-result" style="display:none;padding:10px 14px;border-radius:8px;font-size:13px"></div>
+
+            <!-- Phase 1: Outcomes + Alignments + Student_Mastery -->
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;gap:16px">
+              <div>
+                <div style="font-weight:600;font-size:14px;color:#1e3a8a;margin-bottom:4px">
+                  <i class="fas fa-sitemap" style="margin-right:6px"></i>Phase 1 — Bảng Outcomes + Alignments + Student_Mastery
+                </div>
+                <div style="font-size:12.5px;color:#1d4ed8;line-height:1.5">
+                  Tạo 3 bảng NocoDB cho chuẩn đầu ra CT GDPT 2018 (TT17/2025).<br>
+                  Sau khi tạo, copy Table ID từ kết quả vào <code>wrangler.toml</code> rồi deploy lại.
+                </div>
+              </div>
+              <button class="btn" id="btn-setup-phase1"
+                style="background:#2563eb;color:#fff;border:none;white-space:nowrap;flex-shrink:0"
+                onclick="runSetupPhase1()">
+                <i class="fas fa-database"></i> Tạo bảng Phase 1
+              </button>
+            </div>
+            <div id="setup-phase1-result" style="display:none;padding:10px 14px;border-radius:8px;font-size:13px"></div>
+
+            <!-- Seed CT GDPT 2018 Outcomes -->
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;gap:16px">
+              <div>
+                <div style="font-weight:600;font-size:14px;color:#14532d;margin-bottom:4px">
+                  <i class="fas fa-seedling" style="margin-right:6px"></i>Seed Chuẩn đầu ra CT GDPT 2018
+                </div>
+                <div style="font-size:12.5px;color:#15803d;line-height:1.5">
+                  Tự động nhập 5 phẩm chất, 10 năng lực chung và chuẩn đầu ra các môn học vào bảng Outcomes.<br>
+                  Yêu cầu: đã chạy "Tạo bảng Phase 1" và đã set NOCO_OUTCOMES trong wrangler.toml.
+                </div>
+              </div>
+              <button class="btn" id="btn-seed-outcomes"
+                style="background:#16a34a;color:#fff;border:none;white-space:nowrap;flex-shrink:0"
+                onclick="runSeedOutcomes()">
+                <i class="fas fa-seedling"></i> Seed Outcomes
+              </button>
+            </div>
+            <div id="seed-outcomes-result" style="display:none;padding:10px 14px;border-radius:8px;font-size:13px"></div>
 
           </div>
         </div>

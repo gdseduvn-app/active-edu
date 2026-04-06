@@ -1,0 +1,1348 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ActiveEdu — Học sinh</title>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<style>
+:root {
+  --primary: #E66000;
+  --primary-dark: #C55500;
+  --primary-light: #FF8C3A;
+  --sidebar-bg: #2D3B45;
+  --topbar-h: 58px;
+  --bg: #F5F5F5;
+  --card-bg: #FFFFFF;
+  --border: #E1E5E8;
+  --text: #2D3B45;
+  --text-muted: #6B7B8A;
+  --text-subtle: #9AAAB5;
+  --success: #16A34A;
+  --warning: #D97706;
+  --danger: #DC2626;
+  --r: 6px;
+  --shadow: 0 1px 3px rgba(0,0,0,.08);
+  --shadow-md: 0 4px 14px rgba(0,0,0,.10);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Be Vietnam Pro', sans-serif; font-size: 14px; color: var(--text); background: var(--bg); }
+
+/* ── TOP NAV ── */
+.top-nav {
+  height: var(--topbar-h);
+  background: var(--sidebar-bg);
+  display: flex; align-items: center;
+  padding: 0 24px;
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,.15);
+}
+.nav-logo { display: flex; align-items: center; gap: 10px; margin-right: 32px; text-decoration: none; }
+.nav-logo-icon { width: 32px; height: 32px; background: var(--primary); border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 15px; color: #fff; }
+.nav-logo-name { font-weight: 700; font-size: 16px; color: #fff; }
+.nav-logo-name span { color: var(--primary-light); }
+
+.nav-items { display: flex; align-items: center; gap: 2px; }
+.nav-item {
+  padding: 8px 14px;
+  color: rgba(199,211,217,.8);
+  cursor: pointer; border-radius: var(--r);
+  font-size: 13px; font-weight: 500;
+  transition: all .15s; border: none; background: none;
+  display: flex; align-items: center; gap: 7px;
+}
+.nav-item:hover { background: rgba(255,255,255,.08); color: #fff; }
+.nav-item.active { background: rgba(230,96,0,.2); color: #fff; }
+.nav-item i { font-size: 13px; }
+
+.nav-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.nav-notif { position: relative; background: none; border: none; color: rgba(199,211,217,.8); font-size: 17px; cursor: pointer; padding: 6px; border-radius: var(--r); }
+.nav-notif:hover { color: #fff; background: rgba(255,255,255,.08); }
+.nav-notif-badge { position: absolute; top: 1px; right: 1px; width: 14px; height: 14px; background: var(--primary); color: #fff; font-size: 9px; font-weight: 700; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.nav-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--primary); color: #fff; border: 2px solid rgba(255,255,255,.2); font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.nav-avatar:hover { border-color: #fff; }
+.nav-username { font-size: 13px; color: rgba(199,211,217,.9); font-weight: 500; }
+
+/* ── MOBILE NAV ── */
+.mobile-menu-btn { display: none; background: none; border: none; color: rgba(199,211,217,.9); font-size: 20px; cursor: pointer; padding: 6px; }
+.mobile-nav-drawer { display: none; position: fixed; inset: 0; z-index: 200; }
+.mobile-nav-overlay { position: absolute; inset: 0; background: rgba(0,0,0,.5); }
+.mobile-nav-panel { position: absolute; left: 0; top: 0; bottom: 0; width: 260px; background: var(--sidebar-bg); padding: 20px 0; overflow-y: auto; }
+.mobile-nav-drawer.open { display: block; }
+.mobile-nav-item { display: flex; align-items: center; gap: 10px; padding: 11px 20px; color: rgba(199,211,217,.85); font-size: 14px; cursor: pointer; }
+.mobile-nav-item:hover { background: rgba(255,255,255,.06); color: #fff; }
+.mobile-nav-item.active { background: rgba(230,96,0,.15); color: #fff; border-left: 3px solid var(--primary); }
+
+/* ── MAIN ── */
+main { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* ── WELCOME BANNER ── */
+.welcome-banner {
+  background: linear-gradient(135deg, var(--sidebar-bg) 0%, #3D4F5C 100%);
+  border-radius: 10px; padding: 22px 24px;
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 22px; color: #fff;
+  overflow: hidden; position: relative;
+}
+.welcome-banner::after { content: ''; position: absolute; right: -40px; top: -40px; width: 180px; height: 180px; background: var(--primary); opacity: .07; border-radius: 50%; }
+.welcome-title { font-size: 20px; font-weight: 700; }
+.welcome-sub { font-size: 13px; opacity: .7; margin-top: 3px; }
+.welcome-stats { display: flex; gap: 24px; }
+.welcome-stat-val { font-size: 22px; font-weight: 800; color: var(--primary-light); }
+.welcome-stat-lbl { font-size: 11px; opacity: .6; }
+
+/* ── CARDS ── */
+.card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--r); box-shadow: var(--shadow); }
+.card-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-bottom: 1px solid var(--border); }
+.card-title { font-size: 14px; font-weight: 600; }
+.card-body { padding: 18px; }
+
+/* ── COURSE CARDS ── */
+.course-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.course-card {
+  background: var(--card-bg); border: 1px solid var(--border);
+  border-radius: 8px; overflow: hidden;
+  box-shadow: var(--shadow); transition: box-shadow .2s, transform .15s;
+  cursor: pointer;
+}
+.course-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.course-card-banner {
+  height: 80px; display: flex; align-items: flex-end; padding: 10px 14px;
+  position: relative;
+}
+.course-card-banner::before { content: ''; position: absolute; inset: 0; background: rgba(0,0,0,.18); }
+.course-card-banner-title { position: relative; color: #fff; font-weight: 700; font-size: 14px; line-height: 1.3; text-shadow: 0 1px 3px rgba(0,0,0,.3); }
+.course-card-body { padding: 14px; }
+.course-card-teacher { font-size: 12px; color: var(--text-muted); margin-bottom: 10px; display: flex; align-items: center; gap: 5px; }
+.progress-wrap { margin-bottom: 4px; }
+.progress-bg { background: var(--bg); border-radius: 100px; height: 6px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 100px; background: var(--primary); transition: width .6s; }
+.progress-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+.course-card-footer { padding: 10px 14px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+
+/* ── BUTTONS ── */
+.btn { display: inline-flex; align-items: center; gap: 7px; padding: 7px 14px; border-radius: var(--r); font-size: 13px; font-weight: 500; border: 1px solid transparent; cursor: pointer; transition: all .15s; white-space: nowrap; font-family: inherit; }
+.btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-outline { background: transparent; color: var(--text); border-color: var(--border); }
+.btn-outline:hover { background: var(--bg); }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+.btn-ghost { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 5px 8px; border-radius: var(--r); font-family: inherit; font-size: 13px; }
+.btn-ghost:hover { background: var(--bg); color: var(--text); }
+
+/* ── BADGES ── */
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 100px; font-size: 11px; font-weight: 500; }
+.badge-green { background: #DCFCE7; color: #15803D; }
+.badge-gray { background: #F1F5F9; color: #64748B; }
+.badge-orange { background: #FFF7ED; color: #C2410C; }
+.badge-blue { background: #EFF6FF; color: #1D4ED8; }
+.badge-red { background: #FEF2F2; color: #DC2626; }
+.badge-yellow { background: #FEFCE8; color: #A16207; }
+
+/* ── LAYOUT ── */
+.two-col { display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
+.two-col-main { min-width: 0; }
+
+/* ── SUBMISSION LIST ── */
+.submission-list { list-style: none; }
+.submission-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.submission-item:last-child { border-bottom: none; }
+.submission-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+.submission-icon.green { background: #DCFCE7; color: #16A34A; }
+.submission-icon.yellow { background: #FEF9C3; color: #A16207; }
+.submission-icon.orange { background: #FFF7ED; color: var(--primary); }
+.submission-icon.blue { background: #DBEAFE; color: #2563EB; }
+.submission-info { flex: 1; min-width: 0; }
+.submission-title { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.submission-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.submission-score { font-size: 16px; font-weight: 800; }
+
+/* ── ASSIGNMENT ALERTS ── */
+.assignment-alert {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 12px 0; border-bottom: 1px solid var(--border);
+}
+.assignment-alert:last-child { border-bottom: none; }
+.alert-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+.alert-dot.overdue { background: var(--danger); }
+.alert-dot.upcoming { background: var(--warning); }
+.alert-dot.normal { background: #94A3B8; }
+.alert-title { font-size: 13px; font-weight: 500; }
+.alert-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ── GRADES TABLE ── */
+.grades-table th, .grades-table td { padding: 11px 16px; }
+.grade-score { font-weight: 700; font-size: 15px; }
+
+/* ── MASTERY BARS ── */
+.bkt-list { display: flex; flex-direction: column; gap: 14px; }
+.bkt-item { }
+.bkt-header { display: flex; justify-content: space-between; margin-bottom: 5px; }
+.bkt-subject { font-size: 13px; font-weight: 600; }
+.bkt-score { font-size: 13px; font-weight: 700; }
+.bkt-bar-bg { height: 10px; background: var(--bg); border-radius: 100px; overflow: hidden; }
+.bkt-bar-fill { height: 100%; border-radius: 100px; transition: width .8s ease; }
+.bkt-detail { font-size: 11px; color: var(--text-muted); margin-top: 3px; display: flex; justify-content: space-between; }
+
+/* ── AI TUTOR WIDGET ── */
+#ai-tutor-widget {
+  position: fixed;
+  bottom: 20px; right: 20px;
+  z-index: 500;
+  font-family: 'Be Vietnam Pro', sans-serif;
+}
+.ai-tutor-toggle {
+  width: 52px; height: 52px;
+  background: var(--primary);
+  border-radius: 50%;
+  border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; color: #fff;
+  box-shadow: 0 4px 16px rgba(230,96,0,.4);
+  transition: transform .2s, box-shadow .2s;
+  float: right;
+}
+.ai-tutor-toggle:hover { transform: scale(1.08); box-shadow: 0 6px 20px rgba(230,96,0,.5); }
+.ai-tutor-box {
+  display: none;
+  width: 340px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.15);
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.ai-tutor-box.open { display: block; }
+.ai-tutor-header {
+  background: var(--sidebar-bg);
+  padding: 12px 16px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.ai-tutor-header-title { color: #fff; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.ai-tutor-header-title i { color: var(--primary-light); }
+.ai-tutor-close { background: none; border: none; color: rgba(255,255,255,.6); font-size: 16px; cursor: pointer; }
+.ai-tutor-close:hover { color: #fff; }
+.ai-tutor-msgs {
+  height: 260px; overflow-y: auto; padding: 12px;
+  display: flex; flex-direction: column; gap: 8px;
+  background: var(--bg);
+}
+.ai-msg { max-width: 85%; padding: 9px 12px; border-radius: 10px; font-size: 13px; line-height: 1.5; }
+.ai-msg.bot { background: #fff; border: 1px solid var(--border); border-bottom-left-radius: 3px; align-self: flex-start; }
+.ai-msg.user { background: var(--primary); color: #fff; border-bottom-right-radius: 3px; align-self: flex-end; }
+.ai-msg.thinking { background: #fff; border: 1px solid var(--border); align-self: flex-start; }
+.ai-tutor-input-area { padding: 10px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
+.ai-tutor-input { flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: 20px; font-size: 13px; outline: none; font-family: inherit; }
+.ai-tutor-input:focus { border-color: var(--primary); }
+.ai-tutor-send { width: 34px; height: 34px; border-radius: 50%; background: var(--primary); border: none; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.ai-tutor-send:hover { background: var(--primary-dark); }
+
+/* ── CALENDAR WIDGET ── */
+.calendar-day { display: flex; flex-direction: column; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.cal-day-name { text-align: center; font-size: 10px; font-weight: 600; color: var(--text-muted); padding: 4px 0; }
+.cal-day { text-align: center; font-size: 12px; padding: 5px 2px; border-radius: 4px; cursor: default; }
+.cal-day.other { color: var(--text-subtle); }
+.cal-day.today { background: var(--primary); color: #fff; font-weight: 700; }
+.cal-day.has-event { position: relative; font-weight: 600; }
+.cal-day.has-event::after { content: ''; position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; background: var(--primary); border-radius: 50%; }
+
+/* ── SPINNER ── */
+.spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin .6s linear infinite; vertical-align: middle; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-placeholder { text-align: center; padding: 32px; color: var(--text-muted); }
+
+/* ── TOAST ── */
+#toast-container { position: fixed; bottom: 84px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+.toast { background: #1E293B; color: #fff; padding: 10px 14px; border-radius: var(--r); font-size: 13px; display: flex; align-items: center; gap: 8px; box-shadow: var(--shadow-md); min-width: 220px; max-width: 320px; }
+@keyframes slideIn { from { transform: translateX(20px); opacity:0; } to { transform: translateX(0); opacity:1; } }
+
+/* ── GRADES PANEL ── */
+.grade-summary { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-bottom: 20px; }
+.grade-stat { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--r); padding: 14px 16px; text-align: center; }
+.grade-stat-val { font-size: 28px; font-weight: 800; }
+.grade-stat-lbl { font-size: 12px; color: var(--text-muted); }
+
+/* ── PROFILE ── */
+.profile-header { display: flex; align-items: center; gap: 20px; padding: 20px; background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--r); margin-bottom: 20px; }
+.profile-avatar { width: 72px; height: 72px; border-radius: 50%; background: var(--primary); color: #fff; font-size: 28px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 900px) {
+  .nav-items { display: none; }
+  .mobile-menu-btn { display: block; }
+  .two-col { grid-template-columns: 1fr; }
+  .welcome-stats { display: none; }
+  .ai-tutor-box { width: 300px; }
+}
+@media (max-width: 600px) {
+  main { padding: 14px; }
+  .course-grid { grid-template-columns: 1fr; }
+  .grade-summary { grid-template-columns: repeat(2,1fr); }
+  #ai-tutor-widget { bottom: 14px; right: 14px; }
+}
+</style>
+</head>
+<body>
+
+<!-- TOP NAV -->
+<nav class="top-nav">
+  <a class="nav-logo" href="#">
+    <div class="nav-logo-icon"><i class="fas fa-bolt"></i></div>
+    <span class="nav-logo-name">Active<span>Edu</span></span>
+  </a>
+
+  <div class="nav-items">
+    <button class="nav-item active" onclick="showPanel('dashboard',this)"><i class="fas fa-home"></i> Dashboard</button>
+    <button class="nav-item" onclick="showPanel('courses',this)"><i class="fas fa-book-open"></i> Khoá học</button>
+    <button class="nav-item" onclick="showPanel('grades',this)"><i class="fas fa-chart-bar"></i> Điểm số</button>
+    <button class="nav-item" onclick="showPanel('calendar',this)"><i class="fas fa-calendar"></i> Lịch học</button>
+    <button class="nav-item" onclick="toggleAITutor()"><i class="fas fa-robot"></i> AI Gia sư</button>
+  </div>
+
+  <div class="nav-right">
+    <button class="nav-notif" title="Thông báo">
+      <i class="fas fa-bell"></i>
+      <div class="nav-notif-badge" id="notif-count-student" style="display:none"></div>
+    </button>
+    <span class="nav-username" id="nav-username">Học sinh</span>
+    <div class="nav-avatar" id="nav-avatar" onclick="showPanel('profile',document.querySelector('.nav-item:nth-child(6)'))">H</div>
+    <button class="mobile-menu-btn" onclick="openMobileNav()"><i class="fas fa-bars"></i></button>
+  </div>
+</nav>
+
+<!-- MOBILE NAV -->
+<div class="mobile-nav-drawer" id="mobile-nav">
+  <div class="mobile-nav-overlay" onclick="closeMobileNav()"></div>
+  <div class="mobile-nav-panel">
+    <div style="padding:16px 20px 20px;border-bottom:1px solid rgba(255,255,255,.07)">
+      <div style="font-weight:700;font-size:16px;color:#fff">Active<span style="color:var(--primary-light)">Edu</span></div>
+    </div>
+    <div class="mobile-nav-item active" onclick="showPanel('dashboard');closeMobileNav()"><i class="fas fa-home" style="width:20px;text-align:center"></i> Dashboard</div>
+    <div class="mobile-nav-item" onclick="showPanel('courses');closeMobileNav()"><i class="fas fa-book-open" style="width:20px;text-align:center"></i> Khoá học</div>
+    <div class="mobile-nav-item" onclick="showPanel('grades');closeMobileNav()"><i class="fas fa-chart-bar" style="width:20px;text-align:center"></i> Điểm số</div>
+    <div class="mobile-nav-item" onclick="showPanel('calendar');closeMobileNav()"><i class="fas fa-calendar" style="width:20px;text-align:center"></i> Lịch học</div>
+    <div class="mobile-nav-item" onclick="toggleAITutor();closeMobileNav()"><i class="fas fa-robot" style="width:20px;text-align:center"></i> AI Gia sư</div>
+    <div class="mobile-nav-item" onclick="doLogout()" style="color:rgba(239,68,68,.8);margin-top:auto"><i class="fas fa-right-from-bracket" style="width:20px;text-align:center"></i> Đăng xuất</div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<main>
+
+  <!-- ══ DASHBOARD ══ -->
+  <div class="panel active" id="panel-dashboard">
+
+    <!-- Welcome banner -->
+    <div class="welcome-banner">
+      <div>
+        <div class="welcome-title">Chào mừng trở lại, <span id="welcome-name">Học sinh</span>! 👋</div>
+        <div class="welcome-sub" id="welcome-date">Thứ Hai, ngày 06 tháng 1 năm 2025</div>
+      </div>
+      <div class="welcome-stats">
+        <div>
+          <div class="welcome-stat-val" id="ws-courses">—</div>
+          <div class="welcome-stat-lbl">Khoá học</div>
+        </div>
+        <div>
+          <div class="welcome-stat-val" id="ws-avg">—</div>
+          <div class="welcome-stat-lbl">Điểm TB</div>
+        </div>
+        <div>
+          <div class="welcome-stat-val" id="ws-streak">—</div>
+          <div class="welcome-stat-lbl">🔥 Ngày liên tiếp</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="two-col-main">
+
+        <!-- Recent submissions -->
+        <div class="card" style="margin-bottom:20px">
+          <div class="card-header">
+            <span class="card-title"><i class="fas fa-file-circle-check" style="color:var(--primary);margin-right:6px"></i> Bài nộp gần đây</span>
+            <button class="btn-ghost btn-sm" onclick="showPanel('grades',document.querySelector('.nav-item:nth-child(3)'))">Xem tất cả</button>
+          </div>
+          <div class="card-body" style="padding:0 18px">
+            <ul class="submission-list" id="recent-submissions">
+              <li class="loading-placeholder"><span class="spinner"></span> Đang tải...</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- BKT Mastery chart -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fas fa-brain" style="color:var(--primary);margin-right:6px"></i> Tiến độ học theo Chuẩn đầu ra</span>
+            <span style="font-size:12px;color:var(--text-muted)">Mô hình BKT</span>
+          </div>
+          <div class="card-body">
+            <div class="bkt-list" id="bkt-bars">
+              <div class="loading-placeholder"><span class="spinner"></span> Đang tải...</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right sidebar -->
+      <div>
+
+        <!-- Upcoming/overdue -->
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-header">
+            <span class="card-title"><i class="fas fa-clock" style="color:var(--warning);margin-right:6px"></i> Sắp đến hạn</span>
+          </div>
+          <div class="card-body" style="padding:0 18px">
+            <div id="upcoming-assignments">
+              <div class="loading-placeholder" style="padding:16px"><span class="spinner"></span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Achievements & streak -->
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-header">
+            <span class="card-title"><i class="fas fa-trophy" style="color:var(--warning);margin-right:6px"></i> Thành tích</span>
+          </div>
+          <div class="card-body" id="achievements-section">
+            <div class="loading-placeholder" style="padding:8px"><span class="spinner"></span> Đang tải...</div>
+          </div>
+        </div>
+
+        <!-- Quick links -->
+        <div class="card">
+          <div class="card-header"><span class="card-title">Truy cập nhanh</span></div>
+          <div class="card-body" style="display:flex;flex-direction:column;gap:7px;padding:12px">
+            <button class="btn btn-primary" onclick="toggleAITutor(true)" style="justify-content:center;width:100%">
+              <i class="fas fa-robot"></i> Hỏi AI Gia sư
+            </button>
+            <button class="btn btn-outline" onclick="showPanel('grades',document.querySelector('.nav-item:nth-child(3)'))" style="justify-content:center;width:100%">
+              <i class="fas fa-chart-bar"></i> Xem điểm số
+            </button>
+            <a href="../discussions.html" class="btn btn-outline" style="justify-content:center;width:100%;text-decoration:none">
+              <i class="fas fa-comments"></i> Thảo luận
+            </a>
+            <a href="../messages.html" class="btn btn-outline" style="justify-content:center;width:100%;text-decoration:none">
+              <i class="fas fa-envelope"></i> Tin nhắn
+            </a>
+            <a href="../calendar.html" class="btn btn-outline" style="justify-content:center;width:100%;text-decoration:none">
+              <i class="fas fa-calendar-check"></i> Lịch học
+            </a>
+            <a href="../portfolio.html" class="btn btn-outline" style="justify-content:center;width:100%;text-decoration:none">
+              <i class="fas fa-briefcase"></i> ePortfolio
+            </a>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ COURSES ══ -->
+  <div class="panel" id="panel-courses">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+      <div>
+        <h1 style="font-size:20px;font-weight:700">Khoá học của tôi</h1>
+        <p style="font-size:12px;color:var(--text-muted);margin-top:2px" id="courses-enrolled-count">Đang tải...</p>
+      </div>
+      <button onclick="openJoinModal()" style="padding:8px 16px;background:var(--primary);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px">
+        <i class="fas fa-plus"></i> Tham gia bằng mã
+      </button>
+    </div>
+    <!-- Favorites first -->
+    <div id="fav-section" style="display:none;margin-bottom:16px">
+      <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px"><i class="fas fa-star" style="color:#F59E0B"></i> Yêu thích</div>
+      <div class="course-grid" id="fav-cards"></div>
+    </div>
+    <div class="course-grid" id="course-cards">
+      <div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-muted)">
+        <span class="spinner"></span> Đang tải khoá học...
+      </div>
+    </div>
+  </div>
+
+  <!-- JOIN BY CODE MODAL -->
+  <div id="join-modal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.5);align-items:center;justify-content:center">
+    <div style="background:#fff;border-radius:12px;width:380px;max-width:95vw;padding:28px;box-shadow:0 24px 64px rgba(0,0,0,.2)">
+      <h3 style="font-size:16px;font-weight:700;margin-bottom:16px"><i class="fas fa-key" style="color:var(--primary)"></i> Tham gia khoá học</h3>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px">Nhập mã tham gia do giáo viên cung cấp</p>
+      <input type="text" id="join-code-input" placeholder="VD: MATH10A" maxlength="20"
+        style="width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:var(--r);font-size:16px;font-family:inherit;text-align:center;text-transform:uppercase;letter-spacing:3px;outline:none;margin-bottom:10px"
+        oninput="this.value=this.value.toUpperCase()"
+        onkeydown="if(event.key==='Enter')submitJoinCode()">
+      <div id="join-err" style="color:#DC2626;font-size:13px;margin-bottom:10px;display:none"></div>
+      <div style="display:flex;gap:8px">
+        <button onclick="document.getElementById('join-modal').style.display='none'" style="flex:1;padding:10px;background:none;border:1.5px solid var(--border);border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Hủy</button>
+        <button onclick="submitJoinCode()" style="flex:1;padding:10px;background:var(--primary);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Tham gia</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ GRADES ══ -->
+  <div class="panel" id="panel-grades">
+    <div style="margin-bottom:20px">
+      <h1 style="font-size:20px;font-weight:700">Điểm số</h1>
+      <p style="font-size:12px;color:var(--text-muted);margin-top:2px">Tổng hợp kết quả học tập của bạn</p>
+    </div>
+
+    <div class="grade-summary">
+      <div class="grade-stat">
+        <div class="grade-stat-val" id="g-avg" style="color:var(--primary)">—</div>
+        <div class="grade-stat-lbl">Điểm trung bình</div>
+      </div>
+      <div class="grade-stat">
+        <div class="grade-stat-val" id="g-rank">—</div>
+        <div class="grade-stat-lbl">Xếp hạng lớp</div>
+      </div>
+      <div class="grade-stat">
+        <div class="grade-stat-val" id="g-done">—</div>
+        <div class="grade-stat-lbl">Bài đã nộp</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-header">
+        <span class="card-title">Điểm theo môn học</span>
+        <select class="select-filter" id="grade-term-filter">
+          <option>HK1 2024-2025</option>
+          <option>HK2 2024-2025</option>
+        </select>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="grades-table" style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr style="background:var(--bg)">
+              <th style="padding:11px 16px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);font-weight:600;border-bottom:1px solid var(--border)">Bài tập / Kỳ thi</th>
+              <th style="padding:11px 16px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);font-weight:600;border-bottom:1px solid var(--border)">Khoá học</th>
+              <th style="padding:11px 16px;text-align:center;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);font-weight:600;border-bottom:1px solid var(--border)">Điểm</th>
+              <th style="padding:11px 16px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);font-weight:600;border-bottom:1px solid var(--border)">Nộp lúc</th>
+              <th style="padding:11px 16px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);font-weight:600;border-bottom:1px solid var(--border)">Xếp loại</th>
+            </tr>
+          </thead>
+          <tbody id="grades-tbody">
+            <tr><td colspan="5" class="loading-placeholder"><span class="spinner"></span> Đang tải...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ CALENDAR ══ -->
+  <div class="panel" id="panel-calendar">
+    <div style="margin-bottom:20px">
+      <h1 style="font-size:20px;font-weight:700">Lịch học</h1>
+    </div>
+    <div class="two-col">
+      <div class="card">
+        <div class="card-header">
+          <button class="btn-ghost" onclick="prevMonth()"><i class="fas fa-chevron-left"></i></button>
+          <span class="card-title" id="cal-month-label">Tháng 1, 2025</span>
+          <button class="btn-ghost" onclick="nextMonth()"><i class="fas fa-chevron-right"></i></button>
+        </div>
+        <div class="card-body">
+          <div class="cal-grid" id="cal-days-names" style="margin-bottom:4px"></div>
+          <div class="cal-grid" id="cal-days"></div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Sự kiện tháng này</span></div>
+          <div class="card-body" style="padding:0 18px">
+            <div id="cal-events">
+              <div class="loading-placeholder"><span class="spinner"></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ PROFILE ══ -->
+  <div class="panel" id="panel-profile">
+    <div class="profile-header">
+      <div class="profile-avatar" id="profile-avatar">H</div>
+      <div>
+        <div style="font-size:20px;font-weight:700" id="profile-name">Học sinh</div>
+        <div style="font-size:13px;color:var(--text-muted)" id="profile-email">hocsinh@gds.edu.vn</div>
+        <div style="margin-top:8px"><span class="badge badge-green"><i class="fas fa-graduation-cap" style="font-size:9px"></i> Học sinh</span></div>
+      </div>
+      <button class="btn btn-outline" style="margin-left:auto" onclick="doLogout()"><i class="fas fa-right-from-bracket"></i> Đăng xuất</button>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Thống kê học tập</span></div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:14px">
+          <div style="text-align:center;padding:16px;background:var(--bg);border-radius:var(--r)">
+            <div style="font-size:28px;font-weight:800;color:var(--primary)" id="pf-courses">—</div>
+            <div style="font-size:12px;color:var(--text-muted)">Khoá học</div>
+          </div>
+          <div style="text-align:center;padding:16px;background:var(--bg);border-radius:var(--r)">
+            <div style="font-size:28px;font-weight:800;color:#16A34A" id="pf-avg">—</div>
+            <div style="font-size:12px;color:var(--text-muted)">Điểm TB</div>
+          </div>
+          <div style="text-align:center;padding:16px;background:var(--bg);border-radius:var(--r)">
+            <div style="font-size:28px;font-weight:800;color:#2563EB" id="pf-submissions">—</div>
+            <div style="font-size:12px;color:var(--text-muted)">Bài đã nộp</div>
+          </div>
+          <div style="text-align:center;padding:16px;background:var(--bg);border-radius:var(--r)">
+            <div style="font-size:28px;font-weight:800;color:#7C3AED" id="pf-ai">—</div>
+            <div style="font-size:12px;color:var(--text-muted)">Hỏi AI Gia sư</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ── AI TUTOR WIDGET ── -->
+<div id="ai-tutor-widget">
+  <div class="ai-tutor-box" id="ai-tutor-box">
+    <div class="ai-tutor-header">
+      <div class="ai-tutor-header-title">
+        <i class="fas fa-robot"></i>
+        <span>AI Gia sư Socratic</span>
+      </div>
+      <button class="ai-tutor-close" onclick="toggleAITutor(false)">&times;</button>
+    </div>
+    <div class="ai-tutor-msgs" id="ai-tutor-msgs">
+      <div class="ai-msg bot">
+        Xin chào! Tôi là AI Gia sư của ActiveEdu. Tôi sẽ giúp bạn hiểu sâu hơn thông qua phương pháp Socratic — đặt câu hỏi gợi mở để bạn tự khám phá kiến thức. 🎓<br><br>
+        Bạn đang gặp khó khăn ở phần nào?
+      </div>
+    </div>
+    <div class="ai-tutor-input-area">
+      <input type="text" class="ai-tutor-input" id="ai-input" placeholder="Hỏi về bài học của bạn..." onkeydown="if(event.key==='Enter')sendAIMessage()">
+      <button class="ai-tutor-send" onclick="sendAIMessage()" title="Gửi">
+        <i class="fas fa-paper-plane" style="font-size:13px"></i>
+      </button>
+    </div>
+  </div>
+  <button class="ai-tutor-toggle" onclick="toggleAITutor()" title="AI Gia sư">
+    <i class="fas fa-robot" id="ai-toggle-icon"></i>
+  </button>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+const API = 'https://api.gds.edu.vn';
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth();
+
+// ── AUTH ──────────────────────────────────────────────
+function getToken() { return localStorage.getItem('ae_token'); }
+function doLogout() { localStorage.removeItem('ae_token'); localStorage.removeItem('ae_user'); window.location.href = '../login.html'; }
+
+async function apiFetch(path, opts = {}) {
+  const token = getToken();
+  const headers = { 'Content-Type': 'application/json', ...(opts.headers||{}) };
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  try {
+    const r = await fetch(API + path, { ...opts, headers });
+    if (r.status === 401) { doLogout(); return null; }
+    return r;
+  } catch(e) { return null; }
+}
+
+// ── UI ────────────────────────────────────────────────
+const panelLabels = { dashboard:'Dashboard', courses:'Khoá học', grades:'Điểm số', calendar:'Lịch học', profile:'Hồ sơ' };
+
+function showPanel(name, el) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item, .mobile-nav-item').forEach(i => i.classList.remove('active'));
+  const p = document.getElementById('panel-' + name);
+  if (p) p.classList.add('active');
+  if (el) el.classList.add('active');
+  if (name === 'courses' && !window._coursesLoaded) loadCourses();
+  if (name === 'grades' && !window._gradesLoaded) loadGrades();
+  if (name === 'calendar' && !window._calLoaded) { window._calLoaded = true; renderCalendar(); loadCalEvents(); }
+  if (name === 'profile') loadProfile();
+}
+
+function openMobileNav() { document.getElementById('mobile-nav').classList.add('open'); }
+function closeMobileNav() { document.getElementById('mobile-nav').classList.remove('open'); }
+
+function toast(msg, type = 'info', duration = 3000) {
+  const c = document.getElementById('toast-container');
+  const icon = { success:'fa-circle-check', error:'fa-circle-xmark', info:'fa-circle-info' }[type] || 'fa-circle-info';
+  const color = { success:'#22C55E', error:'#EF4444', info:'#E66000' }[type] || '#E66000';
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.style.cssText += `;border-left:3px solid ${color};animation:slideIn .2s ease`;
+  t.innerHTML = `<i class="fas ${icon}" style="color:${color}"></i> ${msg}`;
+  c.appendChild(t);
+  setTimeout(() => { t.style.opacity='0'; t.style.transition='opacity .3s'; setTimeout(()=>t.remove(),300); }, duration);
+}
+
+function fmtNum(n) { return new Intl.NumberFormat('vi-VN').format(Number(n)||0); }
+function fmtDate(s) { return new Intl.DateTimeFormat('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric' }).format(new Date(s)); }
+function fmtDateTime(s) { return new Intl.DateTimeFormat('vi-VN', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }).format(new Date(s)); }
+function timeUntil(s) {
+  const diff = (new Date(s) - Date.now()) / 1000;
+  if (diff < 0) return '<span style="color:var(--danger)">Đã quá hạn</span>';
+  if (diff < 86400) return `<span style="color:var(--warning)">${Math.floor(diff/3600)} giờ nữa</span>`;
+  return `${Math.floor(diff/86400)} ngày nữa`;
+}
+
+function scoreColor(s) {
+  if (s>=8.5) return '#16A34A'; if (s>=7) return '#65A30D';
+  if (s>=5.5) return '#EAB308'; if (s>=4) return '#F97316';
+  return '#EF4444';
+}
+function scoreLabel(s) {
+  if (s>=8.5) return 'Xuất sắc'; if (s>=7) return 'Giỏi';
+  if (s>=5.5) return 'Trung bình'; if (s>=4) return 'Yếu';
+  return 'Kém';
+}
+
+// ── DASHBOARD ────────────────────────────────────────
+async function loadDashboard() {
+  const user = JSON.parse(localStorage.getItem('ae_user')||'{}');
+  document.getElementById('welcome-name').textContent = (user.name||'Học sinh').split(' ').pop();
+  document.getElementById('welcome-date').textContent = new Intl.DateTimeFormat('vi-VN', {
+    weekday:'long', year:'numeric', month:'long', day:'numeric'
+  }).format(new Date());
+
+  // Load stats in parallel
+  loadRecentSubmissions();
+  loadBKTBars();
+  loadUpcomingAssignments();
+  loadAchievements();
+
+  // Load course count
+  const cr = await apiFetch('/api/enrollments/my');
+  if (cr && cr.ok) {
+    const cd = await cr.json();
+    const courses = cd.list || cd.courses || cd.enrollments || [];
+    document.getElementById('ws-courses').textContent = courses.length;
+  }
+
+  // Load avg score from grades
+  const uid = user.userId || user.id || '';
+  if (uid) {
+    const gr = await apiFetch(`/api/submissions?limit=50`);
+    if (gr && gr.ok) {
+      const gd = await gr.json();
+      const subs = (gd.list || []).filter(s => s.Score != null);
+      if (subs.length) {
+        const avg = subs.reduce((a, s) => a + parseFloat(s.Score||0), 0) / subs.length;
+        document.getElementById('ws-avg').textContent = avg.toFixed(1);
+      } else {
+        document.getElementById('ws-avg').textContent = '—';
+      }
+    }
+  }
+
+  // Streak (from notifications/achievements)
+  const nr = await apiFetch('/api/notifications?limit=1');
+  if (nr && nr.ok) {
+    const nd = await nr.json();
+    const streak = (nd.streak) || (nd.list || []).find(n => n.streak)?.streak || 1;
+    document.getElementById('ws-streak').textContent = streak;
+  } else {
+    document.getElementById('ws-streak').textContent = '1';
+  }
+}
+
+async function loadRecentSubmissions() {
+  const list = document.getElementById('recent-submissions');
+  const user = JSON.parse(localStorage.getItem('ae_user')||'{}');
+  const uid = user.userId || user.id || '';
+  let items = [];
+
+  // Dùng API submissions của chính học sinh (không phải observer)
+  const r = await apiFetch(`/api/submissions?limit=5`);
+  if (r && r.ok) {
+    const d = await r.json();
+    const raw = d.list || d.submissions || [];
+    items = raw.slice(0, 5).map(s => {
+      const score = s.Score != null ? parseFloat(s.Score) : null;
+      const max = parseFloat(s.MaxScore) || 10;
+      const pct = score != null ? score / max * 10 : null;
+      return {
+        icon: score != null ? 'fa-file-circle-check' : 'fa-file-circle-clock',
+        cls: pct != null ? (pct >= 7 ? 'green' : pct >= 5 ? 'yellow' : 'orange') : 'blue',
+        title: s.Title || s.AssessmentTitle || `Bài nộp #${s.Id}`,
+        course: s.CourseTitle || (s.CourseId ? `Khóa ${s.CourseId}` : ''),
+        score, max,
+        time: s.SubmittedAt ? timeAgo(s.SubmittedAt) : '',
+      };
+    });
+  }
+  if (!items.length) {
+    list.innerHTML = '<li style="padding:16px;text-align:center;color:var(--text-muted);font-size:13px">Chưa có bài nộp nào</li>';
+    return;
+  }
+  list.innerHTML = items.map(i => `
+    <li class="submission-item">
+      <div class="submission-icon ${i.cls}"><i class="fas ${i.icon}"></i></div>
+      <div class="submission-info">
+        <div class="submission-title">${escHtml(i.title)}</div>
+        <div class="submission-meta">${i.course?`<span class="badge badge-blue" style="font-size:10px">${escHtml(i.course)}</span>&nbsp;`:''} ${i.time}</div>
+      </div>
+      ${i.score !== null
+        ? `<div class="submission-score" style="color:${scoreColor(i.score)}">${i.score.toFixed(1)}</div>`
+        : `<div style="font-size:12px;color:var(--text-muted)">Chờ chấm</div>`
+      }
+    </li>
+  `).join('');
+}
+
+function timeAgo(iso) {
+  if (!iso) return '';
+  const diff = (Date.now() - new Date(iso)) / 1000;
+  if (diff < 60) return 'vừa xong';
+  if (diff < 3600) return Math.floor(diff/60) + ' phút trước';
+  if (diff < 86400) return Math.floor(diff/3600) + ' giờ trước';
+  if (diff < 604800) return Math.floor(diff/86400) + ' ngày trước';
+  return new Date(iso).toLocaleDateString('vi');
+}
+function escHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+async function loadBKTBars() {
+  const bars = document.getElementById('bkt-bars');
+  let subjects = [
+    { id:1, name:'Toán học', pct:72, color:'#E66000', detail:'Đại số & Hàm số' },
+    { id:2, name:'Ngữ Văn', pct:65, color:'#2563EB', detail:'Nghị luận & Văn học' },
+    { id:3, name:'Vật Lý', pct:58, color:'#7C3AED', detail:'Cơ học & Điện học' },
+    { id:4, name:'Tiếng Anh', pct:85, color:'#0D9488', detail:'Grammar & Vocabulary' },
+    { id:5, name:'Luyện thi THPT', pct:45, color:'#DC2626', detail:'Ôn tập tổng hợp' },
+  ];
+
+  // Try to load from API
+  const r = await apiFetch('/api/outcomes/mastery');
+  if (r && r.ok) {
+    try {
+      const d = await r.json();
+      if (d.subjects && d.subjects.length) {
+        subjects = d.subjects.map(s => ({
+          id: s.id || s.outcome_id,
+          name: s.name || s.title,
+          pct: Math.round((s.mastery || s.pct || 0) * 100),
+          color: s.color || bktColor(Math.round((s.mastery || s.pct || 0) * 100)),
+          detail: s.detail || s.description || '',
+        }));
+      }
+    } catch(e) {}
+  }
+
+  function bktColor(pct) {
+    if (pct >= 80) return '#16A34A';
+    if (pct >= 65) return '#65A30D';
+    if (pct >= 50) return '#E66000';
+    if (pct >= 35) return '#D97706';
+    return '#DC2626';
+  }
+
+  // Render with width:0 first, then animate
+  bars.innerHTML = subjects.map(s => {
+    const color = s.color || bktColor(s.pct);
+    const statusLabel = s.pct >= 75
+      ? `<span style="color:#16A34A;font-weight:600">Đã thành thạo</span>`
+      : s.pct >= 50
+        ? `<span style="color:#D97706;font-weight:600">Đang học</span>`
+        : `<span style="color:#DC2626;font-weight:600">Cần ôn tập</span>`;
+    return `
+    <div class="bkt-item">
+      <div class="bkt-header">
+        <span class="bkt-subject">${s.name}</span>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="bkt-score" style="color:${color}">${s.pct}%</span>
+          <a href="#" onclick="toast('Đang mở chi tiết môn ${s.name}','info');return false" style="font-size:11px;color:var(--primary);text-decoration:none;font-weight:500">Xem chi tiết →</a>
+        </div>
+      </div>
+      <div class="bkt-bar-bg">
+        <div class="bkt-bar-fill" data-target="${s.pct}" style="width:0%;background:${color}"></div>
+      </div>
+      <div class="bkt-detail">
+        <span style="color:var(--text-muted)">${s.detail}</span>
+        ${statusLabel}
+      </div>
+    </div>`;
+  }).join('');
+
+  // Animate bars after render
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      bars.querySelectorAll('.bkt-bar-fill').forEach(el => {
+        el.style.width = el.dataset.target + '%';
+      });
+    });
+  });
+}
+
+async function loadUpcomingAssignments() {
+  const container = document.getElementById('upcoming-assignments');
+  let assignments = [];
+
+  // Fetch from real API — assessments with DueAt in next 14 days
+  const r = await apiFetch('/api/assessments?limit=20&sort=DueAt');
+  if (r && r.ok) {
+    const d = await r.json();
+    const now = Date.now();
+    const cutoff = now + 14 * 86400000;
+    assignments = (d.list || [])
+      .filter(a => a.DueAt)
+      .map(a => ({ title: a.Title, course: a.CourseTitle || '', due: a.DueAt, overdue: new Date(a.DueAt) < now }))
+      .sort((a,b) => new Date(a.due) - new Date(b.due))
+      .slice(0, 6);
+  }
+
+  // Also pull calendar upcoming events
+  const cr = await apiFetch('/api/calendar/events/upcoming?days=7');
+  if (cr && cr.ok) {
+    const cd = await cr.json();
+    (cd.events || []).slice(0, 3).forEach(e => {
+      assignments.push({ title: e.Title, course: e.Type === 'exam' ? 'Bài thi' : 'Sự kiện', due: e.StartAt, overdue: false, isEvent: true });
+    });
+    assignments.sort((a,b) => new Date(a.due) - new Date(b.due));
+    assignments = assignments.slice(0, 7);
+  }
+
+  if (!assignments.length) {
+    container.innerHTML = '<div style="padding:16px 0;text-align:center;color:var(--text-muted);font-size:13px"><i class="fas fa-check-circle" style="color:#16A34A"></i> Không có việc cần làm sắp tới</div>';
+    return;
+  }
+  container.innerHTML = assignments.map(a => `
+    <div class="assignment-alert">
+      <div class="alert-dot ${a.overdue ? 'overdue' : a.isEvent ? 'normal' : 'upcoming'}"></div>
+      <div>
+        <div class="alert-title">${escHtml(a.title)}</div>
+        <div class="alert-meta">
+          ${a.course ? `<span class="badge badge-blue" style="font-size:10px">${escHtml(a.course)}</span>` : ''}
+          <span>${timeUntil(a.due)}</span>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── FAVORITES ─────────────────────────────────────────
+function getFavs() { try { return JSON.parse(localStorage.getItem('ae_favs') || '[]'); } catch { return []; } }
+function toggleFav(id) {
+  const favs = getFavs();
+  const idx = favs.indexOf(String(id));
+  if (idx >= 0) favs.splice(idx, 1); else favs.push(String(id));
+  localStorage.setItem('ae_favs', JSON.stringify(favs));
+}
+
+// ── JOIN BY CODE ───────────────────────────────────────
+function openJoinModal() {
+  document.getElementById('join-code-input').value = '';
+  document.getElementById('join-err').style.display = 'none';
+  document.getElementById('join-modal').style.display = 'flex';
+}
+async function submitJoinCode() {
+  const code = document.getElementById('join-code-input').value.trim();
+  const errEl = document.getElementById('join-err');
+  if (!code) { errEl.textContent = 'Vui lòng nhập mã tham gia'; errEl.style.display = 'block'; return; }
+  errEl.style.display = 'none';
+  const r = await apiFetch('/api/courses/join', { method: 'POST', body: JSON.stringify({ join_code: code }) });
+  if (!r) { errEl.textContent = 'Lỗi kết nối'; errEl.style.display = 'block'; return; }
+  const d = await r.json();
+  if (d.ok) {
+    document.getElementById('join-modal').style.display = 'none';
+    toast(`Đã tham gia khoá học: ${d.course_name || ''}`, 'success');
+    window._coursesLoaded = false;
+    loadCourses();
+  } else {
+    errEl.textContent = d.error || 'Không tìm thấy mã tham gia';
+    errEl.style.display = 'block';
+  }
+}
+
+// ── COURSES ───────────────────────────────────────────
+window._coursesLoaded = false;
+const COURSE_COLORS = ['#E66000','#2563EB','#7C3AED','#0D9488','#DC2626','#D97706','#059669'];
+
+async function loadCourses() {
+  window._coursesLoaded = true;
+  let courses = [];
+  const r = await apiFetch('/api/enrollments/my');
+  if (r && r.ok) {
+    const d = await r.json();
+    courses = d.list || d.courses || d.enrollments || [];
+  }
+  document.getElementById('courses-enrolled-count').textContent = `${courses.length} khoá học đang học`;
+
+  const favs = getFavs();
+  const favCourses = courses.filter(c => favs.includes(String(c.Id || c.id)));
+  const otherCourses = courses.filter(c => !favs.includes(String(c.Id || c.id)));
+
+  // Show favorites section
+  const favSection = document.getElementById('fav-section');
+  const favCards = document.getElementById('fav-cards');
+  if (favCourses.length > 0) {
+    favSection.style.display = 'block';
+    favCards.innerHTML = favCourses.map(c => renderCourseCard(c, true)).join('');
+  } else {
+    favSection.style.display = 'none';
+  }
+
+  const container = document.getElementById('course-cards');
+  if (courses.length === 0) {
+    container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-muted)">
+      <i class="fas fa-book-open" style="font-size:36px;opacity:.2;display:block;margin-bottom:12px"></i>
+      <p style="font-weight:600">Chưa ghi danh khoá học nào</p>
+      <p style="font-size:13px;margin-top:6px">Nhấn <strong>Tham gia bằng mã</strong> để đăng ký khoá học</p>
+    </div>`;
+    return;
+  }
+  container.innerHTML = otherCourses.map(c => renderCourseCard(c, false)).join('');
+}
+
+function renderCourseCard(c, isFav) {
+  const id = c.Id || c.id;
+  const name = c.Title || c.Name || c.name || 'Khoá học';
+  const teacher = c.TeacherName || c.teacher || '';
+  const term = c.Term || c.term || '';
+  const color = c.Color || c.color || COURSE_COLORS[id % COURSE_COLORS.length];
+  const progress = c.Progress || c.progress || 0;
+  const coverUrl = c.CoverImage || c.cover_image || null;
+
+  return `<div class="course-card" onclick="window.location.href='../course.html?course_id=${id}'">
+    <div class="course-card-banner" style="background:${coverUrl ? 'none' : color};${coverUrl ? `background-image:url(${coverUrl});background-size:cover;background-position:center` : ''}">
+      <div class="course-card-banner-title">${escHtml(name)}</div>
+    </div>
+    <div class="course-card-body">
+      ${teacher ? `<div class="course-card-teacher"><i class="fas fa-chalkboard-teacher"></i> ${escHtml(teacher)}</div>` : ''}
+      <div class="progress-wrap">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;display:flex;justify-content:space-between">
+          <span>Tiến độ</span><span style="font-weight:600">${progress}%</span>
+        </div>
+        <div class="progress-bg">
+          <div class="progress-fill" style="width:${progress}%;background:${color}"></div>
+        </div>
+      </div>
+    </div>
+    <div class="course-card-footer">
+      <span class="badge badge-blue" style="font-size:10px">${escHtml(term)}</span>
+      <div style="display:flex;align-items:center;gap:6px">
+        <button onclick="event.stopPropagation();toggleFavCourse(${id},this)" title="${isFav?'Bỏ yêu thích':'Thêm yêu thích'}"
+          style="background:none;border:none;cursor:pointer;font-size:15px;color:${isFav?'#F59E0B':'#CBD5E1'};padding:2px 4px">
+          <i class="fas fa-star"></i>
+        </button>
+        <button class="btn btn-primary btn-sm">Mở <i class="fas fa-arrow-right" style="font-size:10px"></i></button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function toggleFavCourse(id, btn) {
+  toggleFav(id);
+  const favs = getFavs();
+  const isFav = favs.includes(String(id));
+  btn.style.color = isFav ? '#F59E0B' : '#CBD5E1';
+  btn.title = isFav ? 'Bỏ yêu thích' : 'Thêm yêu thích';
+  toast(isFav ? 'Đã thêm vào yêu thích' : 'Đã bỏ yêu thích', 'info', 1500);
+  // Re-render to move card between sections
+  setTimeout(() => { window._coursesLoaded = false; loadCourses(); }, 400);
+}
+
+// ── GRADES ────────────────────────────────────────────
+window._gradesLoaded = false;
+
+async function loadGrades() {
+  window._gradesLoaded = true;
+  let grades = [];
+  const user = JSON.parse(localStorage.getItem('ae_user')||'{}');
+  const uid = user.userId || user.id || '';
+
+  // Dùng submissions API của chính học sinh (không phải observer API)
+  const r = await apiFetch(`/api/submissions?limit=100`);
+  if (r && r.ok) {
+    const d = await r.json();
+    const raw = d.list || d.submissions || [];
+    const graded = raw.filter(g => g.Score != null);
+    const avgScore = graded.length
+      ? (graded.reduce((s, g) => s + parseFloat(g.Score||0), 0) / graded.length)
+      : null;
+    if (avgScore != null) {
+      document.getElementById('g-avg').textContent = avgScore.toFixed(1);
+    } else {
+      document.getElementById('g-avg').textContent = '—';
+    }
+    document.getElementById('g-done').textContent = raw.length;
+    grades = raw.map(g => ({
+      title: g.Title || g.AssessmentTitle || `Bài nộp #${g.Id}`,
+      course: g.CourseTitle || (g.CourseId ? `Khóa ${g.CourseId}` : ''),
+      score: g.Score != null ? parseFloat(g.Score) : null,
+      submitted: g.SubmittedAt || '',
+      max: parseFloat(g.MaxScore) || 10,
+    }));
+  } else {
+    document.getElementById('g-avg').textContent = '—';
+    document.getElementById('g-done').textContent = '0';
+  }
+  document.getElementById('g-rank').textContent = '—';
+
+  const tbody = document.getElementById('grades-tbody');
+  if (grades.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" style="padding:24px;text-align:center;color:var(--text-muted)">Chưa có điểm nào được chấm</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = grades.map(g => `
+    <tr>
+      <td style="padding:11px 16px;border-bottom:1px solid var(--border);font-weight:500">${escHtml(g.title)}</td>
+      <td style="padding:11px 16px;border-bottom:1px solid var(--border)">${g.course?`<span class="badge badge-blue" style="font-size:10px">${escHtml(g.course)}</span>`:''}</td>
+      <td style="padding:11px 16px;border-bottom:1px solid var(--border);text-align:center">
+        <span style="font-size:16px;font-weight:800;color:${scoreColor(g.score/g.max*10)}">${g.score.toFixed(1)}</span>
+        <span style="font-size:11px;color:var(--text-muted)">/${g.max}</span>
+      </td>
+      <td style="padding:11px 16px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text-muted)">${fmtDate(g.submitted)}</td>
+      <td style="padding:11px 16px;border-bottom:1px solid var(--border)">
+        <span class="badge" style="background:${scoreColor(g.score)}22;color:${scoreColor(g.score)}">${scoreLabel(g.score)}</span>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// ── CALENDAR ─────────────────────────────────────────
+function renderCalendar() {
+  const monthNames = ['Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6','Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
+  const dayNames = ['CN','T2','T3','T4','T5','T6','T7'];
+  document.getElementById('cal-month-label').textContent = `${monthNames[calMonth]}, ${calYear}`;
+
+  const daysEl = document.getElementById('cal-days');
+  const namesEl = document.getElementById('cal-days-names');
+  namesEl.innerHTML = dayNames.map(d=>`<div class="cal-day-name">${d}</div>`).join('');
+
+  const firstDay = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+  const today = new Date();
+  const eventDays = [8, 15, 20, 22];
+
+  let html = '';
+  for (let i = 0; i < firstDay; i++) html += `<div class="cal-day other">&nbsp;</div>`;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const isToday = today.getDate()===d && today.getMonth()===calMonth && today.getFullYear()===calYear;
+    const hasEvent = eventDays.includes(d);
+    html += `<div class="cal-day ${isToday?'today':''} ${hasEvent&&!isToday?'has-event':''}">${d}</div>`;
+  }
+  daysEl.innerHTML = html;
+}
+
+// ── ACHIEVEMENTS ─────────────────────────────────────
+async function loadAchievements() {
+  const container = document.getElementById('achievements-section');
+  const r = await apiFetch('/api/achievements');
+  let achievements = [];
+  if (r && r.ok) {
+    const d = await r.json();
+    achievements = d.list || d.achievements || [];
+  }
+  if (!achievements.length) {
+    // Default badges based on activity
+    const user = JSON.parse(localStorage.getItem('ae_user')||'{}');
+    achievements = [
+      { icon: '🎓', title: 'Học viên tích cực', desc: 'Hoàn thành 5+ bài tập', earned: true },
+      { icon: '🔥', title: 'Streak 7 ngày', desc: 'Học liên tiếp 7 ngày', earned: false },
+      { icon: '⭐', title: 'Điểm cao', desc: 'Đạt ≥9 điểm 1 bài', earned: false },
+    ];
+  }
+  container.innerHTML = achievements.slice(0, 4).map(a => `
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+      <div style="width:36px;height:36px;border-radius:8px;background:${a.earned?'#FFF7ED':'var(--bg)'};display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;${!a.earned?'filter:grayscale(1);opacity:.5':''}">${a.icon||'🏆'}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;${!a.earned?'color:var(--text-muted)':''}">${escHtml(a.title||a.Title||'')}</div>
+        <div style="font-size:11px;color:var(--text-muted)">${escHtml(a.desc||a.Description||'')}</div>
+      </div>
+      ${a.earned ? '<i class="fas fa-check-circle" style="color:#16A34A;font-size:14px;flex-shrink:0"></i>' : ''}
+    </div>
+  `).join('') || '<div style="text-align:center;padding:12px;color:var(--text-muted);font-size:13px">Chưa có thành tích</div>';
+}
+
+function prevMonth() { calMonth--; if (calMonth<0) { calMonth=11; calYear--; } renderCalendar(); }
+function nextMonth() { calMonth++; if (calMonth>11) { calMonth=0; calYear++; } renderCalendar(); }
+
+async function loadCalEvents() {
+  const container = document.getElementById('cal-events');
+  container.innerHTML = '<div style="padding:12px;text-align:center;color:var(--text-muted)"><span class="spinner"></span></div>';
+
+  let events = [];
+
+  // Tải từ API: calendar events + upcoming assignments
+  const [cr, ar] = await Promise.all([
+    apiFetch('/api/calendar/events/upcoming?days=30'),
+    apiFetch('/api/assessments?limit=20&sort=DueDate'),
+  ]);
+
+  if (cr && cr.ok) {
+    const cd = await cr.json();
+    (cd.events || []).forEach(e => {
+      events.push({
+        date: new Date(e.StartAt || e.start_at),
+        title: e.Title || e.title,
+        badge: e.EventType === 'exam' ? 'orange' : 'blue',
+        badgeText: e.EventType === 'exam' ? 'Kiểm tra' : 'Sự kiện',
+      });
+    });
+  }
+
+  if (ar && ar.ok) {
+    const ad = await ar.json();
+    (ad.list || []).filter(a => a.DueDate).forEach(a => {
+      events.push({
+        date: new Date(a.DueDate),
+        title: a.Title,
+        badge: 'blue',
+        badgeText: 'Bài tập',
+      });
+    });
+  }
+
+  // Sort by date, take nearest 8
+  events = events.filter(e => e.date >= new Date())
+    .sort((a, b) => a.date - b.date)
+    .slice(0, 8);
+
+  if (!events.length) {
+    // Fallback mock nếu API trống
+    const m = calMonth + 1;
+    events = [
+      { date: new Date(calYear, calMonth, 8), title: 'Kiểm tra 1 tiết', badge: 'orange', badgeText: 'Kiểm tra' },
+      { date: new Date(calYear, calMonth, 15), title: 'Hạn nộp bài tập', badge: 'blue', badgeText: 'Bài tập' },
+      { date: new Date(calYear, calMonth, 22), title: 'Đề thi cuối kỳ', badge: 'red', badgeText: 'Thi' },
+    ];
+  }
+
+  container.innerHTML = events.map(e => `
+    <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="width:32px;height:32px;background:var(--bg);border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;color:var(--primary)">${String(e.date.getDate()).padStart(2,'0')}</div>
+      <div>
+        <div style="font-size:13px;font-weight:500">${escHtml(e.title)}</div>
+        <div style="display:flex;gap:6px;margin-top:3px">
+          <span class="badge badge-${e.badge}" style="font-size:10px">${e.badgeText}</span>
+          <span style="font-size:11px;color:var(--text-muted)">${new Intl.DateTimeFormat('vi-VN',{day:'2-digit',month:'2-digit'}).format(e.date)}</span>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── PROFILE ───────────────────────────────────────────
+async function loadProfile() {
+  const user = JSON.parse(localStorage.getItem('ae_user')||'{}');
+  const name = user.name || 'Học sinh';
+  document.getElementById('profile-name').textContent = name;
+  document.getElementById('profile-email').textContent = user.email || 'hocsinh@gds.edu.vn';
+  document.getElementById('profile-avatar').textContent = name[0].toUpperCase();
+
+  // Load real stats in parallel
+  const uid = user.userId || user.id || '';
+  const [cr, sr, ar] = await Promise.all([
+    apiFetch('/api/enrollments/my'),
+    apiFetch(`/api/submissions?limit=100`),
+    uid ? apiFetch('/api/ai/sessions') : Promise.resolve(null),
+  ]);
+
+  // Course count
+  if (cr && cr.ok) {
+    const cd = await cr.json();
+    document.getElementById('pf-courses').textContent = (cd.list || cd.enrollments || []).length;
+  }
+
+  // Avg score + submission count
+  if (sr && sr.ok) {
+    const sd = await sr.json();
+    const subs = sd.list || sd.submissions || [];
+    document.getElementById('pf-submissions').textContent = subs.length;
+    const graded = subs.filter(s => s.Score != null);
+    if (graded.length) {
+      const avg = graded.reduce((s, g) => s + parseFloat(g.Score||0), 0) / graded.length;
+      document.getElementById('pf-avg').textContent = avg.toFixed(1);
+    } else {
+      document.getElementById('pf-avg').textContent = '—';
+    }
+  }
+
+  // AI session count
+  if (ar && ar.ok) {
+    const ad = await ar.json();
+    document.getElementById('pf-ai').textContent = (ad.list || ad.sessions || []).length;
+  } else {
+    document.getElementById('pf-ai').textContent = '—';
+  }
+}
+
+// ── AI TUTOR ──────────────────────────────────────────
+let aiTutorOpen = false;
+
+function toggleAITutor(forceOpen) {
+  if (forceOpen !== undefined) aiTutorOpen = !forceOpen;
+  aiTutorOpen = !aiTutorOpen;
+  const box = document.getElementById('ai-tutor-box');
+  const icon = document.getElementById('ai-toggle-icon');
+  if (aiTutorOpen) {
+    box.classList.add('open');
+    icon.className = 'fas fa-times';
+    document.getElementById('ai-input').focus();
+  } else {
+    box.classList.remove('open');
+    icon.className = 'fas fa-robot';
+  }
+}
+
+async function sendAIMessage() {
+  const input = document.getElementById('ai-input');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+  appendAIMsg(msg, 'user');
+
+  const thinking = appendAIMsg('<span class="spinner"></span> Đang suy nghĩ...', 'thinking');
+
+  const r = await apiFetch('/api/ai/socratic', { method:'POST', body: JSON.stringify({ message: msg, context: 'student' }) });
+
+  thinking.remove();
+
+  if (r && r.ok) {
+    const d = await r.json();
+    appendAIMsg(d.response || d.message || d.content, 'bot');
+  } else {
+    // Socratic response simulation
+    const responses = [
+      `Câu hỏi hay! Trước khi tôi trả lời, hãy thử suy nghĩ: ${msg} — bạn đã biết điều gì liên quan đến vấn đề này chưa? Hãy chia sẻ những gì bạn đang nghĩ.`,
+      `Tốt lắm! Để giải quyết vấn đề này, ta cần xem xét từng bước. Bước đầu tiên, theo bạn, ta cần tìm điều gì?`,
+      `Câu hỏi thú vị! Gợi ý nhỏ: hãy thử áp dụng kiến thức từ chương trước vào đây. Bạn nhớ công thức nào có thể liên quan không?`,
+    ];
+    appendAIMsg(responses[Math.floor(Math.random()*responses.length)], 'bot');
+  }
+}
+
+function appendAIMsg(text, type) {
+  const msgs = document.getElementById('ai-tutor-msgs');
+  const div = document.createElement('div');
+  div.className = `ai-msg ${type}`;
+  div.innerHTML = text;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+
+// ── INIT ──────────────────────────────────────────────
+(function init() {
+  if (!getToken()) { window.location.href = '../login.html'; return; }
+  const storedUser = JSON.parse(localStorage.getItem('ae_user')||'{}');
+  if (storedUser.role && storedUser.role !== 'student') {
+    window.location.href = '../login.html'; return;
+  }
+  const user = JSON.parse(localStorage.getItem('ae_user')||'{}');
+  const name = user.name || 'Học sinh';
+  document.getElementById('nav-username').textContent = name;
+  document.getElementById('nav-avatar').textContent = name[0].toUpperCase();
+  document.getElementById('welcome-name').textContent = name.split(' ').pop();
+  loadDashboard();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ActiveEdu — Lịch</title>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<style>
+:root{--primary:#E66000;--primary-dark:#C55500;--primary-light:#FF8C3A;--sidebar-bg:#2D3B45;--topbar-h:58px;--bg:#F5F5F5;--card-bg:#fff;--border:#E1E5E8;--text:#2D3B45;--text-muted:#6B7B8A;--text-subtle:#9AAAB5;--r:6px;--shadow:0 1px 3px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.1)}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Be Vietnam Pro',sans-serif;font-size:14px;color:var(--text);background:var(--bg)}
+
+.top-nav{height:var(--topbar-h);background:var(--sidebar-bg);display:flex;align-items:center;padding:0 24px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.nav-logo{display:flex;align-items:center;gap:10px;margin-right:24px;text-decoration:none}
+.nav-logo-icon{width:32px;height:32px;background:var(--primary);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:15px;color:#fff}
+.nav-logo-name{font-weight:700;font-size:16px;color:#fff}.nav-logo-name span{color:var(--primary-light)}
+.nav-item{padding:7px 13px;color:rgba(199,211,217,.8);cursor:pointer;border-radius:var(--r);font-size:13px;font-weight:500;transition:all .15s;border:none;background:none;display:flex;align-items:center;gap:7px;text-decoration:none}
+.nav-item:hover{background:rgba(255,255,255,.08);color:#fff}
+.nav-item.active{background:rgba(230,96,0,.2);color:#fff}
+.nav-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.nav-avatar{width:32px;height:32px;border-radius:50%;background:var(--primary);color:#fff;border:2px solid rgba(255,255,255,.2);font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer}
+
+.layout{display:flex;gap:20px;max-width:1200px;margin:0 auto;padding:24px}
+.main-cal{flex:1;min-width:0}
+.sidebar-cal{width:280px;flex-shrink:0}
+
+/* CALENDAR TOOLBAR */
+.cal-toolbar{background:var(--card-bg);border:1px solid var(--border);border-radius:var(--r);padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow)}
+.cal-nav{display:flex;align-items:center;gap:8px}
+.cal-nav button{background:none;border:1.5px solid var(--border);border-radius:var(--r);padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px;color:var(--text);transition:all .15s}
+.cal-nav button:hover{border-color:var(--primary);color:var(--primary)}
+.cal-title{font-size:17px;font-weight:700;min-width:200px;text-align:center}
+.view-tabs{margin-left:auto;display:flex;gap:4px}
+.view-tab{padding:6px 14px;border-radius:var(--r);font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:none;color:var(--text-muted);font-family:inherit;transition:all .15s}
+.view-tab.active,.view-tab:hover{background:var(--primary);color:#fff;border-color:var(--primary)}
+
+/* MONTH GRID */
+.cal-grid{background:var(--card-bg);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+.cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);background:#F8FAFB;border-bottom:1px solid var(--border)}
+.cal-wd{padding:8px 4px;text-align:center;font-size:12px;font-weight:600;color:var(--text-muted)}
+.cal-days{display:grid;grid-template-columns:repeat(7,1fr)}
+.cal-cell{min-height:90px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:6px;vertical-align:top;position:relative}
+.cal-cell:nth-child(7n){border-right:none}
+.cal-cell.other-month{background:#FAFAFA}
+.cal-cell.today .cal-day-num{background:var(--primary);color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center}
+.cal-day-num{font-size:13px;font-weight:600;margin-bottom:4px;width:24px;height:24px;display:flex;align-items:center;justify-content:center}
+.cal-event{font-size:11px;font-weight:600;padding:2px 6px;border-radius:3px;margin-bottom:2px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:opacity .1s}
+.cal-event:hover{opacity:.8}
+.cal-event.type-event{background:#DBEAFE;color:#1D4ED8}
+.cal-event.type-assignment{background:#FEF3C7;color:#92400E}
+.cal-event.type-exam{background:#FEE2E2;color:#991B1B}
+.cal-event.type-conference{background:#F3E8FF;color:#6B21A8}
+.cal-event.type-quiz{background:#DCFCE7;color:#166534}
+.cal-more{font-size:11px;color:var(--text-muted);cursor:pointer;padding:1px 4px}
+.cal-more:hover{color:var(--primary)}
+
+/* LIST VIEW */
+.event-list{display:flex;flex-direction:column;gap:8px}
+.event-item{background:var(--card-bg);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;display:flex;gap:12px;align-items:flex-start;box-shadow:var(--shadow);cursor:pointer;transition:box-shadow .15s}
+.event-item:hover{box-shadow:var(--shadow-md);border-color:var(--primary)}
+.event-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.event-dot.type-event{background:#3B82F6}
+.event-dot.type-assignment{background:#F59E0B}
+.event-dot.type-exam{background:#EF4444}
+.event-dot.type-conference{background:#A855F7}
+.event-dot.type-quiz{background:#22C55E}
+.event-info{flex:1}
+.event-title{font-size:13px;font-weight:600;margin-bottom:3px}
+.event-meta{font-size:12px;color:var(--text-muted)}
+.event-date-badge{font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600;flex-shrink:0}
+
+/* SIDEBAR */
+.sidebar-section{background:var(--card-bg);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);margin-bottom:14px;overflow:hidden}
+.sidebar-title{padding:12px 14px;font-size:13px;font-weight:700;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px}
+.sidebar-title i{color:var(--primary)}
+.sidebar-body{padding:10px 14px}
+.course-filter-item{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px;cursor:pointer}
+.course-filter-item input{accent-color:var(--primary)}
+.legend-row{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px;color:var(--text-muted)}
+.legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.btn-new-event{width:100%;padding:9px;background:var(--primary);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:7px;margin-top:4px;transition:background .15s}
+.btn-new-event:hover{background:var(--primary-dark)}
+
+/* EVENT DETAIL MODAL */
+.modal{display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.5);align-items:center;justify-content:center}
+.modal.show{display:flex}
+.modal-box{background:#fff;border-radius:12px;width:520px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.2)}
+.modal-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.modal-header h3{font-size:15px;font-weight:700}
+.modal-close{background:none;border:none;font-size:18px;cursor:pointer;color:var(--text-muted);padding:4px}
+.modal-body{padding:20px;display:flex;flex-direction:column;gap:12px}
+.form-row label{display:block;font-size:12px;font-weight:500;color:var(--text-muted);margin-bottom:4px}
+.form-row input,.form-row select,.form-row textarea{width:100%;padding:8px 11px;border:1.5px solid var(--border);border-radius:var(--r);font-family:inherit;font-size:13px;outline:none;transition:border .15s}
+.form-row input:focus,.form-row select:focus{border-color:var(--primary)}
+.form-row textarea{resize:vertical;min-height:70px}
+.modal-footer{padding:12px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+.btn-sm{padding:7px 16px;border-radius:var(--r);border:none;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-primary{background:var(--primary);color:#fff}.btn-primary:hover{background:var(--primary-dark)}
+.btn-ghost{background:none;border:1.5px solid var(--border);color:var(--text-muted)}.btn-ghost:hover{border-color:var(--primary);color:var(--primary)}
+.btn-danger{background:#FEF2F2;color:#DC2626;border:1.5px solid #FECACA}.btn-danger:hover{background:#DC2626;color:#fff}
+.detail-row{display:flex;gap:10px;align-items:flex-start;font-size:13px}
+.detail-row i{color:var(--primary);width:16px;margin-top:2px;flex-shrink:0}
+
+@media(max-width:900px){.sidebar-cal{display:none}.layout{padding:12px}}
+</style>
+</head>
+<body>
+
+<nav class="top-nav">
+  <a class="nav-logo" href="index.html">
+    <div class="nav-logo-icon"><i class="fas fa-bolt"></i></div>
+    <span class="nav-logo-name">Active<span>Edu</span></span>
+  </a>
+  <a class="nav-item" href="index.html"><i class="fas fa-home"></i> Trang chủ</a>
+  <a class="nav-item" href="discussions.html"><i class="fas fa-comments"></i> Thảo luận</a>
+  <a class="nav-item" href="messages.html"><i class="fas fa-envelope"></i> Tin nhắn</a>
+  <a class="nav-item active" href="#"><i class="fas fa-calendar"></i> Lịch</a>
+  <div class="nav-right">
+    <div class="nav-avatar" id="nav-avatar">?</div>
+    <span id="nav-username" style="font-size:13px;color:rgba(199,211,217,.9);font-weight:500"></span>
+  </div>
+</nav>
+
+<div class="layout">
+  <div class="main-cal">
+    <!-- TOOLBAR -->
+    <div class="cal-toolbar">
+      <div class="cal-nav">
+        <button onclick="prevMonth()"><i class="fas fa-chevron-left"></i></button>
+        <div class="cal-title" id="cal-title"></div>
+        <button onclick="nextMonth()"><i class="fas fa-chevron-right"></i></button>
+        <button onclick="goToday()" style="margin-left:4px">Hôm nay</button>
+      </div>
+      <div class="view-tabs">
+        <button class="view-tab active" id="tab-month" onclick="setView('month')">Tháng</button>
+        <button class="view-tab" id="tab-list" onclick="setView('list')">Danh sách</button>
+      </div>
+    </div>
+
+    <!-- CALENDAR VIEW -->
+    <div id="view-month">
+      <div class="cal-grid">
+        <div class="cal-weekdays">
+          <div class="cal-wd">CN</div><div class="cal-wd">T2</div><div class="cal-wd">T3</div>
+          <div class="cal-wd">T4</div><div class="cal-wd">T5</div><div class="cal-wd">T6</div>
+          <div class="cal-wd">T7</div>
+        </div>
+        <div class="cal-days" id="cal-days"></div>
+      </div>
+    </div>
+
+    <!-- LIST VIEW -->
+    <div id="view-list" style="display:none">
+      <div id="event-list" class="event-list">
+        <div style="text-align:center;padding:40px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i></div>
+      </div>
+    </div>
+  </div>
+
+  <aside class="sidebar-cal">
+    <!-- NEW EVENT (teacher only) -->
+    <div class="sidebar-section" id="new-event-section" style="display:none">
+      <div class="sidebar-body">
+        <button class="btn-new-event" onclick="openNewEvent()"><i class="fas fa-plus"></i> Tạo sự kiện</button>
+      </div>
+    </div>
+
+    <!-- LEGEND -->
+    <div class="sidebar-section">
+      <div class="sidebar-title"><i class="fas fa-palette"></i> Màu sự kiện</div>
+      <div class="sidebar-body">
+        <div class="legend-row"><span class="legend-dot" style="background:#3B82F6"></span> Sự kiện</div>
+        <div class="legend-row"><span class="legend-dot" style="background:#F59E0B"></span> Bài tập</div>
+        <div class="legend-row"><span class="legend-dot" style="background:#EF4444"></span> Bài thi</div>
+        <div class="legend-row"><span class="legend-dot" style="background:#22C55E"></span> Bài kiểm tra</div>
+        <div class="legend-row"><span class="legend-dot" style="background:#A855F7"></span> Hội nghị</div>
+      </div>
+    </div>
+
+    <!-- UPCOMING -->
+    <div class="sidebar-section">
+      <div class="sidebar-title"><i class="fas fa-clock"></i> Sắp diễn ra</div>
+      <div class="sidebar-body" id="upcoming-list">
+        <div style="text-align:center;color:var(--text-muted);font-size:13px"><i class="fas fa-spinner fa-spin"></i></div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<!-- EVENT DETAIL / CREATE MODAL -->
+<div class="modal" id="modal-event">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="modal-event-title"><i class="fas fa-calendar-plus" style="color:var(--primary)"></i> Tạo sự kiện</h3>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body" id="modal-event-body"></div>
+    <div class="modal-footer" id="modal-event-footer"></div>
+  </div>
+</div>
+
+<script>
+const API='https://api.gds.edu.vn';
+let currentUser=null, currentView='month', allEvents=[];
+let year=new Date().getFullYear(), month=new Date().getMonth();
+let editingEventId=null, isTeacher=false;
+
+function getToken(){return localStorage.getItem('ae_token');}
+async function api(path,opts={}){
+  const h={'Content-Type':'application/json'};
+  const t=getToken();if(t) h['Authorization']='Bearer '+t;
+  const r=await fetch(API+path,{...opts,headers:h});return r.json();
+}
+function escHtml(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function fmtDate(iso){if(!iso) return '';const d=new Date(iso);return d.toLocaleDateString('vi',{day:'2-digit',month:'2-digit',year:'numeric'});}
+function fmtTime(iso){if(!iso) return '';const d=new Date(iso);return d.toLocaleTimeString('vi',{hour:'2-digit',minute:'2-digit'});}
+function fmtDateTimeLocal(iso){if(!iso) return '';const d=new Date(iso);const pad=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;}
+
+const TYPE_LABELS={event:'Sự kiện',assignment:'Bài tập',exam:'Bài thi',quiz:'Bài kiểm tra',conference:'Hội nghị'};
+
+async function init(){
+  if(!getToken()){window.location.href='login.html';return;}
+  currentUser=JSON.parse(localStorage.getItem('ae_user')||'{}');
+  document.getElementById('nav-avatar').textContent=(currentUser.email||'?')[0].toUpperCase();
+  document.getElementById('nav-username').textContent=currentUser.email||'';
+  isTeacher=currentUser.role==='teacher'||currentUser.role==='admin';
+  if(isTeacher) document.getElementById('new-event-section').style.display='block';
+  await loadEvents();
+  loadUpcoming();
+}
+
+async function loadEvents(){
+  const start=new Date(year,month,1).toISOString().split('T')[0];
+  const end=new Date(year,month+1,0).toISOString().split('T')[0];
+  const data=await api(`/api/calendar/events?start=${start}&end=${end}`);
+  allEvents=data.events||[];
+  render();
+}
+
+async function loadUpcoming(){
+  const data=await api('/api/calendar/events/upcoming?days=14');
+  const events=data.events||[];
+  const el=document.getElementById('upcoming-list');
+  if(events.length===0){el.innerHTML='<div style="font-size:12px;color:var(--text-muted);text-align:center;padding:8px">Không có sự kiện sắp tới</div>';return;}
+  el.innerHTML=events.slice(0,5).map(e=>`
+    <div style="padding:5px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="showEventDetail(${JSON.stringify(e).replace(/"/g,'&quot;')})">
+      <div style="font-size:12px;font-weight:600;line-height:1.3">${escHtml(e.Title)}</div>
+      <div style="font-size:11px;color:var(--text-muted)">${fmtDate(e.StartAt)} ${fmtTime(e.StartAt)}</div>
+    </div>`).join('');
+}
+
+function setView(v){
+  currentView=v;
+  document.getElementById('view-month').style.display=v==='month'?'block':'none';
+  document.getElementById('view-list').style.display=v==='list'?'block':'none';
+  document.getElementById('tab-month').classList.toggle('active',v==='month');
+  document.getElementById('tab-list').classList.toggle('active',v==='list');
+  render();
+}
+
+function render(){
+  if(currentView==='month') renderMonth();
+  else renderList();
+}
+
+function renderMonth(){
+  const monthNames=['Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6','Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
+  document.getElementById('cal-title').textContent=`${monthNames[month]} ${year}`;
+  const first=new Date(year,month,1).getDay();
+  const daysInMonth=new Date(year,month+1,0).getDate();
+  const today=new Date();
+  const todayStr=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
+  // Group events by date
+  const byDate={};
+  allEvents.forEach(e=>{
+    const d=(e.StartAt||'').split('T')[0];
+    if(!byDate[d]) byDate[d]=[];
+    byDate[d].push(e);
+  });
+
+  let html='';
+  // Leading empty cells
+  for(let i=0;i<first;i++) html+=`<div class="cal-cell other-month"></div>`;
+  for(let d=1;d<=daysInMonth;d++){
+    const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday=dateStr===todayStr;
+    const dayEvents=byDate[dateStr]||[];
+    const shown=dayEvents.slice(0,3);
+    const more=dayEvents.length-3;
+    html+=`<div class="cal-cell${isToday?' today':''}">
+      <div class="cal-day-num">${d}</div>
+      ${shown.map(e=>`<div class="cal-event type-${e.Type||'event'}" title="${escHtml(e.Title)}" onclick="showEventDetail(${JSON.stringify(e).replace(/"/g,'&quot;')})">${escHtml(e.Title)}</div>`).join('')}
+      ${more>0?`<div class="cal-more">+${more} nữa</div>`:''}
+    </div>`;
+  }
+  document.getElementById('cal-days').innerHTML=html;
+}
+
+function renderList(){
+  const monthNames=['Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6','Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
+  document.getElementById('cal-title').textContent=`${monthNames[month]} ${year}`;
+  const el=document.getElementById('event-list');
+  const sorted=[...allEvents].sort((a,b)=>new Date(a.StartAt)-new Date(b.StartAt));
+  if(sorted.length===0){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-muted)"><i class="fas fa-calendar-xmark" style="font-size:32px;opacity:.2;display:block;margin-bottom:8px"></i>Không có sự kiện trong tháng này</div>';return;}
+  el.innerHTML=sorted.map(e=>`
+    <div class="event-item" onclick="showEventDetail(${JSON.stringify(e).replace(/"/g,'&quot;')})">
+      <span class="event-dot type-${e.Type||'event'}"></span>
+      <div class="event-info">
+        <div class="event-title">${escHtml(e.Title)}</div>
+        <div class="event-meta"><i class="far fa-clock"></i> ${fmtDate(e.StartAt)} ${fmtTime(e.StartAt)}${e.EndAt?' — '+fmtTime(e.EndAt):''}</div>
+        ${e.Description?`<div class="event-meta" style="margin-top:2px">${escHtml(e.Description.slice(0,80))}${e.Description.length>80?'...':''}</div>`:''}
+      </div>
+      <span class="event-date-badge type-${e.Type||'event'}" style="background:${typeColor(e.Type)};color:#fff;font-size:11px;padding:3px 10px;border-radius:20px">${TYPE_LABELS[e.Type]||'Sự kiện'}</span>
+    </div>`).join('');
+}
+
+function typeColor(t){const m={event:'#3B82F6',assignment:'#F59E0B',exam:'#EF4444',quiz:'#22C55E',conference:'#A855F7'};return m[t]||'#6B7B8A';}
+
+function showEventDetail(event){
+  if(typeof event==='string') event=JSON.parse(event);
+  editingEventId=event.Id;
+  document.getElementById('modal-event-title').innerHTML=`<i class="fas fa-calendar-day" style="color:var(--primary)"></i> ${escHtml(event.Title)}`;
+  document.getElementById('modal-event-body').innerHTML=`
+    <div class="detail-row"><i class="fas fa-tag"></i><span><strong>Loại:</strong> ${TYPE_LABELS[event.Type]||'Sự kiện'}</span></div>
+    <div class="detail-row"><i class="far fa-clock"></i><span><strong>Bắt đầu:</strong> ${fmtDate(event.StartAt)} ${fmtTime(event.StartAt)}</span></div>
+    ${event.EndAt?`<div class="detail-row"><i class="far fa-clock"></i><span><strong>Kết thúc:</strong> ${fmtDate(event.EndAt)} ${fmtTime(event.EndAt)}</span></div>`:''}
+    ${event.Description?`<div class="detail-row"><i class="fas fa-align-left"></i><span>${escHtml(event.Description)}</span></div>`:''}
+    ${event.CourseId?`<div class="detail-row"><i class="fas fa-book"></i><span><strong>Khóa học ID:</strong> ${event.CourseId}</span></div>`:''}
+  `;
+  const footer=document.getElementById('modal-event-footer');
+  footer.innerHTML=`<button class="btn-sm btn-ghost" onclick="closeModal()">Đóng</button>${isTeacher&&event.Type==='event'?`<button class="btn-sm btn-danger" onclick="deleteEvent(${event.Id})"><i class="fas fa-trash"></i> Xóa</button>`:''}`;
+  document.getElementById('modal-event').classList.add('show');
+}
+
+function openNewEvent(){
+  editingEventId=null;
+  document.getElementById('modal-event-title').innerHTML='<i class="fas fa-calendar-plus" style="color:var(--primary)"></i> Tạo sự kiện mới';
+  document.getElementById('modal-event-body').innerHTML=`
+    <div class="form-row"><label>Tiêu đề *</label><input type="text" id="ev-title" placeholder="Tên sự kiện..."></div>
+    <div class="form-row"><label>Loại</label><select id="ev-type">
+      <option value="event">Sự kiện</option>
+      <option value="assignment">Bài tập</option>
+      <option value="exam">Bài thi</option>
+    </select></div>
+    <div class="form-row"><label>Thời gian bắt đầu *</label><input type="datetime-local" id="ev-start"></div>
+    <div class="form-row"><label>Thời gian kết thúc</label><input type="datetime-local" id="ev-end"></div>
+    <div class="form-row"><label>Mô tả</label><textarea id="ev-desc" placeholder="Mô tả sự kiện..."></textarea></div>
+    <div class="form-row"><label>Khóa học ID</label><input type="number" id="ev-course" placeholder="Để trống = tất cả khóa học"></div>
+    <div id="ev-err" style="color:#DC2626;font-size:12px;display:none"></div>`;
+  document.getElementById('modal-event-footer').innerHTML=`
+    <button class="btn-sm btn-ghost" onclick="closeModal()">Hủy</button>
+    <button class="btn-sm btn-primary" onclick="saveEvent()"><i class="fas fa-save"></i> Lưu</button>`;
+  document.getElementById('modal-event').classList.add('show');
+}
+
+async function saveEvent(){
+  const title=document.getElementById('ev-title').value.trim();
+  const type=document.getElementById('ev-type').value;
+  const start=document.getElementById('ev-start').value;
+  const end=document.getElementById('ev-end').value;
+  const desc=document.getElementById('ev-desc').value.trim();
+  const courseId=document.getElementById('ev-course').value;
+  const err=document.getElementById('ev-err');
+  if(!title){err.textContent='Vui lòng nhập tiêu đề';err.style.display='block';return;}
+  if(!start){err.textContent='Vui lòng chọn thời gian bắt đầu';err.style.display='block';return;}
+  err.style.display='none';
+  const data=await api('/api/calendar/events',{method:'POST',body:JSON.stringify({
+    title,type,start_at:new Date(start).toISOString(),
+    end_at:end?new Date(end).toISOString():undefined,
+    description:desc||undefined,course_id:courseId||undefined
+  })});
+  if(data.ok){closeModal();loadEvents();loadUpcoming();}
+  else{err.textContent=data.error||'Không thể tạo sự kiện';err.style.display='block';}
+}
+
+async function deleteEvent(id){
+  if(!confirm('Xác nhận xóa sự kiện này?')) return;
+  await api(`/api/calendar/events/${id}`,{method:'DELETE'});
+  closeModal();loadEvents();loadUpcoming();
+}
+
+function prevMonth(){month--;if(month<0){month=11;year--;}loadEvents();}
+function nextMonth(){month++;if(month>11){month=0;year++;}loadEvents();}
+function goToday(){year=new Date().getFullYear();month=new Date().getMonth();loadEvents();}
+function closeModal(){document.getElementById('modal-event').classList.remove('show');}
+init();
+</script>
+</body>
+</html>

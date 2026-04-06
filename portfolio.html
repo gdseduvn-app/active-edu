@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ActiveEdu — ePortfolio</title>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<style>
+:root{--primary:#E66000;--primary-dark:#C55500;--primary-light:#FF8C3A;--sidebar-bg:#2D3B45;--topbar-h:58px;--bg:#F5F5F5;--card-bg:#fff;--border:#E1E5E8;--text:#2D3B45;--text-muted:#6B7B8A;--text-subtle:#9AAAB5;--success:#16A34A;--warning:#D97706;--danger:#DC2626;--r:6px;--shadow:0 1px 3px rgba(0,0,0,.08);--shadow-md:0 4px 14px rgba(0,0,0,.1)}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Be Vietnam Pro',sans-serif;font-size:14px;color:var(--text);background:var(--bg)}
+
+.top-nav{height:var(--topbar-h);background:var(--sidebar-bg);display:flex;align-items:center;padding:0 24px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.nav-logo{display:flex;align-items:center;gap:10px;margin-right:24px;text-decoration:none}
+.nav-logo-icon{width:32px;height:32px;background:var(--primary);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:15px;color:#fff}
+.nav-logo-name{font-weight:700;font-size:16px;color:#fff}.nav-logo-name span{color:var(--primary-light)}
+.nav-item{padding:7px 13px;color:rgba(199,211,217,.8);cursor:pointer;border-radius:var(--r);font-size:13px;font-weight:500;transition:all .15s;border:none;background:none;display:flex;align-items:center;gap:7px;text-decoration:none}
+.nav-item:hover{background:rgba(255,255,255,.08);color:#fff}
+.nav-item.active{background:rgba(230,96,0,.2);color:#fff}
+.nav-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.nav-avatar{width:32px;height:32px;border-radius:50%;background:var(--primary);color:#fff;border:2px solid rgba(255,255,255,.2);font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer}
+
+.container{max-width:960px;margin:0 auto;padding:24px}
+
+/* PROFILE BANNER */
+.profile-banner{background:linear-gradient(135deg,var(--sidebar-bg) 0%,#3D4F5C 100%);border-radius:10px;padding:24px;margin-bottom:20px;display:flex;align-items:center;gap:18px;color:#fff}
+.profile-avatar-big{width:64px;height:64px;border-radius:50%;background:var(--primary);color:#fff;font-size:24px;font-weight:700;display:flex;align-items:center;justify-content:center;border:3px solid rgba(255,255,255,.3);flex-shrink:0}
+.profile-info h2{font-size:20px;font-weight:700}
+.profile-info p{font-size:13px;opacity:.7;margin-top:3px}
+.profile-stats{margin-left:auto;display:flex;gap:20px}
+.profile-stat{text-align:center}
+.profile-stat-val{font-size:22px;font-weight:800;color:var(--primary-light)}
+.profile-stat-lbl{font-size:11px;opacity:.6}
+
+/* TOOLBAR */
+.toolbar{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.filter-tabs{display:flex;gap:4px;flex-wrap:wrap}
+.filter-tab{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:#fff;color:var(--text-muted);font-family:inherit;transition:all .15s}
+.filter-tab.active,.filter-tab:hover{background:var(--primary);color:#fff;border-color:var(--primary)}
+.btn-add{margin-left:auto;padding:8px 16px;background:var(--primary);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;transition:background .15s}
+.btn-add:hover{background:var(--primary-dark)}
+
+/* ENTRY GRID */
+.entry-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+.entry-card{background:var(--card-bg);border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow);overflow:hidden;transition:box-shadow .2s,transform .15s;cursor:pointer}
+.entry-card:hover{box-shadow:var(--shadow-md);transform:translateY(-2px)}
+.entry-card-top{height:6px}
+.entry-card-top.reflection{background:linear-gradient(90deg,#3B82F6,#6366F1)}
+.entry-card-top.artifact{background:linear-gradient(90deg,#F59E0B,#EF4444)}
+.entry-card-top.achievement{background:linear-gradient(90deg,#22C55E,#14B8A6)}
+.entry-card-top.external{background:linear-gradient(90deg,#A855F7,#EC4899)}
+.entry-card-body{padding:16px}
+.entry-header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px}
+.entry-title{font-size:14px;font-weight:700;line-height:1.3;flex:1}
+.entry-vis{display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;flex-shrink:0}
+.entry-vis.private{background:#F1F5F9;color:var(--text-muted)}
+.entry-vis.course{background:#EFF6FF;color:#3B82F6}
+.entry-vis.public{background:#F0FDF4;color:#16A34A}
+.entry-body-preview{font-size:13px;color:var(--text-muted);line-height:1.6;margin-bottom:10px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.entry-footer{display:flex;align-items:center;justify-content:space-between}
+.entry-type-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px}
+.entry-type-badge.reflection{background:#EEF2FF;color:#4338CA}
+.entry-type-badge.artifact{background:#FEF3C7;color:#92400E}
+.entry-type-badge.achievement{background:#F0FDF4;color:#15803D}
+.entry-type-badge.external{background:#FDF4FF;color:#7E22CE}
+.entry-date{font-size:11px;color:var(--text-subtle)}
+.entry-tags{margin-top:8px;display:flex;flex-wrap:wrap;gap:4px}
+.entry-tag{font-size:11px;padding:2px 7px;background:#F1F5F9;border-radius:20px;color:var(--text-muted)}
+.entry-actions{margin-top:10px;display:flex;gap:6px}
+.action-btn{padding:5px 12px;border-radius:var(--r);border:1.5px solid var(--border);background:none;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;display:flex;align-items:center;gap:4px}
+.action-btn:hover{border-color:var(--primary);color:var(--primary)}
+.action-btn.danger:hover{border-color:var(--danger);color:var(--danger)}
+
+/* EMPTY */
+.empty{text-align:center;padding:60px 20px;color:var(--text-muted);background:var(--card-bg);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow)}
+.empty i{font-size:40px;opacity:.2;margin-bottom:12px;display:block}
+
+/* MODAL */
+.modal{display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.5);align-items:center;justify-content:center}
+.modal.show{display:flex}
+.modal-box{background:#fff;border-radius:12px;width:580px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.2)}
+.modal-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.modal-header h3{font-size:15px;font-weight:700}
+.modal-close{background:none;border:none;font-size:18px;cursor:pointer;color:var(--text-muted);padding:4px}
+.modal-body{padding:20px;display:flex;flex-direction:column;gap:12px}
+.form-row label{display:block;font-size:12px;font-weight:500;color:var(--text-muted);margin-bottom:4px}
+.form-row input,.form-row select,.form-row textarea{width:100%;padding:8px 11px;border:1.5px solid var(--border);border-radius:var(--r);font-family:inherit;font-size:13px;outline:none;transition:border .15s}
+.form-row input:focus,.form-row select:focus,.form-row textarea:focus{border-color:var(--primary)}
+.form-row textarea{resize:vertical;min-height:120px}
+.form-row-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.modal-footer{padding:12px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+.btn-sm{padding:7px 16px;border-radius:var(--r);border:none;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-primary{background:var(--primary);color:#fff}.btn-primary:hover{background:var(--primary-dark)}
+.btn-ghost{background:none;border:1.5px solid var(--border);color:var(--text-muted)}.btn-ghost:hover{border-color:var(--primary);color:var(--primary)}
+.err{color:var(--danger);font-size:12px;display:none}
+
+/* VIS QUICK TOGGLE */
+.vis-select{padding:4px 8px;border:1.5px solid var(--border);border-radius:var(--r);font-size:11px;font-family:inherit;cursor:pointer;outline:none;font-weight:600}
+.vis-select:focus{border-color:var(--primary)}
+
+@media(max-width:640px){.container{padding:12px}.profile-stats{display:none}.form-row-2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<nav class="top-nav">
+  <a class="nav-logo" href="index.html">
+    <div class="nav-logo-icon"><i class="fas fa-bolt"></i></div>
+    <span class="nav-logo-name">Active<span>Edu</span></span>
+  </a>
+  <a class="nav-item" href="index.html"><i class="fas fa-home"></i> Trang chủ</a>
+  <a class="nav-item" href="discussions.html"><i class="fas fa-comments"></i> Thảo luận</a>
+  <a class="nav-item" href="messages.html"><i class="fas fa-envelope"></i> Tin nhắn</a>
+  <a class="nav-item" href="calendar.html"><i class="fas fa-calendar"></i> Lịch</a>
+  <a class="nav-item active" href="#"><i class="fas fa-briefcase"></i> Portfolio</a>
+  <div class="nav-right">
+    <div class="nav-avatar" id="nav-avatar">?</div>
+    <span id="nav-username" style="font-size:13px;color:rgba(199,211,217,.9);font-weight:500"></span>
+  </div>
+</nav>
+
+<div class="container">
+  <!-- PROFILE BANNER -->
+  <div class="profile-banner" id="profile-banner">
+    <div class="profile-avatar-big" id="p-avatar">?</div>
+    <div class="profile-info">
+      <h2 id="p-name">...</h2>
+      <p id="p-email"></p>
+      <p id="p-bio" style="margin-top:4px;font-style:italic;opacity:.6"></p>
+    </div>
+    <div class="profile-stats">
+      <div class="profile-stat"><div class="profile-stat-val" id="stat-total">0</div><div class="profile-stat-lbl">Tổng mục</div></div>
+      <div class="profile-stat"><div class="profile-stat-val" id="stat-public">0</div><div class="profile-stat-lbl">Công khai</div></div>
+      <div class="profile-stat"><div class="profile-stat-val" id="stat-achieve">0</div><div class="profile-stat-lbl">Thành tích</div></div>
+    </div>
+  </div>
+
+  <!-- TOOLBAR -->
+  <div class="toolbar">
+    <div class="filter-tabs">
+      <button class="filter-tab active" data-type="" onclick="setFilter('')">Tất cả</button>
+      <button class="filter-tab" data-type="reflection" onclick="setFilter('reflection')"><i class="fas fa-pen"></i> Nhật ký</button>
+      <button class="filter-tab" data-type="artifact" onclick="setFilter('artifact')"><i class="fas fa-paperclip"></i> Bài làm</button>
+      <button class="filter-tab" data-type="achievement" onclick="setFilter('achievement')"><i class="fas fa-trophy"></i> Thành tích</button>
+      <button class="filter-tab" data-type="external" onclick="setFilter('external')"><i class="fas fa-link"></i> Liên kết</button>
+    </div>
+    <button class="btn-add" id="btn-add" onclick="openCreate()" style="display:none"><i class="fas fa-plus"></i> Thêm mục</button>
+  </div>
+
+  <!-- ENTRIES -->
+  <div id="entry-grid" class="entry-grid">
+    <div class="empty"><i class="fas fa-spinner fa-spin"></i><p>Đang tải...</p></div>
+  </div>
+</div>
+
+<!-- CREATE / EDIT MODAL -->
+<div class="modal" id="modal-entry">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="modal-title"><i class="fas fa-plus" style="color:var(--primary)"></i> Thêm mục portfolio</h3>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row-2">
+        <div class="form-row">
+          <label>Tiêu đề *</label>
+          <input type="text" id="e-title" placeholder="Tiêu đề mục...">
+        </div>
+        <div class="form-row">
+          <label>Loại</label>
+          <select id="e-type">
+            <option value="reflection">Nhật ký học tập</option>
+            <option value="artifact">Bài làm / Dự án</option>
+            <option value="achievement">Thành tích / Huy hiệu</option>
+            <option value="external">Liên kết ngoài</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Nội dung *</label>
+        <textarea id="e-body" placeholder="Mô tả, suy ngẫm, hoặc ghi chú..."></textarea>
+      </div>
+      <div class="form-row-2">
+        <div class="form-row">
+          <label>URL đính kèm</label>
+          <input type="url" id="e-url" placeholder="https://...">
+        </div>
+        <div class="form-row">
+          <label>Hiển thị</label>
+          <select id="e-vis">
+            <option value="private">Chỉ mình tôi</option>
+            <option value="course">Trong khóa học</option>
+            <option value="public">Công khai</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Tags (cách nhau bằng dấu phẩy)</label>
+        <input type="text" id="e-tags" placeholder="toán, đạo hàm, bài tập...">
+      </div>
+      <div class="err" id="e-err"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-sm btn-ghost" onclick="closeModal()">Hủy</button>
+      <button class="btn-sm btn-primary" onclick="saveEntry()"><i class="fas fa-save"></i> Lưu</button>
+    </div>
+  </div>
+</div>
+
+<!-- VIEW ENTRY MODAL -->
+<div class="modal" id="modal-view">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="view-title"></h3>
+      <button class="modal-close" onclick="document.getElementById('modal-view').classList.remove('show')">×</button>
+    </div>
+    <div class="modal-body" id="view-body"></div>
+    <div class="modal-footer" id="view-footer"></div>
+  </div>
+</div>
+
+<script>
+const API='https://api.gds.edu.vn';
+let currentUser=null, allEntries=[], currentFilter='', editingId=null, isOwnPortfolio=true;
+
+// Get userId from URL ?user=X or default to self
+const urlParams=new URLSearchParams(location.search);
+const viewUserId=urlParams.get('user');
+
+function getToken(){return localStorage.getItem('ae_token');}
+async function api(path,opts={}){
+  const h={'Content-Type':'application/json'};
+  const t=getToken();if(t) h['Authorization']='Bearer '+t;
+  const r=await fetch(API+path,{...opts,headers:h});return r.json();
+}
+function escHtml(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function timeAgo(iso){if(!iso)return '';const d=new Date(iso);return d.toLocaleDateString('vi',{day:'2-digit',month:'2-digit',year:'numeric'});}
+const TYPE_LABELS={reflection:'Nhật ký',artifact:'Bài làm',achievement:'Thành tích',external:'Liên kết'};
+const TYPE_ICONS={reflection:'fas fa-pen',artifact:'fas fa-paperclip',achievement:'fas fa-trophy',external:'fas fa-link'};
+const VIS_LABELS={private:'Riêng tư',course:'Khóa học',public:'Công khai'};
+const VIS_ICONS={private:'fas fa-lock',course:'fas fa-users',public:'fas fa-globe'};
+
+async function init(){
+  if(!getToken()&&!viewUserId){window.location.href='login.html';return;}
+  currentUser=JSON.parse(localStorage.getItem('ae_user')||'{}');
+  document.getElementById('nav-avatar').textContent=(currentUser.email||'?')[0].toUpperCase();
+  document.getElementById('nav-username').textContent=currentUser.email||'';
+
+  const targetId=viewUserId||currentUser.userId||currentUser.id;
+  isOwnPortfolio=!viewUserId||String(viewUserId)===String(currentUser.userId||currentUser.id);
+
+  if(isOwnPortfolio){
+    document.getElementById('btn-add').style.display='flex';
+    await loadMyEntries();
+  } else {
+    await loadPublicEntries(targetId);
+  }
+}
+
+async function loadMyEntries(){
+  const data=await api('/api/portfolio/my');
+  allEntries=data.entries||[];
+  updateProfile(currentUser.email,currentUser.email,null,allEntries);
+  renderEntries();
+}
+
+async function loadPublicEntries(userId){
+  const data=await api(`/api/portfolio/${userId}`);
+  allEntries=data.entries||[];
+  const profile=data.profile;
+  updateProfile(profile?.name||userId,profile?.email||'',profile?.bio,allEntries);
+  renderEntries();
+}
+
+function updateProfile(name,email,bio,entries){
+  document.getElementById('p-avatar').textContent=(name||'?')[0].toUpperCase();
+  document.getElementById('p-name').textContent=name||email||'Học sinh';
+  document.getElementById('p-email').textContent=email||'';
+  if(bio) document.getElementById('p-bio').textContent=bio;
+  document.getElementById('stat-total').textContent=entries.length;
+  document.getElementById('stat-public').textContent=entries.filter(e=>e.Visibility==='public').length;
+  document.getElementById('stat-achieve').textContent=entries.filter(e=>e.Type==='achievement').length;
+}
+
+function setFilter(type){
+  currentFilter=type;
+  document.querySelectorAll('.filter-tab').forEach(b=>b.classList.toggle('active',b.dataset.type===type));
+  renderEntries();
+}
+
+function renderEntries(){
+  const filtered=currentFilter?allEntries.filter(e=>e.Type===currentFilter):allEntries;
+  const el=document.getElementById('entry-grid');
+  if(filtered.length===0){
+    el.innerHTML=`<div class="empty" style="grid-column:1/-1"><i class="fas fa-briefcase"></i><p>${currentFilter?'Chưa có mục loại này':'Chưa có mục nào trong portfolio'}</p>${isOwnPortfolio?'<p style="margin-top:8px;font-size:13px">Nhấn <strong>Thêm mục</strong> để bắt đầu</p>':''}</div>`;
+    return;
+  }
+  el.innerHTML=filtered.map(e=>`
+    <div class="entry-card" onclick="viewEntry(${e.Id})">
+      <div class="entry-card-top ${e.Type||'reflection'}"></div>
+      <div class="entry-card-body">
+        <div class="entry-header">
+          <div class="entry-title">${escHtml(e.Title)}</div>
+          <span class="entry-vis ${e.Visibility||'private'}"><i class="${VIS_ICONS[e.Visibility]||'fas fa-lock'}"></i> ${VIS_LABELS[e.Visibility]||''}</span>
+        </div>
+        <div class="entry-body-preview">${escHtml(e.Body||'')}</div>
+        ${e.ArtifactUrl?`<div style="font-size:12px;color:var(--primary);margin-bottom:6px"><i class="fas fa-link"></i> <a href="${escHtml(e.ArtifactUrl)}" target="_blank" onclick="event.stopPropagation()" style="color:inherit">Xem tài liệu</a></div>`:''}
+        <div class="entry-footer">
+          <span class="entry-type-badge ${e.Type||'reflection'}"><i class="${TYPE_ICONS[e.Type]||'fas fa-pen'}"></i> ${TYPE_LABELS[e.Type]||'Nhật ký'}</span>
+          <span class="entry-date">${timeAgo(e.CreatedAt)}</span>
+        </div>
+        ${e.Tags?`<div class="entry-tags">${e.Tags.split(',').map(t=>`<span class="entry-tag">${escHtml(t.trim())}</span>`).join('')}</div>`:''}
+        ${isOwnPortfolio?`<div class="entry-actions" onclick="event.stopPropagation()">
+          <button class="action-btn" onclick="editEntry(${e.Id})"><i class="fas fa-pen"></i> Sửa</button>
+          <select class="vis-select" onchange="changeVis(${e.Id},this.value)" title="Thay đổi hiển thị">
+            <option value="private"${e.Visibility==='private'?' selected':''}>Riêng tư</option>
+            <option value="course"${e.Visibility==='course'?' selected':''}>Khóa học</option>
+            <option value="public"${e.Visibility==='public'?' selected':''}>Công khai</option>
+          </select>
+          <button class="action-btn danger" onclick="deleteEntry(${e.Id})"><i class="fas fa-trash"></i></button>
+        </div>`:''}
+      </div>
+    </div>`).join('');
+}
+
+function viewEntry(id){
+  const e=allEntries.find(x=>x.Id==id);
+  if(!e) return;
+  document.getElementById('view-title').innerHTML=`<i class="${TYPE_ICONS[e.Type]||'fas fa-pen'}" style="color:var(--primary)"></i> ${escHtml(e.Title)}`;
+  document.getElementById('view-body').innerHTML=`
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+      <span class="entry-type-badge ${e.Type||'reflection'}"><i class="${TYPE_ICONS[e.Type]||'fas fa-pen'}"></i> ${TYPE_LABELS[e.Type]||'Nhật ký'}</span>
+      <span class="entry-vis ${e.Visibility||'private'}" style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600"><i class="${VIS_ICONS[e.Visibility]||'fas fa-lock'}"></i> ${VIS_LABELS[e.Visibility]||''}</span>
+      <span style="font-size:12px;color:var(--text-subtle);padding:3px 10px"><i class="far fa-clock"></i> ${timeAgo(e.CreatedAt)}</span>
+    </div>
+    <div style="font-size:14px;line-height:1.8;white-space:pre-wrap;border:1px solid var(--border);border-radius:var(--r);padding:14px;background:#FAFAFA">${escHtml(e.Body||'')}</div>
+    ${e.ArtifactUrl?`<div style="margin-top:12px;padding:10px 14px;background:#EFF6FF;border-radius:var(--r);font-size:13px"><i class="fas fa-link" style="color:var(--primary)"></i> <a href="${escHtml(e.ArtifactUrl)}" target="_blank" style="color:var(--primary);font-weight:600">Mở tài liệu đính kèm</a></div>`:''}
+    ${e.Tags?`<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:4px">${e.Tags.split(',').map(t=>`<span class="entry-tag">${escHtml(t.trim())}</span>`).join('')}</div>`:''}
+  `;
+  document.getElementById('view-footer').innerHTML=`
+    <button class="btn-sm btn-ghost" onclick="document.getElementById('modal-view').classList.remove('show')">Đóng</button>
+    ${isOwnPortfolio?`<button class="btn-sm btn-primary" onclick="document.getElementById('modal-view').classList.remove('show');editEntry(${e.Id})"><i class="fas fa-pen"></i> Chỉnh sửa</button>`:''}
+  `;
+  document.getElementById('modal-view').classList.add('show');
+}
+
+function openCreate(){
+  editingId=null;
+  document.getElementById('modal-title').innerHTML='<i class="fas fa-plus" style="color:var(--primary)"></i> Thêm mục portfolio';
+  document.getElementById('e-title').value='';
+  document.getElementById('e-body').value='';
+  document.getElementById('e-url').value='';
+  document.getElementById('e-type').value='reflection';
+  document.getElementById('e-vis').value='private';
+  document.getElementById('e-tags').value='';
+  document.getElementById('e-err').style.display='none';
+  document.getElementById('modal-entry').classList.add('show');
+}
+
+function editEntry(id){
+  const e=allEntries.find(x=>x.Id==id);
+  if(!e) return;
+  editingId=id;
+  document.getElementById('modal-title').innerHTML='<i class="fas fa-pen" style="color:var(--primary)"></i> Chỉnh sửa mục';
+  document.getElementById('e-title').value=e.Title||'';
+  document.getElementById('e-body').value=e.Body||'';
+  document.getElementById('e-url').value=e.ArtifactUrl||'';
+  document.getElementById('e-type').value=e.Type||'reflection';
+  document.getElementById('e-vis').value=e.Visibility||'private';
+  document.getElementById('e-tags').value=e.Tags||'';
+  document.getElementById('e-err').style.display='none';
+  document.getElementById('modal-entry').classList.add('show');
+}
+
+async function saveEntry(){
+  const title=document.getElementById('e-title').value.trim();
+  const body=document.getElementById('e-body').value.trim();
+  const artifact_url=document.getElementById('e-url').value.trim()||undefined;
+  const type=document.getElementById('e-type').value;
+  const visibility=document.getElementById('e-vis').value;
+  const tags=document.getElementById('e-tags').value.trim()||undefined;
+  const err=document.getElementById('e-err');
+
+  if(!title||title.length<2){err.textContent='Tiêu đề ít nhất 2 ký tự';err.style.display='block';return;}
+  if(!body||body.length<5){err.textContent='Nội dung ít nhất 5 ký tự';err.style.display='block';return;}
+  err.style.display='none';
+
+  let data;
+  if(editingId){
+    data=await api(`/api/portfolio/entries/${editingId}`,{method:'PUT',body:JSON.stringify({title,content:body,artifact_url,visibility,tags})});
+  } else {
+    data=await api('/api/portfolio/entries',{method:'POST',body:JSON.stringify({title,content:body,type,artifact_url,visibility,tags})});
+  }
+
+  if(data.ok||(data.entry&&data.entry.Id)){
+    closeModal();
+    await loadMyEntries();
+  } else {
+    err.textContent=data.error||'Không thể lưu mục';err.style.display='block';
+  }
+}
+
+async function changeVis(id,vis){
+  await api(`/api/portfolio/entries/${id}/visibility`,{method:'PATCH',body:JSON.stringify({visibility:vis})});
+  const e=allEntries.find(x=>x.Id==id);
+  if(e) e.Visibility=vis;
+  renderEntries();
+  updateProfile(currentUser.email,currentUser.email,null,allEntries);
+}
+
+async function deleteEntry(id){
+  if(!confirm('Xác nhận xóa mục này khỏi portfolio?')) return;
+  const data=await api(`/api/portfolio/entries/${id}`,{method:'DELETE'});
+  if(data.ok){await loadMyEntries();}
+  else alert(data.error||'Không thể xóa');
+}
+
+function closeModal(){document.getElementById('modal-entry').classList.remove('show');}
+init();
+</script>
+</body>
+</html>

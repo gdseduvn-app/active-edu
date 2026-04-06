@@ -357,6 +357,55 @@ export async function handleSelfUnenroll(request, env, { json, path }) {
   return json({ ok: true });
 }
 
+// POST /api/courses/join — self-enroll by join code
+// Body: { join_code: "ABC123" }
+// Requires JoinCode field in Courses table (NOCO_COURSES)
+export async function handleJoinByCode(request, env, { json }) {
+  const session = await getSession(request, env);
+  if (!session) return json({ error: 'Chưa đăng nhập' }, 401);
+  if (!env.NOCO_COURSES || !env.NOCO_ENROLLMENTS) return json({ error: 'Tính năng chưa được cấu hình' }, 503);
+
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
+
+  const { join_code } = body;
+  if (!join_code || join_code.trim().length < 3) return json({ error: 'Mã tham gia không hợp lệ' }, 400);
+
+  // Find course by join code
+  const cr = await nocoFetch(env,
+    `/api/v2/tables/${env.NOCO_COURSES}/records?where=(JoinCode,eq,${join_code.trim().toUpperCase()})~and(WorkflowState,eq,available)&limit=1`
+  );
+  if (!cr.ok) return json({ error: 'Không tìm thấy khoá học' }, 404);
+  const courses = (await cr.json()).list || [];
+  if (courses.length === 0) return json({ error: 'Mã tham gia không đúng hoặc khoá học chưa mở' }, 404);
+
+  const course = courses[0];
+
+  // Check not already enrolled
+  const dupR = await nocoFetch(env,
+    `/api/v2/tables/${env.NOCO_ENROLLMENTS}/records?where=(CourseId,eq,${course.Id})~and(UserId,eq,${session.userId})&limit=1`
+  );
+  if (dupR.ok) {
+    const dup = (await dupR.json()).list || [];
+    if (dup.length && dup[0].WorkflowState === 'active')
+      return json({ error: 'Bạn đã ghi danh khoá học này rồi', course_id: course.Id }, 409);
+    if (dup.length) {
+      await nocoFetch(env, `/api/v2/tables/${env.NOCO_ENROLLMENTS}/records`, 'PATCH',
+        [{ Id: dup[0].Id, WorkflowState: 'active' }]);
+      return json({ ok: true, course_id: course.Id, course_name: course.Title || course.Name, reactivated: true });
+    }
+  }
+
+  const r = await nocoFetch(env, `/api/v2/tables/${env.NOCO_ENROLLMENTS}/records`, 'POST', {
+    UserId: session.userId,
+    CourseId: course.Id,
+    Role: 'StudentEnrollment',
+    WorkflowState: 'active',
+  });
+  if (!r.ok) return json({ error: 'Không thể ghi danh' }, 502);
+  return json({ ok: true, course_id: course.Id, course_name: course.Title || course.Name }, 201);
+}
+
 // GET /api/courses/:id/access — 3-tier RBAC check for a student (FR-C11)
 export async function handleCourseAccessCheck(request, env, { json, path }) {
   const session = await getSession(request, env);

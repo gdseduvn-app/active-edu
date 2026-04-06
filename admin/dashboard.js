@@ -2,6 +2,37 @@
 // Auth được xử lý trong DOMContentLoaded bên dưới
 
 // ═══════════════════════════════════════════════════
+// REQUEST QUEUE — ngăn 429 Too Many Requests từ NocoDB
+// Max 3 concurrent admin requests; tự động retry khi 429
+// ═══════════════════════════════════════════════════
+const _adminQueue = {
+  q: [], n: 0, max: 3,
+  run(url, opts) {
+    return new Promise((ok, fail) => {
+      this.q.push({ url, opts, ok, fail, tries: 0 });
+      this._next();
+    });
+  },
+  _next() {
+    while (this.n < this.max && this.q.length) {
+      const t = this.q.shift();
+      this.n++;
+      fetch(t.url, t.opts).then(r => {
+        if (r.status === 429 && t.tries < 4) {
+          const ms = 700 * Math.pow(2, t.tries++);
+          this.n--;
+          setTimeout(() => { this.q.unshift(t); this._next(); }, ms);
+        } else {
+          t.ok(r); this.n--; this._next();
+        }
+      }).catch(e => { t.fail(e); this.n--; this._next(); });
+    }
+  }
+};
+// Thay thế fetch() cho tất cả admin/proxy requests
+function adminFetch(url, opts) { return _adminQueue.run(url, opts); }
+
+// ═══════════════════════════════════════════════════
 // SETTINGS & AUTH
 // ═══════════════════════════════════════════════════
 const CFG_KEY     = 'ae_config';
@@ -1949,7 +1980,7 @@ async function loadDashboardCourses() {
   grid.innerHTML = '<div class="cv-cards-loading"><i class="fas fa-spinner fa-spin"></i> Đang tải khoá học...</div>';
 
   try {
-    const r = await fetch(`${PROXY}/admin/courses?limit=200&sort=-UpdatedAt`, { headers: adminHeaders() });
+    const r = await adminFetch(`${PROXY}/admin/courses?limit=200&sort=-UpdatedAt`, { headers: adminHeaders() });
     if (!r.ok) throw new Error(await r.text());
     const data = await r.json();
     const courses = data.list || [];
@@ -1962,15 +1993,15 @@ async function loadDashboardCourses() {
     _el('ds-courses', courses.length);
     _el('ds-published', published.length);
 
-    // Load assessments count
-    fetch(`${PROXY}/admin/assessments-proxy?limit=1`, { headers: adminHeaders() })
+    // Load assessments count (staggered to avoid burst)
+    setTimeout(() => adminFetch(`${PROXY}/admin/assessments-proxy?limit=1`, { headers: adminHeaders() })
       .then(r => r.json()).then(d => _el('ds-assessments', d.pageInfo?.totalRows || d.list?.length || '—'))
-      .catch(() => {});
+      .catch(() => {}), 300);
 
-    // Load user count
-    fetch(`${PROXY}/admin/users?limit=1`, { headers: adminHeaders() })
+    // Load user count (staggered)
+    setTimeout(() => adminFetch(`${PROXY}/admin/users?limit=1`, { headers: adminHeaders() })
       .then(r => r.json()).then(d => _el('ds-students', d.pageInfo?.totalRows || d.list?.length || '—'))
-      .catch(() => {});
+      .catch(() => {}), 600);
 
     // Update section heading
     const heading = document.getElementById('cv-dash-courses-heading');
@@ -1999,7 +2030,7 @@ async function loadDashboardCourses() {
       const initials = (c.Title || '?').substring(0, 2).toUpperCase();
 
       return `
-        <div class="cv-course-card" onclick="openModuleBuilder(${c.Id})">
+        <div class="cv-course-card" onclick="navigateToModuleBuilder(${c.Id})">
           <!-- Card header with color -->
           <div class="cv-card-banner" style="background:${color}">
             <div class="cv-card-banner-text">${initials}</div>
@@ -2008,7 +2039,7 @@ async function loadDashboardCourses() {
                 <i class="fas fa-ellipsis-v"></i>
               </button>
               <div class="cv-card-menu" id="cardmenu-${c.Id}" style="display:none">
-                <button onclick="openModuleBuilder(${c.Id});closeCardMenus()"><i class="fas fa-layer-group"></i> Nội dung</button>
+                <button onclick="navigateToModuleBuilder(${c.Id});closeCardMenus()"><i class="fas fa-layer-group"></i> Nội dung</button>
                 <button onclick="openEnrollmentPanel(${c.Id},'${_esc(c.Title)}');closeCardMenus();showPanel('courses',null)"><i class="fas fa-users"></i> Học viên</button>
                 <button onclick="openCourseModal(${c.Id});closeCardMenus()"><i class="fas fa-pen"></i> Chỉnh sửa</button>
                 <button onclick="openCourseWorkflowPanel(${c.Id},'${_esc(c.Title)}');closeCardMenus();showPanel('courses',null)"><i class="fas fa-rotate"></i> Workflow</button>
@@ -2018,13 +2049,13 @@ async function loadDashboardCourses() {
           </div>
           <!-- Card body -->
           <div class="cv-card-body">
-            <a class="cv-card-name" style="color:${color}">${_esc(c.Title)}</a>
+            <a class="cv-card-name" style="color:${color}" onclick="event.preventDefault();navigateToModuleBuilder(${c.Id})">${_esc(c.Title)}</a>
             <div class="cv-card-sub">${_esc(c.CourseCode || c.Title)}</div>
             ${term}
           </div>
           <!-- Card footer icons -->
           <div class="cv-card-footer" onclick="event.stopPropagation()">
-            <button class="cv-card-foot-btn" onclick="openModuleBuilder(${c.Id})" title="Nội dung học tập">
+            <button class="cv-card-foot-btn" onclick="navigateToModuleBuilder(${c.Id})" title="Nội dung học tập">
               <i class="fas fa-book-open"></i>
             </button>
             <button class="cv-card-foot-btn" onclick="openEnrollmentPanel(${c.Id},'${_esc(c.Title)}');showPanel('courses',null)" title="Học viên">
@@ -2092,7 +2123,7 @@ async function loadAnalytics() {
     let offset = 0;
     const pageSize = 200;
     while (true) {
-      const resp = await fetch(`${proxyBase}/admin/progress?limit=${pageSize}&offset=${offset}`, {
+      const resp = await adminFetch(`${proxyBase}/admin/progress?limit=${pageSize}&offset=${offset}`, {
         headers: adminHeaders()
       });
       if (!resp.ok) throw new Error('Lỗi tải dữ liệu tiến độ');
@@ -2261,8 +2292,8 @@ async function loadModuleOptions(selectedModuleId = '') {
     try {
       // Lấy modules, group theo course để dễ chọn
       const [modResp, courseResp] = await Promise.all([
-        fetch(`${PROXY}/admin/modules?limit=500&sort=Position&fields=Id,Title,CourseId,Position`, { headers: adminHeaders() }),
-        fetch(`${PROXY}/admin/courses?limit=200&fields=Id,Title`, { headers: adminHeaders() }),
+        adminFetch(`${PROXY}/admin/modules?limit=500&sort=Id&fields=Id,Title,CourseId`, { headers: adminHeaders() }),
+        adminFetch(`${PROXY}/admin/courses?limit=200&fields=Id,Title`, { headers: adminHeaders() }),
       ]);
       const mods    = modResp.ok    ? (await modResp.json()).list    || [] : [];
       const courses = courseResp.ok ? (await courseResp.json()).list || [] : [];
@@ -2426,6 +2457,7 @@ function showPanel(id, navEl) {
 
   if (id === 'settings') {
     loadSettings();
+    loadDriveSettings();
 
   } else if (id === 'editor') {
     renderUnifiedTree(indexTree);
@@ -2441,6 +2473,7 @@ function showPanel(id, navEl) {
   } else if (id === 'dashboard') {
     updateDashboard();
     loadDashboardCourses();
+    loadAdminStats();
 
   } else if (id === 'users') {
     loadUsers();
@@ -2903,11 +2936,11 @@ function openUserModal(user) {
   if (passInp) passInp.type = 'password';
   // Update avatar preview
   updateUMAvatarPreview();
-  document.getElementById('user-modal').style.display = 'flex';
+  document.getElementById('user-modal').classList.add('show');
 }
 
 function closeUserModal() {
-  document.getElementById('user-modal').style.display = 'none';
+  document.getElementById('user-modal').classList.remove('show');
   editingUserId = null;
 }
 
@@ -3461,7 +3494,7 @@ async function openPermModal(userId, userName) {
   document.getElementById('perm-count-label').textContent = '0 mục được chọn';
   document.getElementById('perm-tree').innerHTML =
     '<div style="text-align:center;padding:50px;color:var(--text-muted);font-size:13px"><i class="fas fa-spinner fa-spin" style="font-size:20px;display:block;margin-bottom:10px;color:var(--primary)"></i>Đang tải...</div>';
-  document.getElementById('perm-modal').style.display = 'flex';
+  document.getElementById('perm-modal').classList.add('show');
   document.getElementById('perm-only-private').checked = false;
 
   try {
@@ -3678,7 +3711,7 @@ function permClearAll() {
 }
 
 function closePermModal() {
-  document.getElementById('perm-modal').style.display = 'none';
+  document.getElementById('perm-modal').classList.remove('show');
   permUserId = null;
   permUserName = '';
   currentPermissions = [];
@@ -4923,6 +4956,15 @@ function _qmHideImportProgress() {
 let _courses = [];       // cache danh sách khoá học
 let _activeCourseId = null; // khoá học đang mở module builder
 
+// ── Navigate từ Dashboard đến Courses panel rồi mở Module Builder ──
+async function navigateToModuleBuilder(courseId) {
+  // Chuyển sang Courses panel (không trigger loadCourses() nếu đã có cache)
+  _activatePanel('courses');
+  if (!_courses.length) await loadCourses();
+  else renderCoursesTable(_courses);
+  openModuleBuilder(courseId);
+}
+
 // ── Load danh sách khoá học ──
 async function loadCourses() {
   const tbody = document.getElementById('courses-table');
@@ -5058,10 +5100,10 @@ function openCourseModal(id) {
   document.getElementById('cm-title').value = course?.Title || '';
   document.getElementById('cm-desc').value = course?.Description || '';
   setCourseStatus(course?.Status || 'draft');
-  document.getElementById('course-modal').style.display = 'flex';
+  document.getElementById('course-modal').classList.add('show');
   setTimeout(() => document.getElementById('cm-title').focus(), 100);
 }
-function closeCourseModal() { document.getElementById('course-modal').style.display = 'none'; }
+function closeCourseModal() { document.getElementById('course-modal').classList.remove('show'); }
 
 async function saveCourse() {
   const id = document.getElementById('cm-id').value;
@@ -5400,7 +5442,7 @@ async function loadModules(courseId) {
   const container = document.getElementById('modules-list');
   container.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-muted)">Đang tải...</div>';
   try {
-    const r = await fetch(`${PROXY}/admin/modules?where=(CourseId,eq,${courseId})&sort=Position&limit=100`, { headers: adminHeaders() });
+    const r = await fetch(`${PROXY}/admin/modules?where=(CourseId,eq,${courseId})&sort=Id&limit=100`, { headers: adminHeaders() });
     if (!r.ok) throw new Error(await r.text());
     const data = await r.json();
     _modules = data.list || [];
@@ -5463,8 +5505,12 @@ function renderModules() {
       </div>
     </div>`).join('');
 
-  // Auto-load items for all modules
-  _modules.forEach(m => loadModuleItems(m.Id, false));
+  // Auto-load items sequentially — tránh burst requests gây 429
+  (async () => {
+    for (const m of _modules) {
+      await loadModuleItems(m.Id, false);
+    }
+  })();
 }
 
 function toggleModule(moduleId, event) {
@@ -5527,8 +5573,8 @@ async function loadModuleItems(moduleId, toggle = true) {
   container.innerHTML = '<div class="cv-items-loading"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>';
 
   try {
-    const r = await fetch(
-      `${PROXY}/admin/articles?where=(ModuleId,eq,${moduleId})&sort=Position&limit=100&fields=Id,Title,ItemType,Position,Published,Access`,
+    const r = await adminFetch(
+      `${PROXY}/admin/articles?where=(ModuleId,eq,${moduleId})&sort=Id&limit=100&fields=Id,Title,ItemType,Published,Access`,
       { headers: adminHeaders() }
     );
     if (!r.ok) throw new Error(await r.text());
@@ -5641,7 +5687,8 @@ async function loadAddItemContent() {
     } else if (type === 'assessment') {
       url = `${PROXY}/admin/assessments-proxy?limit=200&sort=Title&fields=Id,Title,AssessmentType`;
     }
-    const r = await fetch(url, { headers: adminHeaders() });
+    const r = await adminFetch(url, { headers: adminHeaders() });
+    if (!r.ok) throw new Error(`Lỗi tải danh sách (${r.status})`);
     const data = await r.json();
     const items = data.list || [];
     if (!items.length) {
@@ -6164,7 +6211,7 @@ async function loadExamSections(examId) {
   const listEl = document.getElementById('exam-sections-list');
   listEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-muted)">Đang tải...</div>';
   try {
-    const r = await fetch(`${PROXY}/admin/exam-sections?where=(ExamId,eq,${examId})&sort=Position&limit=50`, { headers: adminHeaders() });
+    const r = await fetch(`${PROXY}/admin/exam-sections?where=(ExamId,eq,${examId})&sort=Id&limit=50`, { headers: adminHeaders() });
     if (!r.ok) throw new Error(await r.text());
     const data = await r.json();
     _examSections = data.list || [];
@@ -6552,11 +6599,11 @@ async function openAssessmentModal(id = null) {
     setAssessType('graded_quiz');
   }
 
-  document.getElementById('assessment-modal').style.display = 'flex';
+  document.getElementById('assessment-modal').classList.add('show');
 }
 
 function closeAssessmentModal() {
-  document.getElementById('assessment-modal').style.display = 'none';
+  document.getElementById('assessment-modal').classList.remove('show');
 }
 
 // ── Question builder ───────────────────────────────
@@ -7327,6 +7374,228 @@ function copyToClipboard(id) {
   navigator.clipboard.writeText(el.textContent).then(() => showToast('Đã sao chép!', 'success'));
 }
 
+// ══════════════════════════════════════════════════════════════════════
+// PHASE 1 — SCHEMA SETUP & SEED
+// ══════════════════════════════════════════════════════════════════════
+
+async function runSetupPhase1() {
+  const btn = document.getElementById('btn-setup-phase1');
+  const res = document.getElementById('setup-phase1-result');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang tạo bảng...';
+  res.style.display = 'none';
+  try {
+    const r = await apiFetch('/admin/setup/schema-phase1', 'POST', {});
+    const data = await r.json();
+    if (r.ok) {
+      res.style.cssText = 'display:block;padding:12px 16px;border-radius:8px;font-size:13px;background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8';
+      const tables = Object.entries(data.results || {}).map(([t, v]) =>
+        `<div style="margin-top:6px"><b>${t}</b>: ${v.status}${v.table_id ? ` — ID: <code>${v.table_id}</code>` : ''}${v.note ? `<br><span style="color:#64748b;font-size:12px">${v.note}</span>` : ''}</div>`
+      ).join('');
+      res.innerHTML = `<i class="fas fa-check-circle"></i> <b>${data.message}</b>${tables}`;
+      btn.innerHTML = '<i class="fas fa-check"></i> Đã tạo';
+      btn.style.background = '#16a34a';
+      showToast('✅ Phase 1 schema created', 'success');
+    } else {
+      throw new Error(data.error || 'Lỗi không xác định');
+    }
+  } catch(e) {
+    res.style.cssText = 'display:block;padding:12px 16px;border-radius:8px;font-size:13px;background:#fef2f2;border:1px solid #fca5a5;color:#dc2626';
+    res.innerHTML = `<i class="fas fa-times-circle"></i> Lỗi: ${e.message}`;
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-database"></i> Thử lại';
+  }
+}
+
+async function runSeedOutcomes() {
+  const btn = document.getElementById('btn-seed-outcomes');
+  const res = document.getElementById('seed-outcomes-result');
+  if (!confirm('Seed sẽ thêm ~40 chuẩn đầu ra mẫu vào bảng Outcomes. Tiếp tục?')) return;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang seed...';
+  res.style.display = 'none';
+  try {
+    const r = await apiFetch('/admin/setup/seed-outcomes', 'POST', {});
+    const data = await r.json();
+    if (r.ok) {
+      res.style.cssText = 'display:block;padding:12px 16px;border-radius:8px;font-size:13px;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d';
+      res.innerHTML = `<i class="fas fa-seedling"></i> <b>${data.message}</b><br>
+        <span style="color:#64748b;font-size:12px">${(data.next_steps||[]).map(s=>`• ${s}`).join('<br>')}</span>`;
+      btn.innerHTML = '<i class="fas fa-check"></i> Đã seed';
+      btn.style.background = '#16a34a';
+      showToast(`✅ Seeded ${data.total_seeded} outcomes`, 'success');
+    } else {
+      throw new Error(data.error || 'Lỗi không xác định');
+    }
+  } catch(e) {
+    res.style.cssText = 'display:block;padding:12px 16px;border-radius:8px;font-size:13px;background:#fef2f2;border:1px solid #fca5a5;color:#dc2626';
+    res.innerHTML = `<i class="fas fa-times-circle"></i> Lỗi: ${e.message}`;
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-seedling"></i> Thử lại';
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// OUTCOMES PANEL
+// ══════════════════════════════════════════════════════════════════════
+
+async function loadOutcomes() {
+  const subject = document.getElementById('outcomes-filter-subject')?.value || '';
+  const grade   = document.getElementById('outcomes-filter-grade')?.value   || '';
+  const tbody   = document.getElementById('outcomes-tbody');
+  const stats   = document.getElementById('outcomes-stats');
+  if (!tbody) return;
+
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px"><i class="fas fa-spinner fa-spin"></i> Đang tải...</td></tr>';
+
+  try {
+    let qs = '?limit=500';
+    if (subject) qs += `&subject=${encodeURIComponent(subject)}`;
+    if (grade)   qs += `&grade=${encodeURIComponent(grade)}`;
+    const r = await apiFetch(`/api/outcomes${qs}`, 'GET');
+    const data = await r.json();
+
+    if (!r.ok) throw new Error(data.error || data.note || 'Lỗi tải outcomes');
+
+    const outcomes = data.outcomes || [];
+    if (outcomes.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-muted)">
+        Chưa có dữ liệu. <b>Vào Cài đặt → Seed Outcomes</b> để nhập CT GDPT 2018.
+      </td></tr>`;
+      stats.innerHTML = '';
+      return;
+    }
+
+    // Stats strip
+    const bySubject = {};
+    for (const o of outcomes) bySubject[o.Subject||'?'] = (bySubject[o.Subject||'?']||0)+1;
+    stats.innerHTML = Object.entries(bySubject).map(([s,c]) =>
+      `<div style="padding:6px 14px;background:#eff6ff;border-radius:20px;font-size:13px;color:#1d4ed8;font-weight:500">${s}: ${c}</div>`
+    ).join('') + `<div style="padding:6px 14px;background:#f1f5f9;border-radius:20px;font-size:13px;color:#475569">Tổng: ${outcomes.length}</div>`;
+
+    // Colour-code level
+    const levelBadge = l => {
+      const cfg = {1:['#eff6ff','#2563eb'], 2:['#f0fdf4','#16a34a'], 3:['#fefce8','#ca8a04'], 4:['#fdf4ff','#9333ea']};
+      const [bg, fg] = cfg[l] || ['#f1f5f9','#475569'];
+      return `<span style="background:${bg};color:${fg};padding:2px 8px;border-radius:10px;font-size:11.5px;font-weight:600">Cấp ${l}</span>`;
+    };
+
+    tbody.innerHTML = outcomes.map(o => `
+      <tr>
+        <td><code style="font-size:12px;color:#7c3aed">${o.Code||''}</code></td>
+        <td><span style="font-weight:600;color:#1e3a5f">${o.Subject||''}</span></td>
+        <td style="color:var(--text-muted)">${o.Grade||''}</td>
+        <td style="font-size:13px">${o.TitleVi||o.title_vi||''}</td>
+        <td>${levelBadge(o.Level||o.level||1)}</td>
+        <td style="text-align:center;color:var(--text-muted)">${o.EstimatedHours||o.estimated_hours||'—'}</td>
+        <td>
+          <button class="btn-icon" title="Xem chi tiết" onclick="viewOutcomeDetail(${o.Id||o.id})">
+            <i class="fas fa-eye"></i>
+          </button>
+        </td>
+      </tr>`).join('');
+
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:#dc2626">
+      <i class="fas fa-exclamation-triangle"></i> ${e.message}
+      <br><small style="color:var(--text-muted)">Bảng chưa được khởi tạo? Vào <b>Cài đặt → Phase 1</b></small>
+    </td></tr>`;
+  }
+}
+
+function viewOutcomeDetail(id) {
+  showToast(`Outcome ID ${id} — chi tiết sẽ có trong Phase 2 UI`, 'info');
+}
+
+function showAddOutcomeModal() {
+  showToast('Tính năng thêm chuẩn thủ công — coming soon. Dùng NocoDB UI hoặc POST /api/outcomes', 'info');
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// RESEARCH AGENT (agentic loop)
+// ══════════════════════════════════════════════════════════════════════
+
+async function runResearchAgent() {
+  const btn       = document.getElementById('btn-run-agent');
+  const resultDiv = document.getElementById('ra-result');
+  const studentId = document.getElementById('ra-student-id')?.value?.trim();
+  const courseId  = document.getElementById('ra-course-id')?.value?.trim();
+  const mode      = document.getElementById('ra-mode')?.value || 'diagnose';
+  const task      = document.getElementById('ra-task')?.value?.trim();
+
+  if (!task) { showToast('Nhập task/câu hỏi nghiên cứu', 'error'); return; }
+
+  btn.disabled = true;
+  btn._orig = btn.innerHTML;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Agent đang chạy...';
+  resultDiv.style.display = 'none';
+
+  const context = {};
+  if (studentId) context.student_id = studentId;
+  if (courseId)  context.course_id  = courseId;
+
+  try {
+    const r = await apiFetch('/ai/research-agent', 'POST', {
+      mode, task, context, return_trace: true,
+    });
+    const data = await r.json();
+
+    if (!r.ok) throw new Error(data.error || 'Agent thất bại');
+
+    const stats  = data.agent_stats || {};
+    const result = typeof data.result === 'object'
+      ? JSON.stringify(data.result, null, 2)
+      : (data.result || '(Không có kết quả)');
+
+    // Build trace summary
+    const traceHtml = (data.trace || []).map((t, i) => {
+      if (t.type === 'tool_call') {
+        const ok = t.ok !== false;
+        return `<div style="margin:4px 0;padding:6px 10px;background:${ok?'#f0fdf4':'#fef2f2'};border-radius:6px;font-size:12px">
+          <span style="color:${ok?'#16a34a':'#dc2626'}">⚙ <b>${t.tool}</b></span>
+          <span style="color:#94a3b8;margin-left:8px">${t.duration_ms||0}ms</span>
+        </div>`;
+      }
+      if (t.type === 'reasoning') {
+        const short = (t.text||'').slice(0, 120);
+        return `<div style="margin:4px 0;padding:6px 10px;background:#f8fafc;border-radius:6px;font-size:12px;color:#475569">
+          💭 ${short}${t.text?.length > 120 ? '…' : ''}
+        </div>`;
+      }
+      return '';
+    }).join('');
+
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = `
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+        <span style="padding:3px 10px;background:#eff6ff;border-radius:12px;font-size:12px;color:#2563eb">
+          <i class="fas fa-repeat"></i> ${data.iterations} vòng lặp
+        </span>
+        <span style="padding:3px 10px;background:#f0fdf4;border-radius:12px;font-size:12px;color:#16a34a">
+          <i class="fas fa-wrench"></i> ${stats.tool_calls_made||0} tool calls
+        </span>
+        <span style="padding:3px 10px;background:#fdf4ff;border-radius:12px;font-size:12px;color:#9333ea">
+          <i class="fas fa-coins"></i> ${data.token_usage?.total||0} tokens
+        </span>
+        ${stats.hit_iteration_cap ? '<span style="padding:3px 10px;background:#fef9c3;border-radius:12px;font-size:12px;color:#ca8a04">⚠ Đã đạt giới hạn vòng lặp</span>' : ''}
+      </div>
+      ${traceHtml ? `<div style="margin-bottom:12px"><b style="font-size:12px;color:#64748b">REASONING TRACE:</b>${traceHtml}</div>` : ''}
+      <div style="border-top:1px solid #e2e8f0;padding-top:10px">
+        <b style="font-size:12px;color:#1e3a5f">KẾT QUẢ:</b>
+        <pre style="margin:8px 0 0;font-size:12px;white-space:pre-wrap;color:#1e293b;font-family:monospace">${result}</pre>
+      </div>`;
+
+    showToast('✅ Research Agent hoàn thành', 'success');
+  } catch(e) {
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = `<span style="color:#dc2626"><i class="fas fa-times-circle"></i> ${e.message}</span>`;
+    showToast('❌ ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = btn._orig;
+  }
+}
+
 // ── Helpers ───────────────────────────────────────────────────
 function setAgentLoading(btn, loading) {
   if (!btn) return;
@@ -7336,5 +7605,154 @@ function setAgentLoading(btn, loading) {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang chạy AI...';
   } else {
     btn.innerHTML = btn._orig || btn.innerHTML;
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// ADMIN STATS — Real-time system stats from /admin/stats
+// ══════════════════════════════════════════════════════════
+async function loadAdminStats() {
+  const section = document.getElementById('admin-sys-stats');
+  if (!section) return;
+  try {
+    const r = await fetch(`${PROXY}/admin/stats`, { headers: adminHeaders() });
+    if (!r.ok) return;
+    const d = await r.json();
+    const _s = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val ?? '—'; };
+    _s('rs-submissions', d.submissions_today ?? d.total_submissions ?? '—');
+    _s('rs-ai-queries', d.ai_queries_today ?? d.ai_queries ?? '—');
+    _s('rs-active-courses', d.active_courses ?? d.total_courses ?? '—');
+    _s('rs-total-users', d.total_users ?? '—');
+    section.style.display = 'block';
+  } catch { /* fail silently */ }
+}
+
+// ══════════════════════════════════════════════════════════
+// GOOGLE DRIVE SETTINGS
+// ══════════════════════════════════════════════════════════
+async function loadDriveSettings() {
+  const card  = document.getElementById('drive-status-card');
+  const input = document.getElementById('drive-folder-input');
+  const link  = document.getElementById('drive-folder-link');
+  if (!card) return;
+
+  card.style.borderLeftColor = '#ccc';
+  card.innerHTML = '<i class="fas fa-spinner fa-spin" style="color:var(--text-muted)"></i> Đang kiểm tra cấu hình Drive...';
+
+  try {
+    const r = await fetch(`${PROXY}/admin/settings/drive`, { headers: adminHeaders() });
+    const d = await r.json();
+
+    const folderId   = d.folder_id   || '';
+    const folderName = d.folder_name || '';
+    const source     = d.source      || '';
+    const hasSA      = d.has_service_account;
+    const hasDynamic = d.has_dynamic_settings;
+
+    if (!hasSA) {
+      card.style.borderLeftColor = 'var(--danger)';
+      card.innerHTML = `<i class="fas fa-times-circle" style="color:var(--danger)"></i>
+        <b style="color:var(--danger)"> Chưa cấu hình GDRIVE_SA_JSON</b><br>
+        <span style="color:var(--text-muted);font-size:12px;">Thêm Service Account JSON vào Cloudflare Worker Secrets → deploy lại.</span>`;
+    } else if (!folderId) {
+      card.style.borderLeftColor = '#F59E0B';
+      card.innerHTML = `<i class="fas fa-exclamation-triangle" style="color:#F59E0B"></i>
+        <b style="color:#D97706"> Service Account OK — Chưa chọn thư mục lưu trữ</b><br>
+        <span style="color:var(--text-muted);font-size:12px;">File sẽ upload vào thư mục gốc Drive. Nên cấu hình thư mục cụ thể bên dưới.</span>`;
+    } else {
+      card.style.borderLeftColor = '#1FA463';
+      card.innerHTML = `<i class="fab fa-google-drive" style="color:#1FA463"></i>
+        <b style="color:#1FA463"> Đã cấu hình</b>${folderName ? ' — ' + escHtml(folderName) : ''}<br>
+        <span style="font-size:11px;color:var(--text-muted);">
+          ID: <code style="background:var(--card);padding:1px 6px;border-radius:4px;">${escHtml(folderId)}</code>
+          &nbsp;·&nbsp;Nguồn: ${escHtml(source)}
+          ${!hasDynamic ? '&nbsp;·&nbsp;<span style="color:#F59E0B;">⚠️ NOCO_SETTINGS chưa set</span>' : ''}
+        </span>`;
+    }
+
+    if (folderId) {
+      if (input && !input.value) input.value = folderId;
+      if (link) { link.href = `https://drive.google.com/drive/folders/${folderId}`; link.style.display = ''; }
+    }
+  } catch(e) {
+    card.style.borderLeftColor = 'var(--danger)';
+    card.innerHTML = `<i class="fas fa-times-circle" style="color:var(--danger)"></i> Không thể kiểm tra: ${escHtml(e.message)}`;
+  }
+}
+
+async function saveDriveFolder() {
+  const input    = document.getElementById('drive-folder-input');
+  const resultEl = document.getElementById('drive-action-result');
+  const btn      = document.getElementById('btn-save-drive');
+  const raw      = input?.value?.trim();
+
+  if (!raw) { showToast('Vui lòng nhập URL hoặc Folder ID', 'error'); return; }
+  btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang lưu...';
+  resultEl.style.display = 'none';
+
+  try {
+    const r = await fetch(`${PROXY}/admin/settings/drive`, {
+      method:  'PATCH',
+      headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ folder_id: raw }),
+    });
+    const d = await r.json();
+
+    if (!r.ok || d.ok === false) {
+      resultEl.style.cssText = 'display:block;background:#FEF2F2;border:1px solid #FECACA;color:#DC2626;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:12px;';
+      resultEl.innerHTML = `<i class="fas fa-times-circle"></i> ${escHtml(d.error || 'Lỗi lưu cài đặt')}`;
+      if (d.instructions) {
+        resultEl.innerHTML += '<ol style="margin:8px 0 0 18px;line-height:1.8;">' +
+          d.instructions.map(s => `<li>${escHtml(s)}</li>`).join('') + '</ol>';
+      }
+    } else {
+      resultEl.style.cssText = 'display:block;background:#F0FDF4;border:1px solid #BBF7D0;color:#16A34A;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:12px;';
+      resultEl.innerHTML = `<i class="fab fa-google-drive"></i> ${escHtml(d.message || 'Đã lưu!')}`;
+      const link = document.getElementById('drive-folder-link');
+      if (link && d.folder_url) { link.href = d.folder_url; link.style.display = ''; }
+      showToast('✅ Đã lưu cấu hình Google Drive', 'success');
+      loadDriveSettings();
+    }
+  } catch(e) {
+    resultEl.style.cssText = 'display:block;background:#FEF2F2;border:1px solid #FECACA;color:#DC2626;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:12px;';
+    resultEl.innerHTML = `Lỗi kết nối: ${escHtml(e.message)}`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-save"></i> Lưu';
+  }
+}
+
+async function testDriveConnection() {
+  const input    = document.getElementById('drive-folder-input');
+  const resultEl = document.getElementById('drive-action-result');
+  const btn      = document.getElementById('btn-test-drive');
+  const raw      = input?.value?.trim() || '';
+
+  btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang kiểm tra...';
+  resultEl.style.display = 'none';
+
+  try {
+    const r = await fetch(`${PROXY}/admin/settings/drive/test`, {
+      method:  'POST',
+      headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ folder_id: raw }),
+    });
+    const d = await r.json();
+
+    if (d.ok) {
+      resultEl.style.cssText = 'display:block;background:#F0FDF4;border:1px solid #BBF7D0;color:#16A34A;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:12px;';
+      resultEl.innerHTML = `<i class="fas fa-check-circle"></i> ${escHtml(d.message || 'Kết nối thành công!')}`;
+      showToast('✅ ' + (d.message || 'Google Drive OK'), 'success');
+    } else {
+      resultEl.style.cssText = 'display:block;background:#FEF2F2;border:1px solid #FECACA;color:#DC2626;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:12px;';
+      resultEl.innerHTML = `<i class="fas fa-times-circle"></i> ${escHtml(d.error || 'Kiểm tra thất bại')}`;
+      if (d.hint) resultEl.innerHTML += `<br><span style="font-size:12px;color:var(--text-muted);margin-top:4px;display:block;">💡 ${escHtml(d.hint)}</span>`;
+    }
+  } catch(e) {
+    resultEl.style.cssText = 'display:block;background:#FEF2F2;border:1px solid #FECACA;color:#DC2626;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:12px;';
+    resultEl.innerHTML = `Lỗi kết nối: ${escHtml(e.message)}`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-plug"></i> Kiểm tra kết nối';
   }
 }

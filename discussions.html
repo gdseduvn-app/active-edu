@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AURA — Thảo luận</title>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<style>
+:root {
+  --primary: #E66000;
+  --primary-dark: #C55500;
+  --primary-light: #FF8C3A;
+  --sidebar-bg: #2D3B45;
+  --topbar-h: 58px;
+  --bg: #F0F2F5;
+  --card-bg: #FFFFFF;
+  --border: #E1E5E8;
+  --text: #2D3B45;
+  --text-muted: #6B7B8A;
+  --text-subtle: #9AAAB5;
+  --success: #16A34A;
+  --warning: #D97706;
+  --danger: #DC2626;
+  --r: 10px;
+  --shadow: 0 1px 3px rgba(0,0,0,.08);
+  --shadow-md: 0 4px 16px rgba(0,0,0,.12);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Be Vietnam Pro', sans-serif; font-size: 14px; color: var(--text); background: var(--bg); }
+
+/* ── TOP NAV ── */
+.top-nav {
+  height: var(--topbar-h); background: var(--sidebar-bg);
+  display: flex; align-items: center; padding: 0 20px;
+  position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,.2);
+}
+.nav-logo { display: flex; align-items: center; gap: 10px; margin-right: 20px; text-decoration: none; flex-shrink: 0; }
+.nav-logo-icon { width: 30px; height: 30px; background: var(--primary); border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #fff; }
+.nav-logo-name { font-weight: 700; font-size: 15px; color: #fff; }
+.nav-logo-name span { color: var(--primary-light); }
+.nav-item { padding: 7px 12px; color: rgba(199,211,217,.8); cursor: pointer; border-radius: var(--r); font-size: 13px; font-weight: 500; transition: all .15s; border: none; background: none; display: flex; align-items: center; gap: 6px; text-decoration: none; }
+.nav-item:hover { background: rgba(255,255,255,.08); color: #fff; }
+.nav-item.active { background: rgba(230,96,0,.2); color: #fff; }
+.nav-item i { font-size: 12px; }
+.nav-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.nav-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--primary); color: #fff; border: none; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+
+/* ── BOARD TOOLBAR ── */
+.board-toolbar {
+  background: var(--card-bg); border-bottom: 1px solid var(--border);
+  padding: 0 24px; display: flex; align-items: center; gap: 12px;
+  height: 52px; position: sticky; top: var(--topbar-h); z-index: 90;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+}
+.board-title { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.board-title i { color: var(--primary); }
+.course-pill {
+  display: flex; align-items: center; gap: 6px; background: var(--bg);
+  border: 1px solid var(--border); border-radius: 100px; padding: 5px 14px;
+  font-size: 12px; font-weight: 600; cursor: pointer; color: var(--text);
+  position: relative;
+}
+.course-pill i { color: var(--text-muted); font-size: 10px; }
+.course-dropdown {
+  display: none; position: absolute; top: calc(100% + 6px); left: 0;
+  background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: var(--shadow-md); min-width: 220px; z-index: 200; overflow: hidden;
+}
+.course-dropdown.open { display: block; }
+.course-dd-item { padding: 9px 14px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+.course-dd-item:hover { background: var(--bg); }
+.course-dd-item.active { color: var(--primary); font-weight: 600; }
+.course-dd-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+/* Filter tabs */
+.filter-tabs { display: flex; gap: 4px; }
+.filter-tab { padding: 5px 14px; border-radius: 100px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; background: transparent; color: var(--text-muted); transition: all .15s; }
+.filter-tab:hover { background: var(--bg); color: var(--text); }
+.filter-tab.active { background: var(--primary); color: #fff; }
+
+/* Sort / search */
+.search-box { display: flex; align-items: center; gap: 6px; background: var(--bg); border: 1px solid var(--border); border-radius: 100px; padding: 5px 12px; }
+.search-box input { border: none; background: none; outline: none; font-size: 13px; font-family: inherit; width: 160px; color: var(--text); }
+.search-box i { color: var(--text-muted); font-size: 12px; }
+
+/* Add button */
+.btn-add {
+  margin-left: auto; display: flex; align-items: center; gap: 7px;
+  background: var(--primary); color: #fff; border: none; border-radius: 100px;
+  padding: 7px 18px; font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: background .15s; flex-shrink: 0;
+}
+.btn-add:hover { background: var(--primary-dark); }
+
+/* ── BOARD AREA ── */
+.board-area {
+  padding: 24px;
+  min-height: calc(100vh - var(--topbar-h) - 52px);
+}
+
+/* Padlet-style card grid */
+.card-grid {
+  columns: 4 240px;
+  column-gap: 16px;
+}
+@media (max-width: 1100px) { .card-grid { columns: 3 220px; } }
+@media (max-width: 800px) { .card-grid { columns: 2 180px; } }
+@media (max-width: 500px) { .card-grid { columns: 1; } }
+
+/* ── DISC CARD ── */
+.disc-card {
+  break-inside: avoid;
+  background: var(--card-bg);
+  border-radius: var(--r);
+  box-shadow: var(--shadow);
+  margin-bottom: 16px;
+  cursor: pointer;
+  transition: transform .15s, box-shadow .15s;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid rgba(0,0,0,.06);
+}
+.disc-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+.disc-card-accent { height: 4px; width: 100%; }
+.disc-card-body { padding: 14px 14px 10px; }
+.disc-card-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.disc-card-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 100px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.badge-disc { background: #F0FDF4; color: #15803D; }
+.badge-question { background: #EEF2FF; color: #4338CA; }
+.badge-announcement { background: #FFF7ED; color: #C2410C; }
+.disc-card-pin { font-size: 11px; color: var(--primary); margin-left: auto; }
+.disc-card-title { font-size: 14px; font-weight: 700; line-height: 1.4; margin-bottom: 7px; color: var(--text); }
+.disc-card-preview { font-size: 13px; color: var(--text-muted); line-height: 1.55; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
+.disc-card-footer { padding: 8px 14px 12px; display: flex; align-items: center; gap: 10px; }
+.disc-card-author { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
+.author-avatar { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: #fff; flex-shrink: 0; }
+.author-name { font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.disc-card-actions { display: flex; align-items: center; gap: 8px; }
+.card-action { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-muted); background: none; border: none; cursor: pointer; padding: 3px 6px; border-radius: 100px; transition: all .15s; font-family: inherit; }
+.card-action:hover { background: var(--bg); color: var(--text); }
+.card-action.liked { color: #EF4444; }
+.card-action .heart { transition: transform .2s; display: inline-block; }
+.card-action.liked .heart { transform: scale(1.3); }
+.disc-card-time { font-size: 10px; color: var(--text-subtle); white-space: nowrap; }
+
+/* Pastel card colors */
+.disc-card[data-color="0"] { background: #FFFBF5; }
+.disc-card[data-color="1"] { background: #F0F9FF; }
+.disc-card[data-color="2"] { background: #F0FDF4; }
+.disc-card[data-color="3"] { background: #FAF5FF; }
+.disc-card[data-color="4"] { background: #FFF1F2; }
+.disc-card[data-color="5"] { background: #F0FDFA; }
+.disc-card[data-color="6"] { background: #FFFBEB; }
+.disc-card[data-color="7"] { background: #F5F3FF; }
+
+/* Pinned card */
+.disc-card.pinned { border: 1.5px dashed var(--primary); }
+.disc-card.pinned .disc-card-accent { background: var(--primary) !important; }
+
+/* ── DETAIL DRAWER ── */
+.drawer-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.3); z-index: 400; }
+.drawer-overlay.open { display: block; }
+.detail-drawer {
+  position: fixed; top: 0; right: -640px; width: 620px; max-width: 100vw;
+  bottom: 0; background: var(--card-bg); z-index: 500;
+  display: flex; flex-direction: column;
+  box-shadow: -6px 0 40px rgba(0,0,0,.18);
+  transition: right .3s cubic-bezier(.4,0,.2,1);
+}
+.detail-drawer.open { right: 0; }
+.drawer-top-bar { height: 5px; width: 100%; }
+.drawer-header { padding: 18px 22px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 12px; }
+.drawer-header-info { flex: 1; min-width: 0; }
+.drawer-badge-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.drawer-title { font-size: 19px; font-weight: 700; line-height: 1.3; }
+.drawer-meta { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 14px; margin-top: 8px; flex-wrap: wrap; }
+.drawer-meta i { margin-right: 3px; }
+.drawer-close { background: none; border: none; font-size: 18px; color: var(--text-muted); cursor: pointer; padding: 4px; border-radius: var(--r); flex-shrink: 0; margin-top: -2px; }
+.drawer-close:hover { background: var(--bg); color: var(--text); }
+.drawer-body { overflow-y: auto; flex: 1; }
+.drawer-content { padding: 20px 22px; font-size: 14px; line-height: 1.75; color: var(--text); white-space: pre-wrap; border-bottom: 1px solid var(--border); }
+.drawer-actions-bar { padding: 10px 22px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+.drawer-like-btn { display: flex; align-items: center; gap: 6px; background: none; border: 1.5px solid var(--border); border-radius: 100px; padding: 6px 14px; font-size: 13px; cursor: pointer; transition: all .15s; color: var(--text-muted); font-family: inherit; }
+.drawer-like-btn:hover { border-color: #EF4444; color: #EF4444; }
+.drawer-like-btn.liked { border-color: #EF4444; color: #EF4444; background: #FFF1F2; }
+.reply-count-info { font-size: 12px; color: var(--text-muted); margin-left: auto; }
+
+/* Replies */
+.replies-section { padding: 0 22px 20px; }
+.replies-header-label { font-size: 13px; font-weight: 700; color: var(--text-muted); padding: 16px 0 12px; display: flex; align-items: center; gap: 8px; }
+.reply-item { display: flex; gap: 11px; margin-bottom: 14px; }
+.reply-av { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0; }
+.reply-bubble { flex: 1; background: var(--bg); border-radius: 4px 12px 12px 12px; padding: 10px 14px; }
+.reply-bubble-author { font-size: 12px; font-weight: 700; margin-bottom: 3px; }
+.reply-bubble-text { font-size: 13px; line-height: 1.55; color: var(--text); }
+.reply-bubble-footer { margin-top: 7px; display: flex; align-items: center; gap: 10px; }
+.reply-bubble-time { font-size: 11px; color: var(--text-subtle); }
+.reply-like-btn { background: none; border: none; color: var(--text-muted); font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 4px; transition: all .15s; font-family: inherit; }
+.reply-like-btn:hover { color: #EF4444; background: #FFF1F2; }
+.reply-like-btn.liked { color: #EF4444; }
+.nested-replies { margin: 10px 0 4px 20px; border-left: 2px solid var(--border); padding-left: 14px; }
+
+/* Reply form */
+.reply-form { padding: 16px 22px; border-top: 1px solid var(--border); background: #FAFBFC; }
+.reply-form-row { display: flex; gap: 10px; align-items: flex-end; }
+.reply-textarea { flex: 1; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 12px; font-family: inherit; font-size: 13px; color: var(--text); resize: none; outline: none; max-height: 120px; overflow-y: auto; transition: border-color .15s; background: var(--card-bg); }
+.reply-textarea:focus { border-color: var(--primary); }
+.reply-submit { background: var(--primary); color: #fff; border: none; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 14px; flex-shrink: 0; transition: background .15s; display: flex; align-items: center; justify-content: center; }
+.reply-submit:hover { background: var(--primary-dark); }
+
+/* ── CREATE MODAL ── */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 600; align-items: center; justify-content: center; padding: 20px; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--card-bg); border-radius: 12px; width: 560px; max-width: 100%; box-shadow: 0 24px 64px rgba(0,0,0,.25); overflow: hidden; display: flex; flex-direction: column; }
+.modal-header { padding: 20px 22px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.modal-title { font-size: 17px; font-weight: 700; }
+.modal-close-btn { background: none; border: none; font-size: 18px; color: var(--text-muted); cursor: pointer; }
+.modal-body { padding: 22px; overflow-y: auto; max-height: 60vh; }
+.modal-footer { padding: 14px 22px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
+
+.form-group { margin-bottom: 16px; }
+.form-label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .04em; }
+.form-control { width: 100%; padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-family: inherit; font-size: 14px; color: var(--text); background: var(--card-bg); outline: none; transition: border-color .15s; }
+.form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(230,96,0,.08); }
+textarea.form-control { resize: vertical; min-height: 100px; }
+select.form-control { appearance: none; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.checkbox-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; cursor: pointer; }
+.checkbox-row input { width: 16px; height: 16px; accent-color: var(--primary); cursor: pointer; }
+
+.btn { padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all .15s; display: inline-flex; align-items: center; gap: 7px; font-family: inherit; }
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-outline { background: none; border: 1.5px solid var(--border); color: var(--text); }
+.btn-outline:hover { border-color: var(--text-muted); }
+
+/* ── EMPTY / LOADING ── */
+.board-empty { text-align: center; padding: 80px 20px; color: var(--text-muted); }
+.board-empty i { font-size: 48px; opacity: .25; margin-bottom: 14px; display: block; }
+.board-empty h3 { font-size: 16px; margin-bottom: 6px; }
+.board-empty p { font-size: 14px; }
+
+.skeleton-card { background: var(--card-bg); border-radius: var(--r); height: 150px; margin-bottom: 16px; overflow: hidden; }
+.skeleton-inner { background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; height: 100%; }
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+/* ── TOAST ── */
+#toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: #1E293B; color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 13px; z-index: 9999; opacity: 0; transition: all .3s; pointer-events: none; white-space: nowrap; }
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── MOBILE ── */
+@media (max-width: 640px) {
+  .board-toolbar { padding: 0 14px; gap: 8px; height: auto; padding-top: 10px; padding-bottom: 10px; flex-wrap: wrap; }
+  .board-area { padding: 14px; }
+  .detail-drawer { width: 100%; }
+  .search-box input { width: 100px; }
+  .board-title { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- TOP NAV -->
+<nav class="top-nav">
+  <a class="nav-logo" href="student/dashboard.html">
+    <div class="nav-logo-icon"><i class="fa-solid fa-bolt-lightning"></i></div>
+    <div class="nav-logo-name">A<span>U</span>RA</div>
+  </a>
+  <a class="nav-item" href="student/dashboard.html"><i class="fa-solid fa-house"></i><span class="nav-text">Dashboard</span></a>
+  <a class="nav-item active" href="discussions.html"><i class="fa-solid fa-comments"></i><span class="nav-text">Thảo luận</span></a>
+  <a class="nav-item" href="messages.html"><i class="fa-solid fa-envelope"></i><span class="nav-text">Tin nhắn</span></a>
+  <a class="nav-item" href="calendar.html"><i class="fa-solid fa-calendar"></i><span class="nav-text">Lịch</span></a>
+  <a class="nav-item" href="portfolio.html"><i class="fa-solid fa-star"></i><span class="nav-text">ePortfolio</span></a>
+  <div class="nav-right">
+    <button class="nav-avatar" id="nav-avatar">U</button>
+  </div>
+</nav>
+
+<!-- BOARD TOOLBAR -->
+<div class="board-toolbar">
+  <div class="board-title"><i class="fa-solid fa-chalkboard"></i>Bảng thảo luận</div>
+
+  <!-- Course picker -->
+  <div class="course-pill" id="course-pill" onclick="toggleCourseDD()">
+    <div class="course-dd-dot" id="pill-dot" style="background:var(--primary)"></div>
+    <span id="pill-label">Tất cả khoá học</span>
+    <i class="fa-solid fa-chevron-down"></i>
+    <div class="course-dropdown" id="course-dd"></div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filter-tabs" id="filter-tabs">
+    <button class="filter-tab active" data-filter="all" onclick="setFilter('all',this)">Tất cả</button>
+    <button class="filter-tab" data-filter="discussion" onclick="setFilter('discussion',this)">Thảo luận</button>
+    <button class="filter-tab" data-filter="question" onclick="setFilter('question',this)">Câu hỏi</button>
+    <button class="filter-tab" data-filter="pinned" onclick="setFilter('pinned',this)"><i class="fa-solid fa-thumbtack" style="font-size:10px;"></i> Đã ghim</button>
+  </div>
+
+  <!-- Search -->
+  <div class="search-box">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <input type="text" id="search-input" placeholder="Tìm kiếm..." oninput="renderBoard()">
+  </div>
+
+  <!-- Add card (teacher/admin) -->
+  <button class="btn-add" id="btn-add" style="display:none;" onclick="openCreateModal()">
+    <i class="fa-solid fa-plus"></i>Thêm thẻ
+  </button>
+</div>
+
+<!-- BOARD AREA -->
+<div class="board-area">
+  <div class="card-grid" id="card-grid">
+    <!-- Skeleton loading -->
+    ${Array(6).fill('<div class="skeleton-card"><div class="skeleton-inner"></div></div>').join('')}
+  </div>
+  <div id="board-empty" class="board-empty" style="display:none;">
+    <i class="fa-solid fa-comment-slash"></i>
+    <h3>Chưa có thảo luận nào</h3>
+    <p>Hãy là người đầu tiên bắt đầu một chủ đề thảo luận!</p>
+  </div>
+</div>
+
+<!-- DRAWER OVERLAY -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
+
+<!-- DETAIL DRAWER -->
+<div class="detail-drawer" id="detail-drawer">
+  <div class="drawer-top-bar" id="drawer-top-bar"></div>
+  <div class="drawer-header">
+    <div class="drawer-header-info">
+      <div class="drawer-badge-row" id="drawer-badge-row"></div>
+      <div class="drawer-title" id="drawer-title"></div>
+      <div class="drawer-meta" id="drawer-meta"></div>
+    </div>
+    <button class="drawer-close" onclick="closeDrawer()"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <div class="drawer-body">
+    <div class="drawer-content" id="drawer-content"></div>
+    <div class="drawer-actions-bar">
+      <button class="drawer-like-btn" id="drawer-like-btn" onclick="toggleDiscLike()">
+        <span class="heart" id="drawer-heart">♡</span>
+        <span id="drawer-like-count">0</span> thích
+      </button>
+      <span class="reply-count-info" id="drawer-reply-count"></span>
+    </div>
+    <div class="replies-section">
+      <div class="replies-header-label"><i class="fa-solid fa-reply"></i>Phản hồi</div>
+      <div id="replies-container"></div>
+    </div>
+  </div>
+  <div class="reply-form">
+    <div class="reply-form-row">
+      <textarea class="reply-textarea" id="reply-input" placeholder="Viết phản hồi..." rows="2" onkeydown="handleReplyKey(event)"></textarea>
+      <button class="reply-submit" onclick="submitReply()"><i class="fa-solid fa-paper-plane"></i></button>
+    </div>
+  </div>
+</div>
+
+<!-- CREATE MODAL -->
+<div class="modal-overlay" id="create-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Tạo thảo luận mới</div>
+      <button class="modal-close-btn" onclick="closeCreateModal()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Tiêu đề *</label>
+        <input class="form-control" id="new-title" placeholder="Nhập tiêu đề thảo luận..." maxlength="200">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Loại</label>
+          <select class="form-control" id="new-type">
+            <option value="discussion">💬 Thảo luận</option>
+            <option value="question">❓ Câu hỏi</option>
+            <option value="announcement">📢 Thông báo</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Khoá học</label>
+          <select class="form-control" id="new-course"></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nội dung</label>
+        <textarea class="form-control" id="new-body" placeholder="Nhập nội dung chi tiết..." rows="5"></textarea>
+      </div>
+      <label class="checkbox-row">
+        <input type="checkbox" id="new-pinned">
+        <span style="font-size:13px;">📌 Ghim thẻ này lên đầu</span>
+      </label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeCreateModal()">Huỷ</button>
+      <button class="btn btn-primary" onclick="submitCreate()"><i class="fa-solid fa-plus"></i>Tạo thảo luận</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+const API = 'https://api.gds.edu.vn';
+const TOKEN_KEY = 'ae_token';
+let session = null;
+let allDiscs = [], filteredDiscs = [];
+let currentFilter = 'all';
+let currentCourseId = null, currentCourseName = 'Tất cả khoá học', allCourses = [];
+let likedDiscs = JSON.parse(localStorage.getItem('ae_disc_likes') || '{}');
+let openDiscId = null;
+
+// Accent colors per type
+const TYPE_COLORS = {
+  discussion: '#22C55E', question: '#6366F1',
+  announcement: '#F97316', default: '#E66000'
+};
+const PASTEL = ['#FFFBF5','#F0F9FF','#F0FDF4','#FAF5FF','#FFF1F2','#F0FDFA','#FFFBEB','#F5F3FF'];
+const AVATAR_COLORS = ['#E66000','#2563EB','#16A34A','#7C3AED','#0891B2','#DC2626'];
+
+// ── Init ──────────────────────────────────────────────────────
+async function init() {
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!token) { location.href = 'login.html'; return; }
+
+  // Check URL param
+  const params = new URLSearchParams(location.search);
+  const urlCourse = params.get('course_id');
+
+  try {
+    session = await apiFetch('/api/auth/me');
+    document.getElementById('nav-avatar').textContent = (session.name || session.username || 'U')[0].toUpperCase();
+    if (session.role === 'teacher' || session.role === 'admin') {
+      document.getElementById('btn-add').style.display = 'flex';
+    }
+  } catch { location.href = 'login.html'; return; }
+
+  await loadCourses();
+
+  if (urlCourse) {
+    currentCourseId = urlCourse;
+    const c = allCourses.find(c => String(c.Id) === String(urlCourse));
+    if (c) currentCourseName = c.Title || c.Name || 'Khoá học';
+    updatePill();
+  }
+
+  await loadDiscussions();
+}
+
+async function apiFetch(path, opts = {}) {
+  const token = localStorage.getItem(TOKEN_KEY);
+  const res = await fetch(API + path, {
+    ...opts,
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', ...(opts.headers || {}) }
+  });
+  if (!res.ok) throw new Error(res.status);
+  return res.json();
+}
+
+// ── Load courses ──────────────────────────────────────────────
+async function loadCourses() {
+  try {
+    const d = await apiFetch('/api/courses');
+    allCourses = d.list || d.courses || [];
+    renderCourseDD();
+    // Populate create modal course select
+    const sel = document.getElementById('new-course');
+    sel.innerHTML = allCourses.map(c => `<option value="${c.Id}">${escHtml(c.Title || c.Name)}</option>`).join('');
+  } catch {}
+}
+
+const COURSE_COLORS = ['#E66000','#2563EB','#16A34A','#7C3AED','#0891B2','#DC2626','#D97706','#059669'];
+function renderCourseDD() {
+  const dd = document.getElementById('course-dd');
+  const items = [{ Id: null, Title: 'Tất cả khoá học', _color: '#9AAAB5' }].concat(allCourses.map((c, i) => ({ ...c, _color: c.Color || COURSE_COLORS[i % COURSE_COLORS.length] })));
+  dd.innerHTML = items.map(c => `
+    <div class="course-dd-item ${String(c.Id) === String(currentCourseId) ? 'active' : ''}" onclick="selectCourse('${c.Id}','${escHtml(c.Title||c.Name||'Tất cả')}','${c._color}');event.stopPropagation();">
+      <div class="course-dd-dot" style="background:${c._color}"></div>
+      ${escHtml(c.Title || c.Name || 'Tất cả khoá học')}
+    </div>`).join('');
+}
+
+function toggleCourseDD() {
+  document.getElementById('course-dd').classList.toggle('open');
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('#course-pill')) document.getElementById('course-dd').classList.remove('open');
+});
+
+function selectCourse(id, name, color) {
+  currentCourseId = id === 'null' ? null : id;
+  currentCourseName = name;
+  updatePill();
+  document.getElementById('course-dd').classList.remove('open');
+  renderCourseDD();
+  loadDiscussions();
+}
+
+function updatePill() {
+  document.getElementById('pill-label').textContent = currentCourseName;
+  if (currentCourseId) {
+    const c = allCourses.find(x => String(x.Id) === String(currentCourseId));
+    const idx = allCourses.indexOf(c);
+    document.getElementById('pill-dot').style.background = c?.Color || COURSE_COLORS[idx % COURSE_COLORS.length] || COURSE_COLORS[0];
+  } else {
+    document.getElementById('pill-dot').style.background = '#9AAAB5';
+  }
+}
+
+// ── Load discussions ──────────────────────────────────────────
+async function loadDiscussions() {
+  const grid = document.getElementById('card-grid');
+  grid.innerHTML = Array(8).fill('<div class="skeleton-card"><div class="skeleton-inner"></div></div>').join('');
+
+  try {
+    const qs = currentCourseId ? `?course_id=${currentCourseId}` : '';
+    const d = await apiFetch('/api/discussions' + qs);
+    allDiscs = d.list || d.discussions || [];
+    renderBoard();
+  } catch {
+    grid.innerHTML = '';
+    document.getElementById('board-empty').style.display = 'block';
+  }
+}
+
+// ── Render board (Padlet grid) ────────────────────────────────
+function renderBoard() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  filteredDiscs = allDiscs.filter(d => {
+    if (currentFilter === 'pinned' && !d.IsPinned) return false;
+    if (currentFilter === 'discussion' && d.Type !== 'discussion' && d.Type !== 'Discussion') return false;
+    if (currentFilter === 'question' && d.Type !== 'question' && d.Type !== 'Question') return false;
+    if (q && !((d.Title||'').toLowerCase().includes(q) || (d.Body||'').toLowerCase().includes(q))) return false;
+    return true;
+  });
+
+  // Sort: pinned first, then by date
+  filteredDiscs.sort((a, b) => {
+    if (a.IsPinned && !b.IsPinned) return -1;
+    if (!a.IsPinned && b.IsPinned) return 1;
+    return new Date(b.CreatedAt || 0) - new Date(a.CreatedAt || 0);
+  });
+
+  const grid = document.getElementById('card-grid');
+  const empty = document.getElementById('board-empty');
+
+  if (!filteredDiscs.length) {
+    grid.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  grid.innerHTML = filteredDiscs.map((d, i) => renderCard(d, i)).join('');
+}
+
+function renderCard(d, i) {
+  const type = (d.Type || 'discussion').toLowerCase();
+  const accentColor = TYPE_COLORS[type] || TYPE_COLORS.default;
+  const colorIdx = d.Id % 8;
+  const title = d.Title || 'Thảo luận';
+  const body = d.Body || '';
+  const author = d.AuthorName || d.Author || 'Ẩn danh';
+  const initials = author.split(' ').map(w=>w[0]).slice(-2).join('').toUpperCase();
+  const avatarColor = AVATAR_COLORS[author.length % AVATAR_COLORS.length];
+  const liked = !!likedDiscs[d.Id];
+  const likes = (d.Likes || 0) + (liked && !d._liked ? 1 : 0);
+  const replies = d.ReplyCount || 0;
+  const time = timeAgo(d.CreatedAt);
+  const badgeClass = type === 'question' ? 'badge-question' : type === 'announcement' ? 'badge-disc' : 'badge-disc';
+  const badgeLabel = type === 'question' ? '❓ Câu hỏi' : type === 'announcement' ? '📢 Thông báo' : '💬 Thảo luận';
+
+  return `<div class="disc-card ${d.IsPinned ? 'pinned' : ''}" data-color="${colorIdx}" data-id="${d.Id}" onclick="openDisc(${d.Id})">
+    <div class="disc-card-accent" style="background:${accentColor}"></div>
+    <div class="disc-card-body">
+      <div class="disc-card-top">
+        <span class="disc-card-badge ${badgeClass}">${badgeLabel}</span>
+        ${d.IsPinned ? '<span class="disc-card-pin">📌</span>' : ''}
+      </div>
+      <div class="disc-card-title">${escHtml(title)}</div>
+      <div class="disc-card-preview">${escHtml(body)}</div>
+    </div>
+    <div class="disc-card-footer">
+      <div class="disc-card-author">
+        <div class="author-avatar" style="background:${avatarColor}">${initials}</div>
+        <span class="author-name">${escHtml(author)}</span>
+      </div>
+      <div class="disc-card-actions">
+        <button class="card-action ${liked ? 'liked' : ''}" onclick="toggleCardLike(event,${d.Id})">
+          <span class="heart">${liked ? '♥' : '♡'}</span>
+          <span id="like-count-${d.Id}">${likes}</span>
+        </button>
+        <span class="card-action"><i class="fa-regular fa-comment"></i> ${replies}</span>
+      </div>
+      <span class="disc-card-time">${time}</span>
+    </div>
+  </div>`;
+}
+
+// ── Filter ────────────────────────────────────────────────────
+function setFilter(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderBoard();
+}
+
+// ── Like on card (without opening) ───────────────────────────
+function toggleCardLike(e, id) {
+  e.stopPropagation();
+  const liked = !!likedDiscs[id];
+  likedDiscs[id] = !liked;
+  localStorage.setItem('ae_disc_likes', JSON.stringify(likedDiscs));
+  // Toggle heart
+  const btn = e.currentTarget;
+  btn.classList.toggle('liked', !liked);
+  btn.querySelector('.heart').textContent = !liked ? '♥' : '♡';
+  const countEl = document.getElementById('like-count-' + id);
+  if (countEl) {
+    const disc = allDiscs.find(d => d.Id === id);
+    const base = disc?.Likes || 0;
+    countEl.textContent = base + (!liked ? 1 : 0);
+  }
+  // API fire-and-forget
+  apiFetch(`/api/discussions/${id}/like`, { method: 'POST' }).catch(() => {});
+}
+
+// ── Open discussion drawer ────────────────────────────────────
+async function openDisc(id) {
+  openDiscId = id;
+  const disc = allDiscs.find(d => d.Id === id);
+  if (!disc) return;
+
+  const type = (disc.Type || 'discussion').toLowerCase();
+  const accentColor = TYPE_COLORS[type] || TYPE_COLORS.default;
+  const author = disc.AuthorName || disc.Author || 'Ẩn danh';
+  const liked = !!likedDiscs[id];
+  const likes = (disc.Likes || 0) + (liked ? 1 : 0);
+  const badgeLabel = type === 'question' ? '❓ Câu hỏi' : type === 'announcement' ? '📢 Thông báo' : '💬 Thảo luận';
+  const badgeClass = type === 'question' ? 'badge-question' : 'badge-disc';
+
+  document.getElementById('drawer-top-bar').style.background = accentColor;
+  document.getElementById('drawer-badge-row').innerHTML = `
+    <span class="disc-card-badge ${badgeClass}">${badgeLabel}</span>
+    ${disc.IsPinned ? '<span style="font-size:12px;">📌 Được ghim</span>' : ''}`;
+  document.getElementById('drawer-title').textContent = disc.Title || 'Thảo luận';
+  document.getElementById('drawer-meta').innerHTML = `
+    <span><i class="fa-solid fa-user"></i>${escHtml(author)}</span>
+    <span><i class="fa-regular fa-clock"></i>${timeAgo(disc.CreatedAt)}</span>
+    ${disc.CourseName ? `<span><i class="fa-solid fa-book"></i>${escHtml(disc.CourseName)}</span>` : ''}`;
+  document.getElementById('drawer-content').textContent = disc.Body || '';
+
+  // Like button
+  const likeBtn = document.getElementById('drawer-like-btn');
+  likeBtn.className = `drawer-like-btn ${liked ? 'liked' : ''}`;
+  document.getElementById('drawer-heart').textContent = liked ? '♥' : '♡';
+  document.getElementById('drawer-like-count').textContent = likes;
+
+  // Open drawer
+  document.getElementById('detail-drawer').classList.add('open');
+  document.getElementById('drawer-overlay').classList.add('open');
+
+  // Load replies
+  document.getElementById('replies-container').innerHTML = '<div style="padding:16px;color:var(--text-muted);font-size:13px;text-align:center;"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải...</div>';
+  try {
+    const d = await apiFetch(`/api/discussions/${id}`);
+    const replies = d.replies || d.Replies || [];
+    document.getElementById('drawer-reply-count').textContent = `${replies.length} phản hồi`;
+    renderReplies(replies);
+  } catch { document.getElementById('replies-container').innerHTML = '<div style="padding:16px;color:var(--text-muted);font-size:13px;">Không thể tải phản hồi</div>'; }
+}
+
+function renderReplies(replies) {
+  const container = document.getElementById('replies-container');
+  if (!replies.length) {
+    container.innerHTML = '<div style="padding:8px 0;color:var(--text-subtle);font-size:13px;">Chưa có phản hồi nào. Hãy là người đầu tiên!</div>';
+    return;
+  }
+  container.innerHTML = replies.map(r => renderReplyItem(r)).join('');
+}
+
+function renderReplyItem(r) {
+  const author = r.AuthorName || r.Author || 'Ẩn danh';
+  const initials = author.split(' ').map(w=>w[0]).slice(-2).join('').toUpperCase();
+  const color = AVATAR_COLORS[author.length % AVATAR_COLORS.length];
+  const nestedHtml = (r.children || r.nested || []).map(n => renderReplyItem(n)).join('');
+  return `<div class="reply-item">
+    <div class="reply-av" style="background:${color}">${initials}</div>
+    <div style="flex:1;min-width:0;">
+      <div class="reply-bubble">
+        <div class="reply-bubble-author">${escHtml(author)}</div>
+        <div class="reply-bubble-text">${escHtml(r.Body || r.Content || '')}</div>
+        <div class="reply-bubble-footer">
+          <span class="reply-bubble-time">${timeAgo(r.CreatedAt)}</span>
+          <button class="reply-like-btn ${likedDiscs['r'+r.Id] ? 'liked' : ''}" onclick="toggleReplyLike(event,${r.Id})">
+            ♡ ${r.Likes || 0}
+          </button>
+        </div>
+      </div>
+      ${nestedHtml ? `<div class="nested-replies">${nestedHtml}</div>` : ''}
+    </div>
+  </div>`;
+}
+
+function closeDrawer() {
+  document.getElementById('detail-drawer').classList.remove('open');
+  document.getElementById('drawer-overlay').classList.remove('open');
+  openDiscId = null;
+}
+
+// ── Like discussion (from drawer) ─────────────────────────────
+function toggleDiscLike() {
+  if (!openDiscId) return;
+  const liked = !!likedDiscs[openDiscId];
+  likedDiscs[openDiscId] = !liked;
+  localStorage.setItem('ae_disc_likes', JSON.stringify(likedDiscs));
+
+  const btn = document.getElementById('drawer-like-btn');
+  btn.className = `drawer-like-btn ${!liked ? 'liked' : ''}`;
+  document.getElementById('drawer-heart').textContent = !liked ? '♥' : '♡';
+  const disc = allDiscs.find(d => d.Id === openDiscId);
+  const base = disc?.Likes || 0;
+  document.getElementById('drawer-like-count').textContent = base + (!liked ? 1 : 0);
+
+  // Update card on board
+  const cardLikeBtn = document.querySelector(`.disc-card[data-id="${openDiscId}"] .card-action`);
+  if (cardLikeBtn) {
+    cardLikeBtn.classList.toggle('liked', !liked);
+    cardLikeBtn.querySelector('.heart').textContent = !liked ? '♥' : '♡';
+    const countEl = document.getElementById('like-count-' + openDiscId);
+    if (countEl) countEl.textContent = base + (!liked ? 1 : 0);
+  }
+
+  apiFetch(`/api/discussions/${openDiscId}/like`, { method: 'POST' }).catch(() => {});
+}
+
+function toggleReplyLike(e, replyId) {
+  e.stopPropagation();
+  const btn = e.currentTarget;
+  const liked = likedDiscs['r' + replyId];
+  likedDiscs['r' + replyId] = !liked;
+  localStorage.setItem('ae_disc_likes', JSON.stringify(likedDiscs));
+  btn.classList.toggle('liked', !liked);
+  btn.textContent = `${!liked ? '♥' : '♡'} ${(btn.textContent.match(/\d+/)?.[0]||0)*1 + (!liked?1:-1)}`;
+  apiFetch(`/api/discussions/reply/${replyId}/like`, { method: 'POST' }).catch(() => {});
+}
+
+// ── Submit reply ──────────────────────────────────────────────
+function handleReplyKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitReply(); }
+}
+
+async function submitReply() {
+  if (!openDiscId) return;
+  const input = document.getElementById('reply-input');
+  const text = input.value.trim();
+  if (!text) return;
+
+  input.value = '';
+  try {
+    const d = await apiFetch(`/api/discussions/${openDiscId}/reply`, {
+      method: 'POST',
+      body: JSON.stringify({ body: text })
+    });
+    // Reload replies
+    const updated = await apiFetch(`/api/discussions/${openDiscId}`);
+    const replies = updated.replies || [];
+    document.getElementById('drawer-reply-count').textContent = `${replies.length} phản hồi`;
+    renderReplies(replies);
+    // Update reply count on card
+    const disc = allDiscs.find(d => d.Id === openDiscId);
+    if (disc) { disc.ReplyCount = replies.length; renderBoard(); openDisc(openDiscId); }
+    showToast('Đã đăng phản hồi!');
+  } catch { showToast('Không thể đăng phản hồi. Thử lại.'); input.value = text; }
+}
+
+// ── Create modal ──────────────────────────────────────────────
+function openCreateModal() {
+  document.getElementById('create-modal').classList.add('open');
+  document.getElementById('new-title').focus();
+}
+function closeCreateModal() {
+  document.getElementById('create-modal').classList.remove('open');
+}
+
+async function submitCreate() {
+  const title = document.getElementById('new-title').value.trim();
+  const body = document.getElementById('new-body').value.trim();
+  const type = document.getElementById('new-type').value;
+  const courseId = document.getElementById('new-course').value;
+  const pinned = document.getElementById('new-pinned').checked;
+
+  if (!title) { showToast('Vui lòng nhập tiêu đề'); return; }
+
+  try {
+    const d = await apiFetch('/api/discussions', {
+      method: 'POST',
+      body: JSON.stringify({ title, body, type, course_id: courseId, is_pinned: pinned })
+    });
+    closeCreateModal();
+    // Add to board with animation
+    const newDisc = { Id: d.id || d.Id || Date.now(), Title: title, Body: body, Type: type, CourseId: courseId, IsPinned: pinned, AuthorName: session?.name, CreatedAt: new Date().toISOString(), Likes: 0, ReplyCount: 0 };
+    allDiscs.unshift(newDisc);
+    renderBoard();
+    showToast('Đã tạo thảo luận!');
+    // Clear form
+    ['new-title','new-body'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('new-pinned').checked = false;
+  } catch { showToast('Không thể tạo thảo luận. Thử lại.'); }
+}
+
+// ── Utilities ─────────────────────────────────────────────────
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function timeAgo(iso) {
+  if (!iso) return '';
+  const d = new Date(iso), now = new Date();
+  const diff = Math.floor((now - d) / 1000);
+  if (isNaN(diff)) return '';
+  if (diff < 60) return 'Vừa xong';
+  if (diff < 3600) return `${Math.floor(diff/60)} phút trước`;
+  if (diff < 86400) return `${Math.floor(diff/3600)} giờ trước`;
+  if (diff < 2592000) return `${Math.floor(diff/86400)} ngày trước`;
+  return d.toLocaleDateString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric' });
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ── Start ─────────────────────────────────────────────────────
+init();
+</script>
+
+<!-- Inject skeleton divs via inline HTML above (workaround for template literal) -->
+<script>
+// Re-render skeleton with actual divs (the ${Array...} in HTML was literal)
+document.getElementById('card-grid').innerHTML = Array(8).fill('<div class="skeleton-card"><div class="skeleton-inner"></div></div>').join('');
+</script>
+</body>
+</html>

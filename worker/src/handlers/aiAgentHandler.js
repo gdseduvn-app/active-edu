@@ -13,6 +13,7 @@ import { verifyAdminAuth, getTokenSecret, verifyToken } from '../auth.js';
 import { nocoFetch } from '../db.js';
 import { checkRateLimit } from '../middleware.js';
 import { checkAIAccess } from './aiHandler.js';
+import { loadSession, saveSession } from '../aiSession.js';
 
 // ── In-memory rate limit store (module scope, per-IP per-route) ──────────────
 const _rateLimits = new Map();
@@ -50,7 +51,7 @@ function localRateLimit(ip, prefix, max, windowMs = 3_600_000) {
  * @returns {Promise<string|null>}
  */
 async function callAI(env, systemPrompt, userMessage, maxTokens = 1024) {
-  const apiKey = env.AI_GATEWAY_KEY;
+  const apiKey = env.ANTHROPIC_API_KEY || env.AI_GATEWAY_KEY;
   const provider = (env.AI_PROVIDER || 'claude').toLowerCase();
 
   if (!apiKey) return null;
@@ -89,7 +90,7 @@ async function callAI(env, systemPrompt, userMessage, maxTokens = 1024) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'claude-haiku-20240307',
+        model: 'claude-haiku-4-5',
         max_tokens: maxTokens,
         system: systemPrompt,
         messages: [{ role: 'user', content: userMessage }],
@@ -130,7 +131,7 @@ export async function handleCurriculumAgent(request, env, { json, clientIP }) {
   const rl = localRateLimit(clientIP, 'curriculum-agent', 50);
   if (!rl.allowed) return json({ error: 'Quá nhiều yêu cầu. Thử lại sau 1 giờ.' }, 429);
 
-  if (!env.AI_GATEWAY_KEY) return json({ error: 'AI chưa được cấu hình' }, 503);
+  if (!env.ANTHROPIC_API_KEY && !env.AI_GATEWAY_KEY) return json({ error: 'AI chưa được cấu hình' }, 503);
 
   let body;
   try { body = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
@@ -175,7 +176,7 @@ export async function handleAssessmentAgent(request, env, { json, clientIP }) {
   const rl = localRateLimit(clientIP, 'assessment-agent', 10);
   if (!rl.allowed) return json({ error: 'Quá nhiều yêu cầu. Thử lại sau 1 giờ.' }, 429);
 
-  if (!env.AI_GATEWAY_KEY) return json({ error: 'AI chưa được cấu hình' }, 503);
+  if (!env.ANTHROPIC_API_KEY && !env.AI_GATEWAY_KEY) return json({ error: 'AI chưa được cấu hình' }, 503);
 
   let body;
   try { body = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
@@ -240,16 +241,16 @@ export async function handleCoachingAgent(request, env, { json, clientIP }) {
   const rl = localRateLimit(`coaching:${session.userId}`, 'coaching-agent', 20);
   if (!rl.allowed) return json({ error: 'Quá nhiều yêu cầu. Thử lại sau 1 giờ.' }, 429);
 
-  if (!env.AI_GATEWAY_KEY) return json({ error: 'AI chưa được cấu hình' }, 503);
+  if (!env.ANTHROPIC_API_KEY && !env.AI_GATEWAY_KEY) return json({ error: 'AI chưa được cấu hình' }, 503);
 
   let body;
   try { body = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
 
-  const { studentMessage, context = {} } = body;
+  const { studentMessage, context = {}, session_key } = body;
   if (!studentMessage || typeof studentMessage !== 'string' || !studentMessage.trim())
     return json({ error: 'Thiếu trường studentMessage' }, 400);
 
-  const { lessonTitle = '', submissionDraft = '', previousMessages = [] } = context;
+  const { lessonTitle = '', submissionDraft = '', course_id, item_id } = context;
 
   // Zero-draft check: count words in the student's submission draft
   const draftWordCount = submissionDraft
@@ -263,10 +264,14 @@ export async function handleCoachingAgent(request, env, { json, clientIP }) {
     });
   }
 
-  // Build conversation history for context (max last 6 messages to stay within tokens)
-  const recentHistory = Array.isArray(previousMessages)
-    ? previousMessages.slice(-6)
+  // Tải lịch sử từ D1 (ưu tiên D1, fallback về client-sent previousMessages)
+  const d1History = session_key
+    ? await loadSession(env, session.userId, session_key)
     : [];
+  const previousMessages = d1History.length > 0 ? d1History : (context.previousMessages || []);
+
+  // Build conversation history for context (max last 6 messages to stay within tokens)
+  const recentHistory = Array.isArray(previousMessages) ? previousMessages.slice(-6) : [];
   const historyText = recentHistory
     .map(m => `${m.role === 'assistant' ? 'Tutor' : 'Student'}: ${String(m.content || '').slice(0, 300)}`)
     .join('\n');
@@ -286,7 +291,18 @@ export async function handleCoachingAgent(request, env, { json, clientIP }) {
   const aiText = await callAI(env, systemPrompt, userMessage, 400);
   if (!aiText) return json({ error: 'AI tạm thời không khả dụng' }, 502);
 
-  return json({ response: aiText, type: 'socratic' });
+  // Lưu session vào D1 (fire-and-forget)
+  if (session_key) {
+    const now = new Date().toISOString();
+    const updatedHistory = [
+      ...previousMessages,
+      { role: 'user',      content: studentMessage.slice(0, 500), ts: now },
+      { role: 'assistant', content: aiText,                        ts: now },
+    ];
+    saveSession(env, session.userId, session_key, updatedHistory, 'coaching', course_id || null, item_id || null);
+  }
+
+  return json({ response: aiText, type: 'socratic', session_key: session_key || null });
 }
 
 // ── 4. Analytics Agent ────────────────────────────────────────────────────────
@@ -306,7 +322,7 @@ export async function handleAnalyticsAgent(request, env, { json, clientIP }) {
   const rl = localRateLimit(clientIP, 'analytics-agent', 50);
   if (!rl.allowed) return json({ error: 'Quá nhiều yêu cầu. Thử lại sau 1 giờ.' }, 429);
 
-  if (!env.AI_GATEWAY_KEY) return json({ error: 'AI chưa được cấu hình' }, 503);
+  if (!env.ANTHROPIC_API_KEY && !env.AI_GATEWAY_KEY) return json({ error: 'AI chưa được cấu hình' }, 503);
 
   let body;
   try { body = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
@@ -378,7 +394,7 @@ export async function handleContentAgent(request, env, { json, clientIP }) {
   const rl = localRateLimit(clientIP, 'content-agent', 50);
   if (!rl.allowed) return json({ error: 'Quá nhiều yêu cầu. Thử lại sau 1 giờ.' }, 429);
 
-  if (!env.AI_GATEWAY_KEY) return json({ error: 'AI chưa được cấu hình' }, 503);
+  if (!env.ANTHROPIC_API_KEY && !env.AI_GATEWAY_KEY) return json({ error: 'AI chưa được cấu hình' }, 503);
 
   let body;
   try { body = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }

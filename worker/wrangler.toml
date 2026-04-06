@@ -50,6 +50,16 @@ compatibility_flags = ["nodejs_compat"]
 # ── AI Agents module ──────────────────────────────────────────
 #   wrangler secret put AI_GATEWAY_KEY    (Anthropic or OpenAI API key)
 #   wrangler secret put AI_PROVIDER       (optional: "anthropic" | "openai", default: "anthropic")
+#
+# ── Phase 1: CT GDPT 2018 Outcomes schema (set after running /admin/setup/schema-phase1) ──
+#   wrangler secret put NOCO_OUTCOMES         → NocoDB table ID for Outcomes
+#   wrangler secret put NOCO_ALIGNMENTS       → NocoDB table ID for Outcome_Alignments
+#   wrangler secret put NOCO_STUDENT_MASTERY  → NocoDB table ID for Student_Mastery
+#   wrangler secret put NOCO_ITEMS            → NocoDB table ID for Items (if separate from articles)
+#
+# ── Phase 2: Cloudflare D1 analytics (create with: wrangler d1 create aura-analytics) ─────
+#   After creating D1, add binding below and run:
+#   wrangler d1 execute aura-analytics --file=migrations/0001_phase2_analytics.sql
 
 # ── Custom Domain ─────────────────────────────────────────────
 routes = [
@@ -67,6 +77,12 @@ routes = [
 binding = "IDEMPOTENCY_KV"
 id = "1f074e4f56d848d2b9a8b521daee6e4a"
 preview_id = "993796eebb2e45ed9c6586c6d02e4670"
+
+# ── Cloudflare D1 — Phase 2 Analytics ────────────────────────
+[[d1_databases]]
+binding       = "D1"
+database_name = "aura-analytics"
+database_id   = "398cbd17-73c5-40de-9a3d-72d59bc69aad"
 
 # ── Environments ──────────────────────────────────────────────
 [env.staging]

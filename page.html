@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AURA — Bài học</title>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
+<style>
+:root {
+  --primary: #E66000;
+  --primary-dark: #C55500;
+  --primary-light: #FF8C3A;
+  --sidebar-bg: #2D3B45;
+  --sidebar-hover: #3D4F5C;
+  --sidebar-width: 230px;
+  --outline-width: 260px;
+  --topbar-h: 56px;
+  --bg: #F5F5F5;
+  --card-bg: #FFFFFF;
+  --border: #E1E5E8;
+  --text: #2D3B45;
+  --text-muted: #6B7B8A;
+  --text-subtle: #9AAAB5;
+  --success: #16A34A;
+  --warning: #D97706;
+  --danger: #DC2626;
+  --info: #2563EB;
+  --r: 6px;
+  --shadow: 0 1px 3px rgba(0,0,0,.08);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.10);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Be Vietnam Pro', sans-serif; font-size: 14px; color: var(--text); background: var(--bg); display: flex; min-height: 100vh; }
+
+/* ── SIDEBAR (left) ── */
+#sidebar {
+  width: var(--sidebar-width); background: var(--sidebar-bg);
+  display: flex; flex-direction: column;
+  position: fixed; top: 0; left: 0; bottom: 0; z-index: 100;
+  overflow-y: auto; transition: transform .25s ease;
+}
+.sb-logo { display: flex; align-items: center; gap: 10px; padding: 18px 16px 14px; border-bottom: 1px solid rgba(255,255,255,.07); text-decoration: none; }
+.sb-logo-icon { width: 34px; height: 34px; background: var(--primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #fff; flex-shrink: 0; }
+.sb-logo-name { font-weight: 700; font-size: 15px; color: #fff; }
+.sb-logo-name span { color: var(--primary-light); }
+.sb-logo-sub { font-size: 10px; color: rgba(255,255,255,.4); }
+.sb-section { padding: 20px 16px 6px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: rgba(255,255,255,.35); }
+.sb-item { display: flex; align-items: center; gap: 10px; padding: 9px 16px; color: rgba(199,211,217,.85); cursor: pointer; border-left: 3px solid transparent; transition: all .15s; font-size: 13px; text-decoration: none; }
+.sb-item:hover { background: var(--sidebar-hover); color: #fff; }
+.sb-item.active { background: rgba(230,96,0,.15); color: #fff; border-left-color: var(--primary); }
+.sb-item i { width: 18px; text-align: center; font-size: 13px; }
+.sb-divider { height: 1px; background: rgba(255,255,255,.07); margin: 8px 16px; }
+
+/* ── MAIN WRAPPER ── */
+#main-wrapper {
+  margin-left: var(--sidebar-width);
+  flex: 1; display: flex; flex-direction: column; min-height: 100vh;
+}
+
+/* ── TOPBAR ── */
+#topbar {
+  height: var(--topbar-h); background: var(--card-bg);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 20px; gap: 10px;
+  position: sticky; top: 0; z-index: 50;
+}
+#topbar .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-muted); flex: 1; min-width: 0; }
+#topbar .breadcrumb a { color: var(--primary); text-decoration: none; white-space: nowrap; }
+#topbar .breadcrumb a:hover { text-decoration: underline; }
+#topbar .breadcrumb .sep { color: var(--text-subtle); }
+#topbar .breadcrumb .current { color: var(--text); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
+.topbar-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+#outline-toggle-btn {
+  width: 34px; height: 34px; border: 1px solid var(--border); background: transparent;
+  border-radius: var(--r); cursor: pointer; display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted); font-size: 14px; transition: all .15s;
+}
+#outline-toggle-btn:hover { background: var(--bg); color: var(--primary); }
+#outline-toggle-btn.active { background: rgba(230,96,0,.1); color: var(--primary); border-color: rgba(230,96,0,.3); }
+
+/* ── CONTENT AREA ── */
+#content-area {
+  display: flex; flex: 1; position: relative;
+}
+
+/* ── MODULE OUTLINE (right sidebar) ── */
+#module-outline {
+  width: var(--outline-width); background: var(--card-bg);
+  border-left: 1px solid var(--border);
+  position: sticky; top: var(--topbar-h); height: calc(100vh - var(--topbar-h));
+  overflow-y: auto; flex-shrink: 0;
+  transition: all .25s ease; order: 2;
+}
+#module-outline.hidden { width: 0; overflow: hidden; border-left: none; }
+#module-outline .outline-header {
+  padding: 14px 16px 10px; border-bottom: 1px solid var(--border);
+  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: var(--text-muted);
+}
+.outline-module { }
+.outline-module-title {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 16px 6px; font-size: 12px; font-weight: 600;
+  color: var(--text); cursor: pointer; user-select: none;
+}
+.outline-module-title:hover { color: var(--primary); }
+.outline-module-title i { font-size: 10px; color: var(--text-subtle); transition: transform .2s; }
+.outline-module-title.collapsed i { transform: rotate(-90deg); }
+.outline-progress { margin: 2px 16px 6px; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.outline-progress-bar { height: 100%; background: var(--success); transition: width .4s ease; }
+.outline-items { }
+.outline-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 16px 7px 28px; font-size: 12px; color: var(--text-muted);
+  text-decoration: none; cursor: pointer; transition: all .15s;
+  border-left: 2px solid transparent;
+}
+.outline-item:hover { background: var(--bg); color: var(--text); }
+.outline-item.active { color: var(--primary); background: rgba(230,96,0,.06); border-left-color: var(--primary); font-weight: 500; }
+.outline-item.completed .item-check { color: var(--success); }
+.outline-item.locked { opacity: .5; cursor: not-allowed; }
+.outline-item i.item-type { width: 14px; text-align: center; font-size: 11px; flex-shrink: 0; }
+.outline-item .item-title { flex: 1; line-height: 1.3; }
+.outline-item .item-check { font-size: 11px; color: var(--border); }
+
+/* ── PAGE CONTENT ── */
+#page-main {
+  flex: 1; padding: 28px 32px 100px; max-width: 860px; min-width: 0; order: 1;
+}
+#page-main.wide { max-width: none; }
+
+/* Skeleton */
+.skeleton { background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 6px; }
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+.sk-title { height: 28px; width: 70%; margin-bottom: 16px; }
+.sk-meta { height: 14px; width: 40%; margin-bottom: 28px; }
+.sk-line { height: 13px; margin-bottom: 10px; }
+.sk-line.w90 { width: 90%; }
+.sk-line.w75 { width: 75%; }
+.sk-line.w55 { width: 55%; }
+
+/* Page header */
+#page-header { margin-bottom: 24px; }
+#page-title { font-size: 24px; font-weight: 700; color: var(--text); line-height: 1.3; margin-bottom: 8px; }
+#page-meta { display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--text-muted); }
+#page-meta .sep { color: var(--border); }
+.req-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; padding: 3px 8px; border-radius: 100px; font-weight: 500;
+}
+.req-badge.must_view { background: #EFF6FF; color: #2563EB; }
+.req-badge.mark_done { background: #FFF7ED; color: #D97706; }
+.req-badge.completed { background: #F0FDF4; color: #16A34A; }
+
+/* Locked overlay */
+#locked-banner {
+  display: none; margin-bottom: 24px;
+  background: #FEF3C7; border: 1px solid #FDE68A; border-radius: 10px;
+  padding: 16px 20px;
+}
+#locked-banner.show { display: flex; align-items: flex-start; gap: 12px; }
+#locked-banner i { color: #D97706; font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+#locked-banner .lock-body { }
+#locked-banner .lock-title { font-weight: 600; font-size: 14px; color: #92400E; margin-bottom: 4px; }
+#locked-banner .lock-reason { font-size: 13px; color: #A16207; }
+
+/* Page body */
+#page-body {
+  font-size: 15px; line-height: 1.75; color: var(--text);
+}
+#page-body h1 { font-size: 20px; font-weight: 700; margin: 24px 0 12px; }
+#page-body h2 { font-size: 17px; font-weight: 600; margin: 20px 0 10px; }
+#page-body h3 { font-size: 15px; font-weight: 600; margin: 16px 0 8px; }
+#page-body p { margin-bottom: 12px; }
+#page-body ul, #page-body ol { margin: 0 0 12px 20px; }
+#page-body li { margin-bottom: 4px; }
+#page-body img { max-width: 100%; border-radius: 8px; margin: 8px 0; }
+#page-body a { color: var(--primary); }
+#page-body table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+#page-body td, #page-body th { border: 1px solid var(--border); padding: 8px 12px; font-size: 13px; }
+#page-body th { background: var(--bg); font-weight: 600; }
+#page-body blockquote { border-left: 3px solid var(--primary); padding: 8px 16px; margin: 12px 0; background: rgba(230,96,0,.04); border-radius: 0 6px 6px 0; color: var(--text-muted); }
+#page-body pre { background: #1e2a32; color: #e2e8f0; padding: 16px; border-radius: 8px; overflow-x: auto; font-size: 13px; margin: 12px 0; }
+#page-body code { background: rgba(45,59,69,.08); padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+#page-body pre code { background: none; padding: 0; }
+
+/* Mark done button */
+#mark-done-section {
+  display: none; margin-top: 32px;
+  padding: 20px 24px; background: var(--card-bg); border: 1px solid var(--border);
+  border-radius: 10px; text-align: center;
+}
+#mark-done-section.show { display: block; }
+#mark-done-section.done { background: #F0FDF4; border-color: #BBF7D0; }
+#mark-done-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 24px; background: var(--primary); color: #fff; border: none;
+  border-radius: 100px; font-size: 14px; font-weight: 600; cursor: pointer;
+  transition: all .2s;
+}
+#mark-done-btn:hover { background: var(--primary-dark); transform: translateY(-1px); }
+#mark-done-btn:disabled { background: var(--success); cursor: default; transform: none; }
+#mark-done-btn i { font-size: 14px; }
+.done-text { font-size: 13px; color: var(--success); margin-top: 8px; }
+
+/* ── BOTTOM NAVIGATION ── */
+#page-nav {
+  position: fixed; bottom: 0; left: var(--sidebar-width); right: 0;
+  background: var(--card-bg); border-top: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 24px; z-index: 40;
+}
+.nav-btn {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 16px; border: 1px solid var(--border); background: var(--card-bg);
+  border-radius: var(--r); font-size: 13px; font-weight: 500; cursor: pointer;
+  color: var(--text); text-decoration: none; transition: all .15s;
+}
+.nav-btn:hover { border-color: var(--primary); color: var(--primary); background: rgba(230,96,0,.04); }
+.nav-btn.disabled { opacity: .35; pointer-events: none; }
+.nav-btn.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+.nav-btn.primary:hover { background: var(--primary-dark); }
+.nav-center { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+.nav-center .pos-dot { width: 7px; height: 7px; background: var(--border); border-radius: 50%; }
+.nav-center .pos-dot.active { background: var(--primary); }
+
+/* ── TOAST ── */
+#toast-container { position: fixed; top: 70px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+.toast { display: flex; align-items: center; gap: 10px; padding: 11px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; box-shadow: var(--shadow-md); min-width: 240px; max-width: 360px; animation: slideIn .25s ease; }
+@keyframes slideIn { from{transform:translateX(110%);opacity:0} to{transform:translateX(0);opacity:1} }
+.toast.success { background: #F0FDF4; color: #16A34A; border: 1px solid #BBF7D0; }
+.toast.error { background: #FEF2F2; color: #DC2626; border: 1px solid #FECACA; }
+.toast.info { background: #EFF6FF; color: #2563EB; border: 1px solid #BFDBFE; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 900px) {
+  #module-outline { display: none; }
+  #page-main { padding: 20px 16px 100px; }
+}
+@media (max-width: 640px) {
+  #sidebar { transform: translateX(-100%); }
+  #sidebar.open { transform: translateX(0); }
+  #main-wrapper { margin-left: 0; }
+  #page-nav { left: 0; }
+}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<nav id="sidebar">
+  <a class="sb-logo" href="student/dashboard.html">
+    <div class="sb-logo-icon"><i class="fa-solid fa-graduation-cap"></i></div>
+    <div><div class="sb-logo-name">AU<span>RA</span></div><div class="sb-logo-sub">Learning Platform</div></div>
+  </a>
+  <div class="sb-section">Học tập</div>
+  <a class="sb-item" id="sb-dashboard" href="student/dashboard.html"><i class="fa-solid fa-house"></i> Dashboard</a>
+  <a class="sb-item" id="sb-course" href="#"><i class="fa-solid fa-book-open"></i> <span id="sb-course-name">Khoá học</span></a>
+  <a class="sb-item" id="sb-discussions" href="#"><i class="fa-solid fa-comments"></i> Thảo luận</a>
+  <a class="sb-item" id="sb-calendar" href="calendar.html"><i class="fa-solid fa-calendar"></i> Lịch học</a>
+  <a class="sb-item" id="sb-messages" href="messages.html"><i class="fa-solid fa-envelope"></i> Tin nhắn</a>
+  <div class="sb-divider"></div>
+  <a class="sb-item" href="portfolio.html"><i class="fa-solid fa-briefcase"></i> Portfolio</a>
+</nav>
+
+<!-- MAIN WRAPPER -->
+<div id="main-wrapper">
+
+  <!-- TOPBAR -->
+  <header id="topbar">
+    <div class="breadcrumb" id="breadcrumb">
+      <a href="student/dashboard.html"><i class="fa-solid fa-house"></i></a>
+      <span class="sep">›</span>
+      <a href="#" id="bc-course">Khoá học</a>
+      <span class="sep">›</span>
+      <a href="#" id="bc-module">Module</a>
+      <span class="sep">›</span>
+      <span class="current" id="bc-page">Bài học</span>
+    </div>
+    <div class="topbar-actions">
+      <button id="outline-toggle-btn" title="Hiện/ẩn mục lục module" onclick="toggleOutline()">
+        <i class="fa-solid fa-list"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- CONTENT AREA -->
+  <div id="content-area">
+
+    <!-- PAGE MAIN -->
+    <main id="page-main">
+
+      <!-- Locked banner -->
+      <div id="locked-banner">
+        <i class="fa-solid fa-lock"></i>
+        <div class="lock-body">
+          <div class="lock-title">Nội dung bị khoá</div>
+          <div class="lock-reason" id="lock-reason-text">Hoàn thành bài học trước để mở khoá nội dung này.</div>
+        </div>
+      </div>
+
+      <!-- Page header skeleton -->
+      <div id="page-header-skeleton">
+        <div class="skeleton sk-title"></div>
+        <div class="skeleton sk-meta"></div>
+      </div>
+
+      <!-- Page header -->
+      <div id="page-header" style="display:none;">
+        <h1 id="page-title"></h1>
+        <div id="page-meta">
+          <span id="page-updated"></span>
+          <span class="sep" id="meta-sep" style="display:none">·</span>
+          <span id="req-badge-wrap"></span>
+        </div>
+      </div>
+
+      <!-- Body skeleton -->
+      <div id="page-body-skeleton">
+        <div class="skeleton sk-line w90" style="margin-top:8px;"></div>
+        <div class="skeleton sk-line w75" style="margin-top:8px;"></div>
+        <div class="skeleton sk-line w90" style="margin-top:8px;"></div>
+        <div class="skeleton sk-line w55" style="margin-top:8px;"></div>
+        <div class="skeleton sk-line w75" style="margin-top:20px;"></div>
+        <div class="skeleton sk-line w90" style="margin-top:8px;"></div>
+      </div>
+
+      <!-- Page body -->
+      <div id="page-body" style="display:none;"></div>
+
+      <!-- Mark done -->
+      <div id="mark-done-section">
+        <button id="mark-done-btn" onclick="markDone()">
+          <i class="fa-regular fa-circle-check"></i> Đánh dấu đã xong
+        </button>
+        <div class="done-text" id="done-text" style="display:none;">
+          <i class="fa-solid fa-circle-check"></i> Đã hoàn thành
+        </div>
+      </div>
+
+    </main>
+
+    <!-- MODULE OUTLINE (right) -->
+    <aside id="module-outline">
+      <div class="outline-header"><i class="fa-solid fa-list-ul" style="margin-right:6px;"></i>Mục lục module</div>
+      <div id="outline-body">
+        <div style="padding:20px 16px; color:var(--text-subtle); font-size:12px;">Đang tải...</div>
+      </div>
+    </aside>
+
+  </div><!-- /content-area -->
+
+</div><!-- /main-wrapper -->
+
+<!-- BOTTOM NAV -->
+<div id="page-nav">
+  <a id="nav-prev" class="nav-btn disabled" href="#">
+    <i class="fa-solid fa-chevron-left"></i> <span id="nav-prev-title">Bài trước</span>
+  </a>
+  <div class="nav-center" id="nav-dots"></div>
+  <a id="nav-next" class="nav-btn primary disabled" href="#">
+    <span id="nav-next-title">Bài tiếp</span> <i class="fa-solid fa-chevron-right"></i>
+  </a>
+</div>
+
+<!-- TOAST -->
+<div id="toast-container"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════════
+const API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+  ? 'http://localhost:8787'
+  : 'https://api.gds.edu.vn';
+const TOKEN_KEY = 'ae_token';
+const USER_KEY  = 'ae_user';
+
+// ── State ──
+let session   = null;
+let courseId  = null;
+let articleId = null;
+let pageData  = null;   // full API response
+let outlineVisible = true;
+
+// ═══════════════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════════════
+function getToken() { return localStorage.getItem(TOKEN_KEY) || ''; }
+
+async function apiFetch(path, opts = {}) {
+  const headers = { 'Authorization': `Bearer ${getToken()}`, 'Content-Type': 'application/json', ...(opts.headers || {}) };
+  return fetch(`${API}${path}`, { ...opts, headers });
+}
+
+function redirectLogin() {
+  localStorage.setItem('ae_redirect', location.href);
+  location.href = 'login.html';
+}
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+async function init() {
+  const stored = localStorage.getItem(USER_KEY);
+  if (!stored) return redirectLogin();
+  session = JSON.parse(stored);
+
+  const params = new URLSearchParams(location.search);
+  courseId  = params.get('course_id');
+  articleId = params.get('article_id');
+  if (!courseId || !articleId) {
+    showToast('Thiếu thông tin trang', 'error');
+    return;
+  }
+
+  // Update sidebar links
+  document.getElementById('sb-course').href = `course.html?course_id=${courseId}`;
+  document.getElementById('sb-discussions').href = `discussions.html?course_id=${courseId}`;
+  document.getElementById('sb-calendar').href = `calendar.html?course_id=${courseId}`;
+  document.getElementById('bc-course').href = `course.html?course_id=${courseId}`;
+
+  // Restore outline preference
+  const pref = localStorage.getItem('page_outline_visible');
+  if (pref === 'false') { outlineVisible = false; applyOutlineState(); }
+
+  // Load in parallel
+  loadPage();
+  loadOutline();
+}
+
+// ═══════════════════════════════════════════════════════════
+// LOAD PAGE
+// ═══════════════════════════════════════════════════════════
+async function loadPage() {
+  try {
+    const r = await apiFetch(`/api/courses/${courseId}/pages/${articleId}`);
+    if (!r.ok) {
+      if (r.status === 401) return redirectLogin();
+      const e = await r.json().catch(() => ({}));
+      throw new Error(e.error || `Lỗi ${r.status}`);
+    }
+    pageData = await r.json();
+    renderPage(pageData);
+  } catch(e) {
+    hideSkeleton();
+    showToast(e.message, 'error');
+  }
+}
+
+function hideSkeleton() {
+  document.getElementById('page-header-skeleton').style.display = 'none';
+  document.getElementById('page-body-skeleton').style.display = 'none';
+}
+
+function renderPage(d) {
+  hideSkeleton();
+
+  const page   = d.page   || {};
+  const comp   = d.completionRequirement || {};
+  const nav    = d.navigation || {};
+  const module = d.module  || {};
+
+  // ── Title & meta ──
+  document.title = `AURA — ${page.title || 'Bài học'}`;
+  document.getElementById('page-title').textContent = page.title || 'Bài học không tên';
+  document.getElementById('bc-page').textContent = page.title || 'Bài học';
+  document.getElementById('bc-module').textContent = module.name || 'Module';
+  document.getElementById('bc-module').href = `course.html?course_id=${courseId}`;
+  document.getElementById('sb-course-name').textContent = module.name || 'Khoá học';
+
+  if (page.updatedAt) {
+    const dt = new Date(page.updatedAt);
+    const str = dt.toLocaleDateString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric' });
+    document.getElementById('page-updated').textContent = `Cập nhật: ${str}`;
+  }
+
+  // ── Requirement badge ──
+  const badgeWrap = document.getElementById('req-badge-wrap');
+  if (comp.type || comp.completed) {
+    document.getElementById('meta-sep').style.display = '';
+    if (comp.completed) {
+      badgeWrap.innerHTML = `<span class="req-badge completed"><i class="fa-solid fa-circle-check"></i> Đã hoàn thành</span>`;
+    } else if (comp.type === 'mark_done') {
+      badgeWrap.innerHTML = `<span class="req-badge mark_done"><i class="fa-regular fa-circle"></i> Cần đánh dấu xong</span>`;
+    } else {
+      badgeWrap.innerHTML = `<span class="req-badge must_view"><i class="fa-solid fa-eye"></i> Đã xem</span>`;
+    }
+  }
+
+  // ── Show header ──
+  document.getElementById('page-header').style.display = '';
+
+  // ── Locked ──
+  if (d.locked) {
+    document.getElementById('locked-banner').classList.add('show');
+    document.getElementById('lock-reason-text').textContent = d.lockReason || 'Hoàn thành yêu cầu trước để mở khoá.';
+    document.getElementById('page-body').style.display = 'none';
+  } else {
+    document.getElementById('locked-banner').classList.remove('show');
+    let body = page.body || page.Content || page.content || '';
+    // Giải nén LZ-string nếu nội dung được nén
+    if (body.startsWith('lz:')) {
+      try {
+        body = LZString.decompressFromBase64(body.slice(3)) || body;
+      } catch(e) { console.warn('LZ decompress failed', e); }
+    }
+    const bodyEl = document.getElementById('page-body');
+    // Render HTML hoặc plain text
+    if (body.trim().startsWith('<') || body.includes('\n')) {
+      bodyEl.innerHTML = body;
+    } else {
+      bodyEl.innerHTML = body.split('\n').map(l => l ? `<p>${escHtml(l)}</p>` : '<br>').join('');
+    }
+    bodyEl.style.display = '';
+  }
+
+  // ── Mark done button ──
+  const mds = document.getElementById('mark-done-section');
+  if (!d.locked && comp.type === 'mark_done') {
+    mds.classList.add('show');
+    if (comp.completed) {
+      setDoneState();
+    }
+  }
+
+  // ── Navigation ──
+  renderNavigation(nav, comp);
+}
+
+function setDoneState() {
+  const btn = document.getElementById('mark-done-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-circle-check"></i> Đã hoàn thành';
+  document.getElementById('done-text').style.display = '';
+  document.getElementById('mark-done-section').classList.add('done');
+  // Update badge
+  const badgeWrap = document.getElementById('req-badge-wrap');
+  badgeWrap.innerHTML = `<span class="req-badge completed"><i class="fa-solid fa-circle-check"></i> Đã hoàn thành</span>`;
+  document.getElementById('meta-sep').style.display = '';
+}
+
+function renderNavigation(nav, comp) {
+  const prev = nav.previousItem;
+  const next = nav.nextItem;
+  const total = nav.totalInModule || 0;
+  const pos   = nav.currentPosition || 1;
+
+  // Prev button
+  const prevBtn = document.getElementById('nav-prev');
+  if (prev) {
+    prevBtn.classList.remove('disabled');
+    prevBtn.href = `page.html?course_id=${courseId}&article_id=${prev.id}`;
+    document.getElementById('nav-prev-title').textContent = truncate(prev.title, 25);
+  }
+
+  // Next button
+  const nextBtn = document.getElementById('nav-next');
+  if (next) {
+    nextBtn.classList.remove('disabled');
+    nextBtn.href = `page.html?course_id=${courseId}&article_id=${next.id}`;
+    document.getElementById('nav-next-title').textContent = truncate(next.title, 25);
+  } else {
+    // Last item — go back to course
+    nextBtn.classList.remove('disabled');
+    nextBtn.href = `course.html?course_id=${courseId}`;
+    nextBtn.innerHTML = `<span>Hoàn thành module</span> <i class="fa-solid fa-flag-checkered"></i>`;
+  }
+
+  // Dot indicator
+  const dotsEl = document.getElementById('nav-dots');
+  const show = Math.min(total, 9);
+  let dots = '';
+  for (let i = 1; i <= show; i++) {
+    dots += `<div class="pos-dot ${i === pos ? 'active' : ''}"></div>`;
+  }
+  if (total > 9) dots += `<span style="font-size:11px;color:var(--text-subtle);margin-left:2px;">+${total - 9}</span>`;
+  dotsEl.innerHTML = dots;
+}
+
+// ═══════════════════════════════════════════════════════════
+// MARK DONE
+// ═══════════════════════════════════════════════════════════
+async function markDone() {
+  const btn = document.getElementById('mark-done-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang xử lý...';
+
+  try {
+    const r = await apiFetch(`/api/courses/${courseId}/pages/${articleId}/mark_done`, { method: 'POST' });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Lỗi khi đánh dấu');
+
+    setDoneState();
+    showToast('✅ Đã đánh dấu hoàn thành!', 'success');
+
+    // Refresh outline completion state
+    loadOutline();
+
+    if (d.moduleCompleted) {
+      setTimeout(() => showToast('🎉 Module hoàn thành! Bài tiếp theo đã được mở khoá.', 'info'), 1200);
+    }
+  } catch(e) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-regular fa-circle-check"></i> Đánh dấu đã xong';
+    showToast(e.message, 'error');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// MODULE OUTLINE
+// ═══════════════════════════════════════════════════════════
+async function loadOutline() {
+  const body = document.getElementById('outline-body');
+  try {
+    const r = await apiFetch(`/api/courses/${courseId}/module-outline`);
+    if (!r.ok) throw new Error();
+    const d = await r.json();
+    renderOutline(d.modules || []);
+  } catch {
+    body.innerHTML = '<div style="padding:16px;color:var(--text-subtle);font-size:12px;">Không thể tải mục lục</div>';
+  }
+}
+
+function renderOutline(modules) {
+  const body = document.getElementById('outline-body');
+  if (!modules.length) {
+    body.innerHTML = '<div style="padding:16px;color:var(--text-subtle);font-size:12px;">Chưa có module</div>';
+    return;
+  }
+
+  let html = '';
+  for (const mod of modules) {
+    const pct = mod.progress || 0;
+    html += `<div class="outline-module" data-mod="${mod.id}">
+      <div class="outline-module-title" onclick="toggleOutlineModule('${mod.id}')">
+        <i class="fa-solid fa-chevron-down"></i>
+        <span style="flex:1;">${escHtml(mod.name)}</span>
+        <span style="font-size:10px;color:var(--text-subtle);">${pct}%</span>
+      </div>
+      <div class="outline-progress"><div class="outline-progress-bar" style="width:${pct}%"></div></div>
+      <div class="outline-items" id="oi-${mod.id}">`;
+
+    for (const item of mod.items || []) {
+      const isCurrent = String(item.id) === String(articleId);
+      const isDone    = item.completed;
+      const typeIcon  = getItemIcon(item.type);
+      html += `<a class="outline-item ${isCurrent ? 'active' : ''} ${isDone ? 'completed' : ''}"
+        href="page.html?course_id=${courseId}&article_id=${item.id}">
+        <i class="item-type ${typeIcon}"></i>
+        <span class="item-title">${escHtml(item.title)}</span>
+        <i class="item-check fa-solid fa-circle-check"></i>
+      </a>`;
+    }
+
+    html += `</div></div>`;
+  }
+  body.innerHTML = html;
+}
+
+function toggleOutlineModule(modId) {
+  const items = document.getElementById(`oi-${modId}`);
+  const titleEl = document.querySelector(`[data-mod="${modId}"] .outline-module-title`);
+  if (!items) return;
+  const isCollapsed = items.style.display === 'none';
+  items.style.display = isCollapsed ? '' : 'none';
+  titleEl?.classList.toggle('collapsed', !isCollapsed);
+}
+
+function getItemIcon(type) {
+  const map = {
+    article: 'fa-regular fa-file-lines',
+    quiz:    'fa-solid fa-circle-question',
+    assignment: 'fa-solid fa-pen-to-square',
+    video:   'fa-solid fa-play',
+    file:    'fa-regular fa-file',
+    survey:  'fa-solid fa-clipboard-list',
+  };
+  return map[type] || 'fa-regular fa-file-lines';
+}
+
+// ═══════════════════════════════════════════════════════════
+// OUTLINE TOGGLE
+// ═══════════════════════════════════════════════════════════
+function toggleOutline() {
+  outlineVisible = !outlineVisible;
+  applyOutlineState();
+  localStorage.setItem('page_outline_visible', outlineVisible ? 'true' : 'false');
+}
+
+function applyOutlineState() {
+  const outline = document.getElementById('module-outline');
+  const btn     = document.getElementById('outline-toggle-btn');
+  if (outlineVisible) {
+    outline.classList.remove('hidden');
+    btn.classList.add('active');
+  } else {
+    outline.classList.add('hidden');
+    btn.classList.remove('active');
+  }
+  // Widen page content when outline hidden
+  document.getElementById('page-main').classList.toggle('wide', !outlineVisible);
+}
+
+// ═══════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════
+function escHtml(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function truncate(s, n) {
+  s = s || '';
+  return s.length > n ? s.slice(0, n) + '…' : s;
+}
+
+function showToast(msg, type = 'info', duration = 4000) {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  const icons = { success: 'fa-circle-check', error: 'fa-circle-xmark', info: 'fa-circle-info' };
+  t.innerHTML = `<i class="fa-solid ${icons[type] || icons.info}"></i><span>${escHtml(msg)}</span>`;
+  c.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateX(110%)'; t.style.transition = 'all .3s'; setTimeout(() => t.remove(), 300); }, duration);
+}
+
+// ═══════════════════════════════════════════════════════════
+// START
+// ═══════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

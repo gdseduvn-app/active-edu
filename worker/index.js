@@ -25,12 +25,13 @@ import {
   handleAdminEnroll,
   handleAdminEnrollmentUpdate,
   handleAdminUnenroll,
+  handleJoinByCode,
   handleCoursePublish,
   handleCourseUnpublish,
   handleCourseConclude,
   handleCourseAccessCheck,
 } from './src/handlers/enrollmentHandler.js';
-import { handleSocratic } from './src/handlers/aiHandler.js';
+import { handleSocratic, handleGetAISession, handleDeleteAISession, handleListAISessions } from './src/handlers/aiHandler.js';
 import {
   handleCurriculumAgent,
   handleAssessmentAgent,
@@ -38,7 +39,144 @@ import {
   handleAnalyticsAgent,
   handleContentAgent,
 } from './src/handlers/aiAgentHandler.js';
+import { handleResearchAgent } from './src/handlers/researchAgentHandler.js';
+import {
+  handleListOutcomes,
+  handleGetOutcome,
+  handleCreateOutcome,
+  handleListAlignments,
+  handleCreateAlignment,
+  handleDeleteAlignment,
+  handleSetupSchemaPhase1,
+  handleSeedOutcomes,
+} from './src/handlers/outcomeHandler.js';
 import { handleDriveUpload, handleDriveFetch } from './src/handlers/driveHandler.js';
+import {
+  handleGetSettings,
+  handleGetDriveSettings,
+  handleUpdateDriveSettings,
+  handleTestDriveSettings,
+} from './src/handlers/settingsHandler.js';
+import { handleXAPIPost, handleXAPIGet, handleXAPIAggregate } from './src/handlers/xapiHandler.js';
+import { handleGetNotifications, handleMarkNotificationRead, handleGetAchievements } from './src/handlers/notificationHandler.js';
+import {
+  handleTeacherCourses,
+  handleTeacherStudents,
+  handleTeacherGradebook,
+  handleTeacherOutcomes,
+  handleTeacherCreateCourse,
+  handleTeacherAssessments,
+  handleTeacherSubmissions,
+  handleTeacherGrade,
+  handleTeacherCreateAnnouncement,
+  handleTeacherCreateAssessment,
+} from './src/handlers/teacherHandler.js';
+import { handleStudentRecommendations } from './src/handlers/recommendationHandler.js';
+import {
+  handleListDiscussions,
+  handleGetDiscussion,
+  handleCreateDiscussion,
+  handleUpdateDiscussion,
+  handleDeleteDiscussion,
+  handleCreateReply,
+  handleUpdateReply,
+  handleDeleteReply,
+  handleLikeDiscussion,
+} from './src/handlers/discussionHandler.js';
+import {
+  handleListAnnouncements,
+  handleAnnouncementUnreadCount,
+  handleCreateAnnouncement,
+  handleUpdateAnnouncement,
+  handleDeleteAnnouncement,
+  handleMarkAnnouncementRead,
+} from './src/handlers/announcementHandler.js';
+import {
+  handleListConversations,
+  handleGetConversation,
+  handleSendMessage,
+  handleReplyMessage,
+  handleMarkConversationRead,
+  handleArchiveConversation,
+} from './src/handlers/messageHandler.js';
+import {
+  handleListCalendarEvents,
+  handleUpcomingEvents,
+  handleCreateCalendarEvent,
+  handleUpdateCalendarEvent,
+  handleDeleteCalendarEvent,
+} from './src/handlers/calendarHandler.js';
+import {
+  handleListRubrics,
+  handleGetRubric,
+  handleCreateRubric,
+  handleUpdateRubric,
+  handleDeleteRubric,
+  handleAddCriterion,
+  handleRubricGrade,
+  handleRubricResult,
+} from './src/handlers/rubricHandler.js';
+import {
+  handleListGroupSets,
+  handleGetGroupSet,
+  handleCreateGroupSet,
+  handleDeleteGroupSet,
+  handleAutoAssign,
+  handleJoinGroup,
+  handleLeaveGroup,
+  handleCreateGroup,
+} from './src/handlers/groupHandler.js';
+import {
+  handleAssignPeerReviews,
+  handleMyAssignedReviews,
+  handleMyReceivedReviews,
+  handleGetPeerReview,
+  handleSubmitPeerReview,
+  handlePeerReviewStats,
+} from './src/handlers/peerReviewHandler.js';
+import {
+  handleListFiles,
+  handleListFolders,
+  handleGetFile,
+  handleFileUpload,
+  handleDeleteFile,
+} from './src/handlers/fileHandler.js';
+import {
+  handleSISImportStudents,
+  handleSISImportCourses,
+} from './src/handlers/sisHandler.js';
+import {
+  handleCreateObserverLink,
+  handleObserverStudents,
+  handleObserverProgress,
+  handleObserverGrades,
+  handleObserverActivity,
+  handleDeleteObserverLink,
+} from './src/handlers/observerHandler.js';
+import {
+  handleCourseOverview,
+  handleCourseEngagement,
+  handleTimeOnTask,
+  handleAtRiskStudents,
+  handleStudentSummary,
+  handleAnalyticsExport,
+} from './src/handlers/analyticsHandler.js';
+import {
+  handleViewPortfolio,
+  handleMyPortfolio,
+  handleCreateEntry,
+  handleUpdateEntry,
+  handleDeleteEntry,
+  handleUpdateVisibility,
+} from './src/handlers/portfolioHandler.js';
+import {
+  handleListConferences,
+  handleGetConference,
+  handleCreateConference,
+  handleStartConference,
+  handleEndConference,
+  handleDeleteConference,
+} from './src/handlers/conferenceHandler.js';
 import {
   handleAdminUsers,
   handleModuleItemToggle,
@@ -49,6 +187,8 @@ import {
   handleSafeExamDelete,
   handleSafeQuestionBankDelete,
   handleSetupAIAccessField,
+  handleAdminStats,
+  handleSetupD1Schema,
 } from './src/handlers/adminHandler.js';
 import {
   handleAssessmentList,
@@ -58,6 +198,7 @@ import {
   handleActionLogEvent,
   handleSubmissionSubmit,
   handleSubmissionResult,
+  handleStudentSubmissions,
   handleAdminSubmissions,
   handleAdminGrade,
   handleAssessmentExport,
@@ -66,6 +207,21 @@ import {
   handleAssessmentCreate,
   handleAssessmentUpdate,
 } from './src/handlers/assessmentHandler.js';
+import {
+  handleAssignmentGroupList,
+  handleAssignmentGroupCreate,
+  handleAssignmentGroupUpdate,
+  handleAssignmentGroupDelete,
+  handleWeightedGradebook,
+  handleSpeedGrader,
+  handleSpeedGraderAI,
+} from './src/handlers/gradebookHandler.js';
+import {
+  handlePageView,
+  handleMarkDone,
+  handlePageProgress,
+  handleModuleOutline,
+} from './src/handlers/pageHandler.js';
 
 // ── Route tables ──────────────────────────────────────────────
 
@@ -93,6 +249,7 @@ const ADMIN_PROXY_ROUTES = {
   '/admin/fields/users':       env => `/api/v2/tables/${env.NOCO_USERS}/fields`,
   '/admin/assessments-proxy':  env => `/api/v2/tables/${env.NOCO_ASSESSMENTS}/records`,
   '/admin/assess-questions':   env => `/api/v2/tables/${env.NOCO_ASSESS_QUESTIONS}/records`,
+  '/admin/assignment-groups-proxy': env => `/api/v2/tables/${env.NOCO_ASSIGNMENT_GROUPS}/records`,
 };
 
 const CACHE_TTL = {
@@ -207,6 +364,8 @@ export default {
 
     if (path.match(/^\/api\/courses\/\d+\/enroll$/) && request.method === 'POST')
       return handleSelfEnroll(request, env, ctx);
+    if (path === '/api/courses/join' && request.method === 'POST')
+      return handleJoinByCode(request, env, ctx);
 
     if (path.match(/^\/api\/courses\/\d+\/access$/) && request.method === 'GET')
       return handleCourseAccessCheck(request, env, ctx);
@@ -237,6 +396,16 @@ export default {
     if (path === '/api/ai/socratic' && request.method === 'POST')
       return handleSocratic(request, env, ctx);
 
+    // ── AI Session history (D1) ──────────────────────────────
+    if (path === '/api/ai/sessions' && request.method === 'GET')
+      return handleListAISessions(request, env, ctx);
+
+    if (path.match(/^\/api\/ai\/session\/[^/]+$/) && request.method === 'GET')
+      return handleGetAISession(request, env, ctx);
+
+    if (path.match(/^\/api\/ai\/session\/[^/]+$/) && request.method === 'DELETE')
+      return handleDeleteAISession(request, env, ctx);
+
     // ── AI Agent endpoints (5 agents) ───────────────────────
     if (path === '/ai/curriculum-agent' && request.method === 'POST')
       return handleCurriculumAgent(request, env, ctx);
@@ -248,6 +417,225 @@ export default {
       return handleAnalyticsAgent(request, env, ctx);
     if (path === '/ai/content-agent' && request.method === 'POST')
       return handleContentAgent(request, env, ctx);
+
+    // ── Teacher-specific routes ─────────────────────────────
+    if (path === '/api/teacher/courses' && request.method === 'GET')
+      return handleTeacherCourses(request, env, ctx);
+
+    if (path === '/api/teacher/students' && request.method === 'GET')
+      return handleTeacherStudents(request, env, ctx);
+
+    if (path === '/api/teacher/gradebook' && request.method === 'GET')
+      return handleTeacherGradebook(request, env, ctx);
+
+    if (path === '/api/teacher/outcomes' && request.method === 'GET')
+      return handleTeacherOutcomes(request, env, ctx);
+
+    if (path === '/api/teacher/courses' && request.method === 'POST')
+      return handleTeacherCreateCourse(request, env, ctx);
+
+    if (path === '/api/teacher/assessments' && request.method === 'GET')
+      return handleTeacherAssessments(request, env, ctx);
+
+    if (path === '/api/teacher/assessments' && request.method === 'POST')
+      return handleTeacherCreateAssessment(request, env, ctx);
+
+    if (path === '/api/teacher/submissions' && request.method === 'GET')
+      return handleTeacherSubmissions(request, env, ctx);
+
+    if (path.match(/^\/api\/teacher\/submissions\/\d+\/grade$/) && request.method === 'PATCH')
+      return handleTeacherGrade(request, env, ctx);
+
+    if (path === '/api/teacher/announcements' && request.method === 'POST')
+      return handleTeacherCreateAnnouncement(request, env, ctx);
+
+    // ── Student: Recommendations ────────────────────────────
+    if (path === '/api/student/recommendations' && request.method === 'GET')
+      return handleStudentRecommendations(request, env, ctx);
+
+    // ── Discussions ─────────────────────────────────────────
+    if (path === '/api/discussions' && request.method === 'GET')
+      return handleListDiscussions(request, env, ctx);
+    if (path === '/api/discussions' && request.method === 'POST')
+      return handleCreateDiscussion(request, env, ctx);
+    if (path.match(/^\/api\/discussions\/\d+$/) && request.method === 'GET')
+      return handleGetDiscussion(request, env, ctx);
+    if (path.match(/^\/api\/discussions\/\d+$/) && request.method === 'PUT')
+      return handleUpdateDiscussion(request, env, ctx);
+    if (path.match(/^\/api\/discussions\/\d+$/) && request.method === 'DELETE')
+      return handleDeleteDiscussion(request, env, ctx);
+    if (path.match(/^\/api\/discussions\/\d+\/reply$/) && request.method === 'POST')
+      return handleCreateReply(request, env, ctx);
+    if (path.match(/^\/api\/discussions\/\d+\/like$/) && request.method === 'POST')
+      return handleLikeDiscussion(request, env, ctx);
+    if (path.match(/^\/api\/discussions\/replies\/\d+$/) && request.method === 'PUT')
+      return handleUpdateReply(request, env, ctx);
+    if (path.match(/^\/api\/discussions\/replies\/\d+$/) && request.method === 'DELETE')
+      return handleDeleteReply(request, env, ctx);
+
+    // ── Announcements ───────────────────────────────────────
+    if (path === '/api/announcements/unread-count' && request.method === 'GET')
+      return handleAnnouncementUnreadCount(request, env, ctx);
+    if (path === '/api/announcements' && request.method === 'GET')
+      return handleListAnnouncements(request, env, ctx);
+    if (path === '/api/announcements' && request.method === 'POST')
+      return handleCreateAnnouncement(request, env, ctx);
+    if (path.match(/^\/api\/announcements\/\d+$/) && request.method === 'PUT')
+      return handleUpdateAnnouncement(request, env, ctx);
+    if (path.match(/^\/api\/announcements\/\d+$/) && request.method === 'DELETE')
+      return handleDeleteAnnouncement(request, env, ctx);
+    if (path.match(/^\/api\/announcements\/\d+\/read$/) && request.method === 'POST')
+      return handleMarkAnnouncementRead(request, env, ctx);
+
+    // ── Messages / Inbox ────────────────────────────────────
+    if (path === '/api/messages/conversations' && request.method === 'GET')
+      return handleListConversations(request, env, ctx);
+    if (path === '/api/messages' && request.method === 'POST')
+      return handleSendMessage(request, env, ctx);
+    if (path.match(/^\/api\/messages\/conversations\/[\w-]+$/) && request.method === 'GET')
+      return handleGetConversation(request, env, ctx);
+    if (path.match(/^\/api\/messages\/conversations\/[\w-]+\/reply$/) && request.method === 'POST')
+      return handleReplyMessage(request, env, ctx);
+    if (path.match(/^\/api\/messages\/conversations\/[\w-]+\/read$/) && request.method === 'PATCH')
+      return handleMarkConversationRead(request, env, ctx);
+    if (path.match(/^\/api\/messages\/conversations\/[\w-]+$/) && request.method === 'DELETE')
+      return handleArchiveConversation(request, env, ctx);
+
+    // ── Calendar ────────────────────────────────────────────
+    if (path === '/api/calendar/events/upcoming' && request.method === 'GET')
+      return handleUpcomingEvents(request, env, ctx);
+    if (path === '/api/calendar/events' && request.method === 'GET')
+      return handleListCalendarEvents(request, env, ctx);
+    if (path === '/api/calendar/events' && request.method === 'POST')
+      return handleCreateCalendarEvent(request, env, ctx);
+    if (path.match(/^\/api\/calendar\/events\/[\w-]+$/) && request.method === 'PUT')
+      return handleUpdateCalendarEvent(request, env, ctx);
+    if (path.match(/^\/api\/calendar\/events\/[\w-]+$/) && request.method === 'DELETE')
+      return handleDeleteCalendarEvent(request, env, ctx);
+
+    // ── Rubrics ─────────────────────────────────────────────
+    if (path === '/api/rubrics' && request.method === 'GET')
+      return handleListRubrics(request, env, ctx);
+    if (path === '/api/rubrics' && request.method === 'POST')
+      return handleCreateRubric(request, env, ctx);
+    if (path.match(/^\/api\/rubrics\/\d+$/) && request.method === 'GET')
+      return handleGetRubric(request, env, ctx);
+    if (path.match(/^\/api\/rubrics\/\d+$/) && request.method === 'PUT')
+      return handleUpdateRubric(request, env, ctx);
+    if (path.match(/^\/api\/rubrics\/\d+$/) && request.method === 'DELETE')
+      return handleDeleteRubric(request, env, ctx);
+    if (path.match(/^\/api\/rubrics\/\d+\/criteria$/) && request.method === 'POST')
+      return handleAddCriterion(request, env, ctx);
+    if (path.match(/^\/api\/submissions\/\d+\/rubric-grade$/) && request.method === 'POST')
+      return handleRubricGrade(request, env, ctx);
+    if (path.match(/^\/api\/submissions\/\d+\/rubric-result$/) && request.method === 'GET')
+      return handleRubricResult(request, env, ctx);
+
+    // ── Groups ──────────────────────────────────────────────
+    if (path === '/api/groups' && request.method === 'GET')
+      return handleListGroupSets(request, env, ctx);
+    if (path === '/api/groups' && request.method === 'POST')
+      return handleCreateGroupSet(request, env, ctx);
+    if (path.match(/^\/api\/groups\/\d+$/) && request.method === 'GET')
+      return handleGetGroupSet(request, env, ctx);
+    if (path.match(/^\/api\/groups\/\d+$/) && request.method === 'DELETE')
+      return handleDeleteGroupSet(request, env, ctx);
+    if (path.match(/^\/api\/groups\/\d+\/auto-assign$/) && request.method === 'POST')
+      return handleAutoAssign(request, env, ctx);
+    if (path.match(/^\/api\/groups\/\d+\/join$/) && request.method === 'POST')
+      return handleJoinGroup(request, env, ctx);
+    if (path.match(/^\/api\/groups\/\d+\/leave$/) && request.method === 'POST')
+      return handleLeaveGroup(request, env, ctx);
+    if (path.match(/^\/api\/groups\/\d+\/create-group$/) && request.method === 'POST')
+      return handleCreateGroup(request, env, ctx);
+
+    // ── Peer Review ─────────────────────────────────────────
+    if (path.match(/^\/api\/assessments\/\d+\/peer-review\/assign$/) && request.method === 'POST')
+      return handleAssignPeerReviews(request, env, ctx);
+    if (path.match(/^\/api\/assessments\/\d+\/peer-review-stats$/) && request.method === 'GET')
+      return handlePeerReviewStats(request, env, ctx);
+    if (path === '/api/peer-reviews/assigned' && request.method === 'GET')
+      return handleMyAssignedReviews(request, env, ctx);
+    if (path === '/api/peer-reviews/received' && request.method === 'GET')
+      return handleMyReceivedReviews(request, env, ctx);
+    if (path.match(/^\/api\/peer-reviews\/\d+$/) && request.method === 'GET')
+      return handleGetPeerReview(request, env, ctx);
+    if (path.match(/^\/api\/peer-reviews\/\d+\/submit$/) && request.method === 'POST')
+      return handleSubmitPeerReview(request, env, ctx);
+
+    // ── Files ───────────────────────────────────────────────
+    if (path === '/api/files/folders' && request.method === 'GET')
+      return handleListFolders(request, env, ctx);
+    if (path === '/api/files' && request.method === 'GET')
+      return handleListFiles(request, env, ctx);
+    if (path === '/api/files/upload' && request.method === 'POST')
+      return handleFileUpload(request, env, ctx);
+    if (path.match(/^\/api\/files\/\d+$/) && request.method === 'GET')
+      return handleGetFile(request, env, ctx);
+    if (path.match(/^\/api\/files\/\d+$/) && request.method === 'DELETE')
+      return handleDeleteFile(request, env, ctx);
+
+    // ── SIS Import ──────────────────────────────────────────
+    if (path === '/admin/sis/import/students' && request.method === 'POST')
+      return handleSISImportStudents(request, env, ctx);
+    if (path === '/admin/sis/import/courses' && request.method === 'POST')
+      return handleSISImportCourses(request, env, ctx);
+
+    // ── Observer ────────────────────────────────────────────
+    if (path === '/api/observer/link' && request.method === 'POST')
+      return handleCreateObserverLink(request, env, ctx);
+    if (path === '/api/observer/students' && request.method === 'GET')
+      return handleObserverStudents(request, env, ctx);
+    if (path === '/api/observer/progress' && request.method === 'GET')
+      return handleObserverProgress(request, env, ctx);
+    if (path === '/api/observer/grades' && request.method === 'GET')
+      return handleObserverGrades(request, env, ctx);
+    if (path === '/api/observer/activity' && request.method === 'GET')
+      return handleObserverActivity(request, env, ctx);
+    if (path.match(/^\/admin\/observer-links\/\d+$/) && request.method === 'DELETE')
+      return handleDeleteObserverLink(request, env, ctx);
+
+    // ── Enhanced Analytics ──────────────────────────────────
+    if (path.match(/^\/api\/analytics\/course\/\d+\/overview$/) && request.method === 'GET')
+      return handleCourseOverview(request, env, ctx);
+    if (path.match(/^\/api\/analytics\/course\/\d+\/engagement$/) && request.method === 'GET')
+      return handleCourseEngagement(request, env, ctx);
+    if (path.match(/^\/api\/analytics\/course\/\d+\/time-on-task$/) && request.method === 'GET')
+      return handleTimeOnTask(request, env, ctx);
+    if (path.match(/^\/api\/analytics\/course\/\d+\/at-risk$/) && request.method === 'GET')
+      return handleAtRiskStudents(request, env, ctx);
+    if (path.match(/^\/api\/analytics\/student\/\d+\/summary$/) && request.method === 'GET')
+      return handleStudentSummary(request, env, ctx);
+    if (path === '/api/analytics/export' && request.method === 'GET')
+      return handleAnalyticsExport(request, env, ctx);
+
+    // ── ePortfolio ──────────────────────────────────────────
+    if (path === '/api/portfolio/my' && request.method === 'GET')
+      return handleMyPortfolio(request, env, ctx);
+    if (path === '/api/portfolio/entries' && request.method === 'POST')
+      return handleCreateEntry(request, env, ctx);
+    if (path.match(/^\/api\/portfolio\/entries\/\d+$/) && request.method === 'PUT')
+      return handleUpdateEntry(request, env, ctx);
+    if (path.match(/^\/api\/portfolio\/entries\/\d+$/) && request.method === 'DELETE')
+      return handleDeleteEntry(request, env, ctx);
+    if (path.match(/^\/api\/portfolio\/entries\/\d+\/visibility$/) && request.method === 'PATCH')
+      return handleUpdateVisibility(request, env, ctx);
+    if (path.match(/^\/api\/portfolio\/\d+$/) && request.method === 'GET')
+      return handleViewPortfolio(request, env, ctx);
+
+    // ── Conferences (Jitsi) ─────────────────────────────────
+    if (path === '/api/conferences' && request.method === 'GET')
+      return handleListConferences(request, env, ctx);
+    if (path === '/api/conferences' && request.method === 'POST')
+      return handleCreateConference(request, env, ctx);
+    if (path.match(/^\/api\/conferences\/\d+$/) && request.method === 'GET')
+      return handleGetConference(request, env, ctx);
+    if (path.match(/^\/api\/conferences\/\d+\/start$/) && request.method === 'PATCH')
+      return handleStartConference(request, env, ctx);
+    if (path.match(/^\/api\/conferences\/\d+\/end$/) && request.method === 'PATCH')
+      return handleEndConference(request, env, ctx);
+    if (path.match(/^\/api\/conferences\/\d+$/) && request.method === 'DELETE')
+      return handleDeleteConference(request, env, ctx);
 
     // ── Admin: Drive ────────────────────────────────────────
     if (path === '/admin/drive-upload' && request.method === 'POST')
@@ -282,11 +670,75 @@ export default {
     if (path.startsWith('/admin/module-item/') && request.method === 'PATCH')
       return handleModuleItemToggle(request, env, ctx);
 
+    // ── Admin: stats dashboard ──────────────────────────────
+    if (path === '/admin/stats' && request.method === 'GET')
+      return handleAdminStats(request, env, ctx);
+
     // ── One-time setup: thêm field AIAccess vào NocoDB Users ──
     if (path === '/admin/setup/ai-access-field' && request.method === 'POST')
       return handleSetupAIAccessField(request, env, ctx);
 
+    // ── Phase 1 DB setup & seed ─────────────────────────────
+    if (path === '/admin/setup/schema-phase1' && request.method === 'POST')
+      return handleSetupSchemaPhase1(request, env, ctx);
+
+    if (path === '/admin/setup/seed-outcomes' && request.method === 'POST')
+      return handleSeedOutcomes(request, env, ctx);
+
+    if (path === '/admin/setup/d1-schema' && request.method === 'POST')
+      return handleSetupD1Schema(request, env, ctx);
+
+    // ── Admin Settings API ──────────────────────────────────
+    if (path === '/admin/settings' && request.method === 'GET')
+      return handleGetSettings(request, env, ctx);
+    if (path === '/admin/settings/drive' && request.method === 'GET')
+      return handleGetDriveSettings(request, env, ctx);
+    if (path === '/admin/settings/drive' && request.method === 'PATCH')
+      return handleUpdateDriveSettings(request, env, ctx);
+    if (path === '/admin/settings/drive/test' && request.method === 'POST')
+      return handleTestDriveSettings(request, env, ctx);
+
+    // ── Outcomes API (CT GDPT 2018) ─────────────────────────
+    if (path === '/api/outcomes' && request.method === 'GET')
+      return handleListOutcomes(request, env, ctx);
+
+    if (path.match(/^\/api\/outcomes\/\d+$/) && request.method === 'GET')
+      return handleGetOutcome(request, env, ctx);
+
+    if (path === '/api/outcomes' && request.method === 'POST')
+      return handleCreateOutcome(request, env, ctx);
+
+    // ── Alignments API (Item ↔ Outcome) ─────────────────────
+    if (path === '/api/alignments' && request.method === 'GET')
+      return handleListAlignments(request, env, ctx);
+
+    if (path === '/api/alignments' && request.method === 'POST')
+      return handleCreateAlignment(request, env, ctx);
+
+    if (path.match(/^\/api\/alignments\/\d+$/) && request.method === 'DELETE')
+      return handleDeleteAlignment(request, env, ctx);
+
+    // ── Research Agent (agentic loop + tool use) ────────────
+    if (path === '/ai/research-agent' && request.method === 'POST')
+      return handleResearchAgent(request, env, ctx);
+
+    // ── Pages (Bài học / WikiPage) ──────────────────────────
+    if (path.match(/^\/api\/courses\/\d+\/module-outline$/) && request.method === 'GET')
+      return handleModuleOutline(request, env, ctx);
+
+    if (path.match(/^\/api\/courses\/\d+\/pages\/\d+\/mark_done$/) && request.method === 'POST')
+      return handleMarkDone(request, env, ctx);
+
+    if (path.match(/^\/api\/courses\/\d+\/pages\/\d+\/progress$/) && request.method === 'GET')
+      return handlePageProgress(request, env, ctx);
+
+    if (path.match(/^\/api\/courses\/\d+\/pages\/\d+$/) && request.method === 'GET')
+      return handlePageView(request, env, ctx);
+
     // ── Assessments: student routes ─────────────────────────
+    if (path === '/api/submissions' && request.method === 'GET')
+      return handleStudentSubmissions(request, env, ctx);
+
     if (path === '/api/assessments' && request.method === 'GET')
       return handleAssessmentList(request, env, ctx);
 
@@ -332,6 +784,38 @@ export default {
 
     if (path.match(/^\/admin\/assessments\/\d+\/action-logs$/) && request.method === 'GET')
       return handleAdminActionLogs(request, env, ctx);
+
+    // ── xAPI LRS ────────────────────────────────────────────────
+    if (path === '/xapi/statements' && request.method === 'POST')
+      return handleXAPIPost(request, env, ctx);
+    if (path === '/xapi/statements/aggregate' && request.method === 'GET')
+      return handleXAPIAggregate(request, env, ctx);
+    if (path === '/xapi/statements' && request.method === 'GET')
+      return handleXAPIGet(request, env, ctx);
+
+    // ── Notifications ────────────────────────────────────────────
+    if (path === '/api/notifications' && request.method === 'GET')
+      return handleGetNotifications(request, env, ctx);
+    if (path.match(/^\/api\/notifications\/[\w]+\/read$/) && request.method === 'POST')
+      return handleMarkNotificationRead(request, env, ctx);
+    if (path === '/api/achievements' && request.method === 'GET')
+      return handleGetAchievements(request, env, ctx);
+
+    // ── Gradebook & Assignment Groups ───────────────────────────
+    if (path === '/admin/assignment-groups' && request.method === 'GET')
+      return handleAssignmentGroupList(request, env, ctx);
+    if (path === '/admin/assignment-groups' && request.method === 'POST')
+      return handleAssignmentGroupCreate(request, env, ctx);
+    if (path.match(/^\/admin\/assignment-groups\/\d+$/) && request.method === 'PATCH')
+      return handleAssignmentGroupUpdate(request, env, ctx);
+    if (path.match(/^\/admin\/assignment-groups\/\d+$/) && request.method === 'DELETE')
+      return handleAssignmentGroupDelete(request, env, ctx);
+    if (path === '/admin/gradebook' && request.method === 'GET')
+      return handleWeightedGradebook(request, env, ctx);
+    if (path.match(/^\/admin\/speedgrader\/\d+$/) && request.method === 'GET')
+      return handleSpeedGrader(request, env, ctx);
+    if (path.match(/^\/admin\/speedgrader\/\d+\/ai-draft$/) && request.method === 'POST')
+      return handleSpeedGraderAI(request, env, ctx);
 
     // ── Admin: generic proxy routes ─────────────────────────
     let adminNoco = null;

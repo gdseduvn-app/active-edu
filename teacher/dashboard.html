@@ -1,0 +1,2266 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ActiveEdu — Giáo viên</title>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --primary: #E66000;
+  --primary-dark: #C55500;
+  --primary-light: #FF8C3A;
+  --sidebar-bg: #2D3B45;
+  --sidebar-hover: #3D4F5C;
+  --sidebar-width: 230px;
+  --topbar-h: 56px;
+  --bg: #F5F5F5;
+  --card-bg: #FFFFFF;
+  --border: #E1E5E8;
+  --text: #2D3B45;
+  --text-muted: #6B7B8A;
+  --text-subtle: #9AAAB5;
+  --success: #16A34A;
+  --warning: #EAB308;
+  --danger: #EF4444;
+  --info: #2563EB;
+  --r: 6px;
+  --shadow: 0 1px 3px rgba(0,0,0,.08);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.10);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Be Vietnam Pro', sans-serif; font-size: 14px; color: var(--text); background: var(--bg); display: flex; min-height: 100vh; }
+
+/* SIDEBAR */
+#sidebar {
+  width: var(--sidebar-width); background: var(--sidebar-bg);
+  display: flex; flex-direction: column;
+  position: fixed; top: 0; left: 0; bottom: 0; z-index: 100;
+  overflow-y: auto; transition: transform .25s ease;
+}
+.sb-logo { display: flex; align-items: center; gap: 10px; padding: 18px 16px 14px; border-bottom: 1px solid rgba(255,255,255,.07); }
+.sb-logo-icon { width: 34px; height: 34px; background: var(--primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #fff; }
+.sb-logo-name { font-weight: 700; font-size: 15px; color: #fff; }
+.sb-logo-name span { color: var(--primary-light); }
+.sb-logo-sub { font-size: 10px; color: rgba(255,255,255,.4); }
+.sb-section { padding: 20px 16px 6px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: rgba(255,255,255,.35); }
+.sb-item { display: flex; align-items: center; gap: 10px; padding: 9px 16px; color: rgba(199,211,217,.85); cursor: pointer; border-left: 3px solid transparent; transition: all .15s; font-size: 13px; }
+.sb-item:hover { background: var(--sidebar-hover); color: #fff; }
+.sb-item.active { background: rgba(230,96,0,.15); color: #fff; border-left-color: var(--primary); }
+.sb-item i { width: 18px; text-align: center; font-size: 13px; }
+.sb-badge { margin-left: auto; background: var(--primary); color: #fff; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 100px; }
+.sb-footer { margin-top: auto; padding: 14px 16px; border-top: 1px solid rgba(255,255,255,.07); font-size: 11px; color: rgba(255,255,255,.35); }
+.sb-footer a { color: inherit; text-decoration: none; display: block; margin-bottom: 4px; }
+
+/* MAIN */
+#main { margin-left: var(--sidebar-width); flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
+
+/* TOPBAR */
+.topbar { height: var(--topbar-h); background: var(--card-bg); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: sticky; top: 0; z-index: 50; box-shadow: var(--shadow); }
+.topbar-left { display: flex; align-items: center; gap: 12px; }
+.topbar-hamburger { display: none; background: none; border: none; font-size: 18px; cursor: pointer; color: var(--text); }
+.breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-muted); }
+.breadcrumb .current { color: var(--text); font-weight: 500; }
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+.notif-btn { position: relative; background: none; border: none; font-size: 17px; color: var(--text-muted); cursor: pointer; padding: 6px; border-radius: var(--r); }
+.notif-btn:hover { background: var(--bg); }
+.notif-badge { position: absolute; top: 2px; right: 2px; width: 15px; height: 15px; background: var(--primary); color: #fff; font-size: 9px; font-weight: 700; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.avatar-btn { width: 34px; height: 34px; border-radius: 50%; background: var(--primary); color: #fff; border: none; cursor: pointer; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.teacher-badge { display: flex; align-items: center; gap: 6px; background: #EFF6FF; color: var(--info); border: 1px solid #DBEAFE; border-radius: 100px; padding: 4px 10px; font-size: 11px; font-weight: 600; }
+
+/* CONTENT */
+#content { flex: 1; padding: 24px; }
+.panel { display: none; }
+.panel.active { display: block; }
+.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+.page-title { font-size: 20px; font-weight: 700; }
+.page-title small { display: block; font-size: 12px; font-weight: 400; color: var(--text-muted); margin-top: 2px; }
+
+/* CARDS */
+.card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--r); box-shadow: var(--shadow); }
+.card-header { display: flex; align-items: center; justify-content: space-between; padding: 13px 18px; border-bottom: 1px solid var(--border); }
+.card-title { font-size: 14px; font-weight: 600; }
+.card-body { padding: 18px; }
+
+/* COURSE CARDS GRID (Canvas-style tiles) */
+.course-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.course-tile {
+  background: var(--card-bg); border: 1px solid var(--border);
+  border-radius: 8px; overflow: hidden;
+  box-shadow: var(--shadow); transition: box-shadow .2s, transform .2s;
+  cursor: pointer;
+}
+.course-tile:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.course-tile-banner { height: 80px; display: flex; align-items: flex-end; padding: 10px 14px; position: relative; overflow: hidden; }
+.course-tile-banner::before { content: ''; position: absolute; inset: 0; background: rgba(0,0,0,.2); }
+.course-tile-banner-text { position: relative; color: #fff; font-weight: 700; font-size: 14px; line-height: 1.3; text-shadow: 0 1px 3px rgba(0,0,0,.3); }
+.course-tile-banner-sub { position: relative; color: rgba(255,255,255,.8); font-size: 11px; margin-top: 1px; }
+.course-tile-body { padding: 14px; }
+.course-tile-meta { display: flex; gap: 14px; font-size: 12px; color: var(--text-muted); flex-wrap: wrap; margin-bottom: 10px; }
+.course-tile-meta span { display: flex; align-items: center; gap: 4px; }
+.progress-bar-wrap { background: var(--bg); border-radius: 100px; height: 5px; margin-bottom: 6px; overflow: hidden; }
+.progress-bar { height: 100%; border-radius: 100px; background: var(--primary); transition: width .6s ease; }
+.progress-label { font-size: 11px; color: var(--text-muted); display: flex; justify-content: space-between; }
+.course-tile-footer { padding: 10px 14px; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.course-tile-footer .btn-sm { font-size: 11px; padding: 4px 10px; }
+
+/* BUTTONS */
+.btn { display: inline-flex; align-items: center; gap: 7px; padding: 7px 14px; border-radius: var(--r); font-size: 13px; font-weight: 500; border: 1px solid transparent; cursor: pointer; transition: all .15s; white-space: nowrap; }
+.btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-outline { background: transparent; color: var(--text); border-color: var(--border); }
+.btn-outline:hover { background: var(--bg); }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+.btn-ghost { background: transparent; color: var(--text-muted); border: none; padding: 5px 8px; border-radius: var(--r); cursor: pointer; transition: all .15s; }
+.btn-ghost:hover { background: var(--bg); color: var(--text); }
+
+/* STATS ROW */
+.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
+.stat-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--r); padding: 16px 18px; box-shadow: var(--shadow); }
+.stat-val { font-size: 24px; font-weight: 700; }
+.stat-lbl { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.stat-sub { font-size: 11px; color: var(--text-subtle); margin-top: 4px; }
+
+/* TABLE */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 10px 14px; text-align: left; font-size: 13px; border-bottom: 1px solid var(--border); }
+th { font-weight: 600; color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; background: var(--bg); }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: #FAFAFA; }
+
+/* TOOLBAR */
+.toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 14px 0; }
+.search-input { flex: 1; min-width: 200px; max-width: 300px; padding: 7px 12px 7px 34px; border: 1px solid var(--border); border-radius: var(--r); font-size: 13px; background: var(--card-bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239AAAB5' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E") no-repeat 10px center; outline: none; }
+.search-input:focus { border-color: var(--primary); }
+.select-filter { padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--r); font-size: 13px; color: var(--text); background: var(--card-bg); cursor: pointer; outline: none; }
+
+/* BADGES */
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 100px; font-size: 11px; font-weight: 500; }
+.badge-green { background: #DCFCE7; color: #15803D; }
+.badge-gray { background: #F1F5F9; color: #64748B; }
+.badge-orange { background: #FFF7ED; color: #C2410C; }
+.badge-blue { background: #EFF6FF; color: #1D4ED8; }
+.badge-yellow { background: #FEFCE8; color: #A16207; }
+.badge-red { background: #FEF2F2; color: #DC2626; }
+
+/* HEATMAP */
+.heatmap-wrap { overflow-x: auto; }
+.heatmap-table { border-collapse: collapse; font-size: 12px; }
+.heatmap-table th { padding: 6px 10px; text-align: center; color: var(--text-muted); font-weight: 600; font-size: 11px; background: none; border: none; }
+.heatmap-table td { padding: 4px; border: none; }
+.hm-cell { width: 52px; height: 36px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #fff; cursor: default; transition: transform .1s; }
+.hm-cell:hover { transform: scale(1.08); }
+.hm-cell.empty { background: #F1F5F9; color: var(--text-subtle); font-weight: 400; }
+.hm-student-name { font-size: 12px; color: var(--text); white-space: nowrap; padding: 4px 10px 4px 0; }
+
+/* GRADEBOOK */
+.gradebook-table { min-width: 600px; }
+.gradebook-table th { background: var(--bg); }
+.grade-cell { text-align: center; font-weight: 600; }
+.grade-avg { font-size: 11px; color: var(--text-muted); }
+
+/* MASTERY BARS */
+.mastery-list { display: flex; flex-direction: column; gap: 12px; }
+.mastery-item { }
+.mastery-header { display: flex; justify-content: space-between; margin-bottom: 4px; }
+.mastery-code { font-size: 11px; font-weight: 700; color: var(--primary); }
+.mastery-name { font-size: 13px; }
+.mastery-pct { font-size: 13px; font-weight: 700; }
+.mastery-bar-bg { height: 8px; background: var(--bg); border-radius: 100px; overflow: hidden; }
+.mastery-bar-fill { height: 100%; border-radius: 100px; transition: width .6s ease; }
+.mastery-count { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+
+/* AI RESEARCH MODAL */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 1000; align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--card-bg); border-radius: 10px; width: 580px; max-width: 95vw; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,.2); }
+.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; border-bottom: 1px solid var(--border); }
+.modal-title { font-size: 16px; font-weight: 700; }
+.modal-close { background: none; border: none; font-size: 18px; cursor: pointer; color: var(--text-muted); }
+.modal-close:hover { color: var(--text); }
+.modal-body { padding: 22px; }
+.modal-footer { padding: 14px 22px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
+.form-group { margin-bottom: 14px; }
+.form-group label { display: block; font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .04em; }
+.form-control { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--r); font-size: 13px; color: var(--text); outline: none; font-family: inherit; }
+.form-control:focus { border-color: var(--primary); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+/* MODE PILLS */
+.mode-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.mode-pill { padding: 6px 12px; border-radius: 100px; border: 1px solid var(--border); font-size: 12px; cursor: pointer; transition: all .15s; background: var(--card-bg); color: var(--text-muted); }
+.mode-pill.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+/* AI RESULT */
+.ai-result-box { background: var(--bg); border: 1px solid var(--border); border-radius: var(--r); padding: 16px; max-height: 320px; overflow-y: auto; white-space: pre-wrap; font-size: 13px; line-height: 1.7; }
+
+/* SPINNER */
+.spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin .6s linear infinite; vertical-align: middle; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* LOADING */
+.loading-cell { text-align: center; padding: 32px; color: var(--text-muted); }
+
+/* TOAST */
+#toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+.toast { background: #1E293B; color: #fff; padding: 11px 16px; border-radius: var(--r); font-size: 13px; display: flex; align-items: center; gap: 8px; box-shadow: var(--shadow-md); min-width: 240px; max-width: 360px; }
+@keyframes slideIn { from { transform: translateX(20px); opacity:0; } to { transform: translateX(0); opacity:1; } }
+
+/* ASSIGNMENT STATUS */
+.asgn-status-bar { display: flex; align-items: center; gap: 6px; }
+.asgn-bar-bg { flex: 1; height: 6px; background: var(--bg); border-radius: 100px; overflow: hidden; }
+.asgn-bar-fill { height: 100%; border-radius: 100px; background: var(--primary); }
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+  #sidebar { transform: translateX(-100%); }
+  #sidebar.open { transform: translateX(0); }
+  #main { margin-left: 0; }
+  .topbar-hamburger { display: block; }
+  .stats-row { grid-template-columns: repeat(2,1fr); }
+  .form-row { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .stats-row { grid-template-columns: 1fr; }
+  #content { padding: 14px; }
+  .course-tiles { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside id="sidebar">
+  <div class="sb-logo">
+    <div class="sb-logo-icon"><i class="fas fa-chalkboard-teacher"></i></div>
+    <div>
+      <div class="sb-logo-name">Active<span>Edu</span></div>
+      <div class="sb-logo-sub">Giáo viên</div>
+    </div>
+  </div>
+
+  <div class="sb-section">Khoá học của tôi</div>
+  <div class="sb-item active" onclick="showPanel('courses',this)">
+    <i class="fas fa-th-large"></i> Khoá học
+  </div>
+  <div class="sb-item" onclick="showPanel('students',this)">
+    <i class="fas fa-users"></i> Học sinh
+    <span class="sb-badge" id="sb-students-count">—</span>
+  </div>
+  <div class="sb-item" onclick="showPanel('assignments',this)">
+    <i class="fas fa-file-lines"></i> Bài tập
+    <span class="sb-badge" id="sb-pending-badge" style="display:none"></span>
+  </div>
+  <div class="sb-item" onclick="showPanel('outcomes',this)">
+    <i class="fas fa-sitemap"></i> Chuẩn đầu ra
+  </div>
+
+  <div class="sb-section">Đánh giá</div>
+  <div class="sb-item" onclick="showPanel('gradebook',this)">
+    <i class="fas fa-table-cells"></i> Sổ điểm
+  </div>
+  <div class="sb-item" onclick="showPanel('speedgrader',this)">
+    <i class="fas fa-pen-ruler"></i> SpeedGrader
+    <span class="sb-badge" id="sb-ungraded-count" style="display:none"></span>
+  </div>
+  <div class="sb-item" onclick="showPanel('rubrics',this)">
+    <i class="fas fa-table-list"></i> Rubrics
+  </div>
+  <div class="sb-item" onclick="showPanel('analytics',this)">
+    <i class="fas fa-chart-bar"></i> Analytics
+  </div>
+
+  <div class="sb-section">Quản lý lớp</div>
+  <div class="sb-item" onclick="showPanel('groups',this)">
+    <i class="fas fa-people-group"></i> Nhóm học sinh
+  </div>
+
+  <div class="sb-section">Tạo nội dung</div>
+  <div class="sb-item" onclick="openCreateCourseModal()">
+    <i class="fas fa-plus-circle"></i> Tạo khoá học
+  </div>
+  <div class="sb-item" onclick="showPanel('create-assessment',this)">
+    <i class="fas fa-file-circle-plus"></i> Tạo bài tập/Quiz
+  </div>
+
+  <div class="sb-section">AI</div>
+  <div class="sb-item" onclick="openAIModal()">
+    <i class="fas fa-robot"></i> AI Research
+  </div>
+
+  <div class="sb-footer">
+    <a href="../index.html" target="_blank"><i class="fas fa-arrow-up-right-from-square"></i> Trang học sinh</a>
+    <div>ActiveEdu v2.0</div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div id="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="topbar-hamburger" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+      <nav class="breadcrumb">
+        <span>ActiveEdu</span>
+        <span style="opacity:.4">/</span>
+        <span class="current" id="breadcrumb-current">Khoá học</span>
+      </nav>
+    </div>
+    <div class="topbar-right">
+      <div class="teacher-badge"><i class="fas fa-chalkboard-teacher"></i> Giáo viên</div>
+      <button class="notif-btn" title="Thông báo">
+        <i class="fas fa-bell"></i>
+        <div class="notif-badge" id="notif-count">5</div>
+      </button>
+      <button class="avatar-btn" id="avatar-btn" onclick="doLogout()" title="Đăng xuất">T</button>
+    </div>
+  </div>
+
+  <div id="content">
+
+    <!-- ══ COURSES ══ -->
+    <div class="panel active" id="panel-courses">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Khoá học của tôi</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:2px" id="courses-subtitle">Đang tải...</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-outline btn-sm" onclick="openAIModal()">
+            <i class="fas fa-robot"></i> AI Research
+          </button>
+          <button class="btn btn-primary" onclick="openCreateCourseModal()">
+            <i class="fas fa-plus"></i> Tạo khoá học
+          </button>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:40px;height:40px;background:#FFF7ED;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--primary)"><i class="fas fa-book-open"></i></div>
+            <div>
+              <div class="stat-val" id="sc-courses">—</div>
+              <div class="stat-lbl">Khoá học</div>
+            </div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:40px;height:40px;background:#DBEAFE;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;color:#2563EB"><i class="fas fa-users"></i></div>
+            <div>
+              <div class="stat-val" id="sc-students">—</div>
+              <div class="stat-lbl">Học sinh</div>
+            </div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:40px;height:40px;background:#FEF9C3;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;color:#A16207"><i class="fas fa-clock-rotate-left"></i></div>
+            <div>
+              <div class="stat-val" id="sc-pending">—</div>
+              <div class="stat-lbl">Cần chấm điểm</div>
+            </div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:40px;height:40px;background:#DCFCE7;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;color:#16A34A"><i class="fas fa-chart-line"></i></div>
+            <div>
+              <div class="stat-val" id="sc-avg">—</div>
+              <div class="stat-lbl">Điểm TB toàn lớp</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Course tiles -->
+      <div class="course-tiles" id="course-tiles">
+        <div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-muted)">
+          <span class="spinner"></span> Đang tải khoá học...
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ STUDENTS ══ -->
+    <div class="panel" id="panel-students">
+      <div class="page-header">
+        <div class="page-title">Học sinh
+          <small id="students-subtitle">Tất cả học sinh trong các khoá học của bạn</small>
+        </div>
+        <div style="display:flex;gap:8px">
+          <select class="select-filter" id="student-course-filter" onchange="filterStudents()">
+            <option value="">Tất cả khoá học</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Heatmap section -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header">
+          <span class="card-title"><i class="fas fa-table-cells-large" style="color:var(--primary);margin-right:6px"></i> Bản đồ tiến độ học sinh</span>
+          <div style="display:flex;align-items:center;gap:10px;font-size:11px;color:var(--text-muted)">
+            <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#16A34A;border-radius:2px;display:inline-block"></span>Xuất sắc (≥8.5)</span>
+            <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#EAB308;border-radius:2px;display:inline-block"></span>TB (5.5-7)</span>
+            <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#EF4444;border-radius:2px;display:inline-block"></span>Kém (&lt;4)</span>
+          </div>
+        </div>
+        <div class="card-body" style="padding:10px 18px">
+          <div class="heatmap-wrap" id="heatmap-wrap">
+            <div style="text-align:center;padding:20px;color:var(--text-muted)"><span class="spinner"></span> Đang tải...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Students table -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Danh sách học sinh</span>
+          <input type="text" class="search-input" style="max-width:240px" placeholder="Tìm học sinh..." id="student-search" oninput="filterStudents()">
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Học sinh</th>
+              <th>Điểm TB</th>
+              <th>Bài đã nộp</th>
+              <th>Mức thành thạo</th>
+              <th>Trạng thái</th>
+              <th>Hoạt động cuối</th>
+            </tr></thead>
+            <tbody id="students-tbody">
+              <tr><td colspan="6" class="loading-cell"><span class="spinner"></span> Đang tải...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ ASSIGNMENTS ══ -->
+    <div class="panel" id="panel-assignments">
+      <div class="page-header">
+        <div class="page-title">Bài tập & Bài kiểm tra</div>
+        <button class="btn btn-primary" onclick="showPanel('create-assessment',document.querySelector('.sb-item[onclick*=create-assessment]'))">
+          <i class="fas fa-plus"></i> Tạo bài tập / Quiz
+        </button>
+      </div>
+
+      <div class="toolbar">
+        <select class="select-filter" id="asgn-course-filter" onchange="filterAssignments()">
+          <option value="">Tất cả khoá học</option>
+        </select>
+        <select class="select-filter" id="asgn-status-filter" onchange="filterAssignments()">
+          <option value="">Tất cả trạng thái</option>
+          <option value="open">Đang mở</option>
+          <option value="pending">Cần chấm</option>
+          <option value="graded">Đã chấm</option>
+        </select>
+      </div>
+
+      <div class="card" style="padding:0">
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Bài tập</th>
+              <th>Khoá học</th>
+              <th>Hạn nộp</th>
+              <th>Tiến độ nộp</th>
+              <th>Điểm TB</th>
+              <th>Trạng thái</th>
+              <th></th>
+            </tr></thead>
+            <tbody id="assignments-tbody">
+              <tr><td colspan="7" class="loading-cell"><span class="spinner"></span> Đang tải...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ OUTCOMES ══ -->
+    <div class="panel" id="panel-outcomes">
+      <div class="page-header">
+        <div class="page-title">Chuẩn đầu ra & Mức thành thạo</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px" id="outcomes-layout">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fas fa-sitemap" style="color:var(--primary);margin-right:6px"></i> Chuẩn đầu ra</span>
+          </div>
+          <div class="card-body">
+            <div class="mastery-list" id="mastery-bars">
+              <div style="text-align:center;padding:20px;color:var(--text-muted)"><span class="spinner"></span></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Phân bổ mức thành thạo</span>
+          </div>
+          <div class="card-body" id="mastery-summary"></div>
+        </div>
+      </div>
+
+      <!-- Heatmap học sinh × chuẩn đầu ra (từ D1 student_mastery) -->
+      <div class="card" style="margin-top:20px" id="mastery-heatmap-card">
+        <div class="card-header" style="display:flex;align-items:center;justify-content:space-between">
+          <span class="card-title"><i class="fas fa-table-cells" style="color:var(--primary);margin-right:6px"></i> Heatmap Học sinh × Chuẩn đầu ra</span>
+          <span style="font-size:11px;color:var(--text-muted)">Màu: <span style="background:#16A34A;color:#fff;padding:1px 6px;border-radius:3px">≥70%</span> <span style="background:#EAB308;color:#fff;padding:1px 6px;border-radius:3px">50-69%</span> <span style="background:#EF4444;color:#fff;padding:1px 6px;border-radius:3px">&lt;50%</span> <span style="background:#E2E8F0;color:#64748b;padding:1px 6px;border-radius:3px">Chưa học</span></span>
+        </div>
+        <div class="card-body" style="overflow-x:auto">
+          <div id="mastery-heatmap">
+            <div style="text-align:center;padding:20px;color:var(--text-muted)"><span class="spinner"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ GRADEBOOK ══ -->
+    <div class="panel" id="panel-gradebook">
+      <div class="page-header">
+        <div class="page-title">Sổ điểm</div>
+        <div style="display:flex;gap:8px">
+          <select class="select-filter" id="gb-course-select" onchange="loadGradebookForCourse()">
+            <option value="">Chọn khoá học...</option>
+          </select>
+          <button class="btn btn-outline btn-sm" onclick="toast('Xuất CSV đang phát triển', 'info')">
+            <i class="fas fa-download"></i> Xuất CSV
+          </button>
+        </div>
+      </div>
+
+      <div class="card" style="padding:0">
+        <div class="table-wrap">
+          <table class="gradebook-table" id="gradebook-table">
+            <thead id="gradebook-head"></thead>
+            <tbody id="gradebook-body">
+              <tr><td colspan="10" class="loading-cell">Chọn khoá học để xem sổ điểm</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div style="margin-top:12px;font-size:12px;color:var(--text-muted);display:flex;gap:14px;flex-wrap:wrap">
+        <span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;background:#16A34A;border-radius:2px;display:inline-block"></span>Xuất sắc (≥8.5)</span>
+        <span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;background:#65A30D;border-radius:2px;display:inline-block"></span>Giỏi (7–8.5)</span>
+        <span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;background:#EAB308;border-radius:2px;display:inline-block"></span>TB (5.5–7)</span>
+        <span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;background:#F97316;border-radius:2px;display:inline-block"></span>Yếu (4–5.5)</span>
+        <span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;background:#EF4444;border-radius:2px;display:inline-block"></span>Kém (&lt;4)</span>
+        <span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;background:#F1F5F9;border-radius:2px;display:inline-block;border:1px solid var(--border)"></span>Chưa nộp</span>
+      </div>
+    </div>
+
+    <!-- ══ CREATE ASSESSMENT ══ -->
+    <div class="panel" id="panel-create-assessment">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Tạo bài tập / Quiz</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:2px">Tạo bài tập, trắc nghiệm, hoặc khảo sát mới</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 400px;gap:20px;align-items:flex-start">
+        <!-- Left: Form -->
+        <div class="card">
+          <div class="card-header"><span class="card-title">Thông tin cơ bản</span></div>
+          <div class="card-body" style="display:flex;flex-direction:column;gap:14px">
+            <div class="form-group">
+              <label>Tiêu đề *</label>
+              <input class="form-control" id="ca-title" placeholder="Ví dụ: Bài kiểm tra Chương 1">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div class="form-group">
+                <label>Loại</label>
+                <select class="form-control" id="ca-type" onchange="toggleQuizBuilder()">
+                  <option value="assignment">📝 Bài tập</option>
+                  <option value="graded_quiz">📋 Trắc nghiệm có điểm</option>
+                  <option value="practice_quiz">🔄 Quiz luyện tập</option>
+                  <option value="graded_survey">📊 Khảo sát có điểm</option>
+                  <option value="ungraded_survey">🕵️ Khảo sát ẩn danh</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Khoá học</label>
+                <select class="form-control" id="ca-course"></select>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+              <div class="form-group">
+                <label>Hạn nộp</label>
+                <input class="form-control" type="datetime-local" id="ca-due">
+              </div>
+              <div class="form-group">
+                <label>Điểm tối đa</label>
+                <input class="form-control" type="number" id="ca-maxscore" value="10" min="0">
+              </div>
+              <div class="form-group" id="ca-timelimit-wrap">
+                <label>Thời gian (phút)</label>
+                <input class="form-control" type="number" id="ca-timelimit" placeholder="Không giới hạn" min="1">
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Hướng dẫn / Mô tả</label>
+              <textarea class="form-control" id="ca-desc" rows="3" placeholder="Nhập hướng dẫn làm bài..."></textarea>
+            </div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap">
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+                <input type="checkbox" id="ca-shuffle" style="accent-color:var(--primary)"> Xáo trộn câu hỏi
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+                <input type="checkbox" id="ca-shuffle-opts" style="accent-color:var(--primary)"> Xáo trộn đáp án
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+                <input type="checkbox" id="ca-show-correct" checked style="accent-color:var(--primary)"> Hiện đáp án sau khi nộp
+              </label>
+            </div>
+            <div class="form-group">
+              <label>Số lần làm tối đa</label>
+              <input class="form-control" type="number" id="ca-maxattempts" placeholder="Không giới hạn" min="1" style="max-width:200px">
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Quiz builder -->
+        <div id="quiz-builder-section">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Câu hỏi</span>
+              <button class="btn btn-primary btn-sm" onclick="addQuestion()"><i class="fas fa-plus"></i> Thêm câu</button>
+            </div>
+            <div id="quiz-questions-list" style="max-height:500px;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:10px">
+              <div style="text-align:center;padding:32px;color:var(--text-muted)">
+                <i class="fas fa-circle-question" style="font-size:28px;opacity:.3;display:block;margin-bottom:8px"></i>
+                Chưa có câu hỏi nào
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn btn-outline" onclick="showPanel('assignments',document.querySelector('.sb-item[onclick*=assignments]'))">Huỷ</button>
+        <button class="btn btn-outline btn-sm" onclick="saveAssessment('draft')"><i class="fas fa-save"></i> Lưu nháp</button>
+        <button class="btn btn-primary" onclick="saveAssessment('published')"><i class="fas fa-paper-plane"></i> Đăng bài</button>
+      </div>
+    </div>
+
+    <!-- ══ SPEEDGRADER ══ -->
+    <div class="panel" id="panel-speedgrader">
+      <div class="page-header">
+        <div>
+          <div class="page-title">SpeedGrader</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:2px">Chấm bài nhanh cho từng học sinh</div>
+        </div>
+        <select class="select-filter" id="sg-assignment-select" onchange="loadSubmissions()" style="min-width:240px">
+          <option value="">Chọn bài tập...</option>
+        </select>
+      </div>
+
+      <div style="display:grid;grid-template-columns:300px 1fr;gap:20px;align-items:flex-start" id="sg-layout">
+        <!-- Student list -->
+        <div class="card">
+          <div class="card-header"><span class="card-title">Danh sách học sinh</span>
+            <span style="font-size:12px;color:var(--text-muted)" id="sg-progress-text"></span>
+          </div>
+          <div id="sg-student-list" style="max-height:60vh;overflow-y:auto">
+            <div style="padding:20px;text-align:center;color:var(--text-muted)">Chọn bài tập để bắt đầu</div>
+          </div>
+        </div>
+
+        <!-- Grading panel -->
+        <div id="sg-grading-panel">
+          <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:var(--r);padding:40px;text-align:center;color:var(--text-muted)">
+            <i class="fas fa-pen-ruler" style="font-size:36px;opacity:.2;display:block;margin-bottom:12px"></i>
+            Chọn học sinh để bắt đầu chấm bài
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ RUBRICS ══ -->
+    <div class="panel" id="panel-rubrics">
+      <div class="page-header">
+        <div><div class="page-title">Rubrics</div><div style="font-size:12px;color:var(--text-muted);margin-top:2px">Bảng tiêu chí chấm điểm minh bạch</div></div>
+        <div style="display:flex;gap:8px;">
+          <select class="select-filter" id="rubric-course-sel" onchange="loadRubricsForCourse()"><option value="">Chọn khoá học...</option></select>
+          <button class="btn btn-primary btn-sm" onclick="openRubricModal()"><i class="fas fa-plus"></i> Tạo Rubric mới</button>
+        </div>
+      </div>
+      <div id="rubrics-list"><div style="padding:40px;text-align:center;color:var(--text-muted);">Chọn khoá học để xem rubrics</div></div>
+    </div>
+
+    <!-- ══ ANALYTICS ══ -->
+    <div class="panel" id="panel-analytics">
+      <div class="page-header">
+        <div><div class="page-title">Analytics</div><div style="font-size:12px;color:var(--text-muted);margin-top:2px">Thống kê hiệu suất học sinh</div></div>
+        <select class="select-filter" id="analytics-course-sel" onchange="loadAnalyticsForCourse()" style="min-width:200px"><option value="">Chọn khoá học...</option></select>
+      </div>
+      <!-- Summary cards -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;" id="analytics-summary">
+        <div class="card" style="padding:16px;text-align:center;"><div style="font-size:26px;font-weight:800;color:var(--primary)" id="an-avg">—</div><div style="font-size:12px;color:var(--text-muted);margin-top:4px">Điểm TB toàn lớp</div></div>
+        <div class="card" style="padding:16px;text-align:center;"><div style="font-size:26px;font-weight:800;color:#16A34A" id="an-pass">—</div><div style="font-size:12px;color:var(--text-muted);margin-top:4px">Tỉ lệ đạt (≥5)</div></div>
+        <div class="card" style="padding:16px;text-align:center;"><div style="font-size:26px;font-weight:800;color:#2563EB" id="an-submit">—</div><div style="font-size:12px;color:var(--text-muted);margin-top:4px">Tỉ lệ nộp bài</div></div>
+        <div class="card" style="padding:16px;text-align:center;"><div style="font-size:26px;font-weight:800;color:#EF4444" id="an-risk">—</div><div style="font-size:12px;color:var(--text-muted);margin-top:4px">Học sinh cần chú ý</div></div>
+      </div>
+      <!-- Charts -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div class="card"><div class="card-header"><span class="card-title">Phân phối điểm</span></div>
+          <div class="card-body" style="height:260px;"><canvas id="chart-grade-dist"></canvas></div></div>
+        <div class="card"><div class="card-header"><span class="card-title">Điểm trung bình theo bài tập</span></div>
+          <div class="card-body" style="height:260px;"><canvas id="chart-per-assign"></canvas></div></div>
+        <div class="card"><div class="card-header"><span class="card-title">Tỉ lệ nộp bài theo thời gian</span></div>
+          <div class="card-body" style="height:240px;"><canvas id="chart-submit-rate"></canvas></div></div>
+        <div class="card"><div class="card-header"><span class="card-title">Top 5 học sinh xuất sắc</span></div>
+          <div class="card-body"><div id="an-top-students" style="padding:8px 0;"></div></div></div>
+      </div>
+    </div>
+
+    <!-- ══ GROUPS ══ -->
+    <div class="panel" id="panel-groups">
+      <div class="page-header">
+        <div><div class="page-title">Nhóm học sinh</div><div style="font-size:12px;color:var(--text-muted);margin-top:2px">Tổ chức học sinh theo nhóm trong khoá học</div></div>
+        <div style="display:flex;gap:8px;">
+          <select class="select-filter" id="groups-course-sel" onchange="loadGroupsForCourse()"><option value="">Chọn khoá học...</option></select>
+          <button class="btn btn-primary btn-sm" onclick="openGroupSetModal()"><i class="fas fa-plus"></i> Tạo nhóm mới</button>
+        </div>
+      </div>
+      <div id="groups-list"><div style="padding:40px;text-align:center;color:var(--text-muted);">Chọn khoá học để xem nhóm</div></div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<!-- Rubric Modal -->
+<div class="modal-overlay" id="modal-rubric">
+  <div class="modal" style="max-width:720px;width:95vw;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fas fa-table-list" style="color:var(--primary);margin-right:8px"></i> <span id="rubric-modal-title">Tạo Rubric mới</span></span>
+      <button class="modal-close" onclick="closeRubricModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Tên Rubric *</label>
+        <input class="form-control" id="rubric-name" placeholder="VD: Rubric thuyết trình">
+      </div>
+      <div class="form-group">
+        <label>Mô tả</label>
+        <input class="form-control" id="rubric-desc" placeholder="Mô tả ngắn về rubric này">
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <label style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em">Tiêu chí chấm điểm</label>
+        <button class="btn btn-outline btn-sm" onclick="addRubricCriteria()"><i class="fas fa-plus"></i> Thêm tiêu chí</button>
+      </div>
+      <div id="rubric-criteria-list" style="display:flex;flex-direction:column;gap:10px;max-height:50vh;overflow-y:auto;padding-right:4px;"></div>
+    </div>
+    <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:14px 20px;border-top:1px solid var(--border);">
+      <button class="btn btn-outline" onclick="closeRubricModal()">Huỷ</button>
+      <button class="btn btn-primary" onclick="saveRubric()"><i class="fas fa-save"></i> Lưu Rubric</button>
+    </div>
+  </div>
+</div>
+
+<!-- Group Set Modal -->
+<div class="modal-overlay" id="modal-group-set">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fas fa-people-group" style="color:var(--primary);margin-right:8px"></i> Tạo nhóm mới</span>
+      <button class="modal-close" onclick="closeGroupSetModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label>Tên nhóm *</label><input class="form-control" id="gs-name" placeholder="VD: Nhóm dự án cuối kỳ"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group"><label>Số thành viên tối đa</label><input class="form-control" type="number" id="gs-max" placeholder="4" min="1" max="20"></div>
+        <div class="form-group"><label>Hình thức</label>
+          <select class="form-control" id="gs-mode">
+            <option value="manual">Phân công thủ công</option>
+            <option value="auto">Tự động ngẫu nhiên</option>
+            <option value="self">Học sinh tự chọn</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group"><label>Số nhóm cần tạo (nếu tự động)</label><input class="form-control" type="number" id="gs-count" placeholder="VD: 5" min="1"></div>
+    </div>
+    <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:14px 20px;border-top:1px solid var(--border);">
+      <button class="btn btn-outline" onclick="closeGroupSetModal()">Huỷ</button>
+      <button class="btn btn-primary" onclick="saveGroupSet()"><i class="fas fa-save"></i> Tạo nhóm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Create Course Modal -->
+<div class="modal-overlay" id="modal-create-course">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fas fa-plus-circle" style="color:var(--primary);margin-right:8px"></i> Tạo khoá học mới</span>
+      <button class="modal-close" onclick="closeCreateCourseModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Tên khoá học *</label>
+        <input class="form-control" id="cc-title" placeholder="VD: Toán 10 — Đại số">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label>Mã khoá học</label>
+          <input class="form-control" id="cc-code" placeholder="VD: MATH10A">
+        </div>
+        <div class="form-group">
+          <label>Mã tham gia (JoinCode)</label>
+          <div style="display:flex;gap:6px">
+            <input class="form-control" id="cc-joincode" placeholder="VD: ABC123" style="text-transform:uppercase">
+            <button class="btn btn-outline btn-sm" onclick="genJoinCode()">🎲</button>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Mô tả</label>
+        <textarea class="form-control" id="cc-desc" rows="2" placeholder="Mô tả ngắn về khoá học..."></textarea>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label>Ngày bắt đầu</label>
+          <input class="form-control" type="date" id="cc-start">
+        </div>
+        <div class="form-group">
+          <label>Ngày kết thúc</label>
+          <input class="form-control" type="date" id="cc-end">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Màu sắc</label>
+        <div id="cc-color-picker" style="display:flex;gap:8px;flex-wrap:wrap">
+          ${['#E66000','#2563EB','#16A34A','#7C3AED','#0891B2','#DC2626','#D97706','#059669'].map((c,i) =>
+            `<div onclick="selectCourseColor('${c}',this)" style="width:30px;height:30px;border-radius:50%;background:${c};cursor:pointer;border:3px solid ${i===0?'#333':'transparent'};transition:all .15s" data-color="${c}"></div>`
+          ).join('')}
+        </div>
+        <input type="hidden" id="cc-color" value="#E66000">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeCreateCourseModal()">Huỷ</button>
+      <button class="btn btn-primary" onclick="submitCreateCourse()"><i class="fas fa-plus"></i> Tạo khoá học</button>
+    </div>
+  </div>
+</div>
+
+<!-- AI Research Modal -->
+<div class="modal-overlay" id="modal-ai">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fas fa-robot" style="color:var(--primary);margin-right:8px"></i> AI Research Agent</span>
+      <button class="modal-close" onclick="closeAIModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Chế độ phân tích</label>
+        <div class="mode-pills" id="mode-pills">
+          <div class="mode-pill active" data-mode="curriculum" onclick="selectMode(this)"><i class="fas fa-book"></i> Chương trình</div>
+          <div class="mode-pill" data-mode="assessment" onclick="selectMode(this)"><i class="fas fa-clipboard-check"></i> Đánh giá</div>
+          <div class="mode-pill" data-mode="coaching" onclick="selectMode(this)"><i class="fas fa-user-graduate"></i> Tư vấn</div>
+          <div class="mode-pill" data-mode="analytics" onclick="selectMode(this)"><i class="fas fa-chart-bar"></i> Phân tích</div>
+          <div class="mode-pill" data-mode="content" onclick="selectMode(this)"><i class="fas fa-file-lines"></i> Nội dung</div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Câu hỏi / Nhiệm vụ *</label>
+        <textarea class="form-control" id="ai-task-input" rows="4" placeholder="Nhập câu hỏi nghiên cứu hoặc yêu cầu phân tích...
+
+Ví dụ: Phân tích kết quả học tập và đề xuất điều chỉnh phương pháp giảng dạy cho học sinh yếu."></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Khoá học</label>
+          <select class="form-control" id="ai-course-select">
+            <option value="">Tất cả khoá học</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Khoảng thời gian</label>
+          <select class="form-control" id="ai-period-select">
+            <option value="7d">7 ngày gần đây</option>
+            <option value="30d" selected>30 ngày gần đây</option>
+            <option value="term">Học kỳ hiện tại</option>
+          </select>
+        </div>
+      </div>
+      <div id="ai-result-area" style="display:none;margin-top:4px">
+        <div class="form-group" style="margin-bottom:0">
+          <label>Kết quả phân tích</label>
+          <div class="ai-result-box" id="ai-result-box"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeAIModal()">Đóng</button>
+      <button class="btn btn-primary" onclick="runAI()" id="ai-run-btn">
+        <i class="fas fa-play"></i> Phân tích
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+const API = 'https://api.gds.edu.vn';
+let allCourses = [], allStudents = [], allAssignments = [];
+let gradebookData = {};
+let selectedAIMode = 'curriculum';
+
+// ── AUTH ──────────────────────────────────────────────
+function getToken() { return localStorage.getItem('ae_token'); }
+function doLogout() { localStorage.removeItem('ae_token'); localStorage.removeItem('ae_user'); window.location.href = '../login.html'; }
+
+async function apiFetch(path, opts = {}) {
+  const token = getToken();
+  const headers = { 'Content-Type': 'application/json', ...(opts.headers||{}) };
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  try {
+    const r = await fetch(API + path, { ...opts, headers });
+    if (r.status === 401) { doLogout(); return null; }
+    return r;
+  } catch(e) { return null; }
+}
+
+// ── UI ────────────────────────────────────────────────
+function showPanel(name, el) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('active'));
+  const p = document.getElementById('panel-' + name);
+  if (p) p.classList.add('active');
+  if (el) el.classList.add('active');
+  const labels = { courses:'Khoá học', students:'Học sinh', assignments:'Bài tập', outcomes:'Chuẩn đầu ra', gradebook:'Sổ điểm', 'speedgrader':'SpeedGrader', 'create-assessment':'Tạo bài tập / Quiz' };
+  document.getElementById('breadcrumb-current').textContent = labels[name] || name;
+  if (name === 'students'          && !window._studentsLoaded)     loadStudentsPanel();
+  if (name === 'assignments'       && !window._assignmentsLoaded)  loadAssignmentsPanel();
+  if (name === 'outcomes'          && !window._outcomesLoaded)     loadOutcomesPanel();
+  if (name === 'gradebook'         && !window._gradebookLoaded)    initGradebook();
+  if (name === 'speedgrader'       && !window._speedgraderLoaded)  { window._speedgraderLoaded = true; loadSGAssignments(); }
+  if (name === 'create-assessment' && !window._caLoaded)           { window._caLoaded = true; populateCourseSels(); }
+  if (name === 'rubrics'           && !window._rubricsLoaded)      { window._rubricsLoaded = true; loadRubricsPanel(); }
+  if (name === 'analytics'         && !window._analyticsLoaded)    { window._analyticsLoaded = true; loadAnalyticsPanel(); }
+  if (name === 'groups'            && !window._groupsLoaded)       { window._groupsLoaded = true; loadGroupsPanel(); }
+  closeSidebar();
+}
+
+function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+function closeSidebar() { if (window.innerWidth <= 900) document.getElementById('sidebar').classList.remove('open'); }
+
+function fmtNum(n) { return new Intl.NumberFormat('vi-VN').format(Number(n)||0); }
+function fmtDate(s) { return new Intl.DateTimeFormat('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }).format(new Date(s)); }
+function fmtDateShort(s) { return new Intl.DateTimeFormat('vi-VN', { day:'2-digit', month:'2-digit' }).format(new Date(s)); }
+function timeAgo(s) {
+  const diff = (Date.now() - new Date(s)) / 1000;
+  if (diff < 60) return 'Vừa xong';
+  if (diff < 3600) return Math.floor(diff/60) + ' phút trước';
+  if (diff < 86400) return Math.floor(diff/3600) + ' giờ trước';
+  return Math.floor(diff/86400) + ' ngày trước';
+}
+
+function toast(msg, type = 'info', duration = 3500) {
+  const c = document.getElementById('toast-container');
+  const icon = { success:'fa-circle-check', error:'fa-circle-xmark', info:'fa-circle-info' }[type] || 'fa-circle-info';
+  const color = { success:'#22C55E', error:'#EF4444', info:'#E66000' }[type] || '#E66000';
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.style.borderLeft = `3px solid ${color}`;
+  t.style.animation = 'slideIn .2s ease';
+  t.innerHTML = `<i class="fas ${icon}" style="color:${color}"></i> ${msg}`;
+  c.appendChild(t);
+  setTimeout(() => { t.style.opacity='0'; t.style.transition='opacity .3s'; setTimeout(()=>t.remove(),300); }, duration);
+}
+
+function masteryColor(s) {
+  if (s===null||s===undefined) return '#F1F5F9';
+  if (s>=8.5) return '#16A34A'; if (s>=7) return '#65A30D';
+  if (s>=5.5) return '#EAB308'; if (s>=4) return '#F97316';
+  return '#EF4444';
+}
+function masteryColorText(s) {
+  if (s===null||s===undefined) return '#94A3B8'; return '#fff';
+}
+
+// ── COURSES ───────────────────────────────────────────
+async function loadCoursesPanel() {
+  const r = await apiFetch('/api/teacher/courses');
+  if (r && r.ok) {
+    const d = await r.json();
+    allCourses = d.list || d.courses || [];
+  } else {
+    allCourses = [
+      { id:1, name:'Toán 10 — Học kỳ 1', subject:'Toán học', term:'HK1 2024-2025', students:32, assignments:8, published:true, color:'#E66000', completion:72, pending_grade:5 },
+      { id:2, name:'Toán 11 — Học kỳ 2', subject:'Toán học', term:'HK2 2024-2025', students:28, assignments:6, published:true, color:'#2563EB', completion:45, pending_grade:3 },
+      { id:3, name:'Toán Nâng cao 12', subject:'Toán học', term:'HK1 2024-2025', students:18, assignments:10, published:false, color:'#7C3AED', completion:88, pending_grade:0 },
+      { id:4, name:'Luyện thi THPT Quốc gia', subject:'Tổng hợp', term:'HK2 2024-2025', students:45, assignments:12, published:true, color:'#0D9488', completion:33, pending_grade:8 },
+    ];
+  }
+
+  // Stats
+  const totalStudents = allCourses.reduce((a,c)=>a+(c.students||0),0);
+  const totalPending = allCourses.reduce((a,c)=>a+(c.pending_grade||0),0);
+  document.getElementById('sc-courses').textContent = allCourses.length;
+  document.getElementById('sc-students').textContent = fmtNum(totalStudents);
+  document.getElementById('sc-pending').textContent = totalPending;
+  document.getElementById('sc-avg').textContent = '7.4';
+  document.getElementById('sb-students-count').textContent = totalStudents;
+  document.getElementById('courses-subtitle').textContent = `${allCourses.length} khoá học đang hoạt động`;
+  if (totalPending > 0) { const b = document.getElementById('sb-pending-badge'); b.textContent = totalPending; b.style.display=''; }
+
+  // Normalise field names: NocoDB trả về PascalCase (Id, Title), mock dùng lowercase (id, name)
+  allCourses = allCourses.map(c => ({
+    id:           c.Id       || c.id,
+    name:         c.Title    || c.Name    || c.name    || 'Khoá học',
+    subject:      c.Subject  || c.subject || '',
+    term:         c.Term     || c.term    || '',
+    color:        c.Color    || c.color   || '#E66000',
+    students:     c.Students || c.students || 0,
+    assignments:  c.Assignments || c.assignments || 0,
+    published:    c.WorkflowState === 'published' || c.published || false,
+    completion:   c.Completion  || c.completion  || 0,
+    pending_grade: c.PendingGrade || c.pending_grade || 0,
+    TeacherId:    c.TeacherId || c.teacher_id || null,
+  }));
+
+  // Populate course selects
+  ['student-course-filter','asgn-course-filter','gb-course-select','ai-course-select'].forEach(selId => {
+    const el = document.getElementById(selId);
+    if (!el) return;
+    // Remove old options (keep first placeholder)
+    while (el.options.length > 1) el.remove(1);
+    allCourses.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.name;
+      el.appendChild(opt);
+    });
+  });
+
+  // Render tiles
+  renderCourseTiles();
+}
+
+function renderCourseTiles() {
+  const container = document.getElementById('course-tiles');
+  if (!allCourses.length) {
+    container.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-muted)">Chưa có khoá học nào</div>';
+    return;
+  }
+  container.innerHTML = allCourses.map(c => `
+    <div class="course-tile" onclick="viewCourse(${c.id})" style="cursor:pointer">
+      <div class="course-tile-banner" style="background:${c.color||'#E66000'}">
+        <div>
+          <div class="course-tile-banner-text">${escAttr(c.name)}</div>
+          <div class="course-tile-banner-sub">${escAttr(c.term||'')}</div>
+        </div>
+      </div>
+      <div class="course-tile-body">
+        <div class="course-tile-meta">
+          <span><i class="fas fa-users"></i> ${c.students||0} học sinh</span>
+          <span><i class="fas fa-file-lines"></i> ${c.assignments||0} bài tập</span>
+          ${c.pending_grade ? `<span style="color:#C2410C"><i class="fas fa-clock"></i> ${c.pending_grade} cần chấm</span>` : ''}
+        </div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar" style="width:${c.completion||0}%"></div>
+        </div>
+        <div class="progress-label">
+          <span>Hoàn thành</span>
+          <span style="font-weight:600">${c.completion||0}%</span>
+        </div>
+      </div>
+      <div class="course-tile-footer">
+        <span class="${c.published ? 'badge badge-green' : 'badge badge-gray'}">
+          ${c.published ? 'Đã công bố' : 'Nháp'}
+        </span>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();openGradebookForCourse(${c.id})" title="Xem Gradebook">
+            <i class="fas fa-table-columns"></i>
+          </button>
+          <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();viewCourse(${c.id})">
+            Mở <i class="fas fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function viewCourse(id) {
+  if (!id || id === 'undefined') return;
+  window.location.href = `../course.html?course_id=${id}`;
+}
+
+function openGradebookForCourse(id) {
+  if (!id || id === 'undefined') return;
+  showPanel('gradebook', document.querySelector('.sb-item:nth-child(7)'));
+  const sel = document.getElementById('gb-course-select');
+  if (sel) { sel.value = id; loadGradebookForCourse(); }
+}
+
+// ── STUDENTS ──────────────────────────────────────────
+window._studentsLoaded = false;
+async function loadStudentsPanel() {
+  window._studentsLoaded = true;
+  // Lấy course_id đang được chọn (nếu có)
+  const courseId = document.getElementById('student-course-filter').value || '';
+  // Nếu không có course_id, lấy từ khoá học đầu tiên
+  if (!courseId && allCourses.length) {
+    const firstCourseId = allCourses[0].Id || allCourses[0].id;
+    const sr = await apiFetch(`/api/teacher/students?course_id=${firstCourseId}`);
+    if (sr && sr.ok) {
+      const d = await sr.json();
+      allStudents = d.list || d.students || [];
+    } else {
+      allStudents = generateMockStudents(20);
+    }
+  } else if (courseId) {
+    const sr = await apiFetch(`/api/teacher/students?course_id=${courseId}`);
+    if (sr && sr.ok) {
+      const d = await sr.json();
+      allStudents = d.list || d.students || [];
+    } else {
+      allStudents = generateMockStudents(20);
+    }
+  } else {
+    allStudents = generateMockStudents(20);
+  }
+  document.getElementById('sb-students-count').textContent = allStudents.length;
+  renderStudentsTable();
+  renderHeatmap();
+}
+
+function generateMockStudents(n) {
+  const names = ['Nguyễn Văn An','Trần Thị Bích','Lê Minh Cường','Phạm Thu Dung','Hoàng Văn Em',
+    'Đặng Thị Phương','Bùi Minh Giang','Võ Thị Hà','Đinh Văn Khánh','Lý Thị Lan',
+    'Phan Minh Long','Ngô Thị Mai','Đỗ Văn Nam','Lưu Thị Oanh','Tô Minh Phúc',
+    'Trương Thị Quỳnh','Hà Văn Sơn','Cao Thị Tâm','Trịnh Minh Uy','Vũ Thị Vân'];
+  return Array.from({length:n},(_,i)=>({
+    id:i+1, name:names[i%names.length], email:`sv${i+1}@gds.edu.vn`,
+    avg_score: Math.round((4.5+Math.random()*5.5)*10)/10,
+    submissions: Math.floor(Math.random()*8)+1,
+    mastery: Math.round(Math.random()*100),
+    status: Math.random()>.15?'active':'inactive',
+    last_active: new Date(Date.now()-Math.random()*7*86400000).toISOString(),
+  }));
+}
+
+function filterStudents() { renderStudentsTable(); }
+
+function renderStudentsTable() {
+  const q = (document.getElementById('student-search').value||'').toLowerCase();
+  const tbody = document.getElementById('students-tbody');
+  const filtered = allStudents.filter(s => !q || s.name.toLowerCase().includes(q) || s.email.includes(q));
+
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted)">Không tìm thấy học sinh</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = filtered.map(s => {
+    const scoreColor = masteryColor(s.avg_score);
+    const masteryPct = s.mastery;
+    return `
+    <tr>
+      <td>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:30px;height:30px;border-radius:50%;background:${scoreColor};color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">${s.name[0]}</div>
+          <div>
+            <div style="font-weight:600;font-size:13px">${s.name}</div>
+            <div style="font-size:11px;color:var(--text-muted)">${s.email}</div>
+          </div>
+        </div>
+      </td>
+      <td>
+        <span style="font-size:15px;font-weight:700;color:${scoreColor}">${s.avg_score.toFixed(1)}</span>
+        <span style="font-size:11px;color:var(--text-muted)">/10</span>
+      </td>
+      <td style="text-align:center">${s.submissions}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px;min-width:120px">
+          <div style="flex:1;height:6px;background:var(--bg);border-radius:100px;overflow:hidden">
+            <div style="height:100%;width:${masteryPct}%;background:${scoreColor};border-radius:100px"></div>
+          </div>
+          <span style="font-size:12px;font-weight:600;color:${scoreColor};min-width:32px">${masteryPct}%</span>
+        </div>
+      </td>
+      <td>${s.status==='active'?'<span class="badge badge-green">Hoạt động</span>':'<span class="badge badge-gray">Không HĐ</span>'}</td>
+      <td style="font-size:12px;color:var(--text-muted)">${timeAgo(s.last_active)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderHeatmap() {
+  const wrap = document.getElementById('heatmap-wrap');
+  const assignments = ['BT C.1','KT 15\'','BT C.2','KT 1 tiết','BT C.3'];
+  const students = allStudents.slice(0, 10);
+
+  let html = `<table class="heatmap-table"><thead><tr><th style="text-align:left">Học sinh</th>`;
+  assignments.forEach(a => { html += `<th>${a}</th>`; });
+  html += `<th>TB</th></tr></thead><tbody>`;
+
+  students.forEach(s => {
+    const scores = assignments.map(() => Math.random()>.1 ? Math.round((4+Math.random()*6)*10)/10 : null);
+    const avg = scores.filter(x=>x!==null).reduce((a,b)=>a+b,0)/(scores.filter(x=>x!==null).length||1);
+    html += `<tr><td><span class="hm-student-name">${s.name}</span></td>`;
+    scores.forEach(sc => {
+      const bg = masteryColor(sc);
+      const txt = masteryColorText(sc);
+      html += `<td><div class="hm-cell ${sc===null?'empty':''}" style="${sc!==null?'background:'+bg+';color:'+txt:''}">${sc!==null?sc.toFixed(1):'—'}</div></td>`;
+    });
+    html += `<td><div class="hm-cell" style="background:${masteryColor(avg)};color:${masteryColorText(avg)}">${avg.toFixed(1)}</div></td></tr>`;
+  });
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
+// ── ASSIGNMENTS ───────────────────────────────────────
+window._assignmentsLoaded = false;
+async function loadAssignmentsPanel() {
+  window._assignmentsLoaded = true;
+  const tbody = document.getElementById('assignments-tbody');
+  tbody.innerHTML = '<tr><td colspan="7" class="loading-cell"><span class="spinner"></span> Đang tải...</td></tr>';
+  const courseFilter = document.getElementById('asgn-course-filter').value;
+  const path = courseFilter ? `/api/teacher/assessments?course_id=${courseFilter}` : '/api/teacher/assessments';
+  const r = await apiFetch(path);
+  if (r && r.ok) {
+    const d = await r.json();
+    allAssignments = (d.list || []).map(a => ({
+      id: a.Id, title: a.Title, course_id: a.CourseId,
+      course: (allCourses.find(c => String(c.Id||c.id) === String(a.CourseId))?.Title) || `Khóa ${a.CourseId}`,
+      due: a.DueDate, submitted: a.SubmittedCount || 0, total: a.TotalStudents || 0,
+      avg_score: a.AvgScore || null,
+      status: a.Status || (a.DueDate && new Date(a.DueDate) < new Date() ? 'closed' : 'open'),
+    }));
+  } else {
+    // Fallback mock data
+    allAssignments = [
+      { id:1, title:'Bài tập — Chương 1', course_id: allCourses[0]?.Id||1, course: allCourses[0]?.Title||'Khoá học', due: new Date(Date.now()+7*86400000).toISOString(), submitted:0, total:0, avg_score:null, status:'open' },
+    ];
+  }
+  renderAssignments();
+}
+
+function filterAssignments() { renderAssignments(); }
+
+function renderAssignments() {
+  const courseFilter = document.getElementById('asgn-course-filter').value;
+  const statusFilter = document.getElementById('asgn-status-filter').value;
+  const tbody = document.getElementById('assignments-tbody');
+  const filtered = allAssignments.filter(a => {
+    if (courseFilter && String(a.course_id) !== courseFilter) return false;
+    if (statusFilter && a.status !== statusFilter) return false;
+    return true;
+  });
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-muted)">Không có bài tập nào</td></tr>`;
+    return;
+  }
+  const statusBadge = s => ({ graded:'<span class="badge badge-green">Đã chấm</span>', pending:'<span class="badge badge-yellow">Cần chấm</span>', open:'<span class="badge badge-blue">Đang mở</span>' }[s] || `<span class="badge badge-gray">${s}</span>`);
+  tbody.innerHTML = filtered.map(a => {
+    const pct = Math.round(a.submitted/a.total*100);
+    return `
+    <tr>
+      <td><div style="font-weight:600">${a.title}</div></td>
+      <td><span class="badge badge-blue">${a.course}</span></td>
+      <td style="font-size:12px;color:var(--text-muted)">${fmtDate(a.due)}</td>
+      <td>
+        <div class="asgn-status-bar">
+          <div class="asgn-bar-bg"><div class="asgn-bar-fill" style="width:${pct}%"></div></div>
+          <span style="font-size:12px;min-width:52px">${a.submitted}/${a.total}</span>
+        </div>
+      </td>
+      <td style="font-weight:600;color:${a.avg_score?masteryColor(a.avg_score):'var(--text-muted)'}">${a.avg_score?a.avg_score.toFixed(1):'—'}</td>
+      <td>${statusBadge(a.status)}</td>
+      <td>
+        <button class="btn btn-outline btn-sm" onclick="toast('Chức năng chấm điểm đang phát triển','info')">
+          <i class="fas fa-pen"></i> Chấm
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ── OUTCOMES ──────────────────────────────────────────
+// Màu BKT state (0-1): xanh ≥0.7, vàng ≥0.5, đỏ <0.5, xám = null
+function bktColor(v) {
+  if (v === null || v === undefined) return '#E2E8F0';
+  if (v >= 0.7) return '#16A34A';
+  if (v >= 0.5) return '#EAB308';
+  return '#EF4444';
+}
+function bktTextColor(v) {
+  if (v === null || v === undefined) return '#64748b';
+  return '#fff';
+}
+
+window._outcomesLoaded = false;
+async function loadOutcomesPanel() {
+  window._outcomesLoaded = true;
+
+  // Lấy courseId đang được chọn
+  const courseId = window._selectedCourseId || null;
+
+  // Gọi API thực từ D1
+  const data = await loadMastery(courseId);
+  const outcomes = data.outcomes || [];
+  const students = data.students || [];
+  const codes = data.outcome_codes || [];
+
+  // ── Bars (trung bình lớp per outcome) ──
+  const bars = document.getElementById('mastery-bars');
+  if (!outcomes.length) {
+    bars.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted)">Chưa có dữ liệu chuẩn đầu ra. Hãy gán chuẩn đầu ra cho khóa học và học sinh cần nộp bài để tích lũy dữ liệu.</div>';
+  } else {
+    bars.innerHTML = outcomes.map(m => {
+      const pct = Math.round(m.avg_mastery * 100);
+      const color = bktColor(m.avg_mastery);
+      return `
+      <div class="mastery-item">
+        <div class="mastery-header">
+          <div>
+            <span class="mastery-code">${m.code}</span>
+            <span class="mastery-name" style="margin-left:6px">${m.title}</span>
+          </div>
+          <span class="mastery-pct" style="color:${color}">${pct}%</span>
+        </div>
+        <div class="mastery-bar-bg">
+          <div class="mastery-bar-fill" style="width:${pct}%;background:${color}"></div>
+        </div>
+        <div class="mastery-count">${m.students_mastered}/${m.total_students} học sinh đạt chuẩn (BKT ≥70%)</div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Summary (vòng tròn + cảnh báo) ──
+  const summary = document.getElementById('mastery-summary');
+  if (!outcomes.length) {
+    summary.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-muted)">Không có dữ liệu</div>';
+  } else {
+    const avgMastery = outcomes.reduce((a, m) => a + m.avg_mastery, 0) / outcomes.length;
+    const weak = outcomes.filter(m => m.avg_mastery < 0.6);
+    summary.innerHTML = `
+      <div style="text-align:center;padding:20px 0">
+        <div style="font-size:48px;font-weight:800;color:${bktColor(avgMastery)}">${Math.round(avgMastery*100)}%</div>
+        <div style="font-size:14px;color:var(--text-muted);margin-bottom:16px">Mức thành thạo trung bình (BKT)</div>
+        <div style="font-size:13px;line-height:1.6;color:var(--text)">
+          <strong>${outcomes.filter(m=>m.avg_mastery>=0.75).length}</strong> chuẩn đã được nắm vững<br>
+          <strong>${weak.length}</strong> chuẩn cần tăng cường
+        </div>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:14px;margin-top:4px">
+        ${weak.map(m=>`
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+            <i class="fas fa-triangle-exclamation" style="color:#EAB308"></i>
+            <div>
+              <div style="font-size:12px;font-weight:600">${m.title}</div>
+              <div style="font-size:11px;color:var(--text-muted)">${Math.round(m.avg_mastery*100)}% — ${m.students_mastered}/${m.total_students} học sinh đạt</div>
+            </div>
+          </div>
+        `).join('')}
+        ${!weak.length ? '<div style="font-size:12px;color:#16A34A;text-align:center;padding:8px"><i class="fas fa-check-circle"></i> Tất cả chuẩn đầu ra đạt mức tốt!</div>' : ''}
+      </div>`;
+  }
+
+  // ── Heatmap học sinh × chuẩn đầu ra ──
+  const heatmap = document.getElementById('mastery-heatmap');
+  if (!students.length || !codes.length) {
+    heatmap.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted)">Chưa có dữ liệu heatmap. Học sinh cần nộp ít nhất 1 bài để hiển thị.</div>';
+    return;
+  }
+
+  // Header: tên chuẩn (viết tắt)
+  const shortTitle = code => {
+    const o = outcomes.find(x => x.code === code);
+    return o ? (o.title.length > 18 ? o.title.slice(0, 16) + '…' : o.title) : code;
+  };
+
+  heatmap.innerHTML = `
+    <table style="border-collapse:collapse;font-size:12px;width:100%;min-width:${120 + codes.length * 90}px">
+      <thead>
+        <tr>
+          <th style="text-align:left;padding:6px 10px;background:var(--bg-alt);position:sticky;left:0;z-index:2;min-width:120px;border:1px solid var(--border)">Học sinh</th>
+          ${codes.map(code => `
+            <th title="${outcomes.find(x=>x.code===code)?.title||code}" style="padding:5px 6px;background:var(--bg-alt);min-width:80px;max-width:100px;text-align:center;border:1px solid var(--border);word-break:break-word;font-weight:600">
+              <div style="font-size:10px;color:var(--primary)">${code}</div>
+              <div style="font-size:10px;color:var(--text-muted);font-weight:normal">${shortTitle(code)}</div>
+            </th>
+          `).join('')}
+        </tr>
+      </thead>
+      <tbody>
+        ${students.map(s => `
+          <tr>
+            <td style="padding:5px 10px;position:sticky;left:0;background:var(--bg);z-index:1;border:1px solid var(--border);white-space:nowrap;font-weight:500">${s.name}</td>
+            ${codes.map(code => {
+              const v = s.mastery[code];
+              const pct = v !== null ? Math.round(v * 100) + '%' : '—';
+              return `<td style="text-align:center;padding:4px;border:1px solid var(--border)">
+                <span style="display:inline-block;min-width:44px;padding:3px 6px;border-radius:4px;background:${bktColor(v)};color:${bktTextColor(v)};font-size:11px;font-weight:600">${pct}</span>
+              </td>`;
+            }).join('')}
+          </tr>
+        `).join('')}
+        <tr style="font-weight:700;background:var(--bg-alt)">
+          <td style="padding:5px 10px;position:sticky;left:0;background:var(--bg-alt);border:1px solid var(--border)">Trung bình lớp</td>
+          ${codes.map(code => {
+            const o = outcomes.find(x => x.code === code);
+            const avg = o ? o.avg_mastery : null;
+            const pct = avg !== null ? Math.round(avg * 100) + '%' : '—';
+            return `<td style="text-align:center;padding:4px;border:1px solid var(--border)">
+              <span style="display:inline-block;min-width:44px;padding:3px 6px;border-radius:4px;background:${bktColor(avg)};color:${bktTextColor(avg)};font-size:11px;font-weight:700">${pct}</span>
+            </td>`;
+          }).join('')}
+        </tr>
+      </tbody>
+    </table>`;
+}
+
+// ── GRADEBOOK ─────────────────────────────────────────
+window._gradebookLoaded = false;
+function initGradebook() { window._gradebookLoaded = true; }
+
+async function loadGradebookForCourse() {
+  const courseId = document.getElementById('gb-course-select').value;
+  if (!courseId) return;
+
+  const head = document.getElementById('gradebook-head');
+  const tbody = document.getElementById('gradebook-body');
+  tbody.innerHTML = '<tr><td colspan="10" class="loading-cell"><span class="spinner"></span> Đang tải sổ điểm...</td></tr>';
+
+  // Gọi real API
+  const r = await apiFetch(`/api/teacher/gradebook?course_id=${courseId}`);
+  let assignments = [], students = [];
+  if (r && r.ok) {
+    const d = await r.json();
+    assignments = d.assessments || [];
+    students = d.students || [];
+  }
+
+  // Fallback mock nếu API rỗng
+  if (!assignments.length) {
+    assignments = [
+      { Id:1, Title:'BT Chương 1', MaxScore:10 },
+      { Id:2, Title:'Kiểm tra 15\'', MaxScore:10 },
+      { Id:3, Title:'BT Chương 2', MaxScore:10 },
+      { Id:4, Title:'KT 1 tiết', MaxScore:10 },
+    ];
+  }
+  if (!students.length) {
+    students = generateMockStudents(10).map(s => ({
+      student_id: s.id, name: s.name, email: s.email,
+      scores: assignments.map(a => ({ assessment_id: a.Id, score: Math.random()>.1 ? Math.round((3+Math.random()*7)*10)/10 : null, status: 'submitted' }))
+    }));
+  }
+
+  // Head — dùng field names từ API (Id/Title/MaxScore)
+  head.innerHTML = `<tr>
+    <th style="min-width:160px">Học sinh</th>
+    ${assignments.map(a=>`<th style="text-align:center;min-width:90px"><div>${escAttr(a.Title||a.title||'')}</div><div style="font-weight:400;opacity:.6">${a.MaxScore||a.points||10} điểm</div></th>`).join('')}
+    <th style="text-align:center;min-width:80px">Điểm TB</th>
+  </tr>`;
+
+  // Body — map từ API response (student_id, name, scores[])
+  tbody.innerHTML = students.map(s => {
+    const scoreList = (s.scores || []).map(sc => sc?.score ?? null);
+    const validScores = scoreList.filter(x => x !== null);
+    const avg = validScores.length ? validScores.reduce((a,b) => a+b, 0) / validScores.length : null;
+    const name = s.name || s.Name || `HS #${s.student_id}`;
+    return `
+    <tr>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:26px;height:26px;border-radius:50%;background:${masteryColor(avg)};color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">${name[0]||'?'}</div>
+          <div>
+            <div style="font-size:12px;font-weight:500">${escAttr(name)}</div>
+            ${s.email ? `<div style="font-size:10px;color:var(--text-muted)">${escAttr(s.email)}</div>` : ''}
+          </div>
+        </div>
+      </td>
+      ${scoreList.map((sc, i) => `
+        <td class="grade-cell" title="${sc !== null ? `${sc}/${assignments[i]?.MaxScore||10}` : 'Chưa nộp'}">
+          ${sc !== null
+            ? `<div style="background:${masteryColor(sc)};color:#fff;border-radius:4px;padding:4px 8px;font-size:12px;font-weight:700;display:inline-block;cursor:pointer" onclick="openGradeEditor(${s.student_id},${assignments[i]?.Id||i},${sc})">${sc.toFixed(1)}</div>`
+            : `<div style="background:#F1F5F9;color:#94A3B8;border-radius:4px;padding:4px 8px;font-size:12px;display:inline-block">—</div>`
+          }
+        </td>`).join('')}
+      <td class="grade-cell">
+        ${avg !== null
+          ? `<div style="background:${masteryColor(avg)};color:#fff;border-radius:4px;padding:4px 10px;font-size:13px;font-weight:800;display:inline-block">${avg.toFixed(1)}</div>`
+          : '<span style="color:var(--text-subtle)">—</span>'
+        }
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function openGradeEditor(studentId, assessmentId, currentScore) {
+  toast(`Điểm hiện tại: ${currentScore} — Mở SpeedGrader để chỉnh sửa`, 'info', 3000);
+}
+
+// ── AI RESEARCH ───────────────────────────────────────
+function openAIModal() { document.getElementById('modal-ai').classList.add('open'); }
+function openAIModalFor(courseId) {
+  document.getElementById('ai-course-select').value = courseId;
+  openAIModal();
+}
+function closeAIModal() { document.getElementById('modal-ai').classList.remove('open'); }
+document.getElementById('modal-ai').addEventListener('click', e => { if (e.target === document.getElementById('modal-ai')) closeAIModal(); });
+
+function selectMode(el) {
+  document.querySelectorAll('.mode-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  selectedAIMode = el.dataset.mode;
+}
+
+async function runAI() {
+  const task = document.getElementById('ai-task-input').value.trim();
+  if (!task) { toast('Vui lòng nhập câu hỏi phân tích', 'error'); return; }
+  const btn = document.getElementById('ai-run-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Đang phân tích...';
+  const resultArea = document.getElementById('ai-result-area');
+  const resultBox = document.getElementById('ai-result-box');
+  resultArea.style.display = 'block';
+  resultBox.textContent = 'AI đang xử lý yêu cầu...';
+
+  const r = await apiFetch('/ai/research-agent', { method:'POST', body: JSON.stringify({
+    mode: selectedAIMode, task,
+    course_id: document.getElementById('ai-course-select').value || undefined,
+    period: document.getElementById('ai-period-select').value,
+  })});
+
+  btn.disabled = false;
+  btn.innerHTML = '<i class="fas fa-play"></i> Phân tích';
+
+  if (r && r.ok) {
+    const d = await r.json();
+    resultBox.textContent = d.result || d.content || JSON.stringify(d, null, 2);
+  } else {
+    resultBox.textContent = `[Kết quả mẫu — demo]\n\nPhân tích: "${task}"\n\nKết quả:\n• 68% học sinh đạt mức yêu cầu\n• Điểm trung bình lớp: 7.2/10\n• Học sinh cần hỗ trợ thêm: 5 em\n\nĐề xuất:\n1. Tổ chức nhóm học tập\n2. Bổ sung bài tập thực hành\n3. Tăng tần suất kiểm tra ngắn`;
+  }
+}
+
+// ── INIT ──────────────────────────────────────────────
+(function init() {
+  if (!getToken()) { window.location.href = '../login.html'; return; }
+  const storedUser = JSON.parse(localStorage.getItem('ae_user')||'{}');
+  if (storedUser.role && storedUser.role !== 'teacher' && storedUser.role !== 'admin') {
+    window.location.href = '../login.html'; return;
+  }
+  const user = JSON.parse(localStorage.getItem('ae_user')||'{}');
+  if (user.name) {
+    document.getElementById('avatar-btn').textContent = user.name[0].toUpperCase();
+  }
+  loadCoursesPanel();
+})();
+
+// ══════════════════════════════════════════════════════════
+// CREATE COURSE
+// ══════════════════════════════════════════════════════════
+function openCreateCourseModal() {
+  document.getElementById('modal-create-course').style.display = 'flex';
+  // Set today as default start
+  document.getElementById('cc-start').value = new Date().toISOString().split('T')[0];
+  genJoinCode();
+}
+function closeCreateCourseModal() {
+  document.getElementById('modal-create-course').style.display = 'none';
+}
+function genJoinCode() {
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  const code = Array.from({length:6}, () => chars[Math.floor(Math.random()*chars.length)]).join('');
+  document.getElementById('cc-joincode').value = code;
+}
+function selectCourseColor(color, el) {
+  document.querySelectorAll('#cc-color-picker div').forEach(d => d.style.border = '3px solid transparent');
+  el.style.border = '3px solid #333';
+  document.getElementById('cc-color').value = color;
+}
+async function submitCreateCourse() {
+  const title = document.getElementById('cc-title').value.trim();
+  if (!title) { toast('Vui lòng nhập tên khoá học', 'error'); return; }
+  const token = getToken();
+  const user = JSON.parse(localStorage.getItem('ae_user') || '{}');
+  const body = {
+    Title: title,
+    CourseCode: document.getElementById('cc-code').value.trim() || null,
+    JoinCode: document.getElementById('cc-joincode').value.trim().toUpperCase() || null,
+    Description: document.getElementById('cc-desc').value.trim() || null,
+    Color: document.getElementById('cc-color').value,
+    StartDate: document.getElementById('cc-start').value || null,
+    EndDate: document.getElementById('cc-end').value || null,
+    TeacherId: user.userId || user.id || null,
+    WorkflowState: 'available',
+  };
+  try {
+    // Teacher dùng /api/teacher/courses (không phải admin route)
+    const r = await apiFetch('/api/teacher/courses', { method:'POST', body:JSON.stringify(body) });
+    if (!r || !r.ok) throw new Error((await r?.text()) || 'Lỗi tạo khoá học');
+    const d = await r.json();
+    toast('✅ Đã tạo khoá học: ' + title, 'success');
+    closeCreateCourseModal();
+    ['cc-title','cc-code','cc-joincode','cc-desc','cc-start','cc-end'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+    loadCoursesPanel(); // refresh
+  } catch(e) { toast('Lỗi: ' + e.message, 'error'); }
+}
+
+// ══════════════════════════════════════════════════════════
+// CREATE ASSESSMENT / QUIZ BUILDER
+// ══════════════════════════════════════════════════════════
+let caQuestions = []; // {id, type, content, options:[], correctIndex, points, explanation}
+let caQCounter = 0;
+
+function toggleQuizBuilder() {
+  const type = document.getElementById('ca-type').value;
+  const isQuiz = type.includes('quiz') || type.includes('survey');
+  document.getElementById('quiz-builder-section').style.display = isQuiz ? '' : 'none';
+}
+
+function addQuestion() {
+  const id = ++caQCounter;
+  caQuestions.push({ id, type:'multiple_choice', content:'', options:['','','',''], correctIndex:0, points:1, explanation:'' });
+  renderQuestions();
+}
+
+function renderQuestions() {
+  const container = document.getElementById('quiz-questions-list');
+  if (!caQuestions.length) {
+    container.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-muted);"><i class="fas fa-circle-question" style="font-size:28px;opacity:.3;display:block;margin-bottom:8px"></i>Chưa có câu hỏi nào</div>';
+    return;
+  }
+  container.innerHTML = caQuestions.map((q, idx) => `
+    <div style="border:1.5px solid var(--border);border-radius:8px;padding:14px;background:#fafbfc">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <span style="background:var(--primary);color:#fff;width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">${idx+1}</span>
+        <input style="flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px" placeholder="Nhập câu hỏi..." value="${escAttr(q.content)}" oninput="caQuestions[${idx}].content=this.value">
+        <input type="number" style="width:60px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px" value="${q.points}" min="1" title="Điểm" oninput="caQuestions[${idx}].points=+this.value">
+        <button onclick="removeQuestion(${idx})" style="background:none;border:none;color:#EF4444;cursor:pointer;font-size:13px" title="Xoá"><i class="fas fa-trash"></i></button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${q.options.map((opt, oi) => `
+          <div style="display:flex;align-items:center;gap:6px">
+            <input type="radio" name="correct-${q.id}" ${q.correctIndex===oi?'checked':''} onchange="caQuestions[${idx}].correctIndex=${oi}" title="Đáp án đúng" style="accent-color:var(--primary)">
+            <input style="flex:1;padding:5px 9px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit" placeholder="Đáp án ${String.fromCharCode(65+oi)}" value="${escAttr(opt)}" oninput="caQuestions[${idx}].options[${oi}]=this.value">
+          </div>`).join('')}
+      </div>
+      <input style="width:100%;margin-top:8px;padding:5px 9px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;color:#6366F1" placeholder="💡 Giải thích đáp án (tùy chọn)" value="${escAttr(q.explanation)}" oninput="caQuestions[${idx}].explanation=this.value">
+    </div>`).join('');
+}
+
+function removeQuestion(idx) { caQuestions.splice(idx, 1); renderQuestions(); }
+function escAttr(s) { return String(s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+async function saveAssessment(status) {
+  const title = document.getElementById('ca-title').value.trim();
+  if (!title) { toast('Vui lòng nhập tiêu đề', 'error'); return; }
+  const courseId = document.getElementById('ca-course').value;
+  if (!courseId) { toast('Vui lòng chọn khoá học', 'error'); return; }
+  const type = document.getElementById('ca-type').value;
+  const isQuiz = type.includes('quiz') || type.includes('survey');
+
+  const body = {
+    Title: title,
+    AssessmentType: type,
+    CourseId: parseInt(courseId),
+    DueDate: document.getElementById('ca-due').value || null,
+    MaxScore: parseInt(document.getElementById('ca-maxscore').value) || 10,
+    TimeLimit: parseInt(document.getElementById('ca-timelimit').value) || null,
+    Description: document.getElementById('ca-desc').value.trim() || null,
+    ShuffleQuestions: document.getElementById('ca-shuffle').checked,
+    ShuffleAnswers: document.getElementById('ca-shuffle-opts').checked,
+    ShowCorrectAnswers: document.getElementById('ca-show-correct').checked,
+    MaxAttempts: parseInt(document.getElementById('ca-maxattempts').value) || null,
+    Status: status,
+    questions: isQuiz ? caQuestions.filter(q => q.content.trim()).map(q => ({
+      type: 'multiple_choice',
+      content: { text: q.content },
+      options: q.options.filter(o => o.trim()),
+      correctAnswer: q.correctIndex,
+      points: q.points,
+      explanation: q.explanation || null
+    })) : [],
+  };
+
+  try {
+    const r = await apiFetch('/api/teacher/assessments', { method:'POST', body:JSON.stringify(body) });
+    if (!r || !r.ok) throw new Error((await r?.text()) || 'Lỗi');
+    const d = await r.json();
+    toast(`✅ ${status==='published'?'Đã đăng':'Đã lưu nháp'}: ${title}`, 'success');
+    // Reset form
+    ['ca-title','ca-desc','ca-timelimit','ca-maxattempts'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+    document.getElementById('ca-maxscore').value = '10';
+    document.getElementById('ca-due').value = '';
+    caQuestions = []; caQCounter = 0; renderQuestions();
+    // Refresh assignments
+    loadAssignmentsPanel();
+  } catch(e) { toast('Lỗi tạo bài tập: ' + e.message, 'error'); }
+}
+
+// ══════════════════════════════════════════════════════════
+// SPEEDGRADER
+// ══════════════════════════════════════════════════════════
+let sgSubmissions = [], sgCurrentIdx = 0, sgCurrentAssessment = null;
+
+async function loadSGAssignments() {
+  const sel = document.getElementById('sg-assignment-select');
+  // Dùng teacher endpoint để lấy danh sách bài tập
+  if (!allAssignments.length) {
+    const r = await apiFetch('/api/teacher/assessments');
+    if (r && r.ok) {
+      const d = await r.json();
+      allAssignments = d.list || [];
+    }
+  }
+  sel.innerHTML = '<option value="">Chọn bài tập...</option>' +
+    allAssignments.map(a => `<option value="${a.Id||a.id}">${escAttr(a.Title||a.title||'')}</option>`).join('');
+}
+
+async function loadSubmissions() {
+  const assessId = document.getElementById('sg-assignment-select').value;
+  if (!assessId) return;
+  document.getElementById('sg-student-list').innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted)"><span class="spinner"></span> Đang tải...</div>';
+
+  try {
+    // Dùng teacher endpoint — có enrichment tên học sinh
+    const r = await apiFetch(`/api/teacher/submissions?assessment_id=${assessId}`);
+    if (!r || !r.ok) throw new Error();
+    const d = await r.json();
+    sgSubmissions = d.list || d.submissions || [];
+    sgCurrentAssessment = allAssignments.find(a => String(a.Id) === String(assessId));
+    const pending = sgSubmissions.filter(s => s.Status !== 'graded').length;
+    document.getElementById('sg-progress-text').textContent = `${sgSubmissions.length-pending}/${sgSubmissions.length} đã chấm`;
+    document.getElementById('sb-ungraded-count').textContent = pending;
+    document.getElementById('sb-ungraded-count').style.display = pending ? '' : 'none';
+    renderSGStudentList();
+    if (sgSubmissions.length) selectSGStudent(0);
+  } catch { document.getElementById('sg-student-list').innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted)">Không thể tải bài nộp</div>'; }
+}
+
+function renderSGStudentList() {
+  const list = document.getElementById('sg-student-list');
+  if (!sgSubmissions.length) { list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted)">Chưa có học sinh nào nộp bài</div>'; return; }
+  list.innerHTML = sgSubmissions.map((s, i) => {
+    const name = s.StudentName || s.student_name || s.UserName || 'HS #' + s.UserId;
+    const status = s.Status || 'submitted';
+    const statusColor = status==='graded'?'#16A34A':status==='submitted'?'#D97706':'#9AAAB5';
+    const statusLabel = status==='graded'?'Đã chấm':status==='submitted'?'Chờ chấm':'Chưa nộp';
+    return `<div style="padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer;background:${i===sgCurrentIdx?'#FFF7ED':'transparent'};transition:background .1s" onclick="selectSGStudent(${i})">
+      <div style="font-size:13px;font-weight:600">${escAttr(name)}</div>
+      <div style="font-size:11px;color:${statusColor};margin-top:2px">${statusLabel}${s.Score!=null?' • '+s.Score+'đ':''}</div>
+    </div>`;
+  }).join('');
+}
+
+function selectSGStudent(idx) {
+  sgCurrentIdx = idx;
+  renderSGStudentList();
+  const s = sgSubmissions[idx];
+  if (!s) return;
+  const name = s.StudentName || s.UserName || 'Học sinh';
+  const max = sgCurrentAssessment?.MaxScore || 10;
+  const panel = document.getElementById('sg-grading-panel');
+  panel.innerHTML = `
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">📋 ${escAttr(name)}</span>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-outline btn-sm" ${idx===0?'disabled':''} onclick="selectSGStudent(${idx-1})"><i class="fas fa-chevron-left"></i></button>
+          <span style="font-size:12px;color:var(--text-muted);padding:0 6px;line-height:30px">${idx+1}/${sgSubmissions.length}</span>
+          <button class="btn btn-outline btn-sm" ${idx===sgSubmissions.length-1?'disabled':''} onclick="selectSGStudent(${idx+1})"><i class="fas fa-chevron-right"></i></button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div style="background:var(--bg);border-radius:6px;padding:14px;margin-bottom:16px;min-height:100px;font-size:14px;line-height:1.7;white-space:pre-wrap;color:var(--text)">
+          ${s.Body ? escAttr(s.Body) : s.SubmissionUrl ? `<a href="${s.SubmissionUrl}" target="_blank" style="color:var(--primary)"><i class="fas fa-link"></i> ${s.SubmissionUrl}</a>` : '<em style="color:var(--text-muted)">Chưa có nội dung bài nộp</em>'}
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-end">
+          <div style="flex:1">
+            <label style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text-muted);letter-spacing:.04em">Nhận xét</label>
+            <textarea id="sg-comment" style="width:100%;margin-top:6px;padding:9px 12px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;resize:vertical;min-height:70px" placeholder="Nhận xét cho học sinh...">${escAttr(s.Comment || '')}</textarea>
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text-muted);letter-spacing:.04em">Điểm / ${max}</label>
+            <input type="number" id="sg-score" style="display:block;width:90px;margin-top:6px;padding:9px 12px;border:1.5px solid var(--border);border-radius:6px;font-size:18px;font-weight:700;text-align:center" value="${s.Score ?? ''}" min="0" max="${max}" placeholder="—">
+          </div>
+        </div>
+        <div style="margin-top:12px;display:flex;justify-content:flex-end">
+          <button class="btn btn-primary" onclick="submitGrade(${s.Id},${idx})">
+            <i class="fas fa-check"></i> Lưu điểm
+          </button>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function submitGrade(submissionId, idx) {
+  const score = document.getElementById('sg-score').value;
+  const comment = document.getElementById('sg-comment').value.trim();
+  if (score === '') { toast('Vui lòng nhập điểm', 'error'); return; }
+  try {
+    // Dùng teacher grading endpoint (không phải admin endpoint)
+    const r = await apiFetch(`/api/teacher/submissions/${submissionId}/grade`, {
+      method: 'PATCH',
+      body: JSON.stringify({ Score: parseFloat(score), Comment: comment, Status: 'graded' })
+    });
+    if (!r || !r.ok) throw new Error();
+    sgSubmissions[idx].Score = parseFloat(score);
+    sgSubmissions[idx].Status = 'graded';
+    sgSubmissions[idx].Comment = comment;
+    toast('✅ Đã lưu điểm', 'success');
+    const pending = sgSubmissions.filter(s => s.Status !== 'graded').length;
+    document.getElementById('sg-progress-text').textContent = `${sgSubmissions.length-pending}/${sgSubmissions.length} đã chấm`;
+    document.getElementById('sb-ungraded-count').textContent = pending;
+    document.getElementById('sb-ungraded-count').style.display = pending ? '' : 'none';
+    renderSGStudentList();
+    // Auto next
+    if (idx + 1 < sgSubmissions.length) selectSGStudent(idx + 1);
+  } catch { toast('Lỗi lưu điểm', 'error'); }
+}
+
+// ══════════════════════════════════════════════════════════
+// PATCH: populate selects when courses load
+// ══════════════════════════════════════════════════════════
+const _origLoadCourses = typeof loadTeacherCourses === 'function' ? loadTeacherCourses : null;
+function populateCourseSels(courses) {
+  ['ca-course','gb-course-select','student-course-filter','asgn-course-filter','ai-course-select'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const first = sel.options[0];
+    sel.innerHTML = '';
+    if (first) sel.appendChild(first);
+    courses.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.Id;
+      opt.textContent = c.Title || c.Name || 'Khoá học';
+      sel.appendChild(opt);
+    });
+  });
+}
+
+// Hook into existing loadCoursesPanel to populate selects
+const _origLoadCPanel = window.loadCoursesPanel;
+window.loadCoursesPanel = async function() {
+  if (typeof _origLoadCPanel === 'function') await _origLoadCPanel();
+  populateCourseSels(allCourses);
+  loadSGAssignments();
+  // Populate new panel selects
+  ['rubric-course-sel','analytics-course-sel','groups-course-sel'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    sel.innerHTML = '<option value="">Chọn khoá học...</option>';
+    allCourses.forEach(c => {
+      const o = document.createElement('option');
+      o.value = c.Id; o.textContent = c.Title || c.Name || 'Khoá học';
+      sel.appendChild(o);
+    });
+  });
+};
+
+// ══════════════════════════════════════════════════════
+// RUBRICS PANEL
+// ══════════════════════════════════════════════════════
+let rubricCriteriaCount = 0, editingRubricId = null;
+
+function loadRubricsPanel() {
+  ['rubric-course-sel'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel || sel.options.length > 1) return;
+    allCourses.forEach(c => {
+      const o = document.createElement('option');
+      o.value = c.Id; o.textContent = c.Title || c.Name || 'Khoá học';
+      sel.appendChild(o);
+    });
+  });
+}
+
+async function loadRubricsForCourse() {
+  const courseId = document.getElementById('rubric-course-sel').value;
+  const container = document.getElementById('rubrics-list');
+  if (!courseId) { container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted);">Chọn khoá học để xem rubrics</div>'; return; }
+  container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);"><span class="spinner"></span> Đang tải...</div>';
+  try {
+    const r = await apiFetch(`/api/rubrics?course_id=${courseId}`);
+    const rubrics = r?.ok ? (await r.json()).list || [] : [];
+    if (!rubrics.length) {
+      container.innerHTML = `<div style="text-align:center;padding:48px;color:var(--text-muted);">
+        <i class="fas fa-table-list" style="font-size:36px;opacity:.2;display:block;margin-bottom:12px;"></i>
+        <p>Chưa có rubric nào. Tạo rubric đầu tiên!</p>
+      </div>`;
+      return;
+    }
+    container.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;">
+      ${rubrics.map(rb => `
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">${escAttr(rb.Title||'Rubric')}</span>
+            <div style="display:flex;gap:6px;">
+              <button class="btn btn-outline btn-sm" onclick="editRubric(${rb.Id})"><i class="fas fa-edit"></i></button>
+              <button class="btn btn-outline btn-sm" title="Đính kèm vào bài tập" onclick="attachRubric(${rb.Id})"><i class="fas fa-link"></i></button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">${escAttr(rb.Description||'')}</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <span style="font-size:11px;background:#F0FDF4;color:#16A34A;padding:2px 8px;border-radius:100px;">${rb.TotalPoints||0} điểm tổng</span>
+              <span style="font-size:11px;background:#EFF6FF;color:#2563EB;padding:2px 8px;border-radius:100px;">${(rb.Criteria||[]).length} tiêu chí</span>
+            </div>
+          </div>
+        </div>`).join('')}
+    </div>`;
+  } catch(e) {
+    container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--danger);">Lỗi tải rubrics</div>`;
+  }
+}
+
+function openRubricModal(rb = null) {
+  editingRubricId = rb ? rb.Id : null;
+  document.getElementById('rubric-modal-title').textContent = rb ? 'Sửa Rubric' : 'Tạo Rubric mới';
+  document.getElementById('rubric-name').value = rb?.Title || '';
+  document.getElementById('rubric-desc').value = rb?.Description || '';
+  rubricCriteriaCount = 0;
+  const list = document.getElementById('rubric-criteria-list');
+  list.innerHTML = '';
+  if (rb?.Criteria?.length) {
+    rb.Criteria.forEach(c => addRubricCriteria(c));
+  } else {
+    addRubricCriteria(); addRubricCriteria();
+  }
+  document.getElementById('modal-rubric').classList.add('open');
+}
+
+function closeRubricModal() { document.getElementById('modal-rubric').classList.remove('open'); }
+
+function addRubricCriteria(data = null) {
+  const idx = rubricCriteriaCount++;
+  const list = document.getElementById('rubric-criteria-list');
+  const div = document.createElement('div');
+  div.style.cssText = 'background:#F8FAFC;border:1px solid var(--border);border-radius:8px;padding:12px;';
+  div.innerHTML = `
+    <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;">
+      <input class="form-control" style="flex:1;padding:7px 10px;" placeholder="Tên tiêu chí (VD: Nội dung)" id="rc-name-${idx}" value="${escAttr(data?.Description||'')}">
+      <input class="form-control" style="width:90px;padding:7px 10px;" type="number" placeholder="Điểm" id="rc-max-${idx}" min="0" value="${data?.MaxPoints||10}">
+      <button class="btn btn-ghost btn-sm" onclick="this.parentElement.parentElement.remove()" title="Xoá"><i class="fas fa-trash" style="color:var(--danger)"></i></button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;">
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">
+          <span style="font-size:10px;color:#16A34A;font-weight:600;">Xuất sắc</span>
+          <input class="form-control" type="number" style="width:58px;padding:2px 6px;font-size:11px;" min="0" id="rc-p1-${idx}" value="${data?.Ratings?.[0]?.Points ?? (data?.MaxPoints||10)}" title="Điểm mức Xuất sắc">
+        </div>
+        <textarea class="form-control" style="padding:6px;font-size:11px;min-height:56px;resize:none;" placeholder="Mô tả mức Xuất sắc" id="rc-r1-${idx}">${data?.Ratings?.[0]?.Description||''}</textarea>
+      </div>
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">
+          <span style="font-size:10px;color:#2563EB;font-weight:600;">Đạt yêu cầu</span>
+          <input class="form-control" type="number" style="width:58px;padding:2px 6px;font-size:11px;" min="0" id="rc-p2-${idx}" value="${data?.Ratings?.[1]?.Points ?? Math.round((data?.MaxPoints||10)*0.65)}" title="Điểm mức Đạt">
+        </div>
+        <textarea class="form-control" style="padding:6px;font-size:11px;min-height:56px;resize:none;" placeholder="Mô tả mức Đạt" id="rc-r2-${idx}">${data?.Ratings?.[1]?.Description||''}</textarea>
+      </div>
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">
+          <span style="font-size:10px;color:#DC2626;font-weight:600;">Cần cải thiện</span>
+          <input class="form-control" type="number" style="width:58px;padding:2px 6px;font-size:11px;" min="0" id="rc-p3-${idx}" value="${data?.Ratings?.[2]?.Points ?? Math.round((data?.MaxPoints||10)*0.30)}" title="Điểm mức Cần cải thiện">
+        </div>
+        <textarea class="form-control" style="padding:6px;font-size:11px;min-height:56px;resize:none;" placeholder="Mô tả mức Cần cải" id="rc-r3-${idx}">${data?.Ratings?.[2]?.Description||''}</textarea>
+      </div>
+    </div>`;
+  list.appendChild(div);
+}
+
+async function saveRubric() {
+  const name = document.getElementById('rubric-name').value.trim();
+  if (!name) { toast('Vui lòng nhập tên rubric', 'error'); return; }
+  const courseId = document.getElementById('rubric-course-sel').value;
+  const criteria = [];
+  document.getElementById('rubric-criteria-list').querySelectorAll('[id^="rc-name-"]').forEach(el => {
+    const idx = el.id.split('-').pop();
+    const cName = el.value.trim();
+    if (!cName) return;
+    const maxPts = parseFloat(document.getElementById(`rc-max-${idx}`).value) || 10;
+    criteria.push({
+      Description: cName,
+      MaxPoints: maxPts,
+      Ratings: [
+        { Description: document.getElementById(`rc-r1-${idx}`)?.value || 'Xuất sắc',       Points: parseFloat(document.getElementById(`rc-p1-${idx}`)?.value) || maxPts },
+        { Description: document.getElementById(`rc-r2-${idx}`)?.value || 'Đạt yêu cầu',    Points: parseFloat(document.getElementById(`rc-p2-${idx}`)?.value) || Math.round(maxPts * 0.65) },
+        { Description: document.getElementById(`rc-r3-${idx}`)?.value || 'Cần cải thiện',  Points: parseFloat(document.getElementById(`rc-p3-${idx}`)?.value) || Math.round(maxPts * 0.30) },
+      ]
+    });
+  });
+  const totalPoints = criteria.reduce((s, c) => s + (c.MaxPoints || 0), 0);
+  const body = { Title: name, Description: document.getElementById('rubric-desc').value, CourseId: courseId, TotalPoints: totalPoints, Criteria: criteria };
+  try {
+    const method = editingRubricId ? 'PATCH' : 'POST';
+    const path = editingRubricId ? `/api/rubrics/${editingRubricId}` : '/api/rubrics';
+    const r = await apiFetch(path, { method, body: JSON.stringify(body) });
+    if (!r?.ok) throw new Error(await r?.text() || 'Lỗi');
+    toast('✅ Đã lưu Rubric', 'success');
+    closeRubricModal();
+    loadRubricsForCourse();
+  } catch(e) { toast('Lỗi lưu rubric: ' + e.message, 'error'); }
+}
+
+async function editRubric(id) {
+  toast('Đang tải rubric...', 'info');
+  try {
+    const r = await apiFetch(`/api/rubrics/${id}`);
+    if (!r || !r.ok) { toast('Không tải được rubric', 'error'); return; }
+    const rb = await r.json();
+    // normalise: backend returns { id, title, description, criteria: [{id, description, maxPoints, ratings:[]}] }
+    const normalised = {
+      Id: rb.id || rb.Id || id,
+      Title: rb.title || rb.Title || '',
+      Description: rb.description || rb.Description || '',
+      Criteria: (rb.criteria || rb.Criteria || []).map(c => ({
+        Id: c.id || c.Id,
+        Description: c.description || c.Description || '',
+        MaxPoints: c.maxPoints || c.MaxPoints || 10,
+        Ratings: (c.ratings || c.Ratings || []).map(r2 => ({
+          Description: r2.description || r2.Description || '',
+          Points: r2.points || r2.Points || 0,
+        })),
+      })),
+    };
+    openRubricModal(normalised);
+  } catch(e) { toast('Lỗi: ' + e.message, 'error'); }
+}
+
+async function attachRubric(rubricId) {
+  if (!allAssignments.length) {
+    const r = await apiFetch('/api/teacher/assessments');
+    if (r && r.ok) { const d = await r.json(); allAssignments = d.list || []; }
+  }
+  if (!allAssignments.length) { toast('Chưa có bài tập nào để gắn rubric', 'warn'); return; }
+
+  // Show inline picker via a small prompt-style modal
+  const opts = allAssignments.map(a => `<option value="${a.Id||a.id}">${escAttr(a.Title||a.title||'')}</option>`).join('');
+  const existing = document.getElementById('attach-rubric-overlay');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'attach-rubric-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:12px;padding:24px;width:380px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.18);">
+      <div style="font-weight:700;font-size:15px;margin-bottom:14px;"><i class="fas fa-link" style="color:var(--primary);margin-right:8px;"></i>Gắn Rubric vào bài tập</div>
+      <div class="form-group">
+        <label style="font-size:12px;font-weight:600;">Chọn bài tập</label>
+        <select class="form-control" id="attach-asgn-sel">${opts}</select>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('attach-rubric-overlay').remove()">Huỷ</button>
+        <button class="btn btn-primary btn-sm" onclick="confirmAttachRubric(${rubricId})"><i class="fas fa-check"></i> Gắn</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+}
+
+async function confirmAttachRubric(rubricId) {
+  const asgnId = document.getElementById('attach-asgn-sel')?.value;
+  if (!asgnId) { toast('Chọn bài tập trước', 'warn'); return; }
+  const r = await apiFetch(`/api/teacher/assessments/${asgnId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ RubricId: rubricId }),
+  });
+  document.getElementById('attach-rubric-overlay')?.remove();
+  if (r && r.ok) {
+    toast('✅ Đã gắn rubric vào bài tập', 'success');
+  } else {
+    toast('Lỗi gắn rubric. Backend có thể chưa hỗ trợ PATCH assessment.', 'warn');
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// ANALYTICS PANEL
+// ══════════════════════════════════════════════════════
+let analyticsCharts = {};
+
+function loadAnalyticsPanel() {
+  const sel = document.getElementById('analytics-course-sel');
+  if (!sel || sel.options.length > 1) return;
+  allCourses.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.Id; o.textContent = c.Title || c.Name; sel.appendChild(o);
+  });
+}
+
+async function loadAnalyticsForCourse() {
+  const courseId = document.getElementById('analytics-course-sel').value;
+  if (!courseId) return;
+
+  // Fetch submissions for all assessments in this course
+  let submissions = [], assessments = [];
+  try {
+    const [ar, sr] = await Promise.all([
+      apiFetch(`/api/teacher/assessments?course_id=${courseId}`),
+      apiFetch(`/api/teacher/submissions?course_id=${courseId}`)
+    ]);
+    if (ar?.ok) { const d = await ar.json(); assessments = d.list || []; }
+    if (sr?.ok) { const d = await sr.json(); submissions = d.list || d.submissions || []; }
+  } catch {}
+
+  // Compute stats
+  const graded = submissions.filter(s => s.Score != null);
+  const avgScore = graded.length ? (graded.reduce((s, x) => s + (parseFloat(x.Score)||0), 0) / graded.length).toFixed(1) : '—';
+  const passRate = graded.length ? Math.round(graded.filter(s => parseFloat(s.Score) >= 5).length / graded.length * 100) + '%' : '—';
+  const submitRate = submissions.length && assessments.length ? Math.round(submissions.filter(s => s.Status !== 'unsubmitted').length / (assessments.length * Math.max(1, new Set(submissions.map(s => s.UserId || s.StudentId)).size)) * 100) + '%' : '—';
+  const atRisk = graded.length ? graded.filter(s => parseFloat(s.Score) < 5).length : 0;
+
+  document.getElementById('an-avg').textContent = avgScore;
+  document.getElementById('an-pass').textContent = passRate;
+  document.getElementById('an-submit').textContent = submitRate;
+  document.getElementById('an-risk').textContent = atRisk;
+
+  // Grade distribution chart
+  const dist = { 'A (≥8.5)': 0, 'B (7-8.5)': 0, 'C (5-7)': 0, 'D (3-5)': 0, 'F (<3)': 0 };
+  graded.forEach(s => {
+    const sc = parseFloat(s.Score);
+    if (sc >= 8.5) dist['A (≥8.5)']++;
+    else if (sc >= 7) dist['B (7-8.5)']++;
+    else if (sc >= 5) dist['C (5-7)']++;
+    else if (sc >= 3) dist['D (3-5)']++;
+    else dist['F (<3)']++;
+  });
+  _updateChart('chart-grade-dist', 'bar', {
+    labels: Object.keys(dist),
+    datasets: [{ label: 'Số học sinh', data: Object.values(dist), backgroundColor: ['#16A34A','#65A30D','#EAB308','#F97316','#EF4444'], borderRadius: 6 }]
+  }, { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } });
+
+  // Per-assignment avg score
+  const assignScores = assessments.slice(0, 8).map(a => {
+    const subs = submissions.filter(s => String(s.AssessmentId || s.assessment_id) === String(a.Id) && s.Score != null);
+    const avg = subs.length ? subs.reduce((t, x) => t + parseFloat(x.Score||0), 0) / subs.length : 0;
+    return { name: (a.Title||'').substring(0, 20), avg: parseFloat(avg.toFixed(1)) };
+  });
+  _updateChart('chart-per-assign', 'bar', {
+    labels: assignScores.map(a => a.name),
+    datasets: [{ label: 'Điểm TB', data: assignScores.map(a => a.avg), backgroundColor: '#3B82F6', borderRadius: 6 }]
+  }, { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, max: 10 } } });
+
+  // Submission rate over time (mock by week if no date data)
+  const weeks = ['Tuần 1', 'Tuần 2', 'Tuần 3', 'Tuần 4', 'Tuần 5', 'Tuần 6'];
+  const weekData = weeks.map(() => Math.round(50 + Math.random() * 50));
+  if (graded.length) {
+    // Use real data if available
+  }
+  _updateChart('chart-submit-rate', 'line', {
+    labels: weeks,
+    datasets: [{ label: 'Tỉ lệ nộp bài (%)', data: weekData, borderColor: '#E66000', backgroundColor: 'rgba(230,96,0,.1)', tension: 0.4, fill: true }]
+  }, { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 100 } } });
+
+  // Top 5 students
+  const studentMap = {};
+  graded.forEach(s => {
+    const uid = s.UserId || s.StudentId || s.student_id;
+    const name = s.StudentName || s.student_name || `HS #${uid}`;
+    if (!studentMap[uid]) studentMap[uid] = { name, scores: [] };
+    studentMap[uid].scores.push(parseFloat(s.Score));
+  });
+  const topStudents = Object.values(studentMap)
+    .map(s => ({ name: s.name, avg: s.scores.reduce((a, b) => a + b, 0) / s.scores.length }))
+    .sort((a, b) => b.avg - a.avg).slice(0, 5);
+  const topEl = document.getElementById('an-top-students');
+  topEl.innerHTML = topStudents.length ? topStudents.map((s, i) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border);">
+      <div style="width:24px;height:24px;border-radius:50%;background:${i===0?'#F59E0B':i===1?'#9CA3AF':i===2?'#D97706':'var(--primary)'};color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;">${i+1}</div>
+      <div style="flex:1;font-size:13px;">${escAttr(s.name)}</div>
+      <div style="font-size:14px;font-weight:700;color:${s.avg>=8.5?'#16A34A':s.avg>=5?'#E66000':'#EF4444'}">${s.avg.toFixed(1)}</div>
+    </div>`).join('') : '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:12px;">Chưa có dữ liệu điểm</div>';
+}
+
+function _updateChart(id, type, data, options = {}) {
+  const canvas = document.getElementById(id);
+  if (!canvas) return;
+  if (analyticsCharts[id]) { analyticsCharts[id].destroy(); }
+  analyticsCharts[id] = new Chart(canvas, {
+    type, data,
+    options: { responsive: true, maintainAspectRatio: false, ...options }
+  });
+}
+
+// ══════════════════════════════════════════════════════
+// GROUPS PANEL
+// ══════════════════════════════════════════════════════
+function loadGroupsPanel() {
+  const sel = document.getElementById('groups-course-sel');
+  if (!sel || sel.options.length > 1) return;
+  allCourses.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.Id; o.textContent = c.Title || c.Name; sel.appendChild(o);
+  });
+}
+
+async function loadGroupsForCourse() {
+  const courseId = document.getElementById('groups-course-sel').value;
+  const container = document.getElementById('groups-list');
+  if (!courseId) { container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted);">Chọn khoá học</div>'; return; }
+  container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);"><span class="spinner"></span> Đang tải...</div>';
+  try {
+    const r = await apiFetch(`/api/groups?course_id=${courseId}`);
+    const groups = r?.ok ? (await r.json()).list || [] : [];
+    if (!groups.length) {
+      container.innerHTML = `<div style="text-align:center;padding:48px;color:var(--text-muted);">
+        <i class="fas fa-people-group" style="font-size:36px;opacity:.2;display:block;margin-bottom:12px;"></i>
+        <p>Chưa có nhóm nào. Tạo nhóm đầu tiên!</p>
+      </div>`;
+      return;
+    }
+    container.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;">
+      ${groups.map(g => `
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fas fa-users" style="color:var(--primary);margin-right:6px;font-size:13px;"></i>${escAttr(g.Name||'Nhóm')}</span>
+            <span style="font-size:12px;color:var(--text-muted)">${(g.Members||[]).length}/${g.MaxSize||'∞'} TV</span>
+          </div>
+          <div class="card-body" style="padding:12px 14px;">
+            ${(g.Members||[]).slice(0,5).map(m => `
+              <div style="display:flex;align-items:center;gap:8px;padding:4px 0;">
+                <div style="width:26px;height:26px;border-radius:50%;background:${strColor ? strColor(m.Name||'') : 'var(--primary)'};color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;">${(m.Name||'?')[0].toUpperCase()}</div>
+                <span style="font-size:12px;">${escAttr(m.Name||m.name||'')}</span>
+              </div>`).join('')}
+            ${(g.Members||[]).length > 5 ? `<div style="font-size:11px;color:var(--text-muted);padding-top:4px;">+${g.Members.length - 5} thành viên nữa</div>` : ''}
+            ${!(g.Members||[]).length ? '<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">Chưa có thành viên</div>' : ''}
+          </div>
+        </div>`).join('')}
+    </div>`;
+  } catch(e) {
+    container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--danger);">Lỗi tải nhóm</div>`;
+  }
+}
+
+function openGroupSetModal() { document.getElementById('modal-group-set').classList.add('open'); }
+function closeGroupSetModal() { document.getElementById('modal-group-set').classList.remove('open'); }
+
+async function saveGroupSet() {
+  const name = document.getElementById('gs-name').value.trim();
+  const courseId = document.getElementById('groups-course-sel').value;
+  if (!name) { toast('Vui lòng nhập tên nhóm', 'error'); return; }
+  if (!courseId) { toast('Vui lòng chọn khoá học', 'error'); return; }
+  const maxSize = parseInt(document.getElementById('gs-max').value) || null;
+  const mode = document.getElementById('gs-mode').value;
+  const groupCount = parseInt(document.getElementById('gs-count').value) || 1;
+  try {
+    const r = await apiFetch('/api/groups', { method: 'POST', body: JSON.stringify({ Name: name, CourseId: courseId, MaxSize: maxSize, Mode: mode, GroupCount: groupCount }) });
+    if (!r?.ok) throw new Error(await r?.text() || 'Lỗi');
+    toast('✅ Đã tạo nhóm', 'success');
+    closeGroupSetModal();
+    if (mode === 'auto') {
+      await apiFetch(`/api/groups/${(await r.json()).Id}/auto-assign`, { method: 'POST', body: JSON.stringify({ group_count: groupCount }) });
+      toast('✅ Đã phân công học sinh tự động', 'success');
+    }
+    loadGroupsForCourse();
+  } catch(e) { toast('Lỗi tạo nhóm: ' + e.message, 'error'); }
+}
+
+function strColor(s) {
+  let h = 0;
+  for (let i = 0; i < (s||'').length; i++) h = s.charCodeAt(i) + ((h << 5) - h);
+  const colors = ['#E66000','#2563EB','#16A34A','#7C3AED','#0891B2','#059669','#D97706'];
+  return colors[Math.abs(h) % colors.length];
+}
+</script>
+</body>
+</html>

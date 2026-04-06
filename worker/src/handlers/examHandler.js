@@ -29,7 +29,7 @@ export async function handleExamGet(request, env, { json, path }) {
   if (exam.Status !== 'published') return json({ error: 'Đề thi chưa công bố' }, 403);
 
   const secR = await nocoFetch(env,
-    `/api/v2/tables/${env.NOCO_EXAM_SECTIONS}/records?where=(ExamId,eq,${examId})&sort=Position&limit=100`
+    `/api/v2/tables/${env.NOCO_EXAM_SECTIONS}/records?where=(ExamId,eq,${examId})&sort=Id&limit=100`
   );
   const sections = (await secR.json()).list || [];
   if (!sections.length) return json({ error: 'Đề thi chưa có phần nào' }, 400);

@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ActiveEdu — GDS | Đăng nhập</title>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<style>
+:root {
+  --primary: #E66000;
+  --primary-dark: #C55500;
+  --primary-light: #FF8C3A;
+  --primary-glow: rgba(230,96,0,.18);
+  --sidebar-bg: #2D3B45;
+  --bg: #F0F2F5;
+  --card-bg: #FFFFFF;
+  --border: #E1E5E8;
+  --text: #1A2733;
+  --text-muted: #6B7B8A;
+  --text-subtle: #9AAAB5;
+  --success: #16A34A;
+  --danger: #DC2626;
+  --r: 8px;
+  --shadow: 0 2px 8px rgba(0,0,0,.08);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,.14);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Be Vietnam Pro', sans-serif;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Background decoration */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(135deg, var(--sidebar-bg) 0%, #1a2d38 50%, #0f1e28 100%);
+  z-index: -2;
+}
+body::after {
+  content: '';
+  position: fixed;
+  top: -120px; right: -120px;
+  width: 500px; height: 500px;
+  background: var(--primary);
+  opacity: .06;
+  border-radius: 50%;
+  z-index: -1;
+}
+
+.bg-circle2 {
+  position: fixed;
+  bottom: -150px; left: -100px;
+  width: 400px; height: 400px;
+  background: var(--primary-light);
+  opacity: .04;
+  border-radius: 50%;
+  z-index: -1;
+}
+
+/* ── MAIN CARD ── */
+.login-wrapper {
+  width: 100%;
+  max-width: 440px;
+  padding: 16px;
+  position: relative;
+  z-index: 10;
+}
+
+.login-card {
+  background: var(--card-bg);
+  border-radius: 16px;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+
+/* ── HEADER ── */
+.login-header {
+  background: linear-gradient(135deg, var(--sidebar-bg) 0%, #3D4F5C 100%);
+  padding: 32px 32px 24px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.login-header::before {
+  content: '';
+  position: absolute;
+  top: -60px; right: -60px;
+  width: 180px; height: 180px;
+  background: var(--primary);
+  opacity: .1;
+  border-radius: 50%;
+}
+
+.login-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.login-logo-icon {
+  width: 48px; height: 48px;
+  background: var(--primary);
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; color: #fff;
+  box-shadow: 0 4px 16px rgba(230,96,0,.4);
+  flex-shrink: 0;
+}
+.login-logo-name {
+  text-align: left;
+}
+.login-logo-name .brand {
+  font-size: 22px; font-weight: 800; color: #fff; line-height: 1;
+}
+.login-logo-name .brand span { color: var(--primary-light); }
+.login-logo-name .sub {
+  font-size: 11px; color: rgba(199,211,217,.6); margin-top: 2px;
+}
+.login-tagline {
+  font-size: 13px;
+  color: rgba(199,211,217,.7);
+  margin-top: 6px;
+}
+
+/* ── BODY ── */
+.login-body {
+  padding: 28px 32px 32px;
+}
+
+/* ── ROLE TABS ── */
+.role-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-bottom: 24px;
+  background: var(--bg);
+  border-radius: var(--r);
+  padding: 5px;
+}
+.role-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 9px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all .18s;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+.role-tab i { font-size: 16px; }
+.role-tab:hover { background: rgba(255,255,255,.7); color: var(--text); }
+.role-tab.active {
+  background: #fff;
+  color: var(--primary);
+  box-shadow: 0 1px 6px rgba(0,0,0,.1);
+}
+.role-tab.active i { color: var(--primary); }
+
+/* ── FORM ── */
+.form-group {
+  margin-bottom: 16px;
+}
+.form-group label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.input-wrap {
+  position: relative;
+}
+.input-icon {
+  position: absolute;
+  left: 12px; top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-subtle);
+  font-size: 14px;
+  pointer-events: none;
+}
+.form-control {
+  width: 100%;
+  padding: 10px 12px 10px 38px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--r);
+  font-size: 14px;
+  color: var(--text);
+  font-family: inherit;
+  background: var(--card-bg);
+  transition: border-color .15s, box-shadow .15s;
+  outline: none;
+}
+.form-control:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+.form-control::placeholder { color: var(--text-subtle); }
+
+.password-toggle {
+  position: absolute;
+  right: 12px; top: 50%;
+  transform: translateY(-50%);
+  background: none; border: none;
+  color: var(--text-subtle);
+  cursor: pointer; padding: 0;
+  font-size: 14px; line-height: 1;
+}
+.password-toggle:hover { color: var(--text); }
+
+.form-help {
+  font-size: 11px;
+  color: var(--text-subtle);
+  margin-top: 4px;
+}
+
+/* ── ERROR ── */
+.error-box {
+  display: none;
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  border-radius: var(--r);
+  padding: 10px 14px;
+  color: var(--danger);
+  font-size: 13px;
+  margin-bottom: 16px;
+  display: flex; align-items: center; gap: 8px;
+}
+.error-box.hidden { display: none; }
+.error-box.visible { display: flex; }
+
+/* ── SUBMIT BUTTON ── */
+.btn-submit {
+  width: 100%;
+  padding: 12px;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--r);
+  font-size: 15px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background .15s, transform .1s, box-shadow .15s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  box-shadow: 0 4px 14px rgba(230,96,0,.3);
+}
+.btn-submit:hover:not(:disabled) {
+  background: var(--primary-dark);
+  box-shadow: 0 6px 18px rgba(230,96,0,.4);
+}
+.btn-submit:active:not(:disabled) { transform: scale(.99); }
+.btn-submit:disabled { opacity: .7; cursor: not-allowed; }
+
+/* ── SPINNER ── */
+.spinner {
+  display: inline-block;
+  width: 16px; height: 16px;
+  border: 2px solid rgba(255,255,255,.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin .6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── FOOTER LINKS ── */
+.login-links {
+  text-align: center;
+  margin-top: 18px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.login-links a {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+.login-links a:hover { text-decoration: underline; }
+
+/* ── CARD FOOTER ── */
+.login-card-footer {
+  border-top: 1px solid var(--border);
+  padding: 14px 32px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-subtle);
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+}
+.api-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #ccc;
+  display: inline-block;
+}
+.api-dot.online { background: #22C55E; }
+
+/* ── TOAST ── */
+#toast-container {
+  position: fixed; bottom: 20px; right: 20px;
+  z-index: 9999;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.toast {
+  background: #1E293B; color: #fff;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  display: flex; align-items: center; gap: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.2);
+  min-width: 220px;
+  animation: slideIn .2s ease;
+}
+@keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 480px) {
+  .login-body { padding: 20px; }
+  .login-header { padding: 24px 20px 20px; }
+  .login-card-footer { padding: 12px 20px; }
+  .login-logo-name .brand { font-size: 18px; }
+}
+</style>
+</head>
+<body>
+<div class="bg-circle2"></div>
+
+<div class="login-wrapper">
+  <div class="login-card">
+
+    <!-- Header -->
+    <div class="login-header">
+      <div class="login-logo">
+        <div class="login-logo-icon"><i class="fas fa-bolt"></i></div>
+        <div class="login-logo-name">
+          <div class="brand">Active<span>Edu</span></div>
+          <div class="sub">GDS — Hệ thống học tập thông minh</div>
+        </div>
+      </div>
+      <div class="login-tagline">Chào mừng bạn trở lại</div>
+    </div>
+
+    <!-- Body -->
+    <div class="login-body">
+
+      <!-- Role tabs -->
+      <div class="role-tabs" role="tablist">
+        <button class="role-tab active" id="tab-student" onclick="setRole('student')" role="tab" aria-selected="true">
+          <i class="fas fa-graduation-cap"></i>
+          <span>Học sinh</span>
+        </button>
+        <button class="role-tab" id="tab-teacher" onclick="setRole('teacher')" role="tab" aria-selected="false">
+          <i class="fas fa-chalkboard-teacher"></i>
+          <span>Giáo viên</span>
+        </button>
+        <button class="role-tab" id="tab-admin" onclick="setRole('admin')" role="tab" aria-selected="false">
+          <i class="fas fa-shield-halved"></i>
+          <span>Quản trị</span>
+        </button>
+      </div>
+
+      <!-- Error box -->
+      <div class="error-box hidden" id="error-box">
+        <i class="fas fa-circle-xmark"></i>
+        <span id="error-msg">Thông tin đăng nhập không chính xác</span>
+      </div>
+
+      <!-- Login form -->
+      <form id="login-form" onsubmit="handleSubmit(event)" novalidate>
+
+        <!-- Email field (student / teacher) -->
+        <div class="form-group" id="field-email">
+          <label for="input-email">Địa chỉ Email</label>
+          <div class="input-wrap">
+            <i class="fas fa-envelope input-icon"></i>
+            <input type="email" class="form-control" id="input-email"
+              placeholder="email@gds.edu.vn" autocomplete="email" />
+          </div>
+        </div>
+
+        <!-- Username field (admin) -->
+        <div class="form-group" id="field-username" style="display:none">
+          <label for="input-username">Tên đăng nhập</label>
+          <div class="input-wrap">
+            <i class="fas fa-user input-icon"></i>
+            <input type="text" class="form-control" id="input-username"
+              placeholder="admin" autocomplete="username" />
+          </div>
+        </div>
+
+        <!-- Password -->
+        <div class="form-group">
+          <label for="input-password">Mật khẩu</label>
+          <div class="input-wrap">
+            <i class="fas fa-lock input-icon"></i>
+            <input type="password" class="form-control" id="input-password"
+              placeholder="••••••••" autocomplete="current-password" />
+            <button type="button" class="password-toggle" onclick="togglePassword()" id="pwd-toggle" title="Hiện/ẩn mật khẩu">
+              <i class="fas fa-eye" id="pwd-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Submit button -->
+        <button type="submit" class="btn-submit" id="submit-btn">
+          <i class="fas fa-right-to-bracket" id="submit-icon"></i>
+          <span id="submit-text">Đăng nhập</span>
+        </button>
+      </form>
+
+      <!-- Links -->
+      <div class="login-links">
+        <a href="#" onclick="forgotPassword()">Quên mật khẩu?</a>
+      </div>
+
+    </div>
+
+    <!-- Card footer -->
+    <div class="login-card-footer">
+      <span class="api-dot" id="api-dot"></span>
+      <span id="api-status">Đang kiểm tra kết nối...</span>
+      <span style="opacity:.4">·</span>
+      <span>ActiveEdu v2.0</span>
+    </div>
+
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+const API = 'https://api.gds.edu.vn';
+let currentRole = 'student';
+
+// ── ROLE SELECTION ────────────────────────────────────
+function setRole(role) {
+  currentRole = role;
+  document.querySelectorAll('.role-tab').forEach(t => {
+    t.classList.remove('active');
+    t.setAttribute('aria-selected', 'false');
+  });
+  const tab = document.getElementById('tab-' + role);
+  if (tab) { tab.classList.add('active'); tab.setAttribute('aria-selected', 'true'); }
+
+  // Toggle email vs username field
+  if (role === 'admin') {
+    document.getElementById('field-email').style.display = 'none';
+    document.getElementById('field-username').style.display = '';
+  } else {
+    document.getElementById('field-email').style.display = '';
+    document.getElementById('field-username').style.display = 'none';
+  }
+  clearError();
+}
+
+// ── PASSWORD TOGGLE ───────────────────────────────────
+function togglePassword() {
+  const inp = document.getElementById('input-password');
+  const eye = document.getElementById('pwd-eye');
+  if (inp.type === 'password') {
+    inp.type = 'text';
+    eye.className = 'fas fa-eye-slash';
+  } else {
+    inp.type = 'password';
+    eye.className = 'fas fa-eye';
+  }
+}
+
+// ── ERROR HELPERS ─────────────────────────────────────
+function showError(msg) {
+  const box = document.getElementById('error-box');
+  document.getElementById('error-msg').textContent = msg;
+  box.classList.remove('hidden');
+  box.classList.add('visible');
+}
+function clearError() {
+  const box = document.getElementById('error-box');
+  box.classList.remove('visible');
+  box.classList.add('hidden');
+}
+
+// ── TOAST ─────────────────────────────────────────────
+function toast(msg, type = 'info', duration = 3500) {
+  const c = document.getElementById('toast-container');
+  const icon = { success:'fa-circle-check', error:'fa-circle-xmark', info:'fa-circle-info' }[type] || 'fa-circle-info';
+  const color = { success:'#22C55E', error:'#EF4444', info:'#E66000' }[type] || '#E66000';
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.style.borderLeft = `3px solid ${color}`;
+  t.innerHTML = `<i class="fas ${icon}" style="color:${color}"></i> ${msg}`;
+  c.appendChild(t);
+  setTimeout(() => { t.style.opacity='0'; t.style.transition='opacity .3s'; setTimeout(()=>t.remove(),300); }, duration);
+}
+
+// ── SUBMIT HANDLER ────────────────────────────────────
+async function handleSubmit(e) {
+  e.preventDefault();
+  clearError();
+
+  const password = document.getElementById('input-password').value.trim();
+  if (!password) { showError('Vui lòng nhập mật khẩu.'); return; }
+
+  const btn = document.getElementById('submit-btn');
+  const btnText = document.getElementById('submit-text');
+  const btnIcon = document.getElementById('submit-icon');
+  btn.disabled = true;
+  btnIcon.className = '';
+  btnText.innerHTML = '<span class="spinner"></span> Đang đăng nhập...';
+
+  try {
+    if (currentRole === 'admin') {
+      await loginAdmin(password);
+    } else {
+      await loginUser(password);
+    }
+  } catch (err) {
+    showError(err.message || 'Có lỗi xảy ra. Vui lòng thử lại.');
+  } finally {
+    btn.disabled = false;
+    btnIcon.className = 'fas fa-right-to-bracket';
+    btnText.textContent = 'Đăng nhập';
+  }
+}
+
+// ── ADMIN LOGIN ───────────────────────────────────────
+async function loginAdmin(password) {
+  const username = document.getElementById('input-username').value.trim();
+  if (!username) { showError('Vui lòng nhập tên đăng nhập.'); return; }
+
+  const resp = await fetch(API + '/admin/auth', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
+
+  if (!resp.ok) {
+    const d = await resp.json().catch(() => ({}));
+    throw new Error(d.error || 'Tên đăng nhập hoặc mật khẩu không đúng.');
+  }
+
+  const data = await resp.json();
+  const token = data.token || data.access_token;
+  if (!token) throw new Error('Máy chủ không trả về token. Liên hệ quản trị.');
+
+  localStorage.setItem('ae_admin_token', token);
+  localStorage.setItem('ae_user', JSON.stringify({
+    name: data.name || data.username || username,
+    email: data.email || '',
+    role: 'admin',
+  }));
+
+  toast('Đăng nhập thành công! Đang chuyển hướng...', 'success', 1500);
+  setTimeout(() => { window.location.href = 'admin/dashboard_new.html'; }, 800);
+}
+
+// ── STUDENT / TEACHER LOGIN ───────────────────────────
+async function loginUser(password) {
+  const email = document.getElementById('input-email').value.trim();
+  if (!email) { showError('Vui lòng nhập địa chỉ email.'); return; }
+
+  const resp = await fetch(API + '/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+
+  if (!resp.ok) {
+    const d = await resp.json().catch(() => ({}));
+    throw new Error(d.error || 'Email hoặc mật khẩu không đúng.');
+  }
+
+  const data = await resp.json();
+  const token = data.token || data.access_token;
+  if (!token) throw new Error('Máy chủ không trả về token. Liên hệ quản trị.');
+
+  const userRole = data.role || data.user?.role || '';
+
+  // Role gate check
+  if (currentRole === 'teacher' && userRole !== 'teacher' && userRole !== 'admin') {
+    throw new Error('Tài khoản này không có quyền đăng nhập với vai trò Giáo viên.');
+  }
+  if (currentRole === 'student' && userRole !== 'student') {
+    throw new Error('Tài khoản này không có quyền đăng nhập với vai trò Học sinh.');
+  }
+
+  localStorage.setItem('ae_token', token);
+  localStorage.setItem('ae_user', JSON.stringify({
+    name: data.name || data.user?.name || '',
+    email: data.email || data.user?.email || email,
+    role: userRole || currentRole,
+  }));
+
+  toast('Đăng nhập thành công! Đang chuyển hướng...', 'success', 1500);
+
+  const dest = currentRole === 'teacher' ? 'teacher/dashboard.html' : 'student/dashboard.html';
+  setTimeout(() => { window.location.href = dest; }, 800);
+}
+
+// ── FORGOT PASSWORD ───────────────────────────────────
+async function forgotPassword() {
+  if (currentRole === 'admin') {
+    toast('Vui lòng liên hệ quản trị hệ thống để đặt lại mật khẩu.', 'info', 5000);
+    return;
+  }
+  const email = document.getElementById('input-email').value.trim();
+  if (!email) {
+    toast('Vui lòng nhập email trước khi yêu cầu đặt lại mật khẩu.', 'error');
+    return;
+  }
+  try {
+    const resp = await fetch(API + '/api/auth/forgot-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    if (resp.ok) {
+      toast(`Email đặt lại mật khẩu đã được gửi tới ${email}`, 'success', 5000);
+    } else {
+      const d = await resp.json().catch(() => ({}));
+      toast(d.error || 'Không thể gửi email. Kiểm tra địa chỉ và thử lại.', 'error');
+    }
+  } catch {
+    toast('Không thể kết nối đến máy chủ. Vui lòng thử lại.', 'error');
+  }
+}
+
+// ── API STATUS CHECK ──────────────────────────────────
+async function checkAPIStatus() {
+  try {
+    const r = await fetch(API + '/api/health', { signal: AbortSignal.timeout(5000) });
+    const dot = document.getElementById('api-dot');
+    const status = document.getElementById('api-status');
+    if (r.ok) {
+      dot.className = 'api-dot online';
+      status.textContent = 'api.gds.edu.vn — Kết nối OK';
+    } else {
+      dot.className = 'api-dot';
+      status.textContent = 'Máy chủ không phản hồi';
+    }
+  } catch {
+    document.getElementById('api-dot').className = 'api-dot';
+    document.getElementById('api-status').textContent = 'Mất kết nối';
+  }
+}
+
+// ── KEYBOARD SHORTCUT ─────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const form = document.getElementById('login-form');
+    if (form) form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+  }
+});
+
+// ── INIT ──────────────────────────────────────────────
+(function init() {
+  // If already logged in, redirect appropriately
+  const adminToken = localStorage.getItem('ae_admin_token');
+  const userToken = localStorage.getItem('ae_token');
+  if (adminToken) { window.location.href = 'admin/dashboard_new.html'; return; }
+  if (userToken) {
+    const u = JSON.parse(localStorage.getItem('ae_user') || '{}');
+    if (u.role === 'teacher' || u.role === 'admin') {
+      window.location.href = 'teacher/dashboard.html';
+    } else {
+      window.location.href = 'student/dashboard.html';
+    }
+    return;
+  }
+  checkAPIStatus();
+  // Focus first input
+  setTimeout(() => {
+    const emailInput = document.getElementById('input-email');
+    if (emailInput) emailInput.focus();
+  }, 100);
+})();
+</script>
+</body>
+</html>

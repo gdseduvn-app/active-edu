@@ -337,3 +337,60 @@ export async function handleSetupAIAccessField(request, env, { json }) {
 
   return json({ ok: true, message: 'Đã tạo field AIAccess (Checkbox) vào bảng Users thành công.' });
 }
+
+// ── Admin: Stats dashboard ─────────────────────────────────────
+// GET /admin/stats → { total_users, active_courses, submissions_today, ai_queries_today }
+export async function handleAdminStats(request, env, { json }) {
+  if (!await verifyAdminAuth(request, env)) return json({ error: 'Unauthorized' }, 401);
+
+  let total_users = 0;
+  let active_courses = 0;
+  let submissions_today = 0;
+  let ai_queries_today = 0;
+
+  // Fetch user count from NocoDB
+  try {
+    if (env.NOCO_USERS) {
+      const r = await nocoFetch(env, `/api/v2/tables/${env.NOCO_USERS}/records?limit=1`);
+      if (r.ok) {
+        const d = await r.json();
+        total_users = d.pageInfo?.totalRows ?? d.total ?? 0;
+      }
+    }
+  } catch {}
+
+  // Fetch active (published) course count from NocoDB
+  try {
+    if (env.NOCO_COURSES) {
+      const r = await nocoFetch(env, `/api/v2/tables/${env.NOCO_COURSES}/records?where=(Status,eq,published)&limit=1`);
+      if (r.ok) {
+        const d = await r.json();
+        active_courses = d.pageInfo?.totalRows ?? d.total ?? 0;
+      }
+    }
+  } catch {}
+
+  // Fetch submissions count today from D1 action_logs
+  try {
+    if (env.DB) {
+      const stmt = env.DB.prepare(
+        "SELECT COUNT(*) as cnt FROM action_logs WHERE date(created_at) = date('now')"
+      );
+      const row = await stmt.first();
+      submissions_today = row?.cnt ?? 0;
+    }
+  } catch {}
+
+  // Fetch AI queries count today from D1 ai_sessions
+  try {
+    if (env.DB) {
+      const stmt = env.DB.prepare(
+        "SELECT COUNT(*) as cnt FROM ai_sessions WHERE date(updated_at) = date('now')"
+      );
+      const row = await stmt.first();
+      ai_queries_today = row?.cnt ?? 0;
+    }
+  } catch {}
+
+  return json({ total_users, active_courses, submissions_today, ai_queries_today });
+}

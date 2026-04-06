@@ -1,0 +1,2017 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AURA — Khoá học</title>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<style>
+:root {
+  --primary: #E66000;
+  --primary-dark: #C55500;
+  --primary-light: #FF8C3A;
+  --sidebar-bg: #2D3B45;
+  --sidebar-hover: #3D4F5C;
+  --sidebar-width: 230px;
+  --topbar-h: 56px;
+  --bg: #F5F5F5;
+  --card-bg: #FFFFFF;
+  --border: #E1E5E8;
+  --text: #2D3B45;
+  --text-muted: #6B7B8A;
+  --text-subtle: #9AAAB5;
+  --success: #16A34A;
+  --warning: #D97706;
+  --danger: #DC2626;
+  --info: #2563EB;
+  --r: 6px;
+  --shadow: 0 1px 3px rgba(0,0,0,.08);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.10);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Be Vietnam Pro', sans-serif; font-size: 14px; color: var(--text); background: var(--bg); display: flex; min-height: 100vh; }
+
+/* ── SIDEBAR ── */
+#sidebar {
+  width: var(--sidebar-width); background: var(--sidebar-bg);
+  display: flex; flex-direction: column;
+  position: fixed; top: 0; left: 0; bottom: 0; z-index: 100;
+  overflow-y: auto; transition: transform .25s ease;
+}
+.sb-logo { display: flex; align-items: center; gap: 10px; padding: 18px 16px 14px; border-bottom: 1px solid rgba(255,255,255,.07); text-decoration: none; }
+.sb-logo-icon { width: 34px; height: 34px; background: var(--primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #fff; flex-shrink: 0; }
+.sb-logo-text { }
+.sb-logo-name { font-weight: 700; font-size: 15px; color: #fff; }
+.sb-logo-name span { color: var(--primary-light); }
+.sb-logo-sub { font-size: 10px; color: rgba(255,255,255,.4); }
+.sb-section { padding: 20px 16px 6px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: rgba(255,255,255,.35); }
+.sb-item { display: flex; align-items: center; gap: 10px; padding: 9px 16px; color: rgba(199,211,217,.85); cursor: pointer; border-left: 3px solid transparent; transition: all .15s; font-size: 13px; text-decoration: none; }
+.sb-item:hover { background: var(--sidebar-hover); color: #fff; }
+.sb-item.active { background: rgba(230,96,0,.15); color: #fff; border-left-color: var(--primary); }
+.sb-item i { width: 18px; text-align: center; font-size: 13px; }
+.sb-divider { height: 1px; background: rgba(255,255,255,.07); margin: 8px 16px; }
+
+/* Course nav in sidebar */
+.sb-course-list { padding: 8px 0; }
+.sb-course-item { display: flex; align-items: center; gap: 9px; padding: 7px 16px; color: rgba(199,211,217,.7); font-size: 12px; cursor: pointer; text-decoration: none; transition: all .15s; }
+.sb-course-item:hover { color: #fff; background: rgba(255,255,255,.04); }
+.sb-course-item.active { color: #fff; }
+.sb-course-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+
+.sb-footer { margin-top: auto; padding: 14px 16px; border-top: 1px solid rgba(255,255,255,.07); font-size: 11px; color: rgba(255,255,255,.35); }
+
+/* ── MAIN ── */
+#main { margin-left: var(--sidebar-width); flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
+
+/* ── TOPBAR ── */
+.topbar { height: var(--topbar-h); background: var(--card-bg); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: sticky; top: 0; z-index: 50; box-shadow: var(--shadow); }
+.topbar-left { display: flex; align-items: center; gap: 12px; }
+.breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-muted); }
+.breadcrumb a { color: var(--text-muted); text-decoration: none; }
+.breadcrumb a:hover { color: var(--primary); }
+.breadcrumb i { font-size: 10px; }
+.breadcrumb .current { color: var(--text); font-weight: 500; }
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+.notif-btn { position: relative; background: none; border: none; font-size: 17px; color: var(--text-muted); cursor: pointer; padding: 6px; border-radius: var(--r); }
+.notif-btn:hover { background: var(--bg); }
+.notif-badge { position: absolute; top: 2px; right: 2px; width: 15px; height: 15px; background: var(--primary); color: #fff; font-size: 9px; font-weight: 700; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.avatar-btn { width: 34px; height: 34px; border-radius: 50%; background: var(--primary); color: #fff; border: none; cursor: pointer; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+
+/* ── COURSE BANNER ── */
+.course-banner {
+  height: 160px; position: relative; overflow: hidden;
+  background: linear-gradient(135deg, #2D3B45, #4A6275);
+  display: flex; align-items: flex-end;
+}
+.course-banner-bg { position: absolute; inset: 0; background-size: cover; background-position: center; }
+.course-banner-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,.65) 0%, rgba(0,0,0,.2) 60%, transparent 100%); }
+.course-banner-content { position: relative; padding: 20px 28px; color: #fff; flex: 1; }
+.course-code { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: rgba(255,255,255,.65); margin-bottom: 4px; }
+.course-title { font-size: 22px; font-weight: 700; text-shadow: 0 1px 4px rgba(0,0,0,.3); }
+.course-teacher { font-size: 12px; color: rgba(255,255,255,.75); margin-top: 4px; }
+.course-banner-actions { position: relative; padding: 20px 24px; display: flex; align-items: flex-end; gap: 8px; }
+.conf-btn { display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,.15); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,.2); color: #fff; padding: 7px 14px; border-radius: 100px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s; }
+.conf-btn:hover { background: rgba(255,255,255,.25); }
+.conf-btn.live { background: rgba(239,68,68,.7); border-color: transparent; }
+
+/* ── PROGRESS BAR ── */
+.course-progress { background: var(--card-bg); border-bottom: 1px solid var(--border); padding: 10px 28px; display: flex; align-items: center; gap: 20px; }
+.progress-label { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+.progress-bar-wrap { flex: 1; height: 6px; background: var(--border); border-radius: 100px; max-width: 300px; }
+.progress-bar-fill { height: 100%; border-radius: 100px; background: var(--primary); transition: width .5s; }
+.progress-pct { font-size: 12px; font-weight: 700; color: var(--primary); white-space: nowrap; }
+.progress-stats { display: flex; gap: 16px; margin-left: auto; }
+.stat-chip { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-muted); }
+.stat-chip i { font-size: 12px; }
+.stat-chip strong { color: var(--text); font-weight: 600; }
+
+/* ── TABS ── */
+.course-tabs { background: var(--card-bg); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; gap: 0; overflow-x: auto; }
+.tab-btn { padding: 13px 18px; font-size: 13px; font-weight: 500; color: var(--text-muted); cursor: pointer; border: none; background: none; border-bottom: 2px solid transparent; white-space: nowrap; transition: all .15s; }
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+.tab-btn i { margin-right: 6px; font-size: 12px; }
+
+/* ── CONTENT AREA ── */
+.course-body { display: flex; gap: 24px; padding: 24px; align-items: flex-start; }
+.course-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.course-side { width: 280px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px; }
+
+/* Tab panels */
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ── MODULES ── */
+.module-block { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--r); box-shadow: var(--shadow); overflow: hidden; }
+.module-header {
+  display: flex; align-items: center; gap: 12px; padding: 13px 18px;
+  cursor: pointer; user-select: none; transition: background .15s;
+  border-bottom: 1px solid transparent;
+}
+.module-header:hover { background: #fafafa; }
+.module-header.open { border-bottom-color: var(--border); }
+.module-toggle { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--text-muted); flex-shrink: 0; transition: all .2s; }
+.module-header.open .module-toggle { background: var(--primary); border-color: var(--primary); color: #fff; transform: rotate(90deg); }
+.module-num { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; }
+.module-name { font-weight: 600; font-size: 14px; flex: 1; }
+.module-meta { font-size: 11px; color: var(--text-subtle); display: flex; align-items: center; gap: 8px; }
+.module-lock { color: var(--text-subtle); font-size: 13px; margin-left: auto; }
+.module-lock.unlocked { color: var(--success); }
+.module-items { display: none; }
+.module-items.open { display: block; }
+
+/* Module items */
+.mod-item {
+  display: flex; align-items: center; gap: 12px; padding: 10px 18px 10px 52px;
+  border-bottom: 1px solid var(--border); cursor: pointer; text-decoration: none;
+  color: var(--text); transition: background .1s; position: relative;
+}
+.mod-item:last-child { border-bottom: none; }
+.mod-item:hover { background: #fafafa; }
+.mod-item.completed { opacity: .7; }
+.mod-item.locked { opacity: .5; cursor: not-allowed; }
+.mod-item-icon { width: 30px; height: 30px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+.icon-article { background: #EFF6FF; color: var(--info); }
+.icon-assignment { background: #FFF7ED; color: var(--primary); }
+.icon-quiz { background: #F0FDF4; color: var(--success); }
+.icon-survey { background: #FAF5FF; color: #7C3AED; }
+.icon-file { background: #F8FAFC; color: #64748B; }
+.mod-item-info { flex: 1; min-width: 0; }
+.mod-item-title { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mod-item-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; display: flex; gap: 10px; }
+.mod-item-status { margin-left: auto; display: flex; align-items: center; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; }
+.status-dot.done { background: var(--success); }
+.status-dot.late { background: var(--danger); }
+.status-dot.pending { background: var(--warning); }
+.status-dot.none { background: var(--border); }
+.due-chip { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 100px; }
+.due-chip.overdue { background: #FEF2F2; color: var(--danger); }
+.due-chip.soon { background: #FFFBEB; color: var(--warning); }
+.due-chip.ok { background: #F0FDF4; color: var(--success); }
+
+/* ── ASSIGNMENTS PANEL ── */
+.assign-list { display: flex; flex-direction: column; gap: 0; background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--r); box-shadow: var(--shadow); overflow: hidden; }
+.assign-item { display: flex; align-items: center; gap: 14px; padding: 13px 18px; border-bottom: 1px solid var(--border); text-decoration: none; color: var(--text); transition: background .1s; }
+.assign-item:last-child { border-bottom: none; }
+.assign-item:hover { background: #fafafa; }
+.assign-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+.assign-info { flex: 1; min-width: 0; }
+.assign-title { font-size: 13px; font-weight: 600; }
+.assign-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.assign-right { text-align: right; flex-shrink: 0; }
+.assign-score { font-size: 13px; font-weight: 700; }
+.assign-score.graded { color: var(--success); }
+.assign-score.missing { color: var(--danger); }
+.assign-due { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+/* ── ANNOUNCEMENTS PANEL ── */
+.announce-list { display: flex; flex-direction: column; gap: 12px; }
+.announce-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--r); box-shadow: var(--shadow); padding: 16px 18px; }
+.announce-card.unread { border-left: 3px solid var(--primary); }
+.announce-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.announce-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+.announce-author { font-size: 12px; color: var(--text-muted); }
+.announce-title { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+.announce-body { font-size: 13px; color: var(--text-muted); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.announce-footer { margin-top: 10px; display: flex; align-items: center; justify-content: space-between; }
+.announce-time { font-size: 11px; color: var(--text-subtle); }
+.read-more { font-size: 12px; color: var(--primary); cursor: pointer; font-weight: 500; border: none; background: none; }
+
+/* ── PEOPLE PANEL ── */
+.people-section { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--r); box-shadow: var(--shadow); overflow: hidden; }
+.people-section-header { padding: 13px 18px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 8px; }
+.people-section-header i { color: var(--text-muted); }
+.people-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; padding: 16px; }
+.person-card { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 10px; border: 1px solid var(--border); border-radius: var(--r); background: #FAFBFC; text-align: center; }
+.person-avatar { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; color: #fff; }
+.person-name { font-size: 12px; font-weight: 600; }
+.person-role { font-size: 11px; color: var(--text-muted); }
+
+/* ── GRADES PANEL ── */
+.grades-table { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--r); box-shadow: var(--shadow); overflow: hidden; }
+.grades-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border-bottom: 1px solid var(--border); }
+.grade-stat { padding: 16px; text-align: center; border-right: 1px solid var(--border); }
+.grade-stat:last-child { border-right: none; }
+.grade-stat-val { font-size: 24px; font-weight: 700; color: var(--text); }
+.grade-stat-val.good { color: var(--success); }
+.grade-stat-val.warn { color: var(--warning); }
+.grade-stat-label { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+.grade-rows { }
+.grade-row { display: flex; align-items: center; gap: 14px; padding: 12px 18px; border-bottom: 1px solid var(--border); }
+.grade-row:last-child { border-bottom: none; }
+.grade-row-icon { width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+.grade-row-info { flex: 1; min-width: 0; }
+.grade-row-title { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.grade-row-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.grade-score { font-size: 15px; font-weight: 700; }
+.grade-score.a { color: #16A34A; }
+.grade-score.b { color: #2563EB; }
+.grade-score.c { color: var(--warning); }
+.grade-score.d { color: var(--danger); }
+.grade-score.none { color: var(--text-muted); font-size: 13px; }
+
+/* ── SIDEBAR CARDS ── */
+.side-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--r); box-shadow: var(--shadow); overflow: hidden; }
+.side-card-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.side-card-title { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 7px; }
+.side-card-title i { color: var(--primary); }
+.side-card-body { padding: 12px 16px; }
+
+/* Sidebar upcoming */
+.upcoming-item { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.upcoming-item:last-child { border-bottom: none; }
+.upcoming-date { width: 36px; height: 36px; background: var(--bg); border-radius: var(--r); display: flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0; }
+.upcoming-date .day { font-size: 15px; font-weight: 700; line-height: 1; color: var(--text); }
+.upcoming-date .mon { font-size: 9px; text-transform: uppercase; color: var(--text-muted); }
+.upcoming-info { flex: 1; min-width: 0; }
+.upcoming-title { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.upcoming-type { font-size: 11px; color: var(--text-muted); }
+
+/* Sidebar announce */
+.side-announce { padding: 8px 0; border-bottom: 1px solid var(--border); cursor: pointer; }
+.side-announce:last-child { border-bottom: none; }
+.side-announce-title { font-size: 12px; font-weight: 500; }
+.side-announce-time { font-size: 11px; color: var(--text-subtle); margin-top: 2px; }
+
+/* Course info */
+.info-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 12px; }
+.info-row i { width: 16px; text-align: center; color: var(--text-muted); }
+.info-row-label { color: var(--text-muted); }
+.info-row-val { font-weight: 500; margin-left: auto; }
+
+/* ── JOIN CODE BADGE ── */
+.join-code-badge { display: flex; align-items: center; gap: 8px; background: rgba(230,96,0,.06); border: 1px dashed rgba(230,96,0,.3); border-radius: var(--r); padding: 8px 12px; }
+.join-code-label { font-size: 11px; color: var(--text-muted); }
+.join-code-val { font-size: 16px; font-weight: 700; color: var(--primary); letter-spacing: 0.12em; }
+.copy-btn { margin-left: auto; background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 13px; }
+.copy-btn:hover { color: var(--primary); }
+
+/* ── SUBMISSION MODAL ── */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 200; align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--card-bg); border-radius: 10px; width: 580px; max-width: calc(100vw - 32px); max-height: 85vh; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+.modal-header { padding: 18px 22px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.modal-title { font-size: 16px; font-weight: 700; }
+.modal-close { background: none; border: none; font-size: 18px; color: var(--text-muted); cursor: pointer; }
+.modal-body { padding: 22px; overflow-y: auto; flex: 1; }
+.modal-footer { padding: 14px 22px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
+
+/* ── ANNOUNCE DETAIL DRAWER ── */
+.drawer { position: fixed; top: 0; right: -520px; width: 520px; max-width: 100vw; bottom: 0; background: var(--card-bg); box-shadow: -4px 0 24px rgba(0,0,0,.15); z-index: 300; display: flex; flex-direction: column; transition: right .3s ease; }
+.drawer.open { right: 0; }
+.drawer-header { padding: 18px 22px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+.drawer-close { background: none; border: none; font-size: 18px; color: var(--text-muted); cursor: pointer; margin-left: auto; }
+.drawer-body { padding: 22px; overflow-y: auto; flex: 1; }
+.drawer-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+.drawer-meta { font-size: 12px; color: var(--text-muted); margin-bottom: 16px; display: flex; gap: 12px; }
+.drawer-content { font-size: 14px; line-height: 1.7; color: var(--text); }
+.drawer-overlay { display: none; position: fixed; inset: 0; z-index: 299; }
+.drawer-overlay.open { display: block; }
+
+/* ── BUTTONS ── */
+.btn { padding: 8px 16px; border-radius: var(--r); font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all .15s; display: inline-flex; align-items: center; gap: 7px; }
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-outline { background: none; border: 1px solid var(--border); color: var(--text); }
+.btn-outline:hover { border-color: var(--text-muted); }
+.btn-ghost { background: none; color: var(--text-muted); }
+.btn-ghost:hover { background: var(--bg); color: var(--text); }
+.btn-sm { padding: 5px 12px; font-size: 12px; }
+.btn-danger { background: #FEF2F2; color: var(--danger); border: 1px solid #FECACA; }
+.btn-danger:hover { background: #FEE2E2; }
+
+/* Form elements */
+.form-group { margin-bottom: 16px; }
+.form-label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .04em; }
+.form-control { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--r); font-size: 14px; font-family: inherit; color: var(--text); background: var(--card-bg); transition: border-color .15s; }
+.form-control:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(230,96,0,.1); }
+textarea.form-control { resize: vertical; min-height: 100px; }
+
+/* ── EMPTY STATE ── */
+.empty-state { text-align: center; padding: 48px 24px; color: var(--text-muted); }
+.empty-state i { font-size: 36px; margin-bottom: 12px; display: block; color: var(--text-subtle); }
+.empty-state p { font-size: 14px; }
+
+/* ── TOAST ── */
+#toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: #1E293B; color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 13px; z-index: 9999; opacity: 0; transition: all .3s; pointer-events: none; }
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* Loading skeleton */
+.skeleton { background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: var(--r); }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* ── OVERVIEW TAB ── */
+.ov-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
+.ov-stat { background:var(--card-bg); border:1px solid var(--border); border-radius:10px; padding:16px 18px; display:flex; align-items:center; gap:14px; }
+.ov-stat-icon { width:42px; height:42px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+.ov-stat-icon.orange { background:#FFF3EC; color:var(--primary); }
+.ov-stat-icon.blue   { background:#EFF6FF; color:#2563EB; }
+.ov-stat-icon.green  { background:#F0FDF4; color:#16A34A; }
+.ov-stat-icon.purple { background:#FAF5FF; color:#7C3AED; }
+.ov-stat-val  { font-size:22px; font-weight:800; color:var(--text); line-height:1; }
+.ov-stat-lbl  { font-size:11px; color:var(--text-muted); margin-top:3px; }
+.ov-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.ov-section { background:var(--card-bg); border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+.ov-section-hd { display:flex; align-items:center; justify-content:space-between; padding:13px 16px; border-bottom:1px solid var(--border); }
+.ov-section-hd h3 { font-size:13px; font-weight:700; }
+.ov-section-hd a { font-size:11px; color:var(--primary); text-decoration:none; }
+.ov-todo-item { display:flex; align-items:flex-start; gap:12px; padding:11px 16px; border-bottom:1px solid var(--border); transition:background .1s; cursor:pointer; }
+.ov-todo-item:last-child { border-bottom:none; }
+.ov-todo-item:hover { background:#FAFAFA; }
+.ov-todo-dot { width:8px; height:8px; border-radius:50%; margin-top:4px; flex-shrink:0; }
+.ov-todo-dot.red { background:#EF4444; }
+.ov-todo-dot.orange { background:#F97316; }
+.ov-todo-dot.blue { background:#3B82F6; }
+.ov-todo-dot.gray { background:#CBD5E1; }
+.ov-todo-title { font-size:13px; font-weight:500; }
+.ov-todo-meta  { font-size:11px; color:var(--text-muted); margin-top:2px; }
+.ov-ann-item { display:flex; align-items:flex-start; gap:10px; padding:10px 16px; border-bottom:1px solid var(--border); cursor:pointer; transition:background .1s; }
+.ov-ann-item:last-child { border-bottom:none; }
+.ov-ann-item:hover { background:#FAFAFA; }
+.ov-ann-av { width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#fff; flex-shrink:0; }
+.ov-ann-title { font-size:12px; font-weight:600; }
+.ov-ann-meta  { font-size:11px; color:var(--text-muted); margin-top:2px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.ov-conf-card { background:linear-gradient(135deg,#1E293B,#334155); color:#fff; border-radius:10px; padding:18px 20px; margin-bottom:16px; display:flex; align-items:center; gap:16px; }
+.ov-conf-pulse { width:12px; height:12px; background:#EF4444; border-radius:50%; box-shadow:0 0 0 0 rgba(239,68,68,.4); animation:pulse-red 1.5s infinite; }
+@keyframes pulse-red { 0%{box-shadow:0 0 0 0 rgba(239,68,68,.4)} 70%{box-shadow:0 0 0 8px rgba(239,68,68,0)} 100%{box-shadow:0 0 0 0 rgba(239,68,68,0)} }
+
+/* ── FILE LIST ── */
+.file-row { display:flex; align-items:center; gap:14px; padding:12px 18px; border-bottom:1px solid var(--border); transition:background .1s; }
+.file-row:last-child { border-bottom:none; }
+.file-row:hover { background:#fafafa; }
+.file-icon { width:38px; height:38px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+.file-icon.pdf { background:#FEF2F2; color:#DC2626; }
+.file-icon.word { background:#EFF6FF; color:#2563EB; }
+.file-icon.excel { background:#F0FDF4; color:#16A34A; }
+.file-icon.ppt { background:#FFF7ED; color:#EA580C; }
+.file-icon.image { background:#FAF5FF; color:#7C3AED; }
+.file-icon.video { background:#FFFBEB; color:#D97706; }
+.file-icon.zip { background:#F8FAFC; color:#64748B; }
+.file-icon.other { background:#F8FAFC; color:#64748B; }
+.file-info { flex:1; min-width:0; }
+.file-name { font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.file-meta { font-size:11px; color:var(--text-muted); margin-top:2px; display:flex; gap:10px; }
+.file-actions { display:flex; gap:6px; flex-shrink:0; }
+
+/* ── TEACHER MODULE CONTROLS ── */
+.module-block.unpublished { opacity:.65; border-style:dashed; }
+.module-teacher-bar { display:flex; gap:6px; margin-left:8px; align-items:center; }
+.publish-toggle { font-size:10px; font-weight:700; padding:3px 9px; border-radius:100px; border:1px solid transparent; cursor:pointer; transition:all .15s; }
+.publish-toggle.pub { background:#DCFCE7; color:#16A34A; border-color:#BBF7D0; }
+.publish-toggle.unpub { background:#FEF3C7; color:#D97706; border-color:#FDE68A; }
+.publish-toggle:hover { filter:brightness(.92); }
+.req-icon { font-size:12px; color:var(--text-subtle); margin-left:3px; cursor:default; }
+.add-module-btn { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:11px; border:2px dashed var(--border); border-radius:var(--r); background:none; color:var(--text-muted); font-size:13px; font-weight:600; cursor:pointer; margin-top:12px; transition:all .15s; }
+.add-module-btn:hover { border-color:var(--primary); color:var(--primary); background:rgba(230,96,0,.03); }
+
+/* ── SUBMISSION STATUS BADGES ── */
+.status-badge { display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:700; padding:3px 8px; border-radius:100px; white-space:nowrap; }
+.status-badge.submitted { background:#DCFCE7; color:#16A34A; }
+.status-badge.graded { background:#DBEAFE; color:#2563EB; }
+.status-badge.overdue { background:#FEE2E2; color:#DC2626; }
+.status-badge.pending { background:#FEF3C7; color:#D97706; }
+.status-badge.missing { background:#F1F5F9; color:#64748B; }
+
+/* ── FILE DRAG ZONE ── */
+.drag-zone { border:2px dashed var(--border); border-radius:8px; padding:20px 16px; text-align:center; cursor:pointer; transition:all .2s; background:var(--bg); }
+.drag-zone:hover, .drag-zone.drag-over { border-color:var(--primary); background:rgba(230,96,0,.04); }
+.drag-zone i { font-size:24px; color:var(--text-subtle); display:block; margin-bottom:8px; }
+.drag-zone-text { font-size:13px; color:var(--text-muted); }
+.drag-zone-text strong { color:var(--primary); }
+.selected-file-info { display:flex; align-items:center; gap:10px; background:#F0FDF4; border:1px solid #BBF7D0; border-radius:var(--r); padding:8px 12px; margin-top:8px; font-size:12px; color:#16A34A; }
+
+/* ── PREV SUBMISSION BANNER ── */
+.prev-sub-banner { background:#EFF6FF; border:1px solid #BFDBFE; border-radius:8px; padding:10px 14px; margin-bottom:14px; display:flex; align-items:center; gap:10px; font-size:12px; }
+.prev-sub-banner i { color:#2563EB; font-size:14px; }
+.prev-sub-banner strong { color:#1E40AF; }
+
+/* ── RUBRIC TABLE ── */
+.rubric-wrap { margin-top:14px; }
+.rubric-wrap h4 { font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:8px; }
+.rubric-table { width:100%; border-collapse:collapse; font-size:12px; }
+.rubric-table th { background:var(--bg); padding:7px 10px; text-align:left; font-weight:600; border:1px solid var(--border); color:var(--text-muted); }
+.rubric-table td { padding:7px 10px; border:1px solid var(--border); vertical-align:top; }
+.rubric-table .pts { font-weight:700; color:var(--primary); white-space:nowrap; }
+
+/* ── CONFERENCES ── */
+.conf-list { background:var(--card-bg); border:1px solid var(--border); border-radius:var(--r); box-shadow:var(--shadow); overflow:hidden; }
+.conf-list-item { display:flex; align-items:center; gap:14px; padding:14px 18px; border-bottom:1px solid var(--border); }
+.conf-list-item:last-child { border-bottom:none; }
+.conf-live-indicator { display:flex; align-items:center; gap:6px; }
+.conf-live-dot { width:10px; height:10px; background:#EF4444; border-radius:50%; animation:pulse-red 1.5s infinite; flex-shrink:0; }
+.conf-sched-dot { width:10px; height:10px; background:#3B82F6; border-radius:50%; flex-shrink:0; }
+.conf-ended-dot { width:10px; height:10px; background:var(--border); border-radius:50%; flex-shrink:0; }
+.conf-info { flex:1; min-width:0; }
+.conf-title { font-size:13px; font-weight:600; }
+.conf-meta { font-size:11px; color:var(--text-muted); margin-top:2px; }
+.conf-badge { font-size:10px; font-weight:700; padding:2px 8px; border-radius:100px; }
+.conf-badge.live { background:#FEE2E2; color:#DC2626; }
+.conf-badge.scheduled { background:#DBEAFE; color:#2563EB; }
+.conf-badge.ended { background:#F1F5F9; color:#64748B; }
+
+/* ── UPLOAD PROGRESS ── */
+.upload-prog-wrap { margin-top:10px; }
+.upload-prog-bar { height:6px; background:var(--border); border-radius:100px; overflow:hidden; margin-bottom:6px; }
+.upload-prog-fill { height:100%; background:linear-gradient(90deg,var(--primary),#FF8C3A); border-radius:100px; transition:width .2s ease; }
+.upload-prog-label { font-size:11px; color:var(--text-muted); display:flex; justify-content:space-between; }
+.drive-file-chip { display:flex; align-items:center; gap:8px; background:#F0FDF4; border:1px solid #BBF7D0; border-radius:var(--r); padding:8px 12px; margin-top:8px; }
+.drive-file-chip i { color:#16A34A; font-size:16px; }
+.drive-file-chip a { font-size:12px; font-weight:600; color:#16A34A; text-decoration:none; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.drive-file-chip a:hover { text-decoration:underline; }
+
+/* ── CONFETTI ── */
+@keyframes confetti-fall { 0%{transform:translateY(-20px) rotate(0deg);opacity:1} 100%{transform:translateY(60px) rotate(720deg);opacity:0} }
+.confetti-piece { position:fixed; width:8px; height:8px; border-radius:2px; pointer-events:none; animation:confetti-fall .9s ease-out forwards; z-index:9999; }
+
+/* ── MOBILE ── */
+@media (max-width: 900px) {
+  #sidebar { transform: translateX(-100%); }
+  #sidebar.mobile-open { transform: translateX(0); }
+  #main { margin-left: 0; }
+  .course-body { flex-direction: column; padding: 16px; }
+  .course-side { width: 100%; }
+  .course-progress { flex-wrap: wrap; gap: 8px; }
+  .hamburger { display: flex !important; }
+}
+.hamburger { display: none; background: none; border: none; font-size: 18px; cursor: pointer; color: var(--text); margin-right: 8px; }
+.overlay-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 99; }
+.overlay-bg.open { display: block; }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<nav id="sidebar">
+  <a class="sb-logo" href="../student/dashboard.html">
+    <div class="sb-logo-icon"><i class="fa-solid fa-bolt-lightning"></i></div>
+    <div class="sb-logo-text">
+      <div class="sb-logo-name">A<span>U</span>RA</div>
+      <div class="sb-logo-sub">Learning System</div>
+    </div>
+  </a>
+  <div class="sb-section">Tổng quan</div>
+  <a class="sb-item" href="../student/dashboard.html"><i class="fa-solid fa-house"></i> Bảng điều khiển</a>
+  <a class="sb-item active" href="#"><i class="fa-solid fa-book-open"></i> Khoá học</a>
+  <a class="sb-item" id="sb-disc" href="../discussions.html"><i class="fa-solid fa-comments"></i> Thảo luận</a>
+  <a class="sb-item" href="../messages.html"><i class="fa-solid fa-envelope"></i> Tin nhắn</a>
+  <a class="sb-item" id="sb-cal" href="../calendar.html"><i class="fa-solid fa-calendar"></i> Lịch</a>
+  <a class="sb-item" href="../portfolio.html"><i class="fa-solid fa-star"></i> ePortfolio</a>
+  <div class="sb-divider"></div>
+  <div class="sb-section">Khoá học của tôi</div>
+  <div class="sb-course-list" id="sb-courses"></div>
+  <div class="sb-footer">
+    <div id="sb-user-name" style="font-weight:600;color:rgba(255,255,255,.6);margin-bottom:4px;"></div>
+    <a href="../login.html" id="logout-link" style="cursor:pointer;">Đăng xuất</a>
+  </div>
+</nav>
+<div class="overlay-bg" id="overlay-bg" onclick="closeSidebar()"></div>
+
+<!-- MAIN -->
+<div id="main">
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="hamburger" onclick="openSidebar()"><i class="fa-solid fa-bars"></i></button>
+      <div class="breadcrumb">
+        <a href="../student/dashboard.html">Bảng điều khiển</a>
+        <i class="fa-solid fa-chevron-right"></i>
+        <a href="../student/dashboard.html">Khoá học</a>
+        <i class="fa-solid fa-chevron-right"></i>
+        <span class="current" id="bc-course">Đang tải...</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <button class="notif-btn" title="Thông báo"><i class="fa-solid fa-bell"></i><span class="notif-badge" id="notif-count" style="display:none;"></span></button>
+      <button class="avatar-btn" id="avatar-btn" title="Tài khoản">U</button>
+    </div>
+  </div>
+
+  <!-- COURSE BANNER -->
+  <div class="course-banner" id="course-banner">
+    <div class="course-banner-bg" id="banner-bg"></div>
+    <div class="course-banner-overlay"></div>
+    <div class="course-banner-content">
+      <div class="course-code" id="course-code">...</div>
+      <div class="course-title" id="course-title">Đang tải khoá học...</div>
+      <div class="course-teacher" id="course-teacher"></div>
+    </div>
+    <div class="course-banner-actions" id="banner-actions"></div>
+  </div>
+
+  <!-- PROGRESS -->
+  <div class="course-progress" id="course-progress" style="display:none;">
+    <span class="progress-label">Tiến độ</span>
+    <div class="progress-bar-wrap"><div class="progress-bar-fill" id="prog-bar" style="width:0%"></div></div>
+    <span class="progress-pct" id="prog-pct">0%</span>
+    <div class="progress-stats" id="prog-stats"></div>
+  </div>
+
+  <!-- TABS -->
+  <div class="course-tabs">
+    <button class="tab-btn active" onclick="switchTab('overview',this)"><i class="fa-solid fa-house"></i>Tổng quan</button>
+    <button class="tab-btn" onclick="switchTab('modules',this)"><i class="fa-solid fa-list"></i>Modules</button>
+    <button class="tab-btn" onclick="switchTab('assignments',this)"><i class="fa-solid fa-file-pen"></i>Bài tập</button>
+    <button class="tab-btn" onclick="switchTab('announcements',this)"><i class="fa-solid fa-bullhorn"></i>Thông báo</button>
+    <button class="tab-btn" onclick="switchTab('people',this)"><i class="fa-solid fa-users"></i>Thành viên</button>
+    <button class="tab-btn" onclick="switchTab('grades',this)"><i class="fa-solid fa-chart-simple"></i>Điểm số</button>
+    <button class="tab-btn" onclick="switchTab('files',this)"><i class="fa-solid fa-folder-open"></i>Tài liệu</button>
+    <button class="tab-btn" onclick="switchTab('conferences',this)"><i class="fa-solid fa-video"></i>Hội nghị</button>
+  </div>
+
+  <!-- BODY -->
+  <div class="course-body">
+    <!-- MAIN PANELS -->
+    <div class="course-main">
+
+      <!-- OVERVIEW TAB -->
+      <div class="tab-panel active" id="panel-overview">
+        <div id="ov-conf-wrap"></div>
+        <div class="ov-stats" id="ov-stats">
+          <div class="ov-stat"><div class="ov-stat-icon orange"><i class="fa-solid fa-chart-line"></i></div><div><div class="ov-stat-val" id="ov-progress-val">—</div><div class="ov-stat-lbl">Tiến độ</div></div></div>
+          <div class="ov-stat"><div class="ov-stat-icon red"><i class="fa-solid fa-clock"></i></div><div><div class="ov-stat-val" id="ov-due-val">—</div><div class="ov-stat-lbl">Bài tập sắp đến hạn</div></div></div>
+          <div class="ov-stat"><div class="ov-stat-icon blue"><i class="fa-solid fa-bullhorn"></i></div><div><div class="ov-stat-val" id="ov-ann-val">—</div><div class="ov-stat-lbl">Thông báo mới</div></div></div>
+          <div class="ov-stat"><div class="ov-stat-icon green"><i class="fa-solid fa-users"></i></div><div><div class="ov-stat-val" id="ov-members-val">—</div><div class="ov-stat-lbl">Thành viên</div></div></div>
+        </div>
+        <div class="ov-grid">
+          <div class="ov-section">
+            <div class="ov-section-hd">
+              <h3><i class="fa-solid fa-list-check" style="color:var(--primary);margin-right:6px;"></i>Việc cần làm</h3>
+              <a href="#" onclick="switchTab('assignments',document.querySelectorAll('.tab-btn')[2]);return false;">Xem tất cả →</a>
+            </div>
+            <div id="ov-todo-list"><div style="padding:20px;text-align:center;color:var(--text-muted);font-size:12px;">Đang tải...</div></div>
+          </div>
+          <div class="ov-section">
+            <div class="ov-section-hd">
+              <h3><i class="fa-solid fa-bullhorn" style="color:#3B82F6;margin-right:6px;"></i>Thông báo gần đây</h3>
+              <a href="#" onclick="switchTab('announcements',document.querySelectorAll('.tab-btn')[3]);return false;">Xem tất cả →</a>
+            </div>
+            <div id="ov-ann-list"><div style="padding:20px;text-align:center;color:var(--text-muted);font-size:12px;">Đang tải...</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODULES TAB -->
+      <div class="tab-panel" id="panel-modules">
+        <div id="modules-list"><div class="empty-state skeleton" style="height:120px;"></div></div>
+      </div>
+
+      <!-- ASSIGNMENTS TAB -->
+      <div class="tab-panel" id="panel-assignments">
+        <div class="assign-list" id="assign-list">
+          <div style="padding:24px;text-align:center;color:var(--text-muted);">Đang tải...</div>
+        </div>
+      </div>
+
+      <!-- ANNOUNCEMENTS TAB -->
+      <div class="tab-panel" id="panel-announcements">
+        <div class="announce-list" id="announce-list">
+          <div style="padding:24px;text-align:center;color:var(--text-muted);">Đang tải...</div>
+        </div>
+      </div>
+
+      <!-- PEOPLE TAB -->
+      <div class="tab-panel" id="panel-people">
+        <div id="people-wrap"></div>
+      </div>
+
+      <!-- GRADES TAB -->
+      <div class="tab-panel" id="panel-grades">
+        <div class="grades-table" id="grades-wrap">
+          <div style="padding:24px;text-align:center;color:var(--text-muted);">Đang tải...</div>
+        </div>
+      </div>
+
+      <!-- CONFERENCES TAB -->
+      <div class="tab-panel" id="panel-conferences">
+        <div id="conf-panel-body">
+          <div style="padding:24px;text-align:center;color:var(--text-muted);">Đang tải...</div>
+        </div>
+      </div>
+
+      <!-- FILES TAB -->
+      <div class="tab-panel" id="panel-files">
+        <div class="card" style="overflow:hidden;">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-folder-open" style="color:var(--primary);margin-right:6px;"></i>Tài liệu khoá học</span>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <select id="file-folder-filter" class="form-control" style="padding:5px 10px;font-size:12px;width:auto;" onchange="filterFiles()">
+                <option value="">Tất cả thư mục</option>
+              </select>
+              <button class="btn btn-primary btn-sm" id="upload-btn" style="display:none;" onclick="document.getElementById('file-input').click()">
+                <i class="fa-solid fa-upload"></i> Tải lên
+              </button>
+              <input type="file" id="file-input" style="display:none;" multiple onchange="handleFileUpload(event)" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.mp4,.zip">
+            </div>
+          </div>
+          <!-- Upload progress -->
+          <div id="upload-progress" style="display:none;padding:10px 18px;background:#F0FDF4;border-bottom:1px solid var(--border);">
+            <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--success);">
+              <i class="fa-solid fa-spinner fa-spin"></i>
+              <span id="upload-progress-text">Đang tải lên...</span>
+            </div>
+          </div>
+          <div id="files-list">
+            <div style="padding:24px;text-align:center;color:var(--text-muted);">Đang tải...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SIDEBAR -->
+    <div class="course-side">
+      <!-- Course Info -->
+      <div class="side-card" id="info-card">
+        <div class="side-card-header">
+          <div class="side-card-title"><i class="fa-solid fa-circle-info"></i>Thông tin khoá học</div>
+        </div>
+        <div class="side-card-body" id="info-body">
+          <div class="info-row"><i class="fa-solid fa-circle-notch fa-spin"></i>Đang tải...</div>
+        </div>
+      </div>
+
+      <!-- Join Code (teacher/admin only) -->
+      <div class="side-card" id="join-code-card" style="display:none;">
+        <div class="side-card-header">
+          <div class="side-card-title"><i class="fa-solid fa-key"></i>Mã tham gia</div>
+        </div>
+        <div class="side-card-body">
+          <div class="join-code-badge">
+            <div>
+              <div class="join-code-label">Mã lớp học</div>
+              <div class="join-code-val" id="join-code-val">------</div>
+            </div>
+            <button class="copy-btn" onclick="copyJoinCode()" title="Sao chép"><i class="fa-solid fa-copy"></i></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Upcoming -->
+      <div class="side-card">
+        <div class="side-card-header">
+          <div class="side-card-title"><i class="fa-solid fa-clock"></i>Sắp đến hạn</div>
+        </div>
+        <div class="side-card-body" id="upcoming-list">
+          <div class="empty-state" style="padding:16px;font-size:12px;">Không có sự kiện</div>
+        </div>
+      </div>
+
+      <!-- Recent Announcements -->
+      <div class="side-card">
+        <div class="side-card-header">
+          <div class="side-card-title"><i class="fa-solid fa-bullhorn"></i>Thông báo gần đây</div>
+          <button class="btn btn-ghost btn-sm" onclick="switchTab('announcements',document.querySelectorAll('.tab-btn')[3])">Tất cả</button>
+        </div>
+        <div class="side-card-body" id="side-announcements">
+          <div class="empty-state" style="padding:8px;font-size:12px;">Chưa có thông báo</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SUBMISSION MODAL -->
+<div class="modal-overlay" id="submit-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="submit-modal-title">Nộp bài</div>
+      <button class="modal-close" onclick="closeSubmitModal()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" id="submit-modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeSubmitModal()">Huỷ</button>
+      <button class="btn btn-primary" id="submit-btn" onclick="submitAssignment()"><i class="fa-solid fa-paper-plane"></i>Nộp bài</button>
+    </div>
+  </div>
+</div>
+
+<!-- ANNOUNCEMENT DRAWER -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="ann-drawer">
+  <div class="drawer-header">
+    <i class="fa-solid fa-bullhorn" style="color:var(--primary);font-size:16px;"></i>
+    <span style="font-weight:600;font-size:15px;">Thông báo</span>
+    <button class="drawer-close" onclick="closeDrawer()"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <div class="drawer-body" id="drawer-body"></div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+const API = 'https://api.gds.edu.vn';
+const TOKEN_KEY = 'ae_token';
+let courseId = null, session = null, courseData = null;
+let allModules = [], allItems = [], allAnnouncements = [], allAssignments = [];
+let moduleOpen = {};
+
+// ── Init ──────────────────────────────────────────────────────
+async function init() {
+  const params = new URLSearchParams(location.search);
+  courseId = params.get('course_id') || params.get('id');
+  if (!courseId) { showToast('Không tìm thấy khoá học'); return; }
+
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!token) { location.href = '../login.html'; return; }
+
+  try {
+    const me = await apiFetch('/api/auth/me');
+    session = me;
+    document.getElementById('avatar-btn').textContent = (me.name || me.username || 'U')[0].toUpperCase();
+    document.getElementById('sb-user-name').textContent = me.name || me.email || '';
+    document.getElementById('logout-link').onclick = () => { localStorage.removeItem(TOKEN_KEY); location.href='../login.html'; };
+  } catch { location.href = '../login.html'; return; }
+
+  // Fix sidebar links with course_id
+  document.getElementById('sb-disc').href = `../discussions.html?course_id=${courseId}`;
+  document.getElementById('sb-cal').href = `../calendar.html?course_id=${courseId}`;
+
+  // Parallel load
+  await Promise.all([
+    loadCourse(),
+    loadSidebarCourses()
+  ]);
+}
+
+// ── API fetch helper ──────────────────────────────────────────
+async function apiFetch(path, opts = {}) {
+  const token = localStorage.getItem(TOKEN_KEY);
+  const res = await fetch(API + path, {
+    ...opts,
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', ...(opts.headers || {}) }
+  });
+  if (!res.ok) throw new Error(res.status);
+  return res.json();
+}
+
+// ── Load course data ──────────────────────────────────────────
+async function loadCourse() {
+  try {
+    const [courseRes, modulesRes, itemsRes, announcementsRes, assessmentsRes, eventsRes] = await Promise.allSettled([
+      apiFetch(`/api/courses?id=${courseId}`),
+      apiFetch(`/api/modules?course_id=${courseId}`),
+      apiFetch(`/api/progress?course_id=${courseId}`),
+      apiFetch(`/api/announcements?course_id=${courseId}`),
+      apiFetch(`/api/assessments?course_id=${courseId}`),
+      apiFetch(`/api/calendar/events?course_id=${courseId}`)
+    ]);
+
+    // Course info
+    if (courseRes.status === 'fulfilled') {
+      const d = courseRes.value;
+      const courses = d.list || d.courses || (Array.isArray(d) ? d : [d]);
+      courseData = courses.find(c => String(c.Id) === String(courseId)) || courses[0];
+      if (courseData) renderCourseHeader(courseData);
+    }
+
+    // Modules
+    if (modulesRes.status === 'fulfilled') {
+      const d = modulesRes.value;
+      allModules = (d.list || d.modules || []).sort((a, b) => (a.Position || a.Order || 0) - (b.Position || b.Order || 0));
+    }
+
+    // Items (progress items = articles in modules)
+    if (itemsRes.status === 'fulfilled') {
+      const d = itemsRes.value;
+      allItems = d.list || d.items || d.articles || [];
+    }
+
+    // Announcements
+    if (announcementsRes.status === 'fulfilled') {
+      const d = announcementsRes.value;
+      allAnnouncements = (d.list || d.announcements || []).sort((a, b) => new Date(b.PublishedAt || b.CreatedAt) - new Date(a.PublishedAt || a.CreatedAt));
+    }
+
+    // Assessments
+    if (assessmentsRes.status === 'fulfilled') {
+      const d = assessmentsRes.value;
+      allAssignments = (d.list || d.assessments || []);
+    }
+
+    // Calendar events
+    let events = [];
+    if (eventsRes.status === 'fulfilled') {
+      const d = eventsRes.value;
+      events = (d.list || d.events || []).filter(e => new Date(e.StartAt || e.start_at) > new Date()).slice(0, 5);
+    }
+
+    // Render all panels
+    renderModules();
+    renderAssignmentsPanel();
+    renderAnnouncementsPanel();
+    renderSideAnnouncements();
+    renderUpcoming(events);
+    loadGrades();
+    loadPeople();
+    // Render overview last (needs allAssignments + allAnnouncements ready)
+    overviewRendered = true;
+    renderOverview();
+    // Load submission statuses async (non-blocking)
+    loadSubmissionStatuses();
+
+  } catch(e) {
+    console.error('loadCourse error', e);
+  }
+}
+
+// ── Render course header ──────────────────────────────────────
+const COURSE_COLORS = ['#E66000','#2563EB','#16A34A','#7C3AED','#0891B2','#DC2626','#D97706','#059669'];
+function renderCourseHeader(c) {
+  const name = c.Title || c.Name || c.CourseName || 'Khoá học';
+  const code = c.CourseCode || c.Code || '';
+  const teacher = c.TeacherName || c.Teacher || '';
+  const color = c.Color || COURSE_COLORS[c.Id % COURSE_COLORS.length] || COURSE_COLORS[0];
+  const imgUrl = c.CoverImage || c.ImageUrl || '';
+
+  document.title = `AURA — ${name}`;
+  document.getElementById('bc-course').textContent = name;
+  document.getElementById('course-title').textContent = name;
+  document.getElementById('course-code').textContent = code;
+  document.getElementById('course-teacher').innerHTML = teacher ? `<i class="fa-solid fa-chalkboard-teacher" style="margin-right:5px;font-size:11px;"></i>${teacher}` : '';
+
+  const banner = document.getElementById('course-banner');
+  const bannerBg = document.getElementById('banner-bg');
+  if (imgUrl) {
+    bannerBg.style.backgroundImage = `url(${imgUrl})`;
+  } else {
+    banner.style.background = `linear-gradient(135deg, ${color}cc, ${color}88)`;
+  }
+
+  // Progress
+  const progress = c.Progress || 0;
+  if (progress > 0 || allItems.length > 0) {
+    const pct = Math.round(progress);
+    document.getElementById('prog-bar').style.width = pct + '%';
+    document.getElementById('prog-pct').textContent = pct + '%';
+    document.getElementById('course-progress').style.display = 'flex';
+    document.getElementById('prog-stats').innerHTML = `
+      <div class="stat-chip"><i class="fa-solid fa-book"></i><strong>${allItems.length}</strong> bài học</div>
+      <div class="stat-chip"><i class="fa-solid fa-file-pen"></i><strong>${allAssignments.length}</strong> bài tập</div>
+    `;
+  }
+
+  // Info card
+  const infoRows = [];
+  if (code) infoRows.push(`<div class="info-row"><i class="fa-solid fa-hashtag"></i><span class="info-row-label">Mã khoá học</span><span class="info-row-val">${escHtml(code)}</span></div>`);
+  if (teacher) infoRows.push(`<div class="info-row"><i class="fa-solid fa-user"></i><span class="info-row-label">Giáo viên</span><span class="info-row-val">${escHtml(teacher)}</span></div>`);
+  if (c.StartDate) infoRows.push(`<div class="info-row"><i class="fa-regular fa-calendar"></i><span class="info-row-label">Bắt đầu</span><span class="info-row-val">${fmtDate(c.StartDate)}</span></div>`);
+  if (c.EndDate) infoRows.push(`<div class="info-row"><i class="fa-regular fa-calendar-check"></i><span class="info-row-label">Kết thúc</span><span class="info-row-val">${fmtDate(c.EndDate)}</span></div>`);
+  if (c.WorkflowState) infoRows.push(`<div class="info-row"><i class="fa-solid fa-circle-dot" style="color:${c.WorkflowState==='available'?'#16A34A':'#9AAAB5'}"></i><span class="info-row-label">Trạng thái</span><span class="info-row-val">${c.WorkflowState==='available'?'Đang mở':'Chưa mở'}</span></div>`);
+  document.getElementById('info-body').innerHTML = infoRows.join('') || '<div class="info-row"><i class="fa-solid fa-info-circle"></i>Không có thông tin</div>';
+
+  // Join code (teacher/admin)
+  if ((session?.role === 'teacher' || session?.role === 'admin') && c.JoinCode) {
+    document.getElementById('join-code-card').style.display = 'block';
+    document.getElementById('join-code-val').textContent = c.JoinCode;
+  }
+
+  // Conference button
+  loadConferences();
+
+  // Sidebar course list - mark active
+  renderSidebarCourses();
+}
+
+// ── Load conferences ──────────────────────────────────────────
+async function loadConferences() {
+  try {
+    const d = await apiFetch(`/api/conferences?course_id=${courseId}`);
+    const confs = (d.list || d || []).filter(c => c.Status === 'started' || c.Status === 'live');
+    if (confs.length > 0) {
+      const conf = confs[0];
+      document.getElementById('banner-actions').innerHTML = `
+        <button class="conf-btn live" onclick="joinConference('${conf.RoomName || conf.Id}')">
+          <i class="fa-solid fa-video"></i> Tham gia lớp học trực tuyến
+        </button>`;
+    } else if (session?.role === 'teacher' || session?.role === 'admin') {
+      document.getElementById('banner-actions').innerHTML = `
+        <button class="conf-btn" onclick="openCreateConfModal()">
+          <i class="fa-solid fa-video"></i> Tạo phòng học trực tuyến
+        </button>`;
+    }
+  } catch {}
+}
+
+// ── Render modules ────────────────────────────────────────────
+function renderModules() {
+  const container = document.getElementById('modules-list');
+  if (!allModules.length) {
+    container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-box-open"></i><p>Chưa có modules nào</p></div>`;
+    return;
+  }
+
+  const isTeacher = session?.role === 'teacher' || session?.role === 'admin';
+
+  // Group items by ModuleId
+  const byModule = {};
+  allItems.forEach(item => {
+    const mid = item.ModuleId || item.module_id;
+    if (mid) { (byModule[mid] = byModule[mid] || []).push(item); }
+  });
+  // Also map assessments by ModuleId
+  allAssignments.forEach(item => {
+    const mid = item.ModuleId || item.module_id;
+    if (mid) { (byModule[mid] = byModule[mid] || []).push({ ...item, _type: 'assessment' }); }
+  });
+
+  const html = allModules.map((mod, idx) => {
+    const mid = mod.Id;
+    const items = (byModule[mid] || []).sort((a,b) => (a.Position||a.Order||0)-(b.Position||b.Order||0));
+    const isOpen = moduleOpen[mid] !== false; // default open for first 2
+    if (idx >= 2 && moduleOpen[mid] === undefined) moduleOpen[mid] = false;
+
+    const itemsHtml = items.map(item => renderModuleItem(item)).join('');
+    const locked = mod.UnlockCondition && mod.UnlockCondition !== '';
+    const isPublished = !mod.WorkflowState || mod.WorkflowState === 'published' || mod.WorkflowState === 'active';
+
+    // Teacher controls
+    const teacherBar = isTeacher ? `
+      <div class="module-teacher-bar" onclick="event.stopPropagation()">
+        <button class="publish-toggle ${isPublished ? 'pub' : 'unpub'}" id="pub-toggle-${mid}"
+          onclick="toggleModulePublish(event,'${mid}',this)"
+          title="${isPublished ? 'Đã xuất bản — nhấn để ẩn' : 'Chưa xuất bản — nhấn để xuất bản'}">
+          ${isPublished ? '<i class="fa-solid fa-eye"></i> Đã xuất bản' : '<i class="fa-solid fa-eye-slash"></i> Ẩn'}
+        </button>
+      </div>` : '';
+
+    return `
+    <div class="module-block ${isPublished ? '' : 'unpublished'}" id="mod-block-${mid}">
+      <div class="module-header ${isOpen ? 'open' : ''}" onclick="toggleModule('${mid}', this)">
+        <div class="module-toggle"><i class="fa-solid fa-chevron-right"></i></div>
+        <div style="flex:1;min-width:0;">
+          <div class="module-num">Module ${idx+1}${!isPublished ? ' · <span style="color:var(--warning);font-weight:700;">Chưa xuất bản</span>' : ''}</div>
+          <div class="module-name">${escHtml(mod.Title || mod.Name || 'Module')}</div>
+          ${mod.Description ? `<div class="module-meta">${escHtml(mod.Description.substring(0,80))}</div>` : ''}
+        </div>
+        <div class="module-meta" style="margin-right:8px;">${items.length} mục</div>
+        ${teacherBar}
+        <div class="module-lock ${locked ? '' : 'unlocked'}">
+          <i class="fa-solid ${locked ? 'fa-lock' : 'fa-lock-open'}" title="${locked ? `Yêu cầu hoàn thành điều kiện trước` : 'Đã mở khoá'}"></i>
+        </div>
+      </div>
+      <div class="module-items ${isOpen ? 'open' : ''}" id="mi-${mid}">
+        ${itemsHtml || '<div style="padding:14px 52px;font-size:12px;color:var(--text-muted);">Chưa có nội dung</div>'}
+        ${isTeacher ? `<div style="padding:8px 52px 12px;"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openAddItemModal('${mid}')"><i class="fa-solid fa-plus"></i> Thêm mục</button></div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  container.innerHTML = html + (isTeacher ? `<button class="add-module-btn" onclick="openAddModuleModal()"><i class="fa-solid fa-plus"></i> Thêm Module mới</button>` : '');
+}
+
+function renderModuleItem(item) {
+  const type = item._type === 'assessment' ? (item.AssessmentType || 'assignment') : 'article';
+  const title = item.Title || item.Name || item.Subject || 'Bài học';
+  const due = item.DueDate || item.due_date;
+  const completed = item.completed || item.Status === 'submitted' || item.Status === 'graded';
+  const locked = item.locked || item.IsLocked;
+
+  let iconClass, iconSymbol, href;
+  if (type === 'quiz' || type === 'Quiz') { iconClass = 'icon-quiz'; iconSymbol = 'fa-circle-check'; href = `../quiz.html?id=${item.Id}&course_id=${courseId}`; }
+  else if (type === 'survey' || type === 'Survey') { iconClass = 'icon-survey'; iconSymbol = 'fa-clipboard-list'; href = `../quiz.html?id=${item.Id}&type=survey&course_id=${courseId}`; }
+  else if (type === 'assignment' || type === 'Assignment') { iconClass = 'icon-assignment'; iconSymbol = 'fa-file-pen'; href = '#'; }
+  else { iconClass = 'icon-article'; iconSymbol = 'fa-book-open'; href = `page.html?course_id=${courseId}&article_id=${item.Id}`; }
+
+  // Completion requirements icons
+  let reqs = {};
+  try { reqs = typeof item.CompletionRequirements === 'string' ? JSON.parse(item.CompletionRequirements) : (item.CompletionRequirements || {}); } catch {}
+  const reqHtml = [
+    reqs.must_view    ? '<span class="req-icon" title="Phải xem bài">👁</span>' : '',
+    reqs.must_submit  ? '<span class="req-icon" title="Phải nộp bài">✔</span>' : '',
+    reqs.must_score   ? `<span class="req-icon" title="Điểm tối thiểu ${reqs.min_score||0}">🏆</span>` : ''
+  ].join('');
+
+  // Status: completed checkmark or due chip or dot
+  let statusHtml;
+  if (completed) {
+    statusHtml = '<span style="width:20px;height:20px;background:#16A34A;border-radius:50%;display:flex;align-items:center;justify-content:center;"><i class="fa-solid fa-check" style="font-size:10px;color:#fff;"></i></span>';
+  } else {
+    const dueChip = due ? renderDueChip(due) : '';
+    statusHtml = dueChip || (due && new Date(due) < new Date() ? '<span class="status-dot late"></span>' : '<span class="status-dot none"></span>');
+  }
+
+  // Locked overlay
+  const lockedAttr = locked ? `title="Hoàn thành bài học trước để mở khoá" style="cursor:not-allowed;"` : '';
+  const lockedIcon = locked ? '<i class="fa-solid fa-lock" style="font-size:12px;color:var(--text-subtle);margin-left:6px;"></i>' : '';
+
+  // Indent level padding
+  const indentLevel = item.IndentLevel || 0;
+  const extraPad = indentLevel * 18;
+
+  const onclick = locked ? `onclick="showToast('Hoàn thành bài học trước để mở khoá mục này');return false;"` :
+    (type === 'assignment' || type === 'Assignment') ? `onclick="openAssignmentModal(${JSON.stringify(item).replace(/"/g,'&quot;')}); return false;"` : '';
+
+  return `<a class="mod-item ${completed ? 'completed' : ''} ${locked ? 'locked' : ''}" href="${locked ? '#' : href}" ${onclick} ${lockedAttr} data-aid="${item.Id}" style="padding-left:${52+extraPad}px;">
+    <div class="mod-item-icon ${iconClass}"><i class="fa-solid ${iconSymbol}"></i></div>
+    <div class="mod-item-info">
+      <div class="mod-item-title">${escHtml(title)}${reqHtml}${lockedIcon}</div>
+      <div class="mod-item-meta">
+        <span>${typeLabel(type)}</span>
+        ${item.Points || item.MaxScore ? `<span>${item.Points || item.MaxScore} điểm</span>` : ''}
+        ${due ? `<span>Hạn: ${fmtDate(due)}</span>` : ''}
+      </div>
+    </div>
+    <div class="mod-item-status">${statusHtml}</div>
+  </a>`;
+}
+
+function typeLabel(t) {
+  const m = { article: 'Bài học', assignment: 'Bài tập', quiz: 'Trắc nghiệm', survey: 'Khảo sát', file: 'Tài liệu' };
+  return m[String(t).toLowerCase()] || t;
+}
+
+function toggleModule(mid, el) {
+  const items = document.getElementById('mi-' + mid);
+  const isOpen = items.classList.contains('open');
+  items.classList.toggle('open', !isOpen);
+  el.classList.toggle('open', !isOpen);
+  moduleOpen[mid] = !isOpen;
+}
+
+// ── Render Assignments panel ──────────────────────────────────
+function renderAssignmentsPanel() {
+  const container = document.getElementById('assign-list');
+  if (!allAssignments.length) {
+    container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-file-circle-check"></i><p>Chưa có bài tập nào</p></div>`;
+    return;
+  }
+
+  const sorted = [...allAssignments].sort((a, b) => {
+    const da = new Date(a.DueDate || '9999');
+    const db = new Date(b.DueDate || '9999');
+    return da - db;
+  });
+
+  container.innerHTML = sorted.map(item => {
+    const type = item.AssessmentType || 'assignment';
+    let iconClass, iconSymbol;
+    if (type === 'quiz') { iconClass = 'icon-quiz'; iconSymbol = 'fa-circle-check'; }
+    else if (type === 'survey') { iconClass = 'icon-survey'; iconSymbol = 'fa-clipboard-list'; }
+    else { iconClass = 'icon-assignment'; iconSymbol = 'fa-file-pen'; }
+
+    const due = item.DueDate;
+    const dueStr = due ? `Hạn: ${fmtDate(due)}` : 'Không có hạn';
+    const overdue = due && new Date(due) < new Date();
+    const dueClass = overdue ? 'overdue' : '';
+
+    // Submission status badge (from cache)
+    const sub = submissionCache[item.Id];
+    let statusBadge;
+    if (!sub) {
+      statusBadge = overdue
+        ? '<span class="status-badge overdue"><i class="fa-solid fa-circle-xmark"></i> Quá hạn</span>'
+        : '<span class="status-badge missing"><i class="fa-regular fa-circle"></i> Chưa nộp</span>';
+    } else if (sub.Score != null) {
+      statusBadge = `<span class="status-badge graded"><i class="fa-solid fa-star"></i> ${sub.Score}/${item.MaxScore||10}</span>`;
+    } else {
+      statusBadge = '<span class="status-badge pending"><i class="fa-solid fa-clock"></i> Chờ chấm</span>';
+    }
+
+    const clickAction = type==='quiz'||type==='survey'
+      ? `location.href='../quiz.html?id=${item.Id}&course_id=${courseId}'`
+      : `openAssignmentModal(${JSON.stringify(item).replace(/'/g,"\\'").replace(/"/g,'&quot;')})`;
+
+    return `<div class="assign-item" data-assessment-id="${item.Id}" onclick="${clickAction}" style="cursor:pointer;">
+      <div class="assign-icon ${iconClass}"><i class="fa-solid ${iconSymbol}"></i></div>
+      <div class="assign-info">
+        <div class="assign-title">${escHtml(item.Title || 'Bài tập')}</div>
+        <div class="assign-sub">${typeLabel(type)} · ${item.MaxScore || item.Points || 0} điểm</div>
+      </div>
+      <div class="assign-right" style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+        <div class="assign-status-badge">${statusBadge}</div>
+        <div class="assign-due ${dueClass}">${dueStr}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Load submission statuses for all assignments ───────────────
+async function loadSubmissionStatuses() {
+  if (!session?.userId || !allAssignments.length) return;
+  try {
+    // Try batch endpoint first
+    const d = await apiFetch(`/api/submissions?course_id=${courseId}&student_id=${session.userId}`);
+    const subs = d.list || d.submissions || [];
+    subs.forEach(s => {
+      const aid = s.AssessmentId || s.assessment_id;
+      if (aid) submissionCache[String(aid)] = s;
+    });
+    // Re-render with statuses
+    renderAssignmentsPanel();
+  } catch {
+    // Silently fail — badges just won't show
+  }
+}
+
+// ── Render Announcements panel ────────────────────────────────
+function renderAnnouncementsPanel() {
+  const container = document.getElementById('announce-list');
+  if (!allAnnouncements.length) {
+    container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-bell-slash"></i><p>Chưa có thông báo nào</p></div>`;
+    return;
+  }
+  container.innerHTML = allAnnouncements.map(a => renderAnnounceCard(a)).join('');
+}
+
+function renderAnnounceCard(a) {
+  const title = a.Title || a.Subject || 'Thông báo';
+  const body = a.Body || a.Content || '';
+  const author = a.AuthorName || a.Author || 'Giáo viên';
+  const time = timeAgo(a.PublishedAt || a.CreatedAt);
+  const initials = author.split(' ').map(w=>w[0]).slice(-2).join('').toUpperCase() || 'GV';
+  return `<div class="announce-card unread" onclick="openDrawer(${JSON.stringify(a).replace(/"/g,'&quot;')})">
+    <div class="announce-header">
+      <div class="announce-avatar" style="background:${strColor(author)}">${initials}</div>
+      <div><div style="font-size:13px;font-weight:600;">${escHtml(author)}</div><div class="announce-author">${time}</div></div>
+    </div>
+    <div class="announce-title">${escHtml(title)}</div>
+    <div class="announce-body">${escHtml(body)}</div>
+    <div class="announce-footer"><span class="announce-time"></span><button class="read-more">Xem thêm →</button></div>
+  </div>`;
+}
+
+function renderSideAnnouncements() {
+  const container = document.getElementById('side-announcements');
+  if (!allAnnouncements.length) return;
+  container.innerHTML = allAnnouncements.slice(0, 3).map(a => `
+    <div class="side-announce" onclick="openDrawer(${JSON.stringify(a).replace(/"/g,'&quot;')})">
+      <div class="side-announce-title">${escHtml(a.Title || a.Subject || 'Thông báo')}</div>
+      <div class="side-announce-time">${timeAgo(a.PublishedAt || a.CreatedAt)}</div>
+    </div>`).join('');
+}
+
+function renderUpcoming(events) {
+  const container = document.getElementById('upcoming-list');
+  // Combine assessments with due dates + calendar events
+  const items = [];
+  allAssignments.filter(a => a.DueDate && new Date(a.DueDate) > new Date()).forEach(a => {
+    items.push({ title: a.Title, due: a.DueDate, type: typeLabel(a.AssessmentType || 'assignment') });
+  });
+  events.forEach(e => {
+    items.push({ title: e.Title, due: e.StartAt || e.start_at, type: e.Type || 'Sự kiện' });
+  });
+  items.sort((a, b) => new Date(a.due) - new Date(b.due));
+
+  if (!items.length) { container.innerHTML = `<div class="empty-state" style="padding:12px;font-size:12px;"><i class="fa-regular fa-calendar" style="font-size:20px;"></i><p>Không có sự kiện sắp tới</p></div>`; return; }
+
+  container.innerHTML = items.slice(0, 5).map(item => {
+    const d = new Date(item.due);
+    const day = d.getDate();
+    const mon = d.toLocaleDateString('vi-VN', { month: 'short' }).replace('thg ','Th');
+    return `<div class="upcoming-item">
+      <div class="upcoming-date"><div class="day">${day}</div><div class="mon">${mon}</div></div>
+      <div class="upcoming-info"><div class="upcoming-title">${escHtml(item.title)}</div><div class="upcoming-type">${item.type}</div></div>
+    </div>`;
+  }).join('');
+}
+
+// ── Load People tab ───────────────────────────────────────────
+async function loadPeople() {
+  try {
+    const d = await apiFetch(`/api/courses/${courseId}/enrollments`);
+    const members = d.list || d.enrollments || d || [];
+    renderPeople(members);
+  } catch { document.getElementById('people-wrap').innerHTML = `<div class="empty-state"><i class="fa-solid fa-users"></i><p>Không thể tải danh sách thành viên</p></div>`; }
+}
+
+function renderPeople(members) {
+  const teachers = members.filter(m => m.Role === 'TeacherEnrollment' || m.role === 'teacher' || m.type === 'teacher');
+  const students = members.filter(m => m.Role === 'StudentEnrollment' || m.role === 'student' || (!m.Role && !m.role));
+
+  const avatarColors = ['#E66000','#2563EB','#16A34A','#7C3AED','#0891B2','#DC2626'];
+  const personCard = (p, color) => {
+    const name = p.Name || p.name || p.UserName || p.username || p.Email || 'Người dùng';
+    const initials = name.split(' ').map(w=>w[0]).slice(-2).join('').toUpperCase();
+    return `<div class="person-card">
+      <div class="person-avatar" style="background:${color}">${initials}</div>
+      <div class="person-name">${escHtml(name)}</div>
+      <div class="person-role">${p.Email || p.email || ''}</div>
+    </div>`;
+  };
+
+  let html = '';
+  if (teachers.length) {
+    html += `<div class="people-section"><div class="people-section-header"><i class="fa-solid fa-chalkboard-teacher"></i>Giáo viên (${teachers.length})</div><div class="people-grid">${teachers.map((p,i) => personCard(p, avatarColors[i%avatarColors.length])).join('')}</div></div>`;
+  }
+  if (students.length) {
+    html += `<div class="people-section" style="margin-top:16px;"><div class="people-section-header"><i class="fa-solid fa-user-graduate"></i>Học sinh (${students.length})</div><div class="people-grid">${students.map((p,i) => personCard(p, avatarColors[(i+2)%avatarColors.length])).join('')}</div></div>`;
+  }
+  if (!html) html = `<div class="empty-state"><i class="fa-solid fa-users"></i><p>Chưa có thành viên nào</p></div>`;
+  document.getElementById('people-wrap').innerHTML = html;
+}
+
+// ── Load Grades tab ───────────────────────────────────────────
+async function loadGrades() {
+  const container = document.getElementById('grades-wrap');
+  if (!session) return;
+  try {
+    const d = await apiFetch(`/api/observer/grades?student_id=${session.userId}&course_id=${courseId}`);
+    const grades = d.grades || d.list || [];
+    const summary = d.summary || {};
+
+    const avg = summary.average_score || 0;
+    const total = summary.total_submissions || grades.length;
+    const avgStr = avg ? avg.toFixed(1) : '—';
+    const avgClass = avg >= 8 ? 'good' : avg >= 5 ? '' : 'warn';
+
+    const gradeRows = grades.filter(g => String(g.CourseId || g.course_id) === String(courseId) || !g.CourseId).slice(0, 20).map(g => {
+      const score = g.Score != null ? Number(g.Score) : null;
+      const max = g.MaxScore || g.max_score || 10;
+      const pct = score != null ? (score / max * 10) : null;
+      const letter = pct == null ? 'none' : pct >= 8.5 ? 'a' : pct >= 7 ? 'b' : pct >= 5 ? 'c' : 'd';
+      const scoreStr = score != null ? `${score}/${max}` : '—';
+      const type = g.AssessmentType || g.type || 'assignment';
+      let iconClass, iconSymbol;
+      if (type === 'quiz') { iconClass = 'icon-quiz'; iconSymbol = 'fa-circle-check'; }
+      else { iconClass = 'icon-assignment'; iconSymbol = 'fa-file-pen'; }
+      return `<div class="grade-row">
+        <div class="grade-row-icon ${iconClass}"><i class="fa-solid ${iconSymbol}"></i></div>
+        <div class="grade-row-info">
+          <div class="grade-row-title">${escHtml(g.Title || g.title || g.AssessmentTitle || 'Bài tập')}</div>
+          <div class="grade-row-sub">${fmtDate(g.SubmittedAt || g.submitted_at || g.GradedAt) || 'Chưa nộp'}</div>
+        </div>
+        <div class="grade-score ${letter}">${scoreStr}</div>
+      </div>`;
+    }).join('');
+
+    container.innerHTML = `
+      <div class="grades-summary">
+        <div class="grade-stat"><div class="grade-stat-val ${avgClass}">${avgStr}</div><div class="grade-stat-label">Điểm TB</div></div>
+        <div class="grade-stat"><div class="grade-stat-val">${total}</div><div class="grade-stat-label">Đã nộp</div></div>
+        <div class="grade-stat"><div class="grade-stat-val">${allAssignments.length}</div><div class="grade-stat-label">Tổng bài tập</div></div>
+      </div>
+      <div class="grade-rows">${gradeRows || '<div class="empty-state" style="padding:24px;"><i class="fa-solid fa-chart-simple"></i><p>Chưa có điểm nào</p></div>'}</div>`;
+  } catch {
+    container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-chart-simple"></i><p>Không thể tải điểm số</p></div>`;
+  }
+}
+
+// ── Sidebar courses ───────────────────────────────────────────
+let sidebarCourses = [];
+async function loadSidebarCourses() {
+  try {
+    const d = await apiFetch('/api/courses');
+    sidebarCourses = d.list || d.courses || [];
+    renderSidebarCourses();
+  } catch {}
+}
+
+function renderSidebarCourses() {
+  const container = document.getElementById('sb-courses');
+  if (!sidebarCourses.length) { container.innerHTML = ''; return; }
+  const COLORS = ['#E66000','#2563EB','#16A34A','#7C3AED','#0891B2','#DC2626','#D97706','#059669'];
+  container.innerHTML = sidebarCourses.slice(0, 8).map((c, i) => {
+    const color = c.Color || COLORS[i % COLORS.length];
+    const active = String(c.Id) === String(courseId);
+    return `<a class="sb-course-item ${active ? 'active' : ''}" href="course.html?course_id=${c.Id}">
+      <div class="sb-course-dot" style="background:${color};"></div>
+      <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(c.Title || c.Name || 'Khoá học')}</span>
+    </a>`;
+  }).join('');
+}
+
+// ── Assignment submission modal ───────────────────────────────
+let currentAssignment = null;
+let submissionCache = {}; // { assessmentId: submissionObj }
+
+async function openAssignmentModal(item) {
+  currentAssignment = item;
+  document.getElementById('submit-modal-title').textContent = item.Title || 'Nộp bài';
+  // Show skeleton immediately
+  document.getElementById('submit-modal').classList.add('open');
+  document.getElementById('submit-modal-body').innerHTML = `<div class="skeleton" style="height:180px;border-radius:8px;"></div>`;
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+
+  const due = item.DueDate;
+  const overdue = due && new Date(due) < new Date();
+
+  // Parallel: load previous submission + rubric
+  const [prevSubRes, rubricRes] = await Promise.allSettled([
+    (session?.userId ? apiFetch(`/api/submissions?assessment_id=${item.Id}&student_id=${session.userId}`) : Promise.resolve(null)),
+    (item.RubricId ? apiFetch(`/api/rubrics/${item.RubricId}`) : Promise.resolve(null))
+  ]);
+
+  const prevSubList = prevSubRes.status === 'fulfilled' ? (prevSubRes.value?.list || prevSubRes.value?.submissions || (Array.isArray(prevSubRes.value)?prevSubRes.value:[])) : [];
+  const prevSub = prevSubList[0] || submissionCache[item.Id] || null;
+  const rubric = rubricRes.status === 'fulfilled' ? rubricRes.value : null;
+
+  // Cache it
+  if (prevSub) submissionCache[item.Id] = prevSub;
+
+  // Previous submission banner
+  let prevBanner = '';
+  if (prevSub) {
+    const score = prevSub.Score != null ? `<strong>${prevSub.Score}/${item.MaxScore||10}</strong>` : '';
+    const status = prevSub.Score != null ? 'Đã chấm điểm' : 'Chờ chấm';
+    prevBanner = `<div class="prev-sub-banner">
+      <i class="fa-solid fa-circle-check"></i>
+      <div><strong>Đã nộp ${timeAgo(prevSub.SubmittedAt||prevSub.submitted_at)}</strong>${score?' · Điểm: '+score:''} · ${status}</div>
+    </div>`;
+  }
+
+  // Rubric table
+  let rubricHtml = '';
+  if (rubric) {
+    const criteria = rubric.criteria || rubric.RubricCriteria || [];
+    if (criteria.length) {
+      rubricHtml = `<div class="rubric-wrap">
+        <h4><i class="fa-solid fa-table-list" style="margin-right:5px;"></i>Rubric chấm điểm</h4>
+        <table class="rubric-table"><thead><tr><th>Tiêu chí</th><th>Mô tả</th><th class="pts">Điểm tối đa</th></tr></thead><tbody>
+        ${criteria.map(c=>`<tr><td><strong>${escHtml(c.Description||c.Title||'')}</strong></td><td style="color:var(--text-muted);">${escHtml(c.LongDescription||c.detail||'')}</td><td class="pts">${c.MaxPoints||c.Points||0}</td></tr>`).join('')}
+        </tbody></table></div>`;
+    }
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = prevSub
+    ? '<i class="fa-solid fa-rotate-right"></i> Nộp lại'
+    : '<i class="fa-solid fa-paper-plane"></i> Nộp bài';
+
+  document.getElementById('submit-modal-body').innerHTML = `
+    ${prevBanner}
+    <div style="margin-bottom:14px;">
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;">
+        <span>${typeLabel(item.AssessmentType)}</span>
+        ${item.MaxScore||item.Points ? ` · <strong>${item.MaxScore||item.Points} điểm</strong>` : ''}
+        ${due ? ` · Hạn: <span style="color:${overdue?'var(--danger)':'var(--text);font-weight:500'};">${fmtDate(due)}</span>` : ''}
+      </div>
+      ${item.Description||item.Instructions ? `<div style="background:var(--bg);border-radius:var(--r);padding:12px;font-size:13px;line-height:1.6;">${escHtml(item.Description||item.Instructions)}</div>` : ''}
+    </div>
+    <div class="form-group">
+      <label class="form-label">Bài nộp của bạn</label>
+      <textarea class="form-control" id="sub-text" placeholder="Nhập bài làm của bạn tại đây..." rows="5">${prevSub?.Body||prevSub?.body||''}</textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Link tài liệu (Google Docs, Drive...)</label>
+      <input type="url" class="form-control" id="sub-url" placeholder="https://docs.google.com/..." value="${escHtml(prevSub?.Url||prevSub?.url||'')}">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Đính kèm tệp (tùy chọn, tối đa 50MB)</label>
+      <div class="drag-zone" id="drop-zone" onclick="document.getElementById('sub-file').click()">
+        <i class="fa-solid fa-cloud-arrow-up"></i>
+        <div class="drag-zone-text">Kéo thả tệp vào đây hoặc <strong>nhấn để chọn</strong></div>
+        <div style="font-size:11px;color:var(--text-subtle);margin-top:4px;">PDF, DOCX, PPTX, XLSX, JPG, PNG, MP4, ZIP</div>
+      </div>
+      <div id="selected-file-info" style="display:none;"></div>
+      <input type="file" id="sub-file" style="display:none;" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.mp4,.zip" onchange="handleSubFileSelect(event)">
+    </div>
+    ${rubricHtml}`;
+
+  // Init drag-drop
+  const dz = document.getElementById('drop-zone');
+  if (dz) {
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+    dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag-over'); const f = e.dataTransfer?.files?.[0]; if (f) applySubFile(f); });
+  }
+}
+
+function handleSubFileSelect(e) {
+  const f = e.target.files?.[0];
+  if (f) applySubFile(f);
+}
+
+function applySubFile(file) {
+  if (file.size > 52428800) { showToast('Tệp quá lớn! Tối đa 50MB.'); return; }
+  const infoEl = document.getElementById('selected-file-info');
+  infoEl.style.display = 'block';
+  infoEl.innerHTML = `
+    <div class="selected-file-info" style="display:flex;">
+      <i class="fa-solid fa-file" style="font-size:16px;color:#16A34A;"></i>
+      <div style="flex:1;min-width:0;">
+        <strong style="font-size:13px;">${escHtml(file.name)}</strong>
+        <span style="font-weight:400;color:var(--text-muted);"> · ${fmtSize(file.size)}</span>
+      </div>
+      <button onclick="clearSubFile()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:13px;flex-shrink:0;" title="Xoá"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div id="upload-prog-wrap" style="display:none;" class="upload-prog-wrap">
+      <div class="upload-prog-bar"><div class="upload-prog-fill" id="upload-prog-fill" style="width:0%"></div></div>
+      <div class="upload-prog-label">
+        <span id="upload-prog-text">Đang tải lên Google Drive...</span>
+        <span id="upload-prog-pct">0%</span>
+      </div>
+    </div>
+    <div id="drive-result" style="display:none;"></div>`;
+  // Store file on input
+  const inp = document.getElementById('sub-file');
+  try { const dt = new DataTransfer(); dt.items.add(file); inp.files = dt.files; } catch {}
+}
+
+function clearSubFile() {
+  document.getElementById('sub-file').value = '';
+  const infoEl = document.getElementById('selected-file-info');
+  infoEl.style.display = 'none';
+  infoEl.innerHTML = '';
+  window._driveFileUrl = null;
+}
+
+function closeSubmitModal() {
+  document.getElementById('submit-modal').classList.remove('open');
+  currentAssignment = null;
+  window._driveFileUrl = null;
+}
+
+async function submitAssignment() {
+  if (!currentAssignment) return;
+  const text = document.getElementById('sub-text')?.value?.trim();
+  const url = document.getElementById('sub-url')?.value?.trim();
+  const fileInput = document.getElementById('sub-file');
+  const file = fileInput?.files?.[0];
+
+  if (!text && !url && !file) { showToast('Vui lòng nhập bài làm, link hoặc đính kèm tệp'); return; }
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang nộp...';
+
+  try {
+    let fileUrl = window._driveFileUrl || null; // reuse if already uploaded
+
+    if (file && !fileUrl) {
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang tải lên Drive...';
+      fileUrl = await uploadFileToDrive(file, (pct, loaded, total) => {
+        const progWrap = document.getElementById('upload-prog-wrap');
+        if (progWrap) {
+          progWrap.style.display = 'block';
+          document.getElementById('upload-prog-fill').style.width = pct + '%';
+          document.getElementById('upload-prog-pct').textContent = pct + '%';
+          document.getElementById('upload-prog-text').textContent =
+            `${fmtSize(loaded)} / ${fmtSize(total)} — Google Drive`;
+        }
+      });
+      // Show Drive chip
+      const driveResult = document.getElementById('drive-result');
+      if (driveResult && fileUrl) {
+        driveResult.style.display = 'block';
+        driveResult.innerHTML = `<div class="drive-file-chip">
+          <i class="fa-brands fa-google-drive"></i>
+          <a href="${fileUrl}" target="_blank" rel="noopener">${escHtml(file.name)}</a>
+          <span style="font-size:11px;color:var(--success);">✓ Đã lưu Drive</span>
+        </div>`;
+        window._driveFileUrl = fileUrl; // cache so re-click doesn't re-upload
+      }
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang nộp...';
+    }
+
+    await apiFetch('/api/submissions', { method: 'POST', body: JSON.stringify({
+      assessment_id: currentAssignment.Id,
+      course_id: courseId,
+      body: text || null,
+      url: fileUrl || url || null,
+      submitted_at: new Date().toISOString()
+    })});
+
+    // Cache + update UI
+    submissionCache[currentAssignment.Id] = {
+      SubmittedAt: new Date().toISOString(),
+      Body: text,
+      Url: fileUrl || url
+    };
+    markAssignmentSubmitted(currentAssignment.Id);
+    window._driveFileUrl = null;
+    triggerConfetti();
+    showToast('🎉 Nộp bài thành công!', 3000);
+    closeSubmitModal();
+  } catch(e) {
+    showToast('Không thể nộp bài: ' + (e.message || 'Lỗi không xác định'));
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = submissionCache[currentAssignment?.Id]
+      ? '<i class="fa-solid fa-rotate-right"></i> Nộp lại'
+      : '<i class="fa-solid fa-paper-plane"></i> Nộp bài';
+  }
+}
+
+// ── Upload file to Google Drive via Worker (XHR with progress) ─
+function uploadFileToDrive(file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('course_id', courseId || '');
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${API}/api/files/upload`);
+    xhr.setRequestHeader('Authorization', `Bearer ${localStorage.getItem(TOKEN_KEY)}`);
+
+    // Progress tracking
+    xhr.upload.addEventListener('progress', e => {
+      if (e.lengthComputable && onProgress) {
+        const pct = Math.round(e.loaded / e.total * 100);
+        onProgress(pct, e.loaded, e.total);
+      }
+    });
+
+    xhr.addEventListener('load', () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const d = JSON.parse(xhr.responseText);
+          // Worker returns: { DriveUrl, drive_url, url, fileId, name, ... }
+          const driveUrl = d.DriveUrl || d.drive_url || d.url || d.webViewLink || null;
+          resolve(driveUrl);
+        } catch {
+          reject(new Error('Phản hồi không hợp lệ từ server'));
+        }
+      } else {
+        let errMsg = 'Lỗi tải lên';
+        try { errMsg = JSON.parse(xhr.responseText)?.error || errMsg; } catch {}
+        reject(new Error(errMsg));
+      }
+    });
+
+    xhr.addEventListener('error', () => reject(new Error('Mất kết nối khi tải lên')));
+    xhr.addEventListener('abort', () => reject(new Error('Đã huỷ tải lên')));
+    xhr.send(formData);
+  });
+}
+
+function triggerConfetti() {
+  const colors = ['#E66000','#2563EB','#16A34A','#7C3AED','#F59E0B','#EC4899'];
+  for (let i = 0; i < 36; i++) {
+    const el = document.createElement('div');
+    el.className = 'confetti-piece';
+    const size = 6 + Math.random() * 8;
+    el.style.cssText = `left:${20+Math.random()*60}vw;top:${20+Math.random()*40}vh;width:${size}px;height:${size}px;background:${colors[i%6]};border-radius:${Math.random()>.5?'50%':'2px'};animation-delay:${Math.random()*0.4}s;animation-duration:${0.7+Math.random()*0.5}s;`;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 1400);
+  }
+}
+
+function markAssignmentSubmitted(assessmentId) {
+  // Update status badge in assignments panel
+  const badge = document.querySelector(`[data-assessment-id="${assessmentId}"] .assign-status-badge`);
+  if (badge) {
+    badge.className = 'status-badge submitted';
+    badge.innerHTML = '<i class="fa-solid fa-check"></i> Đã nộp';
+  }
+  // Update completion dot in module items
+  document.querySelectorAll(`.mod-item[data-aid="${assessmentId}"] .mod-item-status`).forEach(el => {
+    el.innerHTML = '<span style="width:20px;height:20px;background:#16A34A;border-radius:50%;display:flex;align-items:center;justify-content:center;"><i class="fa-solid fa-check" style="font-size:10px;color:#fff;"></i></span>';
+  });
+}
+
+// ── Announcement drawer ───────────────────────────────────────
+function openDrawer(ann) {
+  if (typeof ann === 'string') try { ann = JSON.parse(ann); } catch {}
+  const title = ann.Title || ann.Subject || 'Thông báo';
+  const body = ann.Body || ann.Content || '';
+  const author = ann.AuthorName || ann.Author || 'Giáo viên';
+  const time = timeAgo(ann.PublishedAt || ann.CreatedAt);
+  document.getElementById('drawer-body').innerHTML = `
+    <div class="drawer-title">${escHtml(title)}</div>
+    <div class="drawer-meta"><span><i class="fa-solid fa-user" style="margin-right:4px;"></i>${escHtml(author)}</span><span><i class="fa-regular fa-clock" style="margin-right:4px;"></i>${time}</span></div>
+    <div class="drawer-content">${body.replace(/\n/g, '<br>')}</div>`;
+  document.getElementById('ann-drawer').classList.add('open');
+  document.getElementById('drawer-overlay').classList.add('open');
+}
+
+function closeDrawer() {
+  document.getElementById('ann-drawer').classList.remove('open');
+  document.getElementById('drawer-overlay').classList.remove('open');
+}
+
+// ── Overview tab ─────────────────────────────────────────────
+function renderOverview() {
+  // Stats
+  const now = new Date();
+  const upcomingDue = allAssignments.filter(a => {
+    if (!a.DueDate) return false;
+    const d = new Date(a.DueDate);
+    const diff = (d - now) / 86400000;
+    return diff >= 0 && diff <= 7;
+  });
+  const overdue = allAssignments.filter(a => a.DueDate && new Date(a.DueDate) < now && a.SubmissionStatus !== 'submitted');
+
+  const prog = courseData?.Progress || 0;
+  document.getElementById('ov-progress-val').textContent = Math.round(prog) + '%';
+  document.getElementById('ov-due-val').textContent = upcomingDue.length + overdue.length;
+  document.getElementById('ov-ann-val').textContent = allAnnouncements.length;
+  // members loaded later
+  apiFetch(`/api/courses/${courseId}/enrollments`).then(d => {
+    const members = d?.list || d?.enrollments || d?.members || [];
+    document.getElementById('ov-members-val').textContent = members.length || '—';
+  }).catch(() => {});
+
+  // Conference card
+  const confWrap = document.getElementById('ov-conf-wrap');
+  apiFetch(`/api/conferences?course_id=${courseId}`).then(d => {
+    const live = (d?.list || (Array.isArray(d)?d:[])).filter(c => c.Status === 'started' || c.Status === 'live');
+    if (live.length) {
+      confWrap.innerHTML = `<div class="ov-conf-card">
+        <div class="ov-conf-pulse"></div>
+        <div style="flex:1"><div style="font-weight:700;font-size:14px;">Lớp học trực tuyến đang diễn ra</div>
+        <div style="font-size:12px;opacity:.7;margin-top:2px;">${escHtml(live[0].Title || 'Phòng học')}</div></div>
+        <button class="btn btn-primary btn-sm" onclick="joinConference('${live[0].RoomName || live[0].Id}')">
+          <i class="fa-solid fa-video"></i> Tham gia ngay
+        </button></div>`;
+    }
+  }).catch(() => {});
+
+  // To-do list
+  const todoEl = document.getElementById('ov-todo-list');
+  const todos = [...allAssignments].sort((a,b) => {
+    const da = a.DueDate ? new Date(a.DueDate) : new Date('9999');
+    const db = b.DueDate ? new Date(b.DueDate) : new Date('9999');
+    return da - db;
+  }).slice(0, 7);
+
+  if (!todos.length) {
+    todoEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:12px;"><i class="fa-solid fa-check-circle" style="font-size:24px;display:block;margin-bottom:8px;color:#16A34A;"></i>Không có bài tập nào</div>';
+  } else {
+    todoEl.innerHTML = todos.map(a => {
+      const due = a.DueDate ? new Date(a.DueDate) : null;
+      const diff = due ? Math.ceil((due - now) / 86400000) : null;
+      let dotCls = 'gray', dueLabel = 'Không có hạn';
+      if (diff !== null) {
+        if (diff < 0)   { dotCls = 'red';    dueLabel = `Quá hạn ${Math.abs(diff)} ngày`; }
+        else if (diff === 0) { dotCls = 'red'; dueLabel = 'Hết hạn hôm nay'; }
+        else if (diff <= 2)  { dotCls = 'orange'; dueLabel = `Còn ${diff} ngày`; }
+        else { dotCls = 'blue'; dueLabel = `Hạn: ${fmtDate(a.DueDate)}`; }
+      }
+      const typeIcon = a.Type === 'quiz' || a.Type === 'graded_quiz' ? '🎯' : '📝';
+      return `<div class="ov-todo-item" onclick="openAssignmentModal(${JSON.stringify(a).replace(/"/g,'&quot;')})">
+        <div class="ov-todo-dot ${dotCls}" style="margin-top:5px"></div>
+        <div style="flex:1;min-width:0;">
+          <div class="ov-todo-title">${typeIcon} ${escHtml(a.Title || 'Bài tập')}</div>
+          <div class="ov-todo-meta">${dueLabel}${a.MaxScore ? ` · ${a.MaxScore} điểm` : ''}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Announcements
+  const annEl = document.getElementById('ov-ann-list');
+  const anns = allAnnouncements.slice(0, 5);
+  if (!anns.length) {
+    annEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:12px;">Chưa có thông báo nào</div>';
+  } else {
+    annEl.innerHTML = anns.map(a => {
+      const author = a.AuthorName || a.Author || 'GV';
+      const initial = author[0]?.toUpperCase() || 'G';
+      const body = a.Body || a.Content || '';
+      const bg = strColor(author);
+      return `<div class="ov-ann-item" onclick="openDrawer(${JSON.stringify(a).replace(/"/g,'&quot;')})">
+        <div class="ov-ann-av" style="background:${bg}">${initial}</div>
+        <div style="flex:1;min-width:0;">
+          <div class="ov-ann-title">${escHtml(a.Title || 'Thông báo')}</div>
+          <div class="ov-ann-meta">${escHtml(body.substring(0,80))}</div>
+          <div style="font-size:10px;color:var(--text-subtle);margin-top:2px;">${timeAgo(a.CreatedAt)}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+}
+
+// ── Tab switching ─────────────────────────────────────────────
+let filesLoaded = false, overviewRendered = false, conferencesLoaded = false;
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const panel = document.getElementById('panel-' + name);
+  if (panel) panel.classList.add('active');
+  if (name === 'files'       && !filesLoaded)       { filesLoaded = true; loadFiles(); }
+  if (name === 'overview'    && !overviewRendered)  { overviewRendered = true; renderOverview(); }
+  if (name === 'conferences' && !conferencesLoaded) { conferencesLoaded = true; loadConferencesPanel(); }
+}
+
+// ── Conferences panel ─────────────────────────────────────────
+async function loadConferencesPanel() {
+  const container = document.getElementById('conf-panel-body');
+  const isTeacher = session?.role === 'teacher' || session?.role === 'admin';
+  try {
+    const d = await apiFetch(`/api/conferences?course_id=${courseId}`);
+    const confs = d.list || (Array.isArray(d) ? d : []);
+
+    const live      = confs.filter(c => c.Status === 'started' || c.Status === 'live');
+    const upcoming  = confs.filter(c => !c.Status || c.Status === 'pending' || c.Status === 'scheduled');
+    const past      = confs.filter(c => c.Status === 'ended' || c.Status === 'concluded');
+
+    const renderConfItem = (c, dotClass, badgeClass, badgeLabel) => `
+      <div class="conf-list-item">
+        <div class="${dotClass}"></div>
+        <div class="conf-info">
+          <div class="conf-title">${escHtml(c.Title || c.RoomName || 'Phòng học')}</div>
+          <div class="conf-meta">
+            ${c.StartAt ? fmtDate(c.StartAt) : ''}
+            ${c.HostName ? ` · ${escHtml(c.HostName)}` : ''}
+          </div>
+        </div>
+        <span class="conf-badge ${badgeClass}">${badgeLabel}</span>
+        ${badgeClass !== 'ended' ? `<button class="btn btn-primary btn-sm" onclick="joinConference('${escHtml(c.RoomName||String(c.Id))}')"><i class="fa-solid fa-arrow-right-to-bracket"></i> Tham gia</button>` : '<button class="btn btn-outline btn-sm" disabled><i class="fa-solid fa-lock"></i> Đã kết thúc</button>'}
+      </div>`;
+
+    let html = '';
+
+    if (isTeacher) {
+      html += `<div style="margin-bottom:16px;display:flex;gap:8px;align-items:center;">
+        <button class="btn btn-primary" onclick="openCreateConfModal()"><i class="fa-solid fa-plus"></i> Tạo phòng học</button>
+        <span style="font-size:12px;color:var(--text-muted);">${confs.length} hội nghị</span>
+      </div>`;
+    }
+
+    if (live.length) {
+      html += `<div style="margin-bottom:8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--danger);">🔴 Đang diễn ra</div>
+        <div class="conf-list" style="margin-bottom:16px;">${live.map(c => renderConfItem(c,'conf-live-dot','live','LIVE')).join('')}</div>`;
+    }
+    if (upcoming.length) {
+      html += `<div style="margin-bottom:8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--info);">📅 Đã lên lịch</div>
+        <div class="conf-list" style="margin-bottom:16px;">${upcoming.map(c => renderConfItem(c,'conf-sched-dot','scheduled','Sắp diễn ra')).join('')}</div>`;
+    }
+    if (past.length) {
+      html += `<div style="margin-bottom:8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-subtle);">📁 Đã kết thúc</div>
+        <div class="conf-list">${past.map(c => renderConfItem(c,'conf-ended-dot','ended','Đã kết thúc')).join('')}</div>`;
+    }
+    if (!confs.length) {
+      html += `<div class="empty-state"><i class="fa-solid fa-video-slash"></i><p>Chưa có hội nghị nào${isTeacher ? '<br><button class="btn btn-primary btn-sm" style="margin-top:12px;" onclick="openCreateConfModal()">Tạo phòng học đầu tiên</button>' : ''}</p></div>`;
+    }
+
+    container.innerHTML = html;
+  } catch {
+    container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-video-slash"></i><p>Không thể tải danh sách hội nghị</p></div>`;
+  }
+}
+
+function joinConference(roomName) {
+  const url = `https://meet.jit.si/${encodeURIComponent(roomName)}`;
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
+
+function openCreateConfModal() {
+  const title = prompt('Tên phòng học:');
+  if (!title?.trim()) return;
+  createConference(title.trim());
+}
+
+async function createConference(title) {
+  const roomName = `aura-${courseId}-${Date.now()}`;
+  try {
+    await apiFetch('/api/conferences', { method: 'POST', body: JSON.stringify({
+      course_id: courseId,
+      title: title || courseData?.Title || 'Lớp học trực tuyến',
+      room_name: roomName,
+      status: 'pending'
+    })});
+    conferencesLoaded = false;
+    loadConferencesPanel();
+    loadConferences(); // refresh banner button
+    showToast('Đã tạo phòng học!');
+  } catch { showToast('Không thể tạo phòng học'); }
+}
+
+// ── Teacher: toggle module publish ───────────────────────────
+async function toggleModulePublish(e, moduleId, btn) {
+  e.stopPropagation();
+  const block = document.getElementById('mod-block-' + moduleId);
+  const isCurrentlyPub = btn.classList.contains('pub');
+  const newState = isCurrentlyPub ? 'unpublished' : 'published';
+
+  // Optimistic UI update
+  btn.classList.toggle('pub', !isCurrentlyPub);
+  btn.classList.toggle('unpub', isCurrentlyPub);
+  btn.innerHTML = !isCurrentlyPub
+    ? '<i class="fa-solid fa-eye"></i> Đã xuất bản'
+    : '<i class="fa-solid fa-eye-slash"></i> Ẩn';
+  if (block) block.classList.toggle('unpublished', isCurrentlyPub);
+
+  try {
+    await apiFetch(`/api/modules/${moduleId}`, { method: 'PATCH', body: JSON.stringify({ WorkflowState: newState }) });
+    showToast(newState === 'published' ? 'Đã xuất bản module' : 'Đã ẩn module');
+  } catch {
+    // Rollback
+    btn.classList.toggle('pub', isCurrentlyPub);
+    btn.classList.toggle('unpub', !isCurrentlyPub);
+    btn.innerHTML = isCurrentlyPub
+      ? '<i class="fa-solid fa-eye"></i> Đã xuất bản'
+      : '<i class="fa-solid fa-eye-slash"></i> Ẩn';
+    if (block) block.classList.toggle('unpublished', !isCurrentlyPub);
+    showToast('Không thể cập nhật trạng thái module');
+  }
+}
+
+// ── Teacher: add module modal ──────────────────────────────────
+function openAddModuleModal() {
+  const name = prompt('Tên module mới:');
+  if (!name?.trim()) return;
+  saveNewModule(name.trim());
+}
+
+async function saveNewModule(title) {
+  try {
+    await apiFetch('/api/modules', { method: 'POST', body: JSON.stringify({
+      course_id: courseId,
+      title,
+      position: allModules.length + 1,
+      workflow_state: 'published'
+    })});
+    showToast('Đã thêm module mới!');
+    // Reload modules
+    const d = await apiFetch(`/api/modules?course_id=${courseId}`);
+    allModules = (d.list || d.modules || []).sort((a,b) => (a.Position||a.Order||0)-(b.Position||b.Order||0));
+    renderModules();
+  } catch { showToast('Không thể thêm module'); }
+}
+
+function openAddItemModal(moduleId) {
+  showToast('Tính năng thêm mục đang phát triển — dùng Teacher Dashboard để quản lý nội dung');
+}
+
+// ── Sidebar mobile ────────────────────────────────────────────
+function openSidebar() { document.getElementById('sidebar').classList.add('mobile-open'); document.getElementById('overlay-bg').classList.add('open'); }
+function closeSidebar() { document.getElementById('sidebar').classList.remove('mobile-open'); document.getElementById('overlay-bg').classList.remove('open'); }
+
+// ── Join code copy ────────────────────────────────────────────
+function copyJoinCode() {
+  const code = document.getElementById('join-code-val').textContent;
+  navigator.clipboard.writeText(code).then(() => showToast('Đã sao chép mã tham gia!'));
+}
+
+// ── Due chip ──────────────────────────────────────────────────
+function renderDueChip(due) {
+  const d = new Date(due);
+  const now = new Date();
+  const diff = (d - now) / 86400000;
+  if (diff < 0) return `<span class="due-chip overdue">Quá hạn</span>`;
+  if (diff < 3) return `<span class="due-chip soon">Sắp hết hạn</span>`;
+  return '';
+}
+
+// ── Utilities ─────────────────────────────────────────────────
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function timeAgo(iso) {
+  if (!iso) return '';
+  const d = new Date(iso), now = new Date();
+  const diff = Math.floor((now - d) / 1000);
+  if (diff < 60) return 'Vừa xong';
+  if (diff < 3600) return `${Math.floor(diff/60)} phút trước`;
+  if (diff < 86400) return `${Math.floor(diff/3600)} giờ trước`;
+  if (diff < 2592000) return `${Math.floor(diff/86400)} ngày trước`;
+  return fmtDate(iso);
+}
+
+function fmtDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function strColor(s) {
+  let h = 0;
+  for (let i = 0; i < (s||'').length; i++) h = s.charCodeAt(i) + ((h << 5) - h);
+  const colors = ['#E66000','#2563EB','#16A34A','#7C3AED','#0891B2','#059669','#D97706'];
+  return colors[Math.abs(h) % colors.length];
+}
+
+function showToast(msg, dur = 2800) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), dur);
+}
+
+// ── Files tab ─────────────────────────────────────────────────
+let allFiles = [];
+const FILE_ICONS = {
+  'pdf': {cls:'pdf', icon:'📄'}, 'doc': {cls:'word', icon:'📘'}, 'docx': {cls:'word', icon:'📘'},
+  'xls': {cls:'excel', icon:'📗'}, 'xlsx': {cls:'excel', icon:'📗'},
+  'ppt': {cls:'ppt', icon:'📙'}, 'pptx': {cls:'ppt', icon:'📙'},
+  'jpg': {cls:'image', icon:'🖼'}, 'jpeg': {cls:'image', icon:'🖼'}, 'png': {cls:'image', icon:'🖼'}, 'gif': {cls:'image', icon:'🖼'},
+  'mp4': {cls:'video', icon:'🎬'}, 'mov': {cls:'video', icon:'🎬'},
+  'zip': {cls:'zip', icon:'🗜'}, 'rar': {cls:'zip', icon:'🗜'},
+};
+function getFileIcon(name) {
+  const ext = (name||'').split('.').pop().toLowerCase();
+  return FILE_ICONS[ext] || {cls:'other', icon:'📎'};
+}
+function fmtSize(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/1048576).toFixed(1) + ' MB';
+}
+
+async function loadFiles() {
+  try {
+    const d = await apiFetch(`/api/files?course_id=${courseId}`);
+    allFiles = d.list || d.files || [];
+    // Show upload btn for teacher/admin
+    if (session?.role === 'teacher' || session?.role === 'admin') {
+      document.getElementById('upload-btn').style.display = '';
+    }
+    // Build folder filter
+    const folders = [...new Set(allFiles.map(f => f.FolderPath || '').filter(Boolean))];
+    const sel = document.getElementById('file-folder-filter');
+    folders.forEach(folder => {
+      const opt = document.createElement('option');
+      opt.value = folder; opt.textContent = folder;
+      sel.appendChild(opt);
+    });
+    filterFiles();
+  } catch {
+    document.getElementById('files-list').innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-muted);">Không thể tải tài liệu</div>';
+  }
+}
+
+function filterFiles() {
+  const folder = document.getElementById('file-folder-filter').value;
+  const filtered = allFiles.filter(f => !folder || (f.FolderPath||'') === folder);
+  renderFileList(filtered);
+}
+
+function renderFileList(files) {
+  const container = document.getElementById('files-list');
+  if (!files.length) {
+    container.innerHTML = '<div class="empty-state"><i class="fa-solid fa-folder-open"></i><p>Chưa có tài liệu nào</p></div>';
+    return;
+  }
+  const canDelete = session?.role === 'teacher' || session?.role === 'admin';
+  container.innerHTML = files.map(f => {
+    const {cls, icon} = getFileIcon(f.Name || '');
+    return `<div class="file-row">
+      <div class="file-icon ${cls}">${icon}</div>
+      <div class="file-info">
+        <div class="file-name">${escHtml(f.Name || 'Tài liệu')}</div>
+        <div class="file-meta">
+          <span>${fmtSize(f.Size)}</span>
+          <span>${timeAgo(f.CreatedAt)}</span>
+          ${f.FolderPath ? `<span><i class="fa-solid fa-folder" style="font-size:10px;"></i> ${escHtml(f.FolderPath)}</span>` : ''}
+        </div>
+      </div>
+      <div class="file-actions">
+        <a href="${f.DriveUrl || f.drive_url || '#'}" target="_blank" class="btn btn-outline btn-sm" title="Mở"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+        ${canDelete ? `<button class="btn btn-outline btn-sm" style="color:var(--danger);border-color:#FECACA;" onclick="deleteFile(${f.Id})" title="Xoá"><i class="fa-solid fa-trash"></i></button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function handleFileUpload(event) {
+  const files = event.target.files;
+  if (!files.length) return;
+  const progressEl = document.getElementById('upload-progress');
+  const progressText = document.getElementById('upload-progress-text');
+  progressEl.style.display = 'block';
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    progressText.textContent = `Đang tải lên ${file.name} (${i+1}/${files.length})...`;
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('course_id', courseId);
+      const token = localStorage.getItem('ae_token');
+      const res = await fetch(`${API}/api/files/upload`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+      if (!res.ok) throw new Error(await res.text());
+      showToast(`✅ Đã tải lên: ${file.name}`);
+    } catch(e) { showToast(`❌ Lỗi: ${file.name} — ${e.message}`); }
+  }
+
+  progressEl.style.display = 'none';
+  event.target.value = '';
+  loadFiles(); // refresh
+}
+
+async function deleteFile(fileId) {
+  if (!confirm('Xoá tài liệu này?')) return;
+  try {
+    await apiFetch(`/api/files/${fileId}`, { method: 'DELETE' });
+    allFiles = allFiles.filter(f => f.Id !== fileId);
+    filterFiles();
+    showToast('Đã xoá tài liệu');
+  } catch { showToast('Không thể xoá tài liệu'); }
+}
+
+// ── Start ─────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>

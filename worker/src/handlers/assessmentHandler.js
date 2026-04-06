@@ -62,7 +62,7 @@ export async function handleAssessmentList(request, env, { json, url }) {
   if (sp.get('moduleId')) parts.push(`(ModuleId,eq,${sp.get('moduleId')})`);
   const where = parts.join('~and');
   const r = await nocoFetch(env,
-    `/api/v2/tables/${env.NOCO_ASSESSMENTS}/records?where=${encodeURIComponent(where)}&fields=Id,Title,AssessmentType,TimeLimit,DueDate,CourseId,ModuleId,MaxAttempts&limit=200&sort=CreatedAt`
+    `/api/v2/tables/${env.NOCO_ASSESSMENTS}/records?where=${encodeURIComponent(where)}&fields=Id,Title,AssessmentType,TimeLimit,DueDate,CourseId,ModuleId,MaxAttempts&limit=200&sort=-CreatedAt`
   );
   if (!r.ok) return json({ list: [] });
   return json(await r.json());
@@ -92,7 +92,7 @@ export async function handleAssessmentGet(request, env, { json, path }) {
   let questions = [];
   if (env.NOCO_ASSESS_QUESTIONS) {
     const qr = await nocoFetch(env,
-      `/api/v2/tables/${env.NOCO_ASSESS_QUESTIONS}/records?where=(AssessmentId,eq,${id})&sort=Position&limit=200`
+      `/api/v2/tables/${env.NOCO_ASSESS_QUESTIONS}/records?where=(AssessmentId,eq,${id})&sort=Id&limit=200`
     );
     questions = qr.ok ? ((await qr.json()).list || []) : [];
   }
@@ -275,7 +275,7 @@ export async function handleActionLogEvent(request, env, { json, path }) {
   const session = await verifyToken(authHeader.replace('Bearer ', ''), getTokenSecret(env));
   if (!session) return json({ error: 'Unauthorized' }, 401);
 
-  const subId = path.match(/\/api\/submissions\/(\d+)\/log/)?.[1];
+  const subId = path.match(/\/api\/submissions\/(\d+)\/event/)?.[1];
   if (!subId) return json({ error: 'Invalid' }, 400);
 
   const body = await request.json().catch(() => ({}));
@@ -337,7 +337,7 @@ export async function handleSubmissionSubmit(request, env, { json, path }) {
   let questions = [];
   if (env.NOCO_ASSESS_QUESTIONS) {
     const qr = await nocoFetch(env,
-      `/api/v2/tables/${env.NOCO_ASSESS_QUESTIONS}/records?where=(AssessmentId,eq,${sub.AssessmentId})&sort=Position&limit=200`
+      `/api/v2/tables/${env.NOCO_ASSESS_QUESTIONS}/records?where=(AssessmentId,eq,${sub.AssessmentId})&sort=Id&limit=200`
     );
     questions = qr.ok ? ((await qr.json()).list || []) : [];
   }
@@ -419,6 +419,7 @@ export async function handleSubmissionSubmit(request, env, { json, path }) {
     nocoFetch(env,
       `/api/v2/tables/${env.NOCO_PROGRESS}/records?where=(UserId,eq,${session.userId})~and(ArticleId,eq,${progressKey})&limit=1&fields=Id,Score`
     ).then(async pr => {
+      if (!pr.ok) return;
       const row = ((await pr.json()).list || [])[0];
       if (row) {
         if (scorePercent > (row.Score || 0))
@@ -438,6 +439,58 @@ export async function handleSubmissionSubmit(request, env, { json, path }) {
   // Cleanup KV
   if (env.IDEMPOTENCY_KV)
     env.IDEMPOTENCY_KV.delete(`autosave:${subId}:${session.userId}`).catch(() => {});
+
+  // Fire-and-forget: update D1 student_mastery
+  const userId = session.userId;
+  const courseId = a.CourseId;
+  const assessmentId = sub.AssessmentId;
+  const finalScore = scorePercent;
+  if (env.D1) {
+    const outcomeUpdates = async () => {
+      try {
+        // Get alignments for this assessment's course
+        if (!env.NOCO_ALIGNMENTS) return;
+        const alr = await nocoFetch(env, `/api/v2/tables/${env.NOCO_ALIGNMENTS}/records?where=(CourseId,eq,${courseId})&limit=50`);
+        if (!alr.ok) return;
+        const alignments = (await alr.json()).list || [];
+        const normalizedScore = Math.min(1, Math.max(0, (finalScore || 0) / 100));
+        const now2 = new Date().toISOString();
+        for (const al of alignments) {
+          const code = al.OutcomeCode || '';
+          if (!code) continue;
+          // BKT simple update: P(L|correct) = P(L)*(1-P(S)) / (P(L)*(1-P(S)) + (1-P(L))*P(G))
+          const existing = await env.D1.prepare(
+            'SELECT bkt_state, attempts FROM student_mastery WHERE student_id=? AND outcome_code=?'
+          ).bind(userId, code).first();
+          const prior = existing?.bkt_state ?? 0.3;
+          const attempts = (existing?.attempts ?? 0) + 1;
+          const isCorrect = normalizedScore >= 0.6 ? 1 : 0;
+          const pS = 0.1, pG = 0.2, pT = 0.15;
+          let posterior;
+          if (isCorrect) {
+            posterior = (prior * (1 - pS)) / (prior * (1 - pS) + (1 - prior) * pG);
+          } else {
+            posterior = (prior * pS) / (prior * pS + (1 - prior) * (1 - pG));
+          }
+          const newBkt = posterior + (1 - posterior) * pT;
+          await env.D1.prepare(`
+            INSERT INTO student_mastery (student_id, outcome_code, subject, grade, score, attempts, bkt_state, last_response, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(student_id, outcome_code) DO UPDATE SET
+              score=excluded.score, attempts=excluded.attempts,
+              bkt_state=excluded.bkt_state, last_response=excluded.last_response,
+              updated_at=excluded.updated_at
+          `).bind(userId, code, al.Subject || '', al.Grade || '', normalizedScore, attempts, newBkt, isCorrect, now2).run();
+        }
+        // Also log xAPI action
+        await env.D1.prepare(`
+          INSERT INTO action_logs (student_id, course_id, item_id, verb, object_type, result_score, result_success, created_at)
+          VALUES (?, ?, ?, 'completed', 'assessment', ?, ?, ?)
+        `).bind(userId, courseId, assessmentId, normalizedScore, normalizedScore >= 0.6 ? 1 : 0, now2).run();
+      } catch(e) { console.error('[D1 mastery update]', e.message); }
+    };
+    outcomeUpdates(); // fire-and-forget, no await
+  }
 
   return json({
     ok: true,
@@ -474,7 +527,7 @@ export async function handleSubmissionResult(request, env, { json, path }) {
   const a = ar.ok ? await ar.json() : {};
 
   const qr = env.NOCO_ASSESS_QUESTIONS
-    ? await nocoFetch(env, `/api/v2/tables/${env.NOCO_ASSESS_QUESTIONS}/records?where=(AssessmentId,eq,${sub.AssessmentId})&sort=Position&limit=200`)
+    ? await nocoFetch(env, `/api/v2/tables/${env.NOCO_ASSESS_QUESTIONS}/records?where=(AssessmentId,eq,${sub.AssessmentId})&sort=Id&limit=200`)
     : null;
   const questions = qr?.ok ? ((await qr.json()).list || []) : [];
 
@@ -517,6 +570,52 @@ export async function handleSubmissionResult(request, env, { json, path }) {
       };
     }),
   });
+}
+
+/**
+ * GET /api/submissions — Student: list own submissions
+ * Auth: verifyToken — always filters by session.userId (user_id param ignored for security)
+ * Query: ?limit=N&assessment_id=X
+ */
+export async function handleStudentSubmissions(request, env, { json, url }) {
+  const authHeader = request.headers.get('Authorization') || '';
+  const session = await verifyToken(authHeader.replace('Bearer ', ''), getTokenSecret(env));
+  if (!session) return json({ error: 'Unauthorized' }, 401);
+  if (!env.NOCO_SUBMISSIONS) return json({ list: [] });
+
+  const sp = url.searchParams;
+  const limit = Math.min(parseInt(sp.get('limit') || '50'), 200);
+  const assessmentId = sp.get('assessment_id') || sp.get('assessmentId');
+
+  const parts = [`(UserId,eq,${session.userId})`];
+  if (assessmentId) parts.push(`(AssessmentId,eq,${assessmentId})`);
+  const where = parts.join('~and');
+
+  const r = await nocoFetch(env,
+    `/api/v2/tables/${env.NOCO_SUBMISSIONS}/records?where=${encodeURIComponent(where)}&limit=${limit}&sort=-StartTime&fields=Id,AssessmentId,UserId,Status,TotalScore,MaxScore,ScorePercent,Passed,StartTime,EndTime,GradedAt,Comment,Score`
+  );
+  if (!r.ok) return json({ list: [] });
+
+  const data = await r.json();
+  const submissions = data.list || [];
+
+  // Enrich with assessment title for display
+  if (submissions.length && env.NOCO_ASSESSMENTS) {
+    const ids = [...new Set(submissions.map(s => s.AssessmentId).filter(Boolean))];
+    if (ids.length) {
+      const where2 = ids.map(id => `(Id,eq,${id})`).join('~or');
+      try {
+        const ar = await nocoFetch(env, `/api/v2/tables/${env.NOCO_ASSESSMENTS}/records?where=${encodeURIComponent(where2)}&fields=Id,Title,MaxScore&limit=50`);
+        if (ar.ok) {
+          const aMap = {};
+          ((await ar.json()).list || []).forEach(a => { aMap[a.Id] = a; });
+          submissions.forEach(s => { s._assessment = aMap[s.AssessmentId] || null; });
+        }
+      } catch (_) {}
+    }
+  }
+
+  return json({ list: submissions, pageInfo: data.pageInfo });
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -593,7 +692,7 @@ export async function handleAssessmentExport(request, env, { path, cors }) {
   const isAnonymous = a.IsAnonymous && a.AssessmentType?.includes('survey');
 
   const qr = env.NOCO_ASSESS_QUESTIONS
-    ? await nocoFetch(env, `/api/v2/tables/${env.NOCO_ASSESS_QUESTIONS}/records?where=(AssessmentId,eq,${id})&sort=Position&limit=200`)
+    ? await nocoFetch(env, `/api/v2/tables/${env.NOCO_ASSESS_QUESTIONS}/records?where=(AssessmentId,eq,${id})&sort=Id&limit=200`)
     : null;
   const questions = qr?.ok ? ((await qr.json()).list || []) : [];
 
