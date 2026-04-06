@@ -1,41 +1,19 @@
-# ── Backup files ─────────────────────────────────────────────
-*.bak
-*.backup
-*.orig
+# System
+.DS_Store
+.wrangler/
+worker/.wrangler/
+node_modules/
+*.log
 
-# ── Sensitive / environment files ────────────────────────────
-.env
-.env.*
-!.env.example
-config.local.json
-secrets.json
-*.pem
-*.key
-service-account*.json
+# Google Drive sync
+*.docx
+*.pdf
+*.xlsx
 
-# ── Worker secrets (never commit real values) ─────────────────
+# Cloudflare dev
+.dev.vars
 worker/.dev.vars
 
-# ── Node / npm ───────────────────────────────────────────────
-node_modules/
-npm-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# ── Wrangler local cache ──────────────────────────────────────
-.wrangler/
-
-# ── OS files ─────────────────────────────────────────────────
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# ── Editor files ─────────────────────────────────────────────
-.vscode/settings.json
-.idea/
-*.swp
-*.swo
-
-# ── Logs ─────────────────────────────────────────────────────
-*.log
-logs/
+# Claude internal
+.claude-sync/
+.claude/settings.local.json

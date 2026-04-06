@@ -1,7 +1,23 @@
 {
   "permissions": {
     "allow": [
-      "Bash(md5 /Users/TriHue/Downloads/active-edu-main/dashboard.html /Users/TriHue/Downloads/active-edu-main/admin/dashboard.html)"
+      "Bash(pandoc --track-changes=all \"/Users/TriHue/Library/CloudStorage/GoogleDrive-trihue.life@gmail.com/My Drive/ActiveEdu/AURA_Tong_Hop_De_Xuat.docx\" -o /tmp/aura_proposals.md)",
+      "Read(//tmp/**)",
+      "Read(//Users/TriHue/Library/Application Support/Claude/local-agent-mode-sessions/skills-plugin/2a80d536-d01e-444a-be88-3dd794791257/c7543fa7-6aba-4955-9164-4fae0c5e46c4/skills/docx/**)",
+      "Bash(python scripts/office/unpack.py \"/Users/TriHue/Library/CloudStorage/GoogleDrive-trihue.life@gmail.com/My Drive/ActiveEdu/AURA_Tong_Hop_De_Xuat.docx\" /tmp/aura_unpacked/)",
+      "Bash(python3 \"/Users/TriHue/Library/Application Support/Claude/local-agent-mode-sessions/skills-plugin/2a80d536-d01e-444a-be88-3dd794791257/c7543fa7-6aba-4955-9164-4fae0c5e46c4/skills/docx/scripts/office/unpack.py\" \"/Users/TriHue/Library/CloudStorage/GoogleDrive-trihue.life@gmail.com/My Drive/ActiveEdu/AURA_Tong_Hop_De_Xuat.docx\" /tmp/aura_unpacked/)",
+      "Bash(pip3 install:*)",
+      "Bash(export PATH=$PATH:/usr/local/bin)",
+      "Bash(grep -rn \"sort.*Position\\\\|Position.*sort\" '/Users/TriHue/Library/CloudStorage/GoogleDrive-trihue.life@gmail.com/My Drive/ActiveEdu/' --include=*.html --include=*.js)",
+      "Bash(wrangler deploy:*)",
+      "Bash(pandoc --track-changes=all \"/Users/TriHue/Downloads/Phân tích Sơ đồ Quản lý Trang trong Module.docx\" -o /tmp/doc1.md)",
+      "Bash(export PATH=\"$PATH:/usr/local/bin:/opt/homebrew/bin\")",
+      "Bash(pandoc --version)",
+      "Bash(grep -rn NOCO_ARTICLE '/Users/TriHue/Library/CloudStorage/GoogleDrive-trihue.life@gmail.com/My Drive/ActiveEdu/worker/' --include=*.toml --include=*.json)",
+      "Bash(head -10 grep -n \"apiFetch.*null\\\\|teacher/students.*null\\\\|loadStudents\\\\|loadTeacherCourses\" \"/Users/TriHue/Library/CloudStorage/GoogleDrive-trihue.life@gmail.com/My Drive/ActiveEdu/teacher/dashboard.html\")",
+      "Bash(head -10 grep -n \"querySelectorAll.*tab-btn\\\\|switchTab.*announce\" \"/Users/TriHue/Library/CloudStorage/GoogleDrive-trihue.life@gmail.com/My Drive/ActiveEdu/course.html\")",
+      "Bash(unzip -o activeedu-ai-research-v1.zip -d activeedu-ai-research-v1)",
+      "Bash(unzip -o activeedu-algo-lab-v1.zip -d activeedu-algo-lab-v1)"
     ]
   }
 }

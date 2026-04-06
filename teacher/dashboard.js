@@ -164,21 +164,15 @@ export async function loadGradebook(courseId) {
 }
 
 // ── OUTCOMES / MASTERY ────────────────────────────────────────────────────────
+// Gọi API thực: GET /api/teacher/outcomes?course_id=X
+// Trả về { outcomes, students, outcome_codes } từ D1 student_mastery
 export async function loadMastery(courseId) {
-  // No backend mastery endpoint — returns mock outcomes data for now
-  const path = courseId ? `/api/alignments?course_id=${courseId}` : null;
-  const r = path ? await apiFetch(path) : null;
+  if (!courseId) return { outcomes: [], students: [], outcome_codes: [] };
+  const r = await apiFetch(`/api/teacher/outcomes?course_id=${courseId}`);
   if (r && r.ok) {
-    const d = await r.json();
-    return d.list || d;
+    return await r.json();
   }
-  return [
-    { code: 'NLTT.1', name: 'Tư duy và lập luận', mastery: 0.72, students_mastered: 23, total: 32 },
-    { code: 'NLTT.2', name: 'Mô hình hoá toán học', mastery: 0.58, students_mastered: 18, total: 32 },
-    { code: 'NLTT.3', name: 'Giải quyết vấn đề', mastery: 0.65, students_mastered: 21, total: 32 },
-    { code: 'NLTD.1', name: 'Giao tiếp toán học', mastery: 0.80, students_mastered: 26, total: 32 },
-    { code: 'NLTD.2', name: 'Sử dụng công cụ, phương tiện', mastery: 0.45, students_mastered: 14, total: 32 },
-  ];
+  return { outcomes: [], students: [], outcome_codes: [] };
 }
 
 // ── AI RESEARCH ───────────────────────────────────────────────────────────────

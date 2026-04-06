@@ -565,6 +565,7 @@ body {
       <div class="save-dot" id="save-dot"></div>
       <span id="save-label">Tự động lưu</span>
     </div>
+    <div id="attempt-chip" style="display:none;font-size:12px;color:var(--text-muted);padding:4px 10px;border:1px solid var(--border);border-radius:100px;white-space:nowrap;"></div>
     <div class="timer-chip" id="timer-chip" style="display:none">
       <i class="fas fa-clock"></i>
       <span id="timer-display">--:--</span>
@@ -774,6 +775,15 @@ function beginQuiz() {
   S.autoSaveTimer = setInterval(autoSave, 15000);
   document.addEventListener('visibilitychange', onVisibility);
   window.addEventListener('beforeunload', onUnload);
+  document.addEventListener('keydown', handleKeyboard);
+
+  // Show attempt number
+  if (S.assess.maxAttempts) {
+    const attemptNum = S.submission?.attemptNumber || 1;
+    document.getElementById('attempt-chip').style.display = '';
+    document.getElementById('attempt-chip').textContent = `Lần ${attemptNum}/${S.assess.maxAttempts}`;
+  }
+
   renderQuiz();
 }
 
@@ -902,6 +912,31 @@ function navQuestion(dir) {
 function jumpTo(idx) { S.currentQ = idx; renderQuiz(); scrollTo({top:0,behavior:'smooth'}); }
 
 // ═══════════════════════════════════════════════════════════
+// KEYBOARD SHORTCUTS
+// ═══════════════════════════════════════════════════════════
+function handleKeyboard(e) {
+  if (S.phase !== 'quiz') return;
+  if (['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
+  const q = S.questions[S.currentQ];
+  if (!q) return;
+  // 1-4/A-D: select option for MCQ
+  if (q.type === 'multiple_choice') {
+    const n = e.key >= '1' && e.key <= '4' ? parseInt(e.key) - 1
+            : e.key.toUpperCase() >= 'A' && e.key.toUpperCase() <= 'D' ? e.key.toUpperCase().charCodeAt(0) - 65
+            : -1;
+    if (n >= 0 && n < (q.options||[]).length) { setAns(q.id, n); return; }
+  }
+  // T/F for true_false
+  if (q.type === 'true_false') {
+    if (e.key.toLowerCase() === 't') { setAns(q.id, true); return; }
+    if (e.key.toLowerCase() === 'f') { setAns(q.id, false); return; }
+  }
+  // Arrow keys / Enter for navigation
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); navQuestion(1); }
+  if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   { e.preventDefault(); navQuestion(-1); }
+}
+
+// ═══════════════════════════════════════════════════════════
 // AUTO-SAVE
 // ═══════════════════════════════════════════════════════════
 async function autoSave() {
@@ -996,17 +1031,30 @@ function showResult(data) {
     const pass = pct != null ? pct >= 50 : null;
     const elapsedStr = elapsed ? `${Math.floor(elapsed/60)}:${String(elapsed%60).padStart(2,'0')}` : '–';
 
+    // Grade letter
+    const gradeLetter = pct == null ? '' : pct >= 90 ? 'A+' : pct >= 85 ? 'A' : pct >= 80 ? 'A-' : pct >= 75 ? 'B+' : pct >= 70 ? 'B' : pct >= 65 ? 'B-' : pct >= 55 ? 'C' : pct >= 50 ? 'D' : 'F';
+    const gradeColor = pct == null ? '' : pct >= 80 ? 'var(--success)' : pct >= 65 ? '#2563EB' : pct >= 50 ? 'var(--warning)' : 'var(--danger)';
+    const emoji = pct == null ? '📋' : pct >= 80 ? '🎉' : pct >= 50 ? '👍' : '😔';
+    const heading = pct == null ? 'Đã nộp bài!' : pct >= 80 ? 'Xuất sắc!' : pct >= 50 ? 'Đạt yêu cầu!' : 'Chưa đạt';
+
+    // Attempts remaining
+    const maxAtt = S.assess.maxAttempts;
+    const attNum = S.submission?.attemptNumber || result.attemptNumber || 1;
+    const canRetry = (!maxAtt || attNum < maxAtt) && (isPractice || isGraded);
+    const showReview = (isPractice || (isGraded && result.showCorrectAnswers !== false)) && result.answers;
+
     render(`
       <div class="result-card">
-        <span class="result-emoji">${pass===null?'📋':pass?'🎉':'😔'}</span>
-        <h2 class="result-heading">${pass===null?'Đã nộp bài!':pass?'Xuất sắc!':'Chưa đạt'}</h2>
-        <p class="result-sub">${pass===null?'Kết quả sẽ được cập nhật sau khi chấm.':pass?'Chúc mừng bạn đã hoàn thành bài kiểm tra!':'Hãy ôn tập và thử lại!'}</p>
+        <span class="result-emoji">${emoji}</span>
+        <h2 class="result-heading">${heading}</h2>
+        <p class="result-sub">${pct==null?'Kết quả sẽ được cập nhật sau khi giáo viên chấm.':pass?'Chúc mừng bạn đã hoàn thành bài kiểm tra!':'Hãy ôn tập và thử lại nhé!'}</p>
 
         ${isGraded && score != null ? `
           <div class="result-score-wrap">
             <div class="result-score ${pass?'pass':'fail'}">${score}</div>
             <div class="result-score-max">/${maxScore}</div>
           </div>
+          ${gradeLetter ? `<div style="font-size:32px;font-weight:900;color:${gradeColor};margin:4px 0 8px;">${gradeLetter}</div>` : ''}
           ${pct!=null?`<div class="result-pct">${pct}% tổng điểm</div>`:''}
         ` : ''}
 
@@ -1017,22 +1065,27 @@ function showResult(data) {
           </div>` : ''}
           <div class="result-stat">
             <div class="val">${elapsedStr}</div>
-            <div class="lbl">Thời gian</div>
+            <div class="lbl">Thời gian làm</div>
           </div>
           ${pct!=null?`<div class="result-stat">
-            <div class="val" style="color:${pass?'var(--success)':'var(--danger)'}">${pct}%</div>
+            <div class="val" style="color:${gradeColor||'var(--text)'}">${pct}%</div>
             <div class="lbl">Tỉ lệ đúng</div>
           </div>`:''}
         </div>
 
-        ${isPractice && result.answers ? buildReview(result) : ''}
+        ${maxAtt ? `<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">Lần thử ${attNum}/${maxAtt} ${canRetry?`• Còn ${maxAtt-attNum} lần`:''}</div>` : ''}
+
+        ${showReview ? buildReview(result) : ''}
 
         <div class="result-actions">
           <a href="javascript:history.back()" class="btn btn-secondary">
             <i class="fas fa-arrow-left"></i> Quay lại
           </a>
-          ${isPractice ? `<button class="btn btn-primary" onclick="location.reload()">
-            <i class="fas fa-rotate-right"></i> Làm lại
+          ${showReview ? `<a href="#review-section" class="btn btn-secondary">
+            <i class="fas fa-magnifying-glass"></i> Xem lại bài
+          </a>` : ''}
+          ${canRetry ? `<button class="btn btn-primary" onclick="location.reload()">
+            <i class="fas fa-rotate-right"></i> Làm lại ${maxAtt?`(còn ${maxAtt-attNum} lần)`:''}
           </button>` : ''}
         </div>
       </div>
@@ -1078,6 +1131,7 @@ function buildReview(result) {
           <div class="review-answers">
             <span>Bạn chọn:</span> <b>${display(user)}</b>
             ${!correct&&right!==undefined?`<br><span>Đáp án đúng:</span> <b class="review-correct-ans">${display(right)}</b>`:''}
+            ${a?.explanation?`<br><span style="color:#6366F1;font-size:12px;"><i class="fas fa-lightbulb"></i> ${esc(a.explanation)}</span>`:''}
           </div>
         </div>`;
       }).join('')}

@@ -394,3 +394,113 @@ export async function handleAdminStats(request, env, { json }) {
 
   return json({ total_users, active_courses, submissions_today, ai_queries_today });
 }
+
+// ── Admin: D1 Schema Setup ─────────────────────────────────────
+// POST /admin/setup/d1-schema → Tạo 3 bảng D1: student_mastery, action_logs, xapi_statements
+export async function handleSetupD1Schema(request, env, { json }) {
+  if (!await verifyAdminAuth(request, env)) return json({ error: 'Unauthorized' }, 401);
+  if (!env.D1) return json({ error: 'D1 binding chưa được cấu hình trong wrangler.toml' }, 503);
+
+  const results = {};
+  const tables = [
+    {
+      name: 'student_mastery',
+      sql: `CREATE TABLE IF NOT EXISTS student_mastery (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        student_id TEXT NOT NULL,
+        outcome_code TEXT NOT NULL,
+        subject TEXT,
+        grade TEXT,
+        score REAL DEFAULT 0,
+        attempts INTEGER DEFAULT 0,
+        bkt_state REAL DEFAULT 0.3,
+        last_response INTEGER DEFAULT 0,
+        updated_at TEXT,
+        UNIQUE(student_id, outcome_code)
+      )`,
+    },
+    {
+      name: 'action_logs',
+      sql: `CREATE TABLE IF NOT EXISTS action_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        student_id TEXT,
+        course_id TEXT,
+        item_id TEXT,
+        verb TEXT,
+        object_type TEXT,
+        result_score REAL,
+        result_success INTEGER,
+        created_at TEXT
+      )`,
+    },
+    {
+      name: 'xapi_statements',
+      sql: `CREATE TABLE IF NOT EXISTS xapi_statements (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        actor_id TEXT,
+        actor_email TEXT,
+        verb TEXT,
+        verb_display TEXT,
+        object_id TEXT,
+        object_type TEXT,
+        object_name TEXT,
+        result_score_raw REAL,
+        result_score_min REAL,
+        result_score_max REAL,
+        result_success INTEGER,
+        result_completion INTEGER,
+        result_duration_s INTEGER,
+        context_course_id TEXT,
+        context_module_id TEXT,
+        timestamp TEXT
+      )`,
+    },
+    {
+      name: 'discussion_likes',
+      sql: `CREATE TABLE IF NOT EXISTS discussion_likes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL,
+        discussion_id TEXT NOT NULL,
+        reply_id TEXT NOT NULL DEFAULT '',
+        created_at TEXT,
+        UNIQUE(user_id, discussion_id, reply_id)
+      )`,
+    },
+    {
+      name: 'announcement_reads',
+      sql: `CREATE TABLE IF NOT EXISTS announcement_reads (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        announcement_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        read_at TEXT,
+        UNIQUE(announcement_id, user_id)
+      )`,
+    },
+    {
+      name: 'rubric_grades',
+      sql: `CREATE TABLE IF NOT EXISTS rubric_grades (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        submission_id TEXT NOT NULL,
+        rubric_id TEXT NOT NULL,
+        grader_id TEXT,
+        criteria_scores TEXT,
+        total REAL DEFAULT 0,
+        comment TEXT,
+        graded_at TEXT,
+        UNIQUE(submission_id, rubric_id)
+      )`,
+    },
+  ];
+
+  for (const t of tables) {
+    try {
+      await env.D1.prepare(t.sql).run();
+      results[t.name] = 'ok';
+    } catch (e) {
+      results[t.name] = `error: ${e.message}`;
+    }
+  }
+
+  const allOk = Object.values(results).every(v => v === 'ok');
+  return json({ ok: allOk, tables: results, message: allOk ? 'D1 schema tạo thành công' : 'Một số bảng bị lỗi' });
+}

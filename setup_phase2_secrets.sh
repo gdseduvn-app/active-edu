@@ -1,0 +1,25 @@
+#!/bin/bash
+# Chạy file này trong thư mục worker/
+cd "$(dirname "$0")/worker"
+
+echo "mkepofo45k4ntsl" | /usr/local/bin/node /tmp/wrangler-install/node_modules/.bin/wrangler secret put NOCO_DISCUSSIONS --env=""
+echo "m166brkqvw7qd3a" | /usr/local/bin/node /tmp/wrangler-install/node_modules/.bin/wrangler secret put NOCO_DISC_REPLIES --env=""
+echo "mlbum4psndnkatu" | /usr/local/bin/node /tmp/wrangler-install/node_modules/.bin/wrangler secret put NOCO_ANNOUNCEMENTS --env=""
+echo "mfgn36polp3gyoc" | /usr/local/bin/node /tmp/wrangler-install/node_modules/.bin/wrangler secret put NOCO_CALENDAR --env=""
+echo "motg5iwum2u0q7u" | /usr/local/bin/node /tmp/wrangler-install/node_modules/.bin/wrangler secret put NOCO_CONVERSATIONS --env=""
+echo "moi03qxomrmfszp" | /usr/local/bin/node /tmp/wrangler-install/node_modules/.bin/wrangler secret put NOCO_CONV_PARTS --env=""
+echo "mxjhpvnm7uyt9mc" | /usr/local/bin/node /tmp/wrangler-install/node_modules/.bin/wrangler secret put NOCO_MSG_TABLE --env=""
+echo "mxl0be6wje4xlt6" | /usr/local/bin/node /tmp/wrangler-install/node_modules/.bin/wrangler secret put NOCO_RUBRICS --env=""
+echo "mxo77azv1iyfaii" | /usr/local/bin/node /tmp/wrangler-install/node_modules/.bin/wrangler secret put NOCO_RUBRIC_CRITERIA --env=""
+echo "m88g73diiksmhwb" | /usr/local/bin/node /tmp/wrangler-install/node_modules/.bin/wrangler secret put NOCO_RUBRIC_RATINGS --env=""
+echo "mq6gotfrrl8ovhj" | /usr/local/bin/node /tmp/wrangler-install/node_modules/.bin/wrangler secret put NOCO_GROUP_SETS --env=""
+echo "mffi6owxqv9keb4" | /usr/local/bin/node /tmp/wrangler-install/node_modules/.bin/wrangler secret put NOCO_GROUPS --env=""
+echo "mktda9zy2t9eqgz" | /usr/local/bin/node /tmp/wrangler-install/node_modules/.bin/wrangler secret put NOCO_GROUP_MEMBERS --env=""
+echo "mdzl2yx5wmqxcnc" | /usr/local/bin/node /tmp/wrangler-install/node_modules/.bin/wrangler secret put NOCO_PEER_REVIEWS --env=""
+echo "mmhocww16fv2oxg" | /usr/local/bin/node /tmp/wrangler-install/node_modules/.bin/wrangler secret put NOCO_FILES --env=""
+echo "mwz5twc88podhkn" | /usr/local/bin/node /tmp/wrangler-install/node_modules/.bin/wrangler secret put NOCO_OBSERVER_LINKS --env=""
+echo "m1kmyqgpwu6vpzy" | /usr/local/bin/node /tmp/wrangler-install/node_modules/.bin/wrangler secret put NOCO_PORTFOLIO --env=""
+echo "mtzlnxmfieg8jia" | /usr/local/bin/node /tmp/wrangler-install/node_modules/.bin/wrangler secret put NOCO_CONFERENCES --env=""
+
+echo "\n✅ Xong! Deploy..."
+/usr/local/bin/node /tmp/wrangler-install/node_modules/.bin/wrangler deploy --env=""
