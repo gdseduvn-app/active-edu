@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AURA Lesson Studio</title>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" rel="stylesheet">
+<style>
+:root {
+  --primary:#E66000; --primary-dark:#C55500; --primary-light:#FF8C3A;
+  --sidebar-bg:#2D3B45; --bg:#F5F5F5; --card-bg:#fff;
+  --border:#E1E5E8; --text:#2D3B45; --text-muted:#6B7B8A; --text-subtle:#9AAAB5;
+  --success:#16A34A; --warning:#D97706; --danger:#EF4444; --info:#2563EB;
+  --r:6px; --shadow:0 1px 3px rgba(0,0,0,.08); --shadow-md:0 4px 12px rgba(0,0,0,.10);
+  --left-w:270px; --right-w:300px; --top-h:52px;
+  /* Stage colors */
+  --s1:#EEF6FF; --s1b:#2563EB;
+  --s2:#F0FDF4; --s2b:#16A34A;
+  --s3:#FFF7ED; --s3b:#D97706;
+  --s4:#FDF4FF; --s4b:#9333EA;
+  --s5:#FFF1F2; --s5b:#E11D48;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Be Vietnam Pro',sans-serif;font-size:13px;color:var(--text);background:var(--bg);
+  display:flex;flex-direction:column;height:100vh;overflow:hidden}
+
+/* ── TOPBAR ── */
+#topbar{height:var(--top-h);background:#fff;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;padding:0 16px;flex-shrink:0;z-index:50}
+#topbar .back-btn{display:flex;align-items:center;gap:6px;color:var(--text-muted);cursor:pointer;
+  padding:6px 10px;border-radius:var(--r);border:1px solid var(--border);font-size:12px;
+  text-decoration:none;transition:all .15s}
+#topbar .back-btn:hover{background:var(--bg);color:var(--text)}
+#lesson-title-input{flex:1;font-size:15px;font-weight:600;border:none;outline:none;
+  background:transparent;color:var(--text);min-width:0}
+#lesson-title-input::placeholder{color:var(--text-subtle)}
+.top-badge{font-size:10px;padding:2px 8px;border-radius:100px;font-weight:600}
+.top-badge.draft{background:#FEF9C3;color:#854D0E}
+.top-badge.published{background:#DCFCE7;color:#14532D}
+.top-actions{display:flex;gap:8px;flex-shrink:0}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--r);
+  border:1px solid transparent;font-size:12px;font-weight:500;cursor:pointer;
+  font-family:'Be Vietnam Pro',sans-serif;transition:all .15s;white-space:nowrap}
+.btn-sm{padding:5px 10px;font-size:11px}
+.btn-primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+.btn-primary:hover{background:var(--primary-dark)}
+.btn-outline{background:#fff;color:var(--text);border-color:var(--border)}
+.btn-outline:hover{background:var(--bg)}
+.btn-ghost{background:transparent;border:none;color:var(--text-muted)}
+.btn-ghost:hover{background:var(--bg);color:var(--text)}
+.btn-success{background:var(--success);color:#fff}
+.btn-success:hover{opacity:.9}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* ── TABS ── */
+#studio-tabs{height:42px;background:#fff;border-bottom:1px solid var(--border);
+  display:flex;align-items:flex-end;padding:0 16px;gap:0;flex-shrink:0}
+.studio-tab{padding:10px 16px 8px;font-size:12px;font-weight:500;cursor:pointer;
+  border-bottom:2px solid transparent;color:var(--text-muted);transition:all .15s;
+  display:flex;align-items:center;gap:6px}
+.studio-tab:hover{color:var(--text)}
+.studio-tab.active{color:var(--primary);border-bottom-color:var(--primary)}
+
+/* ── MAIN 3-COL ── */
+#studio-body{display:flex;flex:1;overflow:hidden}
+
+/* ── LEFT PANEL ── */
+#left-panel{width:var(--left-w);background:#fff;border-right:1px solid var(--border);
+  display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+.lp-section{border-bottom:1px solid var(--border)}
+.lp-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;
+  cursor:pointer;user-select:none;font-weight:600;font-size:12px}
+.lp-head i.chevron{transition:transform .2s;font-size:10px;color:var(--text-muted)}
+.lp-head.open i.chevron{transform:rotate(180deg)}
+.lp-body{padding:0 14px 12px;display:none}
+.lp-body.open{display:block}
+.search-box{position:relative;margin-bottom:8px}
+.search-box input{width:100%;padding:6px 10px 6px 28px;border:1px solid var(--border);
+  border-radius:var(--r);font-size:12px;font-family:inherit;outline:none}
+.search-box input:focus{border-color:var(--primary)}
+.search-box i{position:absolute;left:9px;top:50%;transform:translateY(-50%);
+  font-size:11px;color:var(--text-muted)}
+.filter-row{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+select.mini{padding:4px 6px;border:1px solid var(--border);border-radius:var(--r);
+  font-size:11px;font-family:inherit;background:#fff;outline:none;cursor:pointer}
+#std-list{max-height:240px;overflow-y:auto;display:flex;flex-direction:column;gap:4px}
+.std-card{border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;
+  cursor:pointer;transition:all .15s;background:#fff}
+.std-card:hover{border-color:var(--primary);background:#FFF7F3}
+.std-card.selected{border-color:var(--primary);background:#FFF3EC}
+.std-id{font-size:10px;font-weight:700;color:var(--primary);font-family:monospace}
+.std-req{font-size:11px;color:var(--text);line-height:1.4;margin:3px 0}
+.std-badges{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+.badge{font-size:10px;padding:1px 6px;border-radius:100px;font-weight:600}
+.badge-bloom1{background:#EFF6FF;color:#1D4ED8}
+.badge-bloom2{background:#F0FDF4;color:#15803D}
+.badge-bloom3{background:#FFF7ED;color:#C2410C}
+.badge-bloom4{background:#FDF4FF;color:#7E22CE}
+.badge-bloom5{background:#FFF1F2;color:#BE123C}
+.badge-bloom6{background:#1E293B;color:#F1F5F9}
+.badge-gray{background:#F1F5F9;color:#475569}
+
+/* AL FORMAT PICKER */
+.al-tier{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--text-muted);margin:8px 0 6px}
+.al-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:4px}
+.al-btn{border:1px solid var(--border);border-radius:var(--r);padding:6px 8px;
+  cursor:pointer;text-align:left;background:#fff;font-family:inherit;
+  font-size:11px;transition:all .15s;line-height:1.3}
+.al-btn:hover{border-color:var(--primary);background:#FFF7F3}
+.al-btn.selected{border-color:var(--primary);background:#FFF3EC;font-weight:600}
+.al-btn .al-icon{font-size:14px;display:block;margin-bottom:2px}
+.al-btn .al-name{font-weight:500;color:var(--text)}
+.al-btn .al-meta{font-size:10px;color:var(--text-muted)}
+
+/* MATH MODELS */
+.math-model-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.mm-btn{border:1px solid var(--border);border-radius:var(--r);padding:8px;
+  cursor:pointer;text-align:center;background:#fff;font-family:inherit;
+  font-size:11px;transition:all .15s}
+.mm-btn:hover{border-color:var(--info);background:#EFF6FF}
+.mm-btn i{font-size:16px;color:var(--info);display:block;margin-bottom:4px}
+
+/* ── CENTER ── */
+#center-panel{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+#center-content{flex:1;overflow-y:auto;padding:16px}
+
+/* Visual Stage Cards */
+.stage-wrap{display:flex;flex-direction:column;gap:12px}
+.stage-card{border-radius:10px;border:1.5px solid var(--border);background:#fff;
+  overflow:hidden;transition:box-shadow .15s}
+.stage-card:hover{box-shadow:var(--shadow-md)}
+.stage-head{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border)}
+.stage-num{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0}
+.stage-title-text{font-weight:600;font-size:13px;flex:1}
+.kolb-tag{font-size:10px;font-weight:600;padding:2px 8px;border-radius:100px}
+.dur-input{width:50px;padding:3px 6px;border:1px solid var(--border);border-radius:var(--r);
+  font-size:11px;text-align:center;font-family:inherit;outline:none}
+.stage-body{padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+
+/* Activity blocks */
+.activity-block{border:1px solid var(--border);border-radius:var(--r);
+  background:#FAFAFA;overflow:hidden}
+.act-head{display:flex;align-items:center;gap:8px;padding:7px 10px;
+  background:#fff;border-bottom:1px solid var(--border)}
+.act-type-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:100px}
+.act-type-mcq{background:#EFF6FF;color:#1D4ED8}
+.act-type-numeric{background:#F0FDF4;color:#15803D}
+.act-type-open_ai{background:#FDF4FF;color:#7E22CE}
+.act-type-think_write{background:#FFF7ED;color:#C2410C}
+.act-type-math_input{background:#FFF1F2;color:#BE123C}
+.act-type-exit_ticket{background:#1E293B;color:#F1F5F9}
+.act-type-geogebra{background:#EFF6FF;color:#0369A1}
+.act-body{padding:10px}
+.act-body textarea,.act-body input[type=text]{width:100%;padding:6px 9px;
+  border:1px solid var(--border);border-radius:var(--r);font-size:12px;
+  font-family:'Be Vietnam Pro',sans-serif;outline:none;resize:vertical}
+.act-body textarea:focus,.act-body input[type=text]:focus{border-color:var(--primary)}
+.act-score-row{display:flex;gap:8px;align-items:center;margin-top:8px;
+  padding-top:8px;border-top:1px dashed var(--border);flex-wrap:wrap}
+.act-score-row label{font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:4px}
+.act-score-row input[type=number]{width:60px;padding:3px 6px;border:1px solid var(--border);
+  border-radius:var(--r);font-size:11px;text-align:center;font-family:inherit;outline:none}
+.act-score-row select{padding:3px 6px;border:1px solid var(--border);border-radius:var(--r);
+  font-size:11px;font-family:inherit;background:#fff;outline:none}
+
+/* Options builder for MCQ */
+.mcq-options{display:flex;flex-direction:column;gap:5px;margin-top:6px}
+.mcq-option-row{display:flex;align-items:center;gap:6px}
+.mcq-option-row input[type=radio]{accent-color:var(--primary);cursor:pointer}
+.opt-label{font-size:11px;font-weight:600;color:var(--text-muted);width:16px;flex-shrink:0}
+.add-act-row{display:flex;gap:6px;flex-wrap:wrap;padding:8px 0 0}
+
+/* Code editor */
+#code-editor{flex:1;font-family:'Courier New',monospace;font-size:12px;line-height:1.6;
+  border:none;outline:none;resize:none;padding:16px;background:#1E293B;color:#E2E8F0;
+  width:100%}
+
+/* Preview */
+#preview-frame{border:none;width:100%;flex:1;background:#fff}
+
+/* ── RIGHT PANEL ── */
+#right-panel{width:var(--right-w);background:#fff;border-left:1px solid var(--border);
+  display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0}
+.rp-section{border-bottom:1px solid var(--border);padding:12px 14px}
+.rp-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--text-muted);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.form-row{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+.form-row label{font-size:11px;font-weight:600;color:var(--text-muted)}
+.form-row input,.form-row select,.form-row textarea{
+  padding:6px 9px;border:1px solid var(--border);border-radius:var(--r);
+  font-size:12px;font-family:inherit;outline:none;background:#fff}
+.form-row input:focus,.form-row select:focus{border-color:var(--primary)}
+
+/* SOLO Picker */
+.solo-picker{display:flex;gap:5px;margin-top:4px}
+.solo-dot{width:32px;height:32px;border-radius:50%;border:2px solid var(--border);
+  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;
+  cursor:pointer;transition:all .15s;color:var(--text-muted)}
+.solo-dot:hover{border-color:var(--primary);color:var(--primary)}
+.solo-dot.active{border-color:var(--primary);background:var(--primary);color:#fff}
+.solo-labels{display:flex;gap:5px;margin-top:3px}
+.solo-labels span{width:32px;font-size:9px;text-align:center;color:var(--text-subtle);line-height:1.2}
+
+/* ILO Builder */
+.ilo-row{display:flex;gap:5px;align-items:center;margin-bottom:6px}
+.ilo-row select,.ilo-row input{flex:1;padding:5px 7px;border:1px solid var(--border);
+  border-radius:var(--r);font-size:11px;font-family:inherit;outline:none;min-width:0}
+.ilo-row input:focus,.ilo-row select:focus{border-color:var(--primary)}
+.ilo-del{background:none;border:none;color:var(--text-muted);cursor:pointer;
+  font-size:12px;padding:2px;flex-shrink:0}
+.ilo-del:hover{color:var(--danger)}
+
+/* CA Validator */
+.ca-check{display:flex;align-items:flex-start;gap:8px;padding:7px 9px;
+  border-radius:var(--r);border:1px solid var(--border);background:#FAFAFA;
+  margin-bottom:6px;font-size:11px}
+.ca-check.ok{border-color:#BBF7D0;background:#F0FDF4}
+.ca-check.warn{border-color:#FDE68A;background:#FFFBEB}
+.ca-check.err{border-color:#FECACA;background:#FEF2F2}
+.ca-check i{margin-top:1px;flex-shrink:0}
+
+/* HTML output preview section */
+.aura-lesson-preview{padding:20px;font-size:14px;line-height:1.7;max-width:720px;margin:0 auto}
+.aura-stage-preview{border-radius:10px;border:1.5px solid var(--border);margin-bottom:16px;overflow:hidden}
+.aura-stage-head{padding:10px 16px;font-weight:700;font-size:13px;color:#fff}
+.aura-q-preview{background:#fff;border:1px solid var(--border);border-radius:6px;
+  padding:12px;margin:10px 16px;font-size:13px}
+.aura-q-preview p{margin-bottom:8px;font-weight:500}
+.aura-options-preview label{display:flex;align-items:center;gap:8px;padding:5px 8px;
+  border-radius:4px;cursor:pointer;margin-bottom:3px}
+.aura-options-preview label:hover{background:#F8FAFC}
+.aura-input-preview{width:100%;padding:8px 10px;border:1px solid var(--border);
+  border-radius:6px;font-family:inherit;font-size:13px;outline:none;resize:vertical}
+.aura-input-preview:focus{border-color:var(--primary)}
+.aura-math-display{text-align:center;padding:12px;background:#F8FAFC;
+  border-radius:6px;margin:8px 0}
+.score-chip{display:inline-flex;align-items:center;gap:4px;font-size:10px;
+  padding:2px 7px;border-radius:100px;background:#F1F5F9;color:#475569;
+  font-weight:600;margin-left:8px;vertical-align:middle}
+.score-chip.ai{background:#FDF4FF;color:#7E22CE}
+
+/* Toast */
+#toast{position:fixed;bottom:20px;right:20px;padding:10px 16px;border-radius:8px;
+  background:#1E293B;color:#fff;font-size:12px;z-index:9999;opacity:0;
+  transition:opacity .3s;pointer-events:none;max-width:320px}
+#toast.show{opacity:1}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:10px}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div id="topbar">
+  <a class="back-btn" href="dashboard.html">
+    <i class="fas fa-arrow-left"></i> Dashboard
+  </a>
+  <input id="lesson-title-input" placeholder="Nhập tên bài học..." maxlength="120">
+  <span id="lesson-status-badge" class="top-badge draft">Nháp</span>
+  <div class="top-actions">
+    <button class="btn btn-outline btn-sm" onclick="previewLesson()">
+      <i class="fas fa-eye"></i> Xem trước
+    </button>
+    <button class="btn btn-outline btn-sm" onclick="exportHTML()">
+      <i class="fas fa-code"></i> Xuất HTML
+    </button>
+    <button class="btn btn-outline btn-sm" onclick="saveDraft()">
+      <i class="fas fa-save"></i> Lưu nháp
+    </button>
+    <button class="btn btn-primary btn-sm" onclick="publishLesson()">
+      <i class="fas fa-rocket"></i> Đăng bài
+    </button>
+  </div>
+</div>
+
+<!-- TABS -->
+<div id="studio-tabs">
+  <div class="studio-tab active" onclick="switchTab('visual',this)">
+    <i class="fas fa-layer-group"></i> Soạn bài
+  </div>
+  <div class="studio-tab" onclick="switchTab('code',this)">
+    <i class="fas fa-code"></i> HTML
+  </div>
+  <div class="studio-tab" onclick="switchTab('preview',this)">
+    <i class="fas fa-eye"></i> Xem trước HS
+  </div>
+  <div class="studio-tab" onclick="switchTab('std791',this)">
+    <i class="fas fa-book-open"></i> Chuẩn 791
+  </div>
+</div>
+
+<!-- STUDIO BODY -->
+<div id="studio-body">
+
+  <!-- LEFT PANEL -->
+  <div id="left-panel">
+
+    <!-- Section: Thông tin bài -->
+    <div class="lp-section">
+      <div class="lp-head open" onclick="toggleLP(this)">
+        <span><i class="fas fa-info-circle" style="color:var(--primary);margin-right:6px"></i>Thông tin</span>
+        <i class="fas fa-chevron-down chevron"></i>
+      </div>
+      <div class="lp-body open" style="padding-bottom:12px">
+        <div class="form-row" style="margin-bottom:6px">
+          <label>Khoá học</label>
+          <select id="lp-course" class="mini" style="width:100%">
+            <option value="">-- Chọn khoá học --</option>
+          </select>
+        </div>
+        <div class="form-row" style="margin-bottom:6px">
+          <label>Loại bài</label>
+          <select id="lp-type" class="mini" style="width:100%" onchange="onLessonTypeChange()">
+            <option value="lesson">📖 Bài học</option>
+            <option value="graded_quiz">📋 Quiz có điểm</option>
+            <option value="practice_quiz">🔄 Quiz luyện tập</option>
+            <option value="assignment">📝 Bài tập nộp</option>
+          </select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <div class="form-row" style="margin-bottom:0">
+            <label>Hạn nộp</label>
+            <input type="datetime-local" id="lp-due" style="font-size:11px;padding:4px 6px">
+          </div>
+          <div class="form-row" style="margin-bottom:0">
+            <label>Thời gian (p)</label>
+            <input type="number" id="lp-timelimit" placeholder="∞" min="1" style="font-size:11px;padding:4px 6px">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section: Định dạng Active Learning -->
+    <div class="lp-section">
+      <div class="lp-head open" onclick="toggleLP(this)">
+        <span><i class="fas fa-bolt" style="color:#D97706;margin-right:6px"></i>Active Learning</span>
+        <i class="fas fa-chevron-down chevron"></i>
+      </div>
+      <div class="lp-body open" id="al-format-body">
+        <!-- Filled by JS -->
+      </div>
+    </div>
+
+    <!-- Section: Mô hình toán -->
+    <div class="lp-section">
+      <div class="lp-head" onclick="toggleLP(this)">
+        <span><i class="fas fa-square-root-variable" style="color:var(--info);margin-right:6px"></i>Mô hình toán</span>
+        <i class="fas fa-chevron-down chevron"></i>
+      </div>
+      <div class="lp-body" id="math-model-body">
+        <!-- Filled by JS -->
+      </div>
+    </div>
+
+    <!-- Section: Công cụ -->
+    <div class="lp-section">
+      <div class="lp-head" onclick="toggleLP(this)">
+        <span><i class="fas fa-wrench" style="color:var(--text-muted);margin-right:6px"></i>Công cụ</span>
+        <i class="fas fa-chevron-down chevron"></i>
+      </div>
+      <div class="lp-body">
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <button class="btn btn-outline btn-sm" onclick="openParser791()">
+            <i class="fas fa-file-import"></i> Đọc file QĐ 791
+          </button>
+          <button class="btn btn-outline btn-sm" onclick="generateWithAI()">
+            <i class="fas fa-wand-magic-sparkles" style="color:var(--primary)"></i> AI soạn bài
+          </button>
+          <button class="btn btn-outline btn-sm" onclick="importJSON()">
+            <i class="fas fa-upload"></i> Import JSON
+          </button>
+          <button class="btn btn-outline btn-sm" onclick="clearAll()" style="color:var(--danger)">
+            <i class="fas fa-trash"></i> Xoá tất cả
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /left-panel -->
+
+  <!-- CENTER -->
+  <div id="center-panel">
+
+    <!-- TAB: Visual -->
+    <div id="tab-visual" class="tab-content" style="flex:1;overflow-y:auto;padding:16px">
+      <div class="stage-wrap" id="stages-container">
+        <!-- Generated by JS -->
+      </div>
+    </div>
+
+    <!-- TAB: Code -->
+    <div id="tab-code" class="tab-content" style="display:none;flex:1;display:none;flex-direction:column">
+      <div style="padding:8px 12px;background:#1E293B;border-bottom:1px solid #334155;
+           display:flex;align-items:center;gap:8px">
+        <span style="font-size:11px;color:#94A3B8">HTML AURA Schema — chỉnh sửa trực tiếp</span>
+        <button class="btn btn-sm" style="background:#334155;color:#E2E8F0;margin-left:auto"
+                onclick="syncCodeToVisual()">
+          <i class="fas fa-sync-alt"></i> Sync → Visual
+        </button>
+        <button class="btn btn-sm" style="background:#334155;color:#E2E8F0"
+                onclick="syncVisualToCode()">
+          <i class="fas fa-sync-alt fa-flip-horizontal"></i> Visual → Code
+        </button>
+      </div>
+      <textarea id="code-editor" spellcheck="false"></textarea>
+    </div>
+
+    <!-- TAB: Preview -->
+    <div id="tab-preview" class="tab-content" style="display:none;flex:1;overflow-y:auto">
+      <div id="preview-container" class="aura-lesson-preview">
+        <p style="text-align:center;color:var(--text-muted);padding:40px">
+          Nhấn <b>Xem trước</b> để render bài học
+        </p>
+      </div>
+    </div>
+
+    <!-- TAB: Chuẩn 791 -->
+    <div id="tab-std791" class="tab-content" style="display:none;flex:1;overflow-y:auto;padding:16px">
+      <div style="display:grid;grid-template-columns:300px 1fr;gap:16px;height:100%">
+        <!-- Filter -->
+        <div class="card" style="border:1px solid var(--border);border-radius:8px;padding:14px;height:fit-content">
+          <div style="font-weight:700;font-size:13px;margin-bottom:12px">
+            <i class="fas fa-filter" style="color:var(--primary)"></i> Lọc Chuẩn 791
+          </div>
+          <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input id="std-search-main" type="text" placeholder="Tìm nội dung yêu cầu..."
+                   oninput="render791Main()">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
+            <div>
+              <label style="font-size:11px;color:var(--text-muted)">Lớp</label>
+              <select id="std-grade-main" class="mini" style="width:100%" onchange="render791Main()">
+                <option value="">Tất cả</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11px;color:var(--text-muted)">Bloom</label>
+              <select id="std-bloom-main" class="mini" style="width:100%" onchange="render791Main()">
+                <option value="">Tất cả</option>
+                <option value="1">Nhận biết</option>
+                <option value="2">Thông hiểu</option>
+                <option value="3">Vận dụng</option>
+                <option value="4">Phân tích</option>
+                <option value="5">Đánh giá</option>
+                <option value="6">Sáng tạo</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--text-muted)">Chủ đề</label>
+            <select id="std-unit-main" class="mini" style="width:100%" onchange="render791Main()">
+              <option value="">Tất cả</option>
+            </select>
+          </div>
+          <div style="margin-top:10px;font-size:11px;color:var(--text-muted)" id="std-count-main"></div>
+        </div>
+        <!-- Results -->
+        <div>
+          <div id="std-list-main" style="display:flex;flex-direction:column;gap:6px;max-height:calc(100vh - 200px);overflow-y:auto"></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /center-panel -->
+
+  <!-- RIGHT PANEL -->
+  <div id="right-panel">
+
+    <!-- AURA Config -->
+    <div class="rp-section">
+      <div class="rp-title"><i class="fas fa-brain" style="color:var(--primary)"></i> Khung AURA</div>
+
+      <div class="form-row">
+        <label>Chuẩn QĐ 791</label>
+        <input id="rp-lesson-id" placeholder="e.g. 020101.0101a1" style="font-family:monospace;font-size:11px"
+               oninput="lookupStd791(this.value)">
+        <div id="rp-std-preview" style="font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.4"></div>
+      </div>
+
+      <div class="form-row">
+        <label>SOLO Target</label>
+        <div class="solo-picker" id="solo-picker">
+          <div class="solo-dot" data-v="1" onclick="setSolo(1)" title="Prestructural">1</div>
+          <div class="solo-dot" data-v="2" onclick="setSolo(2)" title="Unistructural">2</div>
+          <div class="solo-dot active" data-v="3" onclick="setSolo(3)" title="Multistructural">3</div>
+          <div class="solo-dot" data-v="4" onclick="setSolo(4)" title="Relational">4</div>
+          <div class="solo-dot" data-v="5" onclick="setSolo(5)" title="Extended Abstract">5</div>
+        </div>
+        <div class="solo-labels">
+          <span>Pre</span><span>Uni</span><span>Multi</span><span>Rel</span><span>Ext</span>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="form-row" style="margin-bottom:0">
+          <label>Bloom Level</label>
+          <select id="rp-bloom">
+            <option value="1">1 — Nhận biết</option>
+            <option value="2">2 — Thông hiểu</option>
+            <option value="3" selected>3 — Vận dụng</option>
+            <option value="4">4 — Phân tích</option>
+            <option value="5">5 — Đánh giá</option>
+            <option value="6">6 — Sáng tạo</option>
+          </select>
+        </div>
+        <div class="form-row" style="margin-bottom:0">
+          <label>Lesson Model</label>
+          <select id="rp-model">
+            <option value="scaffold">Scaffold</option>
+            <option value="practice">Practice</option>
+            <option value="case" selected>Case</option>
+            <option value="explore">Explore</option>
+            <option value="repair">Repair</option>
+            <option value="teach">Teach-back</option>
+            <option value="project">Project</option>
+            <option value="reflect">Reflect</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row" style="margin-top:8px">
+        <label>Knowledge Type</label>
+        <div style="display:flex;gap:8px;margin-top:2px">
+          <label style="font-size:12px;cursor:pointer;display:flex;align-items:center;gap:4px">
+            <input type="radio" name="ktype" value="declarative" checked> Declarative
+          </label>
+          <label style="font-size:12px;cursor:pointer;display:flex;align-items:center;gap:4px">
+            <input type="radio" name="ktype" value="functioning"> Functioning
+          </label>
+          <label style="font-size:12px;cursor:pointer;display:flex;align-items:center;gap:4px">
+            <input type="radio" name="ktype" value="both"> Cả hai
+          </label>
+        </div>
+      </div>
+
+      <label style="font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;margin-top:6px">
+        <input type="checkbox" id="rp-threshold" style="accent-color:var(--primary)">
+        <span>Threshold Concept</span>
+        <span style="font-size:10px;color:var(--text-muted)">(block tiến nếu chưa qua)</span>
+      </label>
+    </div>
+
+    <!-- ILO Builder -->
+    <div class="rp-section">
+      <div class="rp-title"><i class="fas fa-bullseye" style="color:var(--success)"></i> ILO Builder</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">
+        "Sau bài, HS có thể [verb] [topic]"
+      </div>
+      <div id="ilo-list"><!-- rows added by JS --></div>
+      <button class="btn btn-outline btn-sm" onclick="addILO()" style="width:100%;margin-top:4px">
+        <i class="fas fa-plus"></i> Thêm ILO
+      </button>
+    </div>
+
+    <!-- CA Validator -->
+    <div class="rp-section">
+      <div class="rp-title"><i class="fas fa-check-double" style="color:var(--info)"></i> CA Validator</div>
+      <div id="ca-checks"><!-- rendered by validateCA() --></div>
+      <button class="btn btn-outline btn-sm" onclick="validateCA()" style="width:100%;margin-top:6px">
+        <i class="fas fa-sync-alt"></i> Kiểm tra alignment
+      </button>
+    </div>
+
+    <!-- Scoring Summary -->
+    <div class="rp-section">
+      <div class="rp-title"><i class="fas fa-star-half-stroke" style="color:var(--warning)"></i> Điểm & Đánh giá</div>
+      <div id="score-summary"><!-- rendered dynamically --></div>
+    </div>
+
+  </div><!-- /right-panel -->
+</div><!-- /studio-body -->
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- KaTeX + JS -->
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<script src="lesson-studio.js"></script>
+</body>
+</html>
