@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ActiveEdu — AI Research Lab</title>
+<style>
+/* ─── Reset & base ─── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --primary: #1a3a5c;
+  --accent:  #e8a020;
+  --teal:    #1D9E75;
+  --purple:  #534AB7;
+  --bg:      #f5f3ee;
+  --card:    #ffffff;
+  --border:  rgba(0,0,0,0.08);
+  --text:    #1c1c1c;
+  --muted:   #888;
+  --danger:  #c0392b;
+}
+body { font-family: 'Segoe UI', 'Be Vietnam Pro', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* ─── Layout ─── */
+.lab-layout { display: flex; min-height: 100vh; }
+.lab-sidebar { width: 230px; background: var(--primary); color: #fff; display: flex; flex-direction: column; flex-shrink: 0; }
+.lab-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.lab-topbar { background: var(--card); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; gap: 12px; }
+.lab-content { flex: 1; overflow-y: auto; padding: 24px; }
+
+/* ─── Sidebar ─── */
+.lab-logo { padding: 20px 18px; border-bottom: 1px solid rgba(255,255,255,.12); }
+.lab-logo-title { font-size: 18px; font-weight: 700; color: var(--accent); }
+.lab-logo-sub { font-size: 10px; color: rgba(255,255,255,.4); letter-spacing: 1.5px; text-transform: uppercase; margin-top: 2px; }
+.lab-nav { padding: 12px 0; flex: 1; }
+.lab-nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 18px; font-size: 13px; color: rgba(255,255,255,.65); cursor: pointer; transition: all .15s; border-left: 3px solid transparent; }
+.lab-nav-item:hover { background: rgba(255,255,255,.07); color: #fff; }
+.lab-nav-item.on { background: rgba(232,160,32,.15); color: var(--accent); border-left-color: var(--accent); }
+.lab-nav-ico { font-size: 16px; width: 20px; text-align: center; }
+.lab-nav-section { padding: 16px 18px 6px; font-size: 10px; color: rgba(255,255,255,.3); letter-spacing: 1px; text-transform: uppercase; }
+
+/* ─── Cards ─── */
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
+.card-sm { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.section-title { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 14px; }
+.page { display: none; flex-direction: column; gap: 20px; }
+.page.on { display: flex; }
+
+/* ─── Stat cards ─── */
+.stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+.stat-val { font-size: 28px; font-weight: 700; color: var(--primary); }
+.stat-lbl { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.stat-trend { font-size: 11px; margin-top: 6px; }
+.stat-trend.up { color: var(--teal); }
+.stat-trend.down { color: var(--danger); }
+
+/* ─── Buttons ─── */
+.btn { padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-family: inherit; font-weight: 600; transition: opacity .15s; }
+.btn:hover { opacity: .85; }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-teal { background: var(--teal); color: #fff; }
+.btn-purple { background: var(--purple); color: #fff; }
+.btn-accent { background: var(--accent); color: #412402; }
+.btn-outline { background: transparent; color: var(--primary); border: 1px solid var(--border); }
+.btn-sm { padding: 5px 12px; font-size: 12px; }
+.btn-danger { background: var(--danger); color: #fff; }
+
+/* ─── Form ─── */
+input, select, textarea { padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-family: inherit; font-size: 13px; background: var(--bg); color: var(--text); width: 100%; }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); }
+label { font-size: 12px; color: var(--muted); font-weight: 600; display: block; margin-bottom: 4px; }
+.form-row { margin-bottom: 14px; }
+
+/* ─── Table ─── */
+.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tbl th { padding: 10px 14px; background: var(--bg); font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; text-align: left; border-bottom: 1px solid var(--border); }
+.tbl td { padding: 11px 14px; border-bottom: 1px solid var(--border); color: var(--text); }
+.tbl tr:last-child td { border-bottom: none; }
+.tbl tr:hover td { background: rgba(0,0,0,.02); }
+
+/* ─── Badge ─── */
+.badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+.badge-green { background: #e1f5ee; color: #085041; }
+.badge-blue { background: #e6f1fb; color: #0c447c; }
+.badge-amber { background: #faeeda; color: #633806; }
+.badge-red { background: #fcebeb; color: #791f1f; }
+.badge-purple { background: #eeedfe; color: #3c3489; }
+
+/* ─── Chart placeholder ─── */
+.chart-wrap { position: relative; }
+canvas { display: block; }
+
+/* ─── Algorithm lab ─── */
+.algo-card { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.algo-card-head { padding: 14px 16px; background: var(--bg); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.algo-card-title { font-size: 14px; font-weight: 700; }
+.algo-card-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.algo-card-body { padding: 16px; }
+.algo-param { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.algo-param label { min-width: 140px; flex-shrink: 0; }
+.algo-param input[type=range] { flex: 1; }
+.algo-param span { min-width: 48px; text-align: right; font-size: 13px; font-weight: 600; color: var(--primary); }
+.algo-result { background: var(--bg); border-radius: 8px; padding: 12px; font-size: 13px; line-height: 1.7; min-height: 60px; white-space: pre-wrap; }
+.algo-metric { display: inline-flex; align-items: center; gap: 6px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; font-size: 12px; }
+.algo-metric-val { font-weight: 700; font-size: 15px; color: var(--primary); }
+
+/* ─── Paper generator ─── */
+.paper-section { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 12px; }
+.paper-section-head { padding: 12px 16px; background: var(--bg); display: flex; align-items: center; justify-content: space-between; cursor: pointer; font-size: 13px; font-weight: 700; }
+.paper-section-body { padding: 14px 16px; font-size: 13px; line-height: 1.8; color: var(--text); display: none; white-space: pre-wrap; }
+.paper-section-body.open { display: block; }
+.paper-toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 18px; padding: 14px 16px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; }
+.paper-status { font-size: 12px; color: var(--muted); margin-left: auto; }
+
+/* ─── Tab bar (inside pages) ─── */
+.inner-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 18px; }
+.inner-tab { padding: 8px 16px; border: none; background: transparent; font-size: 13px; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; font-family: inherit; transition: all .15s; }
+.inner-tab:hover { color: var(--primary); }
+.inner-tab.on { color: var(--primary); border-bottom-color: var(--primary); font-weight: 700; }
+
+/* ─── Loading spinner ─── */
+.spin { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── AI output box ─── */
+.ai-out { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; font-size: 13px; line-height: 1.8; min-height: 80px; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<div class="lab-layout">
+
+<!-- ── SIDEBAR ── -->
+<aside class="lab-sidebar">
+  <div class="lab-logo">
+    <div class="lab-logo-title">ActiveEdu</div>
+    <div class="lab-logo-sub">AI Research Lab</div>
+  </div>
+  <nav class="lab-nav">
+    <div class="lab-nav-section">Phân tích</div>
+    <div class="lab-nav-item on" data-page="dashboard">
+      <span class="lab-nav-ico">📊</span> Dashboard tổng quan
+    </div>
+    <div class="lab-nav-item" data-page="students">
+      <span class="lab-nav-ico">👥</span> Hồ sơ học sinh
+    </div>
+    <div class="lab-nav-section">Nghiên cứu AI</div>
+    <div class="lab-nav-item" data-page="algorithms">
+      <span class="lab-nav-ico">🧬</span> Algorithm Lab
+    </div>
+    <div class="lab-nav-item" data-page="models">
+      <span class="lab-nav-ico">🤖</span> Model Explorer
+    </div>
+    <div class="lab-nav-section">Xuất bản</div>
+    <div class="lab-nav-item" data-page="paper">
+      <span class="lab-nav-ico">📄</span> Scientific Paper
+    </div>
+    <div class="lab-nav-item" data-page="export">
+      <span class="lab-nav-ico">💾</span> Export Data
+    </div>
+  </nav>
+</aside>
+
+<!-- ── MAIN ── -->
+<main class="lab-main">
+  <div class="lab-topbar">
+    <span style="font-size:20px">🔬</span>
+    <div>
+      <div style="font-size:15px;font-weight:700">AI Research Lab</div>
+      <div style="font-size:12px;color:var(--muted)">Nghiên cứu học tập thích ứng · ActiveEdu v2.0</div>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:10px">
+      <button class="btn btn-outline btn-sm" onclick="loadAllData()">↻ Tải dữ liệu</button>
+      <a href="dashboard.html" class="btn btn-primary btn-sm">← Dashboard</a>
+    </div>
+  </div>
+  <div class="lab-content">
+
+    <!-- ════════ PAGE: DASHBOARD ════════ -->
+    <div class="page on" id="page-dashboard">
+      <div class="grid-4">
+        <div class="stat-card"><div class="stat-val" id="stat-students">—</div><div class="stat-lbl">Học sinh</div><div class="stat-trend up" id="stat-students-t"></div></div>
+        <div class="stat-card"><div class="stat-val" id="stat-sessions">—</div><div class="stat-lbl">Phiên học</div><div class="stat-trend up" id="stat-sessions-t"></div></div>
+        <div class="stat-card"><div class="stat-val" id="stat-quiz-avg">—</div><div class="stat-lbl">Điểm TB Quiz</div><div class="stat-trend" id="stat-quiz-t"></div></div>
+        <div class="stat-card"><div class="stat-val" id="stat-streak">—</div><div class="stat-lbl">Streak TB</div></div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="section-title">Phân phối điểm quiz</div>
+          <div class="chart-wrap"><canvas id="chart-scores" height="200"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="section-title">XP tích lũy theo ngày</div>
+          <div class="chart-wrap"><canvas id="chart-xp" height="200"></canvas></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="section-title">Hoạt động gần đây</div>
+        <table class="tbl" id="tbl-events">
+          <thead><tr><th>Thời gian</th><th>Loại sự kiện</th><th>Bài học</th><th>Chi tiết</th></tr></thead>
+          <tbody id="tbl-events-body"><tr><td colspan="4" style="text-align:center;color:var(--muted);padding:24px">Đang tải...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ════════ PAGE: STUDENTS ════════ -->
+    <div class="page" id="page-students">
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div class="section-title" style="margin:0">Hồ sơ học sinh</div>
+          <input type="text" placeholder="Tìm kiếm..." style="width:220px" id="student-search" oninput="filterStudents(this.value)">
+        </div>
+        <table class="tbl" id="tbl-students">
+          <thead><tr><th>Học sinh</th><th>Level</th><th>XP</th><th>Bài đọc</th><th>Điểm TB</th><th>Streak</th><th>Điểm yếu</th></tr></thead>
+          <tbody id="tbl-students-body"><tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">Đang tải dữ liệu...</td></tr></tbody>
+        </table>
+      </div>
+      <div class="card" id="student-detail" style="display:none">
+        <div class="section-title">Chi tiết học sinh</div>
+        <div id="student-detail-body"></div>
+      </div>
+    </div>
+
+    <!-- ════════ PAGE: ALGORITHMS ════════ -->
+    <div class="page" id="page-algorithms">
+      <div class="inner-tabs">
+        <button class="inner-tab on" data-algo-tab="irt">IRT Model</button>
+        <button class="inner-tab" data-algo-tab="bkt">BKT Model</button>
+        <button class="inner-tab" data-algo-tab="adaptive">Adaptive Engine</button>
+        <button class="inner-tab" data-algo-tab="custom">Custom Prompt Lab</button>
+      </div>
+
+      <!-- IRT -->
+      <div id="algo-irt" class="algo-pane">
+        <div class="algo-card">
+          <div class="algo-card-head">
+            <div>
+              <div class="algo-card-title">Item Response Theory (IRT) — Mô hình 3PL</div>
+              <div class="algo-card-sub">Đánh giá năng lực học sinh θ dựa trên phản hồi câu hỏi</div>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="runIRT()">▶ Chạy mô phỏng</button>
+          </div>
+          <div class="algo-card-body">
+            <div class="grid-2" style="margin-bottom:16px">
+              <div>
+                <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:10px">Tham số câu hỏi</div>
+                <div class="algo-param"><label>Độ phân biệt (a)</label><input type="range" id="irt-a" min="0.2" max="3" step="0.1" value="1.5" oninput="this.nextElementSibling.textContent=this.value"><span>1.5</span></div>
+                <div class="algo-param"><label>Độ khó (b)</label><input type="range" id="irt-b" min="-3" max="3" step="0.1" value="0" oninput="this.nextElementSibling.textContent=this.value"><span>0.0</span></div>
+                <div class="algo-param"><label>Đoán ngẫu nhiên (c)</label><input type="range" id="irt-c" min="0" max="0.35" step="0.05" value="0.25" oninput="this.nextElementSibling.textContent=this.value"><span>0.25</span></div>
+              </div>
+              <div>
+                <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:10px">Năng lực học sinh (θ)</div>
+                <div class="algo-param"><label>Theta (θ)</label><input type="range" id="irt-theta" min="-4" max="4" step="0.1" value="0" oninput="this.nextElementSibling.textContent=parseFloat(this.value).toFixed(1);updateIRT()"><span>0.0</span></div>
+                <div style="margin-top:14px">
+                  <div class="algo-metric" style="margin-right:8px"><div class="algo-metric-val" id="irt-prob">—</div><div>P(đúng)</div></div>
+                  <div class="algo-metric" style="margin-top:8px"><div class="algo-metric-val" id="irt-info">—</div><div>Thông tin Fisher</div></div>
+                </div>
+              </div>
+            </div>
+            <div class="chart-wrap"><canvas id="chart-irt" height="180"></canvas></div>
+            <div class="algo-result" id="irt-result" style="margin-top:12px">Điều chỉnh tham số và nhấn "Chạy mô phỏng" để xem kết quả AI phân tích...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BKT -->
+      <div id="algo-bkt" class="algo-pane" style="display:none">
+        <div class="algo-card">
+          <div class="algo-card-head">
+            <div>
+              <div class="algo-card-title">Bayesian Knowledge Tracing (BKT)</div>
+              <div class="algo-card-sub">Ước lượng xác suất học sinh đã nắm được kiến thức</div>
+            </div>
+            <button class="btn btn-teal btn-sm" onclick="simulateBKT()">▶ Mô phỏng học</button>
+          </div>
+          <div class="algo-card-body">
+            <div class="grid-2" style="margin-bottom:16px">
+              <div>
+                <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:10px">Tham số BKT</div>
+                <div class="algo-param"><label>P(L₀) - Biết ban đầu</label><input type="range" id="bkt-l0" min="0.01" max="0.5" step="0.01" value="0.1" oninput="this.nextElementSibling.textContent=parseFloat(this.value).toFixed(2)"><span>0.10</span></div>
+                <div class="algo-param"><label>P(T) - Xác suất học</label><input type="range" id="bkt-t" min="0.01" max="0.5" step="0.01" value="0.2" oninput="this.nextElementSibling.textContent=parseFloat(this.value).toFixed(2)"><span>0.20</span></div>
+                <div class="algo-param"><label>P(G) - Đoán đúng</label><input type="range" id="bkt-g" min="0.01" max="0.4" step="0.01" value="0.2" oninput="this.nextElementSibling.textContent=parseFloat(this.value).toFixed(2)"><span>0.20</span></div>
+                <div class="algo-param"><label>P(S) - Trượt khi biết</label><input type="range" id="bkt-s" min="0.01" max="0.3" step="0.01" value="0.1" oninput="this.nextElementSibling.textContent=parseFloat(this.value).toFixed(2)"><span>0.10</span></div>
+              </div>
+              <div>
+                <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:10px">Mô phỏng chuỗi trả lời</div>
+                <div class="form-row">
+                  <label>Chuỗi đáp án (1=đúng, 0=sai)</label>
+                  <input type="text" id="bkt-seq" value="1,0,1,1,0,1,1,1" placeholder="1,0,1,1,0,1...">
+                </div>
+                <div style="margin-top:12px">
+                  <div class="algo-metric"><div class="algo-metric-val" id="bkt-final">—</div><div>P(L) cuối</div></div>
+                </div>
+              </div>
+            </div>
+            <div class="chart-wrap"><canvas id="chart-bkt" height="180"></canvas></div>
+            <div class="algo-result" id="bkt-result" style="margin-top:12px">Nhấn "Mô phỏng học" để xem tiến trình nắm kiến thức theo BKT...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ADAPTIVE -->
+      <div id="algo-adaptive" class="algo-pane" style="display:none">
+        <div class="algo-card">
+          <div class="algo-card-head">
+            <div>
+              <div class="algo-card-title">Adaptive Content Selection Engine</div>
+              <div class="algo-card-sub">Thuật toán chọn bài học phù hợp với năng lực học sinh</div>
+            </div>
+            <button class="btn btn-purple btn-sm" onclick="runAdaptive()">▶ Chạy thuật toán</button>
+          </div>
+          <div class="algo-card-body">
+            <div class="grid-2" style="gap:16px;margin-bottom:16px">
+              <div class="form-row">
+                <label>Năng lực học sinh θ</label>
+                <input type="range" id="adp-theta" min="-3" max="3" step="0.1" value="0" oninput="document.getElementById('adp-theta-val').textContent=parseFloat(this.value).toFixed(1)">
+                <span id="adp-theta-val" style="font-weight:700;color:var(--primary)">0.0</span>
+              </div>
+              <div class="form-row">
+                <label>Chiến lược chọn nội dung</label>
+                <select id="adp-strategy">
+                  <option value="zone">Zone of Proximal Development</option>
+                  <option value="mastery">Mastery-based progression</option>
+                  <option value="spaced">Spaced repetition</option>
+                  <option value="interest">Interest-based (dựa theo hành vi)</option>
+                </select>
+              </div>
+            </div>
+            <div class="algo-result" id="adp-result" style="min-height:140px">Nhấn "Chạy thuật toán" để xem AI gợi ý nội dung phù hợp...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CUSTOM PROMPT LAB -->
+      <div id="algo-custom" class="algo-pane" style="display:none">
+        <div class="algo-card">
+          <div class="algo-card-head">
+            <div>
+              <div class="algo-card-title">Custom AI Prompt Lab</div>
+              <div class="algo-card-sub">Thử nghiệm prompt engineering cho giáo dục</div>
+            </div>
+          </div>
+          <div class="algo-card-body">
+            <div class="form-row">
+              <label>System Prompt</label>
+              <textarea id="custom-sys" rows="4" style="font-family:monospace;font-size:12px">Bạn là chuyên gia giáo dục thích ứng. Phân tích dữ liệu học sinh và đề xuất chiến lược học tập cá nhân hóa dựa trên lý thuyết học tập kiến tạo (constructivism) và vùng phát triển gần nhất (ZPD).</textarea>
+            </div>
+            <div class="form-row">
+              <label>User Prompt</label>
+              <textarea id="custom-user" rows="4" style="font-family:monospace;font-size:12px">Học sinh A: θ = 0.5, đã học 15 bài, điểm quiz TB 65%, streak 5 ngày, điểm yếu: phương trình bậc 2. Gợi ý bước học tiếp theo.</textarea>
+            </div>
+            <div style="display:flex;gap:10px;margin-bottom:14px">
+              <button class="btn btn-primary" onclick="runCustomPrompt()">▶ Chạy prompt</button>
+              <select id="custom-model" style="width:auto">
+                <option value="claude-sonnet-4-20250514">claude-sonnet-4 (khuyên dùng)</option>
+                <option value="claude-haiku-4-5-20251001">claude-haiku-4 (nhanh hơn)</option>
+              </select>
+              <span class="paper-status" id="custom-status"></span>
+            </div>
+            <div class="ai-out" id="custom-result">Kết quả AI sẽ xuất hiện ở đây...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════ PAGE: MODEL EXPLORER ════════ -->
+    <div class="page" id="page-models">
+      <div class="card" style="margin-bottom:0">
+        <div class="section-title">So sánh mô hình AI trong giáo dục</div>
+        <table class="tbl">
+          <thead><tr><th>Mô hình</th><th>Phương pháp</th><th>Ưu điểm</th><th>Nhược điểm</th><th>Phù hợp với ActiveEdu</th></tr></thead>
+          <tbody>
+            <tr><td><strong>IRT (3PL)</strong></td><td>Lý thuyết ứng đáp câu hỏi</td><td>Đo năng lực chính xác, độc lập đề thi</td><td>Cần nhiều dữ liệu, phức tạp</td><td><span class="badge badge-green">✓ Cao</span></td></tr>
+            <tr><td><strong>BKT</strong></td><td>Mạng Bayesian ẩn</td><td>Theo dõi kiến thức theo thời gian</td><td>Giả định đơn giản hóa</td><td><span class="badge badge-green">✓ Cao</span></td></tr>
+            <tr><td><strong>DKT</strong></td><td>Deep Learning (LSTM)</td><td>Nắm được quan hệ phức tạp giữa KCs</td><td>Cần GPU, ít giải thích</td><td><span class="badge badge-amber">~ Trung bình</span></td></tr>
+            <tr><td><strong>SAKT</strong></td><td>Self-Attention Transformer</td><td>Hiệu suất cao, quan hệ dài hạn</td><td>Rất nặng, khó deploy</td><td><span class="badge badge-red">✗ Thấp</span></td></tr>
+            <tr><td><strong>LLM-based (Claude)</strong></td><td>Prompt engineering</td><td>Flexible, giải thích tốt, dễ tích hợp</td><td>Chi phí API, latency</td><td><span class="badge badge-green">✓ Rất cao</span></td></tr>
+            <tr><td><strong>Spaced Repetition (SM-2)</strong></td><td>Lịch ôn tập tối ưu</td><td>Đơn giản, hiệu quả cao cho ghi nhớ</td><td>Chỉ dùng cho flashcard</td><td><span class="badge badge-blue">✓ Bổ sung</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="section-title">Kiến trúc đề xuất cho ActiveEdu</div>
+          <div style="font-size:13px;line-height:1.8;color:var(--text)">
+            <p style="margin-bottom:8px"><strong>Tầng 1 — Đánh giá năng lực:</strong> IRT 1PL (đơn giản, đủ dữ liệu hiện có)</p>
+            <p style="margin-bottom:8px"><strong>Tầng 2 — Theo dõi kiến thức:</strong> BKT per-article (mỗi bài = 1 KC)</p>
+            <p style="margin-bottom:8px"><strong>Tầng 3 — Chọn nội dung:</strong> ZPD-based + interest signal từ click logs</p>
+            <p style="margin-bottom:8px"><strong>Tầng 4 — Tương tác:</strong> Claude API với student profile context</p>
+            <p><strong>Lưu trữ:</strong> NocoDB (articles) + localStorage (student state) + event log</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="section-title">Chạy so sánh AI — phân tích học sinh mẫu</div>
+          <div class="form-row">
+            <label>Dữ liệu học sinh mẫu</label>
+            <textarea id="model-input" rows="4" style="font-size:12px">θ=1.2, quiz_scores=[0.9,0.85,0.7,0.95], streak=12, weak_topics=["tích phân"], strong=["đạo hàm","giới hạn"]</textarea>
+          </div>
+          <button class="btn btn-purple" onclick="compareModels()">🔬 AI so sánh các mô hình</button>
+          <div class="ai-out" id="model-result" style="margin-top:12px;font-size:12px">Kết quả sẽ xuất hiện ở đây...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════ PAGE: PAPER GENERATOR ════════ -->
+    <div class="page" id="page-paper">
+      <div class="paper-toolbar">
+        <div>
+          <div style="font-size:14px;font-weight:700">Scientific Paper Generator</div>
+          <div style="font-size:12px;color:var(--muted)">Tạo bài báo từ dữ liệu thực ActiveEdu</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;align-items:center">
+          <select id="paper-lang" style="width:auto">
+            <option value="vi">Tiếng Việt</option>
+            <option value="en">English</option>
+          </select>
+          <select id="paper-format" style="width:auto">
+            <option value="ieee">IEEE format</option>
+            <option value="apa">APA format</option>
+            <option value="springer">Springer LNCS</option>
+          </select>
+          <button class="btn btn-accent" onclick="generatePaper()">✦ Tạo bài báo</button>
+          <button class="btn btn-outline btn-sm" onclick="exportPaperTxt()">↓ TXT</button>
+          <span class="paper-status" id="paper-status"></span>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-bottom:16px">
+        <div class="card-sm">
+          <div class="section-title">Thông tin tác giả & nghiên cứu</div>
+          <div class="form-row"><label>Tên tác giả</label><input id="pa-author" value="Nguyễn Trí Huệ"></div>
+          <div class="form-row"><label>Đơn vị</label><input id="pa-affil" value="ActiveEdu Research Lab, Việt Nam"></div>
+          <div class="form-row"><label>Tiêu đề nghiên cứu</label><input id="pa-title" value="Hệ thống học tập thích ứng dựa trên AI Agent cho giáo dục trung học tại Việt Nam"></div>
+          <div class="form-row"><label>Từ khóa (phân cách bởi ,)</label><input id="pa-keywords" value="adaptive learning, AI agent, IRT, BKT, Vietnamese education, personalized learning"></div>
+        </div>
+        <div class="card-sm">
+          <div class="section-title">Dữ liệu nghiên cứu</div>
+          <div class="form-row"><label>Số học sinh</label><input id="pa-n" type="number" value="—" id="pa-students-n"></div>
+          <div class="form-row"><label>Thời gian nghiên cứu</label><input id="pa-period" value="Học kỳ 2, 2024–2025"></div>
+          <div class="form-row"><label>Plataform</label><input id="pa-platform" value="ActiveEdu v2.0 (GitHub Pages + NocoDB)"></div>
+          <div class="form-row"><label>Ghi chú thêm cho AI</label><textarea id="pa-notes" rows="2" placeholder="VD: Tập trung vào kết quả gamification..."></textarea></div>
+        </div>
+      </div>
+
+      <div id="paper-sections">
+        <div style="text-align:center;padding:40px;color:var(--muted);font-size:13px">
+          Nhấn <strong>✦ Tạo bài báo</strong> để AI phân tích dữ liệu ActiveEdu và tạo bài báo khoa học
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════ PAGE: EXPORT ════════ -->
+    <div class="page" id="page-export">
+      <div class="card">
+        <div class="section-title">Xuất dữ liệu nghiên cứu</div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="card-sm" style="display:flex;align-items:center;justify-content:space-between">
+            <div><div style="font-size:13px;font-weight:700">Event Log (JSON)</div><div style="font-size:12px;color:var(--muted)">Toàn bộ tương tác học sinh</div></div>
+            <button class="btn btn-primary btn-sm" onclick="exportJSON('events')">↓ Tải JSON</button>
+          </div>
+          <div class="card-sm" style="display:flex;align-items:center;justify-content:space-between">
+            <div><div style="font-size:13px;font-weight:700">Learner Profiles (JSON)</div><div style="font-size:12px;color:var(--muted)">Hồ sơ năng lực học sinh</div></div>
+            <button class="btn btn-primary btn-sm" onclick="exportJSON('profiles')">↓ Tải JSON</button>
+          </div>
+          <div class="card-sm" style="display:flex;align-items:center;justify-content:space-between">
+            <div><div style="font-size:13px;font-weight:700">Quiz Scores (CSV)</div><div style="font-size:12px;color:var(--muted)">Lịch sử điểm số có thể mở bằng Excel</div></div>
+            <button class="btn btn-teal btn-sm" onclick="exportCSV()">↓ Tải CSV</button>
+          </div>
+          <div class="card-sm" style="display:flex;align-items:center;justify-content:space-between">
+            <div><div style="font-size:13px;font-weight:700">Báo cáo tổng hợp (TXT)</div><div style="font-size:12px;color:var(--muted)">Tóm tắt số liệu cho bài báo</div></div>
+            <button class="btn btn-accent btn-sm" onclick="exportReport()">↓ Tải TXT</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="section-title">Dữ liệu mẫu (từ localStorage hiện tại)</div>
+        <pre id="export-preview" style="font-size:11px;background:var(--bg);padding:12px;border-radius:8px;overflow:auto;max-height:300px;color:var(--text)">Đang đọc...</pre>
+      </div>
+    </div>
+
+  </div>
+</main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+// ─── Constants ───────────────────────────────────────────────────────────────
+const API_URL   = 'https://api.anthropic.com/v1/messages';
+const AI_MODEL  = 'claude-sonnet-4-20250514';
+const STORE_KEY = 'ae_learner_v2';
+const EVENT_KEY = 'ae_events_v1';
+
+// ─── Navigation ──────────────────────────────────────────────────────────────
+document.querySelectorAll('.lab-nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.lab-nav-item').forEach(i => i.classList.remove('on'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
+    item.classList.add('on');
+    const page = document.getElementById('page-' + item.dataset.page);
+    if (page) page.classList.add('on');
+    if (item.dataset.page === 'export') loadExportPreview();
+  });
+});
+
+document.querySelectorAll('[data-algo-tab]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-algo-tab]').forEach(b => b.classList.remove('on'));
+    document.querySelectorAll('.algo-pane').forEach(p => p.style.display = 'none');
+    btn.classList.add('on');
+    document.getElementById('algo-' + btn.dataset.algoTab).style.display = '';
+  });
+});
+
+// ─── Data loading ────────────────────────────────────────────────────────────
+function getEventLog() {
+  try { return JSON.parse(localStorage.getItem(EVENT_KEY) || '[]'); } catch { return []; }
+}
+function getProfile() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); } catch { return null; }
+}
+
+function loadAllData() {
+  const events = getEventLog();
+  const profile = getProfile();
+
+  // Stats
+  const quizEvents = events.filter(e => e.type === 'quiz_done');
+  const avgScore = quizEvents.length
+    ? Math.round(quizEvents.reduce((a, e) => a + (e.data?.pct || 0), 0) / quizEvents.length * 100)
+    : 0;
+
+  document.getElementById('stat-students').textContent = profile ? '1' : '0';
+  document.getElementById('stat-sessions').textContent = events.filter(e => e.type === 'article_view').length;
+  document.getElementById('stat-quiz-avg').textContent = avgScore + '%';
+  document.getElementById('stat-streak').textContent = profile?.streak || 0;
+
+  // Events table
+  const tbody = document.getElementById('tbl-events-body');
+  if (!events.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">Chưa có dữ liệu. Học sinh cần tương tác trước.</td></tr>';
+  } else {
+    const typeLabel = { article_view: '📖 Đọc bài', quiz_start: '🧠 Bắt đầu quiz', quiz_done: '✅ Hoàn thành quiz', chat: '💬 Hỏi gia sư' };
+    tbody.innerHTML = events.slice(-20).reverse().map(e => {
+      const d = new Date(e.ts);
+      const score = e.data?.pct != null ? `${Math.round(e.data.pct * 100)}%` : (e.data?.question ? e.data.question.slice(0, 40) + '...' : '—');
+      return `<tr>
+        <td>${d.toLocaleDateString('vi')} ${d.toLocaleTimeString('vi', {hour:'2-digit',minute:'2-digit'})}</td>
+        <td>${typeLabel[e.type] || e.type}</td>
+        <td style="font-size:12px;color:var(--muted)">${(e.nocoId || '—').slice(0, 20)}</td>
+        <td>${score}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // Charts
+  renderScoreChart(events);
+  renderXPChart(events, profile);
+  renderStudentsTable(profile);
+}
+
+function renderScoreChart(events) {
+  const ctx = document.getElementById('chart-scores')?.getContext('2d');
+  if (!ctx) return;
+  const quizDone = events.filter(e => e.type === 'quiz_done');
+  const buckets = [0,0,0,0,0]; // 0-20, 20-40, 40-60, 60-80, 80-100
+  quizDone.forEach(e => {
+    const pct = (e.data?.pct || 0) * 100;
+    buckets[Math.min(4, Math.floor(pct / 20))]++;
+  });
+  if (window._chartScores) window._chartScores.destroy();
+  window._chartScores = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: ['0–20%','20–40%','40–60%','60–80%','80–100%'], datasets: [{ data: buckets, backgroundColor: ['#fcebeb','#faeeda','#e6f1fb','#e1f5ee','#1D9E75'], borderRadius: 6 }] },
+    options: { plugins: { legend: { display: false } }, scales: { y: { ticks: { stepSize: 1 } } } }
+  });
+}
+
+function renderXPChart(events, profile) {
+  const ctx = document.getElementById('chart-xp')?.getContext('2d');
+  if (!ctx) return;
+  // Group events by date
+  const byDay = {};
+  events.forEach(e => {
+    const d = new Date(e.ts).toLocaleDateString('vi');
+    byDay[d] = (byDay[d] || 0) + 1;
+  });
+  const labels = Object.keys(byDay).slice(-14);
+  const data = labels.map(l => byDay[l]);
+  if (window._chartXP) window._chartXP.destroy();
+  window._chartXP = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets: [{ data, borderColor: '#1a3a5c', backgroundColor: 'rgba(26,58,92,.08)', fill: true, tension: 0.4, pointRadius: 3 }] },
+    options: { plugins: { legend: { display: false } }, scales: { y: { ticks: { stepSize: 1 } } } }
+  });
+}
+
+function renderStudentsTable(profile) {
+  const tbody = document.getElementById('tbl-students-body');
+  if (!profile) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">Chưa có hồ sơ học sinh</td></tr>';
+    return;
+  }
+  const avg = profile.quizScores?.length ? Math.round(profile.quizScores.reduce((a,b)=>a+b,0)/profile.quizScores.length*100) : 0;
+  const levelNames = ['Người mới','Học sinh tích cực','Người học chăm chỉ','Nhà nghiên cứu nhỏ','Học giả xuất sắc'];
+  const lvlIdx = profile.xp >= 1000 ? 4 : profile.xp >= 600 ? 3 : profile.xp >= 300 ? 2 : profile.xp >= 100 ? 1 : 0;
+  tbody.innerHTML = `<tr>
+    <td>Học sinh (thiết bị này)</td>
+    <td><span class="badge badge-blue">${levelNames[lvlIdx]}</span></td>
+    <td><strong>${profile.xp}</strong></td>
+    <td>${profile.articlesRead || 0}</td>
+    <td>${avg}%</td>
+    <td>${profile.streak || 0} ngày</td>
+    <td style="font-size:12px;color:var(--muted)">${(profile.weakTopics||[]).join(', ') || '—'}</td>
+  </tr>`;
+}
+
+function filterStudents(q) { /* extend later */ }
+
+// ─── IRT ─────────────────────────────────────────────────────────────────────
+function irtProb(theta, a, b, c) {
+  return c + (1 - c) / (1 + Math.exp(-a * (theta - b)));
+}
+function fisherInfo(theta, a, b, c) {
+  const P = irtProb(theta, a, b, c);
+  const Q = 1 - P;
+  return (a * a * Q / P) * Math.pow((P - c) / (1 - c), 2);
+}
+
+function updateIRT() {
+  const theta = +document.getElementById('irt-theta').value;
+  const a = +document.getElementById('irt-a').value;
+  const b = +document.getElementById('irt-b').value;
+  const c = +document.getElementById('irt-c').value;
+  const p = irtProb(theta, a, b, c);
+  const fi = fisherInfo(theta, a, b, c);
+  document.getElementById('irt-prob').textContent = p.toFixed(3);
+  document.getElementById('irt-info').textContent = fi.toFixed(3);
+}
+
+function drawIRTChart(a, b, c) {
+  const ctx = document.getElementById('chart-irt')?.getContext('2d');
+  if (!ctx) return;
+  const thetas = Array.from({length:81}, (_,i) => -4 + i*0.1);
+  const probs = thetas.map(t => irtProb(t, a, b, c));
+  const infos = thetas.map(t => fisherInfo(t, a, b, c));
+  if (window._chartIRT) window._chartIRT.destroy();
+  window._chartIRT = new Chart(ctx, {
+    data: {
+      labels: thetas.map(t => t.toFixed(1)),
+      datasets: [
+        { type:'line', label:'P(đúng)', data: probs, borderColor:'#1a3a5c', tension:0.4, yAxisID:'y' },
+        { type:'line', label:'Fisher Info', data: infos, borderColor:'#e8a020', tension:0.4, yAxisID:'y1', borderDash:[4,4] }
+      ]
+    },
+    options: {
+      scales: {
+        x: { ticks: { maxTicksLimit: 10, font: { size: 10 } } },
+        y: { min:0, max:1, title:{display:true,text:'P(đúng)'} },
+        y1: { position:'right', title:{display:true,text:'Fisher'}, grid:{drawOnChartArea:false} }
+      },
+      plugins: { legend: { labels: { font: { size: 11 } } } }
+    }
+  });
+}
+
+async function runIRT() {
+  updateIRT();
+  const a = +document.getElementById('irt-a').value;
+  const b = +document.getElementById('irt-b').value;
+  const c = +document.getElementById('irt-c').value;
+  const theta = +document.getElementById('irt-theta').value;
+  drawIRTChart(a, b, c);
+  const result = document.getElementById('irt-result');
+  result.textContent = 'AI đang phân tích...';
+  try {
+    const resp = await fetch(API_URL, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model: AI_MODEL, max_tokens: 1000,
+        system: 'Bạn là chuyên gia đo lường giáo dục. Phân tích ngắn gọn kết quả IRT bằng tiếng Việt.',
+        messages:[{role:'user', content:`Câu hỏi IRT 3PL: a=${a}, b=${b}, c=${c}. Học sinh θ=${theta}. P(đúng)=${irtProb(theta,a,b,c).toFixed(3)}. Fisher=${fisherInfo(theta,a,b,c).toFixed(3)}. Nhận xét: câu hỏi có phù hợp không? Nên dùng cho học sinh nào? Gợi ý cải thiện thiết kế câu hỏi.`}]
+      })
+    });
+    const d = await resp.json();
+    result.textContent = d.content?.[0]?.text || 'Lỗi API';
+  } catch(e) { result.textContent = 'Lỗi kết nối. ' + e.message; }
+}
+
+// ─── BKT ─────────────────────────────────────────────────────────────────────
+async function simulateBKT() {
+  const L0 = +document.getElementById('bkt-l0').value;
+  const T  = +document.getElementById('bkt-t').value;
+  const G  = +document.getElementById('bkt-g').value;
+  const S  = +document.getElementById('bkt-s').value;
+  const seqStr = document.getElementById('bkt-seq').value;
+  const seq = seqStr.split(',').map(s => +s.trim()).filter(n => !isNaN(n));
+
+  // BKT update
+  let L = L0;
+  const Ls = [L];
+  for (const obs of seq) {
+    const Lcorr = obs === 1
+      ? (L * (1-S)) / (L*(1-S) + (1-L)*G)
+      : (L * S) / (L*S + (1-L)*(1-G));
+    L = Lcorr + (1 - Lcorr) * T;
+    Ls.push(L);
+  }
+
+  document.getElementById('bkt-final').textContent = L.toFixed(3);
+
+  const ctx = document.getElementById('chart-bkt')?.getContext('2d');
+  if (ctx) {
+    const labels = ['Trước', ...seq.map((v,i) => `Q${i+1}(${v===1?'✓':'✗'})`)];
+    if (window._chartBKT) window._chartBKT.destroy();
+    window._chartBKT = new Chart(ctx, {
+      type:'line',
+      data: { labels, datasets:[{ label:'P(biết)', data:Ls, borderColor:'#1D9E75', backgroundColor:'rgba(29,158,117,.1)', fill:true, tension:0.4, pointRadius:4 }] },
+      options: { scales:{ y:{min:0,max:1} }, plugins:{ legend:{ labels:{font:{size:11}} } } }
+    });
+  }
+
+  const result = document.getElementById('bkt-result');
+  result.textContent = 'AI đang phân tích...';
+  try {
+    const resp = await fetch(API_URL, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model:AI_MODEL, max_tokens:1000,
+        system:'Bạn là chuyên gia giáo dục thích ứng. Phân tích ngắn gọn kết quả BKT bằng tiếng Việt.',
+        messages:[{role:'user', content:`BKT params: L0=${L0}, T=${T}, G=${G}, S=${S}. Chuỗi trả lời: ${seq.join(',')}. P(L) cuối = ${L.toFixed(3)}. Trajectory: ${Ls.map(v=>v.toFixed(2)).join(' → ')}. Nhận xét về tiến trình học? Học sinh đã nắm kiến thức chưa? Nên cho ôn tập hay học tiếp?`}]
+      })
+    });
+    const d = await resp.json();
+    result.textContent = d.content?.[0]?.text || 'Lỗi API';
+  } catch(e) { result.textContent = 'Lỗi kết nối.'; }
+}
+
+// ─── Adaptive ────────────────────────────────────────────────────────────────
+async function runAdaptive() {
+  const theta = +document.getElementById('adp-theta').value;
+  const strategy = document.getElementById('adp-strategy').value;
+  const result = document.getElementById('adp-result');
+  const profile = getProfile();
+  result.textContent = 'AI đang phân tích...';
+  try {
+    const resp = await fetch(API_URL, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model:AI_MODEL, max_tokens:1000,
+        system:'Bạn là chuyên gia thiết kế hệ thống học tập thích ứng. Trả lời bằng tiếng Việt, cụ thể và có thể triển khai được.',
+        messages:[{role:'user', content:`Chiến lược: ${strategy}. Học sinh có năng lực θ=${theta.toFixed(1)}. Profile: ${JSON.stringify(profile||{})}. Đề xuất cụ thể: (1) loại bài học nên học tiếp, (2) độ khó phù hợp, (3) thời gian học, (4) cách thức tương tác tốt nhất, (5) dấu hiệu cần can thiệp.`}]
+      })
+    });
+    const d = await resp.json();
+    result.textContent = d.content?.[0]?.text || 'Lỗi API';
+  } catch(e) { result.textContent = 'Lỗi kết nối.'; }
+}
+
+// ─── Custom Prompt ───────────────────────────────────────────────────────────
+async function runCustomPrompt() {
+  const sys = document.getElementById('custom-sys').value;
+  const user = document.getElementById('custom-user').value;
+  const model = document.getElementById('custom-model').value;
+  const result = document.getElementById('custom-result');
+  const status = document.getElementById('custom-status');
+  result.textContent = 'Đang gọi AI...';
+  status.innerHTML = '<span class="spin"></span>';
+  const t0 = Date.now();
+  try {
+    const resp = await fetch(API_URL, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ model, max_tokens:1000, system:sys, messages:[{role:'user',content:user}] })
+    });
+    const d = await resp.json();
+    result.textContent = d.content?.[0]?.text || 'Lỗi';
+    status.textContent = `${((Date.now()-t0)/1000).toFixed(1)}s`;
+  } catch(e) { result.textContent = 'Lỗi: ' + e.message; status.textContent=''; }
+}
+
+// ─── Model Compare ───────────────────────────────────────────────────────────
+async function compareModels() {
+  const input = document.getElementById('model-input').value;
+  const result = document.getElementById('model-result');
+  result.textContent = 'AI đang so sánh các mô hình...';
+  try {
+    const resp = await fetch(API_URL, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model:AI_MODEL, max_tokens:1000,
+        system:'Bạn là chuyên gia AI trong giáo dục. So sánh cách IRT, BKT, và LLM-based approach xử lý dữ liệu này khác nhau thế nào. Đề xuất mô hình tốt nhất cho trường hợp cụ thể.',
+        messages:[{role:'user', content:`Dữ liệu học sinh: ${input}. So sánh IRT vs BKT vs Claude LLM approach: từng mô hình sẽ phân tích như thế nào, ưu/nhược trong trường hợp này, và đề xuất cuối cùng.`}]
+      })
+    });
+    const d = await resp.json();
+    result.textContent = d.content?.[0]?.text || 'Lỗi';
+  } catch(e) { result.textContent = 'Lỗi: ' + e.message; }
+}
+
+// ─── Paper Generator ─────────────────────────────────────────────────────────
+const PAPER_SECTIONS_VI = [
+  { id:'abstract', title:'Abstract / Tóm tắt', prompt: p => `Viết Abstract bài báo khoa học theo chuẩn ${p.format} bằng tiếng Việt (150-250 từ). Nghiên cứu: "${p.title}". Dữ liệu: ${p.n} học sinh, ${p.period}, platform: ${p.platform}. Bao gồm: bối cảnh, vấn đề, phương pháp (IRT+BKT+AI Agent), kết quả (dùng số liệu từ dataset: ${JSON.stringify(p.stats)}), kết luận. Từ khóa: ${p.keywords}.` },
+  { id:'intro', title:'1. Giới thiệu', prompt: p => `Viết phần Giới thiệu bài báo khoa học (400-600 từ, tiếng Việt). Chủ đề: ${p.title}. Bối cảnh: giáo dục Việt Nam, nhu cầu cá nhân hóa, thách thức. Trình bày: tầm quan trọng của adaptive learning, khoảng trống nghiên cứu hiện tại, đóng góp của bài báo này, cấu trúc bài báo. Ghi chú: ${p.notes}` },
+  { id:'related', title:'2. Tổng quan nghiên cứu liên quan', prompt: p => `Viết phần Related Work (400-500 từ, tiếng Việt). Bao gồm: (1) Adaptive learning systems (ALS) - các hệ thống tiêu biểu, (2) IRT và BKT trong giáo dục, (3) Ứng dụng LLM/AI trong EdTech, (4) Nghiên cứu giáo dục trực tuyến tại Việt Nam. Trích dẫn theo chuẩn ${p.format}.` },
+  { id:'method', title:'3. Phương pháp nghiên cứu', prompt: p => `Viết phần Methodology (500-700 từ, tiếng Việt). Mô tả: (1) Kiến trúc hệ thống ActiveEdu (GitHub Pages + NocoDB + Cloudflare Worker + AI Agent), (2) AI Agent design: Learner Profile Engine, Adaptive Content Engine, Gamification, AI Tutor, (3) Mô hình IRT 3PL cho đánh giá câu hỏi, (4) BKT cho tracking kiến thức, (5) Thiết kế nghiên cứu: ${p.n} học sinh, ${p.period}, thu thập dữ liệu qua event logging. Platform: ${p.platform}.` },
+  { id:'results', title:'4. Kết quả & Thảo luận', prompt: p => `Viết phần Results and Discussion (500-700 từ, tiếng Việt). Dữ liệu thực: ${JSON.stringify(p.stats)}. Trình bày: (1) Hiệu quả của adaptive learning (so sánh điểm trước/sau), (2) Phân tích gamification (streak, XP, engagement), (3) Hiệu quả AI Tutor chatbot, (4) Phân tích IRT câu hỏi, (5) Hạn chế nghiên cứu. Ghi chú: ${p.notes}` },
+  { id:'conclusion', title:'5. Kết luận & Hướng phát triển', prompt: p => `Viết phần Conclusion (200-300 từ, tiếng Việt). Tóm tắt: đóng góp chính, hàm ý thực tiễn cho giáo dục Việt Nam, hướng nghiên cứu tiếp theo (mở rộng mô hình, nhiều học sinh hơn, tích hợp deeper analytics). Tác giả: ${p.author}, ${p.affil}.` },
+  { id:'references', title:'Tài liệu tham khảo', prompt: p => `Tạo danh sách 12-15 tài liệu tham khảo theo chuẩn ${p.format} cho bài báo về adaptive learning, IRT, BKT, LLM trong giáo dục, EdTech Việt Nam. Bao gồm cả tạp chí quốc tế uy tín (IEEE, Springer, IJAIED) và tài liệu tiếng Việt.` }
+];
+
+let _paperSections = {};
+
+async function generatePaper() {
+  const p = {
+    title:    document.getElementById('pa-title').value,
+    author:   document.getElementById('pa-author').value,
+    affil:    document.getElementById('pa-affil').value,
+    keywords: document.getElementById('pa-keywords').value,
+    period:   document.getElementById('pa-period').value,
+    platform: document.getElementById('pa-platform').value,
+    notes:    document.getElementById('pa-notes').value,
+    format:   document.getElementById('paper-format').value,
+    lang:     document.getElementById('paper-lang').value,
+    n:        document.getElementById('pa-n')?.value || '?',
+    stats:    buildStats()
+  };
+
+  const container = document.getElementById('paper-sections');
+  const status = document.getElementById('paper-status');
+  _paperSections = {};
+
+  container.innerHTML = PAPER_SECTIONS_VI.map(s => `
+    <div class="paper-section" id="ps-${s.id}">
+      <div class="paper-section-head" onclick="togglePaperSection('${s.id}')">
+        <span>${s.title}</span>
+        <span style="font-size:12px;color:var(--muted)" id="ps-status-${s.id}">
+          <span class="spin"></span>
+        </span>
+      </div>
+      <div class="paper-section-body open" id="ps-body-${s.id}" style="color:var(--muted)">Đang tạo...</div>
+    </div>`).join('');
+
+  for (const sec of PAPER_SECTIONS_VI) {
+    status.innerHTML = `<span class="spin"></span> ${sec.title}`;
+    try {
+      const resp = await fetch(API_URL, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ model:AI_MODEL, max_tokens:1000, messages:[{role:'user', content:sec.prompt(p)}] })
+      });
+      const d = await resp.json();
+      const text = d.content?.[0]?.text || 'Lỗi tạo nội dung';
+      _paperSections[sec.id] = text;
+      document.getElementById(`ps-body-${sec.id}`).style.color = '';
+      document.getElementById(`ps-body-${sec.id}`).textContent = text;
+      document.getElementById(`ps-status-${sec.id}`).textContent = '✓';
+    } catch(e) {
+      document.getElementById(`ps-body-${sec.id}`).textContent = 'Lỗi: ' + e.message;
+      document.getElementById(`ps-status-${sec.id}`).textContent = '✗';
+    }
+  }
+  status.textContent = '✓ Hoàn thành';
+}
+
+function togglePaperSection(id) {
+  const body = document.getElementById(`ps-body-${id}`);
+  body.classList.toggle('open');
+}
+
+function buildStats() {
+  const events = getEventLog();
+  const profile = getProfile();
+  const quizDone = events.filter(e => e.type === 'quiz_done');
+  const avgPct = quizDone.length ? (quizDone.reduce((a,e)=>a+(e.data?.pct||0),0)/quizDone.length*100).toFixed(1) : 'N/A';
+  return {
+    totalEvents: events.length,
+    totalQuizzes: quizDone.length,
+    avgQuizScore: avgPct + '%',
+    articlesRead: profile?.articlesRead || 0,
+    maxStreak: profile?.streak || 0,
+    totalXP: profile?.xp || 0,
+    weakTopics: profile?.weakTopics || [],
+    strongTopics: profile?.strongTopics || []
+  };
+}
+
+function exportPaperTxt() {
+  const sections = PAPER_SECTIONS_VI.map(s => `\n\n${'='.repeat(60)}\n${s.title}\n${'='.repeat(60)}\n${_paperSections[s.id] || '(chưa tạo)'}`).join('');
+  const header = `BÀI BÁO KHOA HỌC — ACTIVEEDU AI RESEARCH\n${'='.repeat(60)}\nXuất ngày: ${new Date().toLocaleString('vi')}\n`;
+  download(header + sections, 'paper_activeedu.txt', 'text/plain');
+}
+
+// ─── Export ──────────────────────────────────────────────────────────────────
+function exportJSON(type) {
+  if (type === 'events') {
+    download(JSON.stringify(getEventLog(), null, 2), 'ae_events.json', 'application/json');
+  } else {
+    download(JSON.stringify(getProfile(), null, 2), 'ae_profile.json', 'application/json');
+  }
+}
+
+function exportCSV() {
+  const events = getEventLog();
+  const quizDone = events.filter(e => e.type === 'quiz_done');
+  const csv = ['timestamp,nocoId,score,total,pct', ...quizDone.map(e =>
+    `${new Date(e.ts).toISOString()},${e.nocoId||''},${e.data?.score||''},${e.data?.total||''},${(e.data?.pct*100||0).toFixed(1)}`)].join('\n');
+  download(csv, 'ae_quiz_scores.csv', 'text/csv');
+}
+
+function exportReport() {
+  const stats = buildStats();
+  const p = getProfile();
+  const text = `BÁO CÁO TỔNG HỢP — ACTIVEEDU\nNgày xuất: ${new Date().toLocaleString('vi')}\n\n` +
+    Object.entries(stats).map(([k,v])=>`${k}: ${JSON.stringify(v)}`).join('\n') +
+    `\n\nXP: ${p?.xp||0}\nStreak: ${p?.streak||0}\nLevel: ${p?.xp>=1000?'Học giả':p?.xp>=600?'Nhà nghiên cứu':p?.xp>=300?'Chăm chỉ':p?.xp>=100?'Tích cực':'Mới'}\n`;
+  download(text, 'ae_report.txt', 'text/plain');
+}
+
+function loadExportPreview() {
+  const events = getEventLog();
+  const profile = getProfile();
+  document.getElementById('export-preview').textContent =
+    JSON.stringify({ profile, recentEvents: events.slice(-5) }, null, 2);
+}
+
+function download(content, filename, mime) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], { type: mime }));
+  a.download = filename;
+  a.click();
+}
+
+// ─── Init ────────────────────────────────────────────────────────────────────
+loadAllData();
+</script>
+</body>
+</html>

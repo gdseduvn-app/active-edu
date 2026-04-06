@@ -1172,6 +1172,20 @@ iframe {
       _showAITutorBtn(item.name);
       // Fire-and-forget: increment view count in Analytics
       _trackArticleView(item.nocoId);
+      // Notify AI Agent about current article (for chat/quiz context)
+      if (typeof AiAgent !== 'undefined' && AiAgent.setArticle) {
+        try {
+          const _tmpDiv = document.createElement('div');
+          _tmpDiv.innerHTML = content;
+          const _plainText = (_tmpDiv.textContent || '').slice(0, 2000);
+          AiAgent.setArticle({
+            title:   item.name || item.path,
+            content: _plainText,
+            nocoId:  item.nocoId,
+            path:    item.path
+          });
+        } catch(e) { /* AI Agent optional */ }
+      }
     } else {
       setBlobSrcdoc(iframe, '<p style="color:#ef4444;padding:40px;text-align:center">Bài học chưa có nội dung trong NocoDB.</p>');
     }
@@ -2062,7 +2076,7 @@ async function showCourseDetail(courseId) {
 
   try {
     const [modResp, artResp, examResp, progResp] = await Promise.all([
-      fetch(`${proxyBase}/api/modules?where=(CourseId,eq,${courseId})&sort=Position&limit=100`),
+      fetch(`${proxyBase}/api/modules?where=(CourseId,eq,${courseId})&sort=Id&limit=100`),
       fetch(`${proxyBase}/api/articles?where=(ModuleId,nnull,true)&fields=Id,Title,Access,ItemType,ModuleId,Position,Published&limit=500`).catch(() => null),
       fetch(`${proxyBase}/api/exams?where=(ModuleId,nnull,true)&fields=Id,Title,ModuleId,TimeLimit,PassScore,Status`).catch(() => null),
       isLoggedIn() ? fetch(`${proxyBase}/api/progress`, {
@@ -2128,6 +2142,9 @@ async function showCourseDetail(courseId) {
         if (ur.ok) Object.assign(unlockResults, (await ur.json()).statuses || {});
       } catch { }
     }
+
+    // Load adaptive recommendations (fire-and-forget, non-blocking)
+    if (enrolled && isLoggedIn()) _loadRecommendations(courseId);
 
     // Render modules
     if (!modules.length) {
@@ -2209,6 +2226,42 @@ function toggleStudentModule(hd) {
   const mod = hd.closest('.cv-student-module');
   if (mod.classList.contains('locked')) return;
   mod.classList.toggle('open');
+}
+
+// ── Adaptive Recommendations ─────────────────────────────────
+async function _loadRecommendations(courseId) {
+  const wrap = document.getElementById('cv-recommendations');
+  const list = document.getElementById('cv-recommendations-list');
+  if (!wrap || !list) return;
+
+  try {
+    const proxyBase = (PROXY_URL || 'https://api.gds.edu.vn').replace(/\/$/, '');
+    const r = await fetch(`${proxyBase}/api/student/recommendations?course_id=${courseId}`, {
+      headers: { 'Authorization': `Bearer ${getUser()?.token || ''}` },
+    });
+    if (!r.ok) return;
+    const data = await r.json();
+    const recs = data.recommendations || [];
+    if (!recs.length) return;
+
+    const priorityColor = p => p === 'high' ? '#dc2626' : '#f59e0b';
+    const priorityIcon  = p => p === 'high' ? 'fas fa-fire' : 'fas fa-arrow-up';
+
+    list.innerHTML = recs.map(rec => `
+      <div onclick="_openCourseItem(${rec.article_id}, '${esc(rec.title)}', true)"
+           style="cursor:pointer;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;min-width:200px;max-width:260px;flex:1;transition:box-shadow .15s"
+           onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,.1)'"
+           onmouseout="this.style.boxShadow='none'">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+          <i class="${priorityIcon(rec.priority)}" style="color:${priorityColor(rec.priority)};font-size:11px"></i>
+          <span style="font-size:10px;font-weight:700;color:${priorityColor(rec.priority)};text-transform:uppercase">${rec.priority === 'high' ? 'Ưu tiên cao' : 'Nên học'}</span>
+        </div>
+        <div style="font-weight:600;font-size:13px;margin-bottom:4px;color:#1e293b">${esc(rec.title)}</div>
+        <div style="font-size:11px;color:#64748b;line-height:1.4">${esc(rec.reason)}</div>
+      </div>`).join('');
+
+    wrap.style.display = '';
+  } catch { /* im lặng nếu không có D1 data */ }
 }
 
 function _continueLastItem() {

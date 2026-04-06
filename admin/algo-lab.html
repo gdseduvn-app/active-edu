@@ -1,0 +1,1302 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ActiveEdu — Algorithm Modeling Lab</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --p:#1a3a5c;--p2:#0f2540;--acc:#e8a020;--teal:#1D9E75;--purple:#534AB7;--coral:#D85A30;
+  --bg:#f5f3ee;--card:#fff;--border:rgba(0,0,0,.08);--text:#1c1c1c;--muted:#888;--muted2:#bbb;
+  --green:#3B6D11;--red:#A32D2D;
+}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+/* Layout */
+.shell{display:flex;min-height:100vh}
+.sidebar{width:220px;background:var(--p);flex-shrink:0;display:flex;flex-direction:column}
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.topbar{background:var(--card);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.content{flex:1;overflow-y:auto;padding:24px;display:flex;flex-direction:column;gap:20px}
+
+/* Sidebar */
+.logo{padding:18px 16px;border-bottom:1px solid rgba(255,255,255,.1)}
+.logo-name{font-size:16px;font-weight:700;color:var(--acc)}
+.logo-sub{font-size:10px;color:rgba(255,255,255,.35);letter-spacing:1.5px;text-transform:uppercase;margin-top:2px}
+.nav{padding:10px 0;flex:1}
+.nav-sec{padding:14px 16px 5px;font-size:10px;color:rgba(255,255,255,.3);letter-spacing:1px;text-transform:uppercase}
+.nav-item{display:flex;align-items:center;gap:9px;padding:9px 16px;font-size:12.5px;color:rgba(255,255,255,.6);cursor:pointer;transition:all .15s;border-left:3px solid transparent}
+.nav-item:hover{background:rgba(255,255,255,.07);color:#fff}
+.nav-item.on{background:rgba(232,160,32,.15);color:var(--acc);border-left-color:var(--acc)}
+.nav-ico{font-size:15px;width:18px;text-align:center;flex-shrink:0}
+
+/* Cards */
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px}
+.card-sm{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.sec-title{font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:14px}
+
+/* Page visibility */
+.page{display:none;flex-direction:column;gap:18px}
+.page.on{display:flex}
+
+/* Buttons */
+.btn{padding:7px 16px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-family:inherit;font-weight:600;transition:all .15s}
+.btn:hover{opacity:.88}
+.btn:disabled{opacity:.45;cursor:default}
+.btn:active:not(:disabled){transform:scale(.98)}
+.btn-p{background:var(--p);color:#fff}
+.btn-teal{background:var(--teal);color:#fff}
+.btn-purple{background:var(--purple);color:#fff}
+.btn-coral{background:var(--coral);color:#fff}
+.btn-acc{background:var(--acc);color:#412402}
+.btn-out{background:transparent;border:1px solid var(--border);color:var(--p)}
+.btn-sm{padding:5px 11px;font-size:12px}
+.btn-xs{padding:3px 9px;font-size:11px}
+
+/* Form */
+input,select,textarea{padding:7px 11px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--bg);color:var(--text);width:100%}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--p)}
+label{font-size:11.5px;color:var(--muted);font-weight:700;display:block;margin-bottom:4px}
+.form-row{margin-bottom:12px}
+.param-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.param-row label{min-width:160px;flex-shrink:0;margin:0}
+.param-row input[type=range]{flex:1}
+.param-val{min-width:52px;text-align:right;font-size:13px;font-weight:700;color:var(--p)}
+
+/* Result / output */
+.out-box{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px;font-size:13px;line-height:1.8;min-height:70px;white-space:pre-wrap;color:var(--text)}
+.metric-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.metric{display:inline-flex;align-items:baseline;gap:6px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:6px 13px}
+.metric-val{font-size:18px;font-weight:700;color:var(--p)}
+.metric-lbl{font-size:12px;color:var(--muted)}
+.metric.hi .metric-val{color:var(--teal)}
+.metric.lo .metric-val{color:var(--red)}
+
+/* Table */
+.tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.tbl th{padding:9px 12px;background:var(--bg);font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;text-align:left;border-bottom:1px solid var(--border)}
+.tbl td{padding:9px 12px;border-bottom:1px solid var(--border)}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:rgba(0,0,0,.02)}
+
+/* Badge */
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700}
+.b-green{background:#e1f5ee;color:#085041}
+.b-blue{background:#e6f1fb;color:#0c447c}
+.b-amber{background:#faeeda;color:#633806}
+.b-red{background:#fcebeb;color:#791f1f}
+.b-purple{background:#eeedfe;color:#3c3489}
+.b-gray{background:#f1efe8;color:#444441}
+
+/* Spinner */
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--p);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Chart */
+canvas{display:block}
+
+/* Step nav */
+.step-nav{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.step-btn{padding:6px 14px;border-radius:8px;border:1px solid var(--border);background:var(--card);font-size:12px;cursor:pointer;color:var(--muted);font-family:inherit;transition:all .15s}
+.step-btn.on{background:var(--p);color:#fff;border-color:var(--p);font-weight:700}
+
+/* Highlight box */
+.info-box{background:#e6f1fb;border:1px solid #b5d4f4;border-radius:8px;padding:11px 14px;font-size:12.5px;color:#0c447c;line-height:1.7}
+.warn-box{background:#faeeda;border:1px solid #fac775;border-radius:8px;padding:11px 14px;font-size:12.5px;color:#633806;line-height:1.7}
+.formula{font-family:'Courier New',monospace;background:rgba(0,0,0,.06);padding:8px 12px;border-radius:6px;font-size:12.5px;margin:8px 0;overflow-x:auto}
+
+/* Matrix */
+.matrix{border-collapse:collapse;margin:8px 0}
+.matrix td{border:1px solid var(--border);padding:5px 10px;text-align:center;font-size:12px;min-width:40px}
+.matrix th{border:1px solid var(--border);padding:5px 10px;background:var(--bg);font-size:11px;color:var(--muted);font-weight:700}
+.cell-hi{background:#e1f5ee;color:#085041;font-weight:700}
+.cell-med{background:#faeeda;color:#633806}
+.cell-lo{background:#fcebeb;color:#791f1f}
+
+/* Heatmap cell */
+.heatmap{display:grid;gap:3px;margin:10px 0}
+.hm-cell{width:32px;height:32px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;cursor:default}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-name">ActiveEdu</div>
+    <div class="logo-sub">Algorithm Lab</div>
+  </div>
+  <nav class="nav">
+    <div class="nav-sec">Mô hình năng lực</div>
+    <div class="nav-item on" data-page="irt"><span class="nav-ico">📈</span>IRT — Item Response</div>
+    <div class="nav-item" data-page="bkt"><span class="nav-ico">🧠</span>BKT — Knowledge Tracing</div>
+    <div class="nav-item" data-page="spaced"><span class="nav-ico">🔁</span>Spaced Repetition SM-2</div>
+    <div class="nav-sec">Mô hình AI</div>
+    <div class="nav-item" data-page="neural"><span class="nav-ico">🕸</span>Neural Net Visualizer</div>
+    <div class="nav-item" data-page="dkt"><span class="nav-ico">📡</span>DKT — Deep Knowledge</div>
+    <div class="nav-sec">Phân tích & So sánh</div>
+    <div class="nav-item" data-page="compare"><span class="nav-ico">⚖️</span>Model Comparison</div>
+    <div class="nav-item" data-page="simulate"><span class="nav-ico">🎲</span>Monte Carlo Sim</div>
+    <div class="nav-item" data-page="calib"><span class="nav-ico">🎯</span>Calibration & Fit</div>
+  </nav>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+<div class="topbar">
+  <span style="font-size:18px">🔬</span>
+  <div><div style="font-size:14px;font-weight:700">Algorithm Modeling Lab</div>
+  <div style="font-size:11px;color:var(--muted)">Công cụ mô hình hóa AI giáo dục · Hỗ trợ bài báo khoa học</div></div>
+  <div style="margin-left:auto;display:flex;gap:8px">
+    <button class="btn btn-out btn-sm" onclick="exportAllResults()">↓ Xuất kết quả</button>
+    <a href="ai-research-panel.html" class="btn btn-p btn-sm">← Research Lab</a>
+  </div>
+</div>
+<div class="content" id="content">
+
+<!-- ═══════════════════════════════════════════════════════════
+     PAGE 1: IRT — Item Response Theory
+     ═══════════════════════════════════════════════════════════ -->
+<div class="page on" id="page-irt">
+  <div class="info-box">
+    <strong>Item Response Theory (IRT) — Mô hình 3 tham số (3PL)</strong><br>
+    Công thức: P(θ) = c + (1−c) / (1 + e<sup>−a(θ−b)</sup>)<br>
+    <strong>a</strong> = độ phân biệt · <strong>b</strong> = độ khó · <strong>c</strong> = xác suất đoán đúng · <strong>θ</strong> = năng lực học sinh
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="sec-title">Tham số mô hình</div>
+      <div class="param-row"><label>Độ phân biệt a</label><input type="range" id="irt-a" min="0.2" max="3" step="0.05" value="1.5" oninput="irtSlide()"><span class="param-val" id="v-irt-a">1.50</span></div>
+      <div class="param-row"><label>Độ khó b</label><input type="range" id="irt-b" min="-3" max="3" step="0.1" value="0" oninput="irtSlide()"><span class="param-val" id="v-irt-b">0.00</span></div>
+      <div class="param-row"><label>Đoán ngẫu nhiên c</label><input type="range" id="irt-c" min="0" max="0.35" step="0.05" value="0.25" oninput="irtSlide()"><span class="param-val" id="v-irt-c">0.25</span></div>
+      <div class="param-row"><label>Năng lực học sinh θ</label><input type="range" id="irt-th" min="-4" max="4" step="0.1" value="0" oninput="irtSlide()"><span class="param-val" id="v-irt-th">0.00</span></div>
+
+      <div class="metric-row" style="margin-top:14px">
+        <div class="metric"><span class="metric-val" id="m-pright">—</span><span class="metric-lbl">P(đúng)</span></div>
+        <div class="metric"><span class="metric-val" id="m-fisher">—</span><span class="metric-lbl">Fisher Info</span></div>
+        <div class="metric"><span class="metric-val" id="m-semeas">—</span><span class="metric-lbl">SE đo lường</span></div>
+      </div>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+        <button class="btn btn-p btn-sm" onclick="runIRTAnalysis()">✦ AI phân tích</button>
+        <button class="btn btn-out btn-sm" onclick="irtPreset('easy')">Câu dễ</button>
+        <button class="btn btn-out btn-sm" onclick="irtPreset('hard')">Câu khó</button>
+        <button class="btn btn-out btn-sm" onclick="irtPreset('poor')">Câu kém</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sec-title">Đường đặc trưng câu hỏi (ICC) & Fisher Information</div>
+      <canvas id="chart-icc" height="220"></canvas>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="sec-title">Ma trận câu hỏi — nhiều items</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Nhập tham số nhiều câu hỏi để so sánh. Định dạng: a,b,c (mỗi dòng 1 câu)</p>
+      <textarea id="irt-batch" rows="6" style="font-family:monospace;font-size:12px">1.5, 0.0, 0.25
+2.1,-1.2, 0.20
+0.8, 1.5, 0.25
+1.9, 0.3, 0.15
+0.5,-0.8, 0.30
+1.2, 2.1, 0.25</textarea>
+      <button class="btn btn-teal btn-sm" style="margin-top:8px" onclick="runBatchIRT()">Phân tích batch</button>
+      <div id="irt-batch-result" style="margin-top:12px"></div>
+    </div>
+    <div class="card">
+      <div class="sec-title">Phân tích AI — nhận xét câu hỏi</div>
+      <div class="out-box" id="irt-ai-out" style="min-height:200px">Nhấn "AI phân tích" để nhận nhận xét chuyên sâu về chất lượng câu hỏi theo tiêu chuẩn tâm lý đo lường giáo dục...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     PAGE 2: BKT — Bayesian Knowledge Tracing
+     ═══════════════════════════════════════════════════════════ -->
+<div class="page" id="page-bkt">
+  <div class="info-box">
+    <strong>Bayesian Knowledge Tracing (BKT)</strong> — Mô hình Hidden Markov theo dõi kiến thức<br>
+    4 tham số: <strong>L₀</strong> (biết ban đầu) · <strong>T</strong> (xác suất học được) · <strong>G</strong> (đoán đúng) · <strong>S</strong> (trượt khi biết)<br>
+    Cập nhật Bayes: L(t+1) = L(t|obs) + (1 − L(t|obs)) × T
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="sec-title">Tham số BKT</div>
+      <div class="param-row"><label>P(L₀) — biết ban đầu</label><input type="range" id="bkt-l0" min="0.01" max="0.5" step="0.01" value="0.1" oninput="bktSlide()"><span class="param-val" id="v-bkt-l0">0.10</span></div>
+      <div class="param-row"><label>P(T) — xác suất học</label><input type="range" id="bkt-t" min="0.01" max="0.5" step="0.01" value="0.2" oninput="bktSlide()"><span class="param-val" id="v-bkt-t">0.20</span></div>
+      <div class="param-row"><label>P(G) — đoán đúng</label><input type="range" id="bkt-g" min="0.01" max="0.4" step="0.01" value="0.2" oninput="bktSlide()"><span class="param-val" id="v-bkt-g">0.20</span></div>
+      <div class="param-row"><label>P(S) — trượt khi biết</label><input type="range" id="bkt-s" min="0.01" max="0.3" step="0.01" value="0.1" oninput="bktSlide()"><span class="param-val" id="v-bkt-s">0.10</span></div>
+
+      <div class="form-row" style="margin-top:12px">
+        <label>Chuỗi quan sát (1=đúng, 0=sai)</label>
+        <input type="text" id="bkt-seq" value="0,1,0,1,1,1,0,1,1,1">
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-p btn-sm" onclick="runBKT()">▶ Chạy mô phỏng</button>
+        <button class="btn btn-out btn-sm" onclick="bktPreset('fast')">Học nhanh</button>
+        <button class="btn btn-out btn-sm" onclick="bktPreset('slow')">Học chậm</button>
+        <button class="btn btn-teal btn-sm" onclick="runBKTAnalysis()">✦ AI phân tích</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sec-title">Trajectory P(L) theo thời gian</div>
+      <canvas id="chart-bkt" height="220"></canvas>
+      <div class="metric-row" style="margin-top:10px">
+        <div class="metric"><span class="metric-val" id="m-bkt-final">—</span><span class="metric-lbl">P(L) cuối</span></div>
+        <div class="metric"><span class="metric-val" id="m-bkt-mastery">—</span><span class="metric-lbl">Bước nắm master</span></div>
+        <div class="metric"><span class="metric-val" id="m-bkt-acc">—</span><span class="metric-lbl">Độ chính xác</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="sec-title">EM Fitting — ước lượng tham số từ dữ liệu</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Nhập dữ liệu nhiều học sinh (mỗi dòng 1 chuỗi) để EM tự tìm tham số tối ưu</p>
+      <textarea id="bkt-em-data" rows="5" style="font-family:monospace;font-size:11px">1,1,0,1,1,1,1
+0,0,1,0,1,1,1
+1,0,1,1,0,1,1
+0,1,1,1,1,1,1
+0,0,0,1,1,1,1</textarea>
+      <button class="btn btn-purple btn-sm" style="margin-top:8px" onclick="runBKTem()">EM Estimation</button>
+      <div id="bkt-em-result" style="margin-top:10px;font-size:12.5px"></div>
+    </div>
+    <div class="card">
+      <div class="sec-title">AI phân tích kết quả BKT</div>
+      <div class="out-box" id="bkt-ai-out" style="min-height:180px">Chạy mô phỏng rồi nhấn "AI phân tích"...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     PAGE 3: Spaced Repetition SM-2
+     ═══════════════════════════════════════════════════════════ -->
+<div class="page" id="page-spaced">
+  <div class="info-box">
+    <strong>Thuật toán SuperMemo-2 (SM-2)</strong> — Lịch ôn tập tối ưu hóa ghi nhớ dài hạn<br>
+    Interval(n) = I(n−1) × EF · EF = EF + (0.1 − (5−q)(0.08 + (5−q)×0.02))<br>
+    <strong>q</strong> = chất lượng trả lời (0–5) · <strong>EF</strong> = Ease Factor (bắt đầu 2.5) · <strong>I</strong> = interval ngày
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="sec-title">Mô phỏng lịch ôn tập</div>
+      <div class="param-row"><label>EF ban đầu</label><input type="range" id="sm2-ef" min="1.3" max="3.0" step="0.1" value="2.5" oninput="sm2Slide()"><span class="param-val" id="v-sm2-ef">2.5</span></div>
+      <div class="form-row">
+        <label>Chuỗi chất lượng trả lời q (0–5, mỗi lần ôn)</label>
+        <input type="text" id="sm2-q" value="4,3,5,4,3,4,5,5,3,4,4,5">
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-p btn-sm" onclick="runSM2()">▶ Tính lịch ôn tập</button>
+        <button class="btn btn-teal btn-sm" onclick="runSM2Analysis()">✦ AI phân tích</button>
+      </div>
+      <div id="sm2-table" style="margin-top:14px;overflow-x:auto"></div>
+    </div>
+    <div class="card">
+      <div class="sec-title">Forgetting curve & Review schedule</div>
+      <canvas id="chart-sm2" height="220"></canvas>
+      <div class="metric-row" style="margin-top:10px">
+        <div class="metric"><span class="metric-val" id="m-sm2-total">—</span><span class="metric-lbl">Tổng ngày</span></div>
+        <div class="metric"><span class="metric-val" id="m-sm2-ef">—</span><span class="metric-lbl">EF cuối</span></div>
+        <div class="metric"><span class="metric-val" id="m-sm2-reviews">—</span><span class="metric-lbl">Số lần ôn</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="sec-title">So sánh chiến lược ôn tập</div>
+    <canvas id="chart-sm2-compare" height="160"></canvas>
+    <div class="out-box" id="sm2-ai-out" style="margin-top:12px">Nhấn "AI phân tích" để so sánh chiến lược...</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     PAGE 4: Neural Network Visualizer
+     ═══════════════════════════════════════════════════════════ -->
+<div class="page" id="page-neural">
+  <div class="info-box">
+    <strong>Neural Network Visualizer</strong> — Mô hình hóa mạng nơ-ron dùng trong DKT/DKVMN<br>
+    Trực quan hóa forward pass, activation, và weight contribution cho bài báo khoa học
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="sec-title">Cấu hình mạng</div>
+      <div class="form-row"><label>Số nơ-ron lớp ẩn 1</label><input type="number" id="nn-h1" value="8" min="2" max="16"></div>
+      <div class="form-row"><label>Số nơ-ron lớp ẩn 2</label><input type="number" id="nn-h2" value="6" min="0" max="16"></div>
+      <div class="form-row"><label>Hàm kích hoạt</label>
+        <select id="nn-act">
+          <option value="sigmoid">Sigmoid σ(x) = 1/(1+e⁻ˣ)</option>
+          <option value="relu">ReLU max(0,x)</option>
+          <option value="tanh">Tanh</option>
+        </select>
+      </div>
+      <div class="form-row"><label>Input vector (phân cách bởi ,)</label>
+        <input type="text" id="nn-input" value="0.8, 0.3, 0.9, 0.1, 0.6">
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-p btn-sm" onclick="runNN()">▶ Forward pass</button>
+        <button class="btn btn-purple btn-sm" onclick="randomizeWeights()">Ngẫu nhiên weights</button>
+        <button class="btn btn-teal btn-sm" onclick="runNNAnalysis()">✦ AI giải thích</button>
+      </div>
+      <div class="metric-row" style="margin-top:12px">
+        <div class="metric"><span class="metric-val" id="m-nn-out">—</span><span class="metric-lbl">Output P(KC)</span></div>
+        <div class="metric"><span class="metric-val" id="m-nn-params">—</span><span class="metric-lbl">Tổng params</span></div>
+      </div>
+    </div>
+    <div class="card" style="padding:12px">
+      <div class="sec-title">Kiến trúc mạng — activation heatmap</div>
+      <canvas id="chart-nn" height="280"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="sec-title">AI giải thích kiến trúc</div>
+    <div class="out-box" id="nn-ai-out">Thiết lập mạng và nhấn "AI giải thích" để nhận phân tích kiến trúc phù hợp với bài báo...</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     PAGE 5: DKT — Deep Knowledge Tracing
+     ═══════════════════════════════════════════════════════════ -->
+<div class="page" id="page-dkt">
+  <div class="info-box">
+    <strong>Deep Knowledge Tracing (DKT)</strong> — Piech et al., NeurIPS 2015<br>
+    LSTM với input (kc, correctness) → hidden state h_t → output P(correctness | kc) cho mỗi KC<br>
+    Đây là mô phỏng conceptual: minh họa cơ chế DKT không cần GPU
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="sec-title">Cài đặt mô phỏng DKT</div>
+      <div class="form-row"><label>Danh sách Knowledge Components</label>
+        <input type="text" id="dkt-kcs" value="cộng, trừ, nhân, chia, phân số, phương trình">
+      </div>
+      <div class="form-row"><label>Chuỗi tương tác (kc_idx:correct, ...)</label>
+        <input type="text" id="dkt-seq" value="0:1, 1:0, 0:1, 2:1, 1:1, 3:0, 2:1, 4:0, 3:1, 5:0">
+      </div>
+      <div class="param-row"><label>Hidden dim LSTM</label><input type="range" id="dkt-hdim" min="16" max="128" step="8" value="64" oninput="document.getElementById('v-dkt-hdim').textContent=this.value"><span class="param-val" id="v-dkt-hdim">64</span></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+        <button class="btn btn-p btn-sm" onclick="runDKT()">▶ Mô phỏng DKT</button>
+        <button class="btn btn-teal btn-sm" onclick="runDKTAnalysis()">✦ AI phân tích</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sec-title">Predicted P(correct) per KC — heatmap</div>
+      <div id="dkt-heatmap" style="overflow-x:auto"></div>
+      <canvas id="chart-dkt" height="180" style="margin-top:10px"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="sec-title">Phân tích DKT</div>
+    <div class="out-box" id="dkt-ai-out">Chạy mô phỏng rồi nhấn "AI phân tích"...</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     PAGE 6: Model Comparison
+     ═══════════════════════════════════════════════════════════ -->
+<div class="page" id="page-compare">
+  <div class="grid2">
+    <div class="card">
+      <div class="sec-title">Kịch bản so sánh</div>
+      <div class="form-row"><label>Dữ liệu học sinh (mô tả tự do)</label>
+        <textarea id="cmp-data" rows="4">35 học sinh lớp 10, môn Toán. Dữ liệu 8 tuần: quiz log, thời gian đọc bài, chuỗi trả lời. Điểm TB đầu kỳ 58%, cuối kỳ 72%. 60% học sinh hoàn thành >5 bài/tuần.</textarea>
+      </div>
+      <div class="form-row"><label>Mục tiêu nghiên cứu</label>
+        <select id="cmp-goal">
+          <option value="predict">Dự đoán kết quả học tập</option>
+          <option value="adapt">Chọn nội dung thích ứng</option>
+          <option value="early">Phát hiện sớm học sinh yếu</option>
+          <option value="engage">Tối ưu engagement</option>
+        </select>
+      </div>
+      <button class="btn btn-p" onclick="runModelComparison()">✦ So sánh toàn diện các mô hình</button>
+    </div>
+
+    <div class="card">
+      <div class="sec-title">Radar chart — so sánh đa tiêu chí</div>
+      <canvas id="chart-radar" height="260"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="sec-title">Bảng so sánh chi tiết</div>
+    <div id="cmp-table-wrap" style="overflow-x:auto">
+      <table class="tbl" id="cmp-table">
+        <thead><tr><th>Mô hình</th><th>Độ chính xác</th><th>Interpretability</th><th>Data cần</th><th>Complexity</th><th>Phù hợp ActiveEdu</th><th>Dùng cho</th></tr></thead>
+        <tbody id="cmp-tbody">
+          <tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">Nhấn "So sánh toàn diện" để AI phân tích...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="out-box" id="cmp-ai-out" style="margin-top:14px">Kết quả AI sẽ xuất hiện ở đây...</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     PAGE 7: Monte Carlo Simulation
+     ═══════════════════════════════════════════════════════════ -->
+<div class="page" id="page-simulate">
+  <div class="info-box">
+    <strong>Monte Carlo Simulation</strong> — Mô phỏng ngẫu nhiên hành vi học sinh<br>
+    Tạo dữ liệu synthetic để kiểm thử mô hình, validate giả thuyết, và báo cáo kết quả thống kê
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="sec-title">Cài đặt mô phỏng</div>
+      <div class="param-row"><label>Số học sinh N</label><input type="range" id="mc-n" min="10" max="200" step="10" value="50" oninput="document.getElementById('v-mc-n').textContent=this.value"><span class="param-val" id="v-mc-n">50</span></div>
+      <div class="param-row"><label>Số tuần</label><input type="range" id="mc-weeks" min="4" max="20" step="1" value="8" oninput="document.getElementById('v-mc-weeks').textContent=this.value"><span class="param-val" id="v-mc-weeks">8</span></div>
+      <div class="param-row"><label>θ trung bình</label><input type="range" id="mc-theta" min="-2" max="2" step="0.1" value="0" oninput="document.getElementById('v-mc-theta').textContent=parseFloat(this.value).toFixed(1)"><span class="param-val" id="v-mc-theta">0.0</span></div>
+      <div class="param-row"><label>SD năng lực</label><input type="range" id="mc-sd" min="0.3" max="2" step="0.1" value="1" oninput="document.getElementById('v-mc-sd').textContent=parseFloat(this.value).toFixed(1)"><span class="param-val" id="v-mc-sd">1.0</span></div>
+      <div class="form-row">
+        <label>Mô hình sinh dữ liệu</label>
+        <select id="mc-model">
+          <option value="irt">IRT 3PL</option>
+          <option value="bkt">BKT</option>
+          <option value="random">Uniform random</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-p btn-sm" onclick="runMonteCarlo()">▶ Chạy mô phỏng</button>
+        <button class="btn btn-teal btn-sm" onclick="runMCAnalysis()">✦ AI phân tích</button>
+        <button class="btn btn-out btn-sm" onclick="exportMCData()">↓ Export CSV</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sec-title">Phân phối năng lực & điểm</div>
+      <canvas id="chart-mc" height="220"></canvas>
+      <div class="metric-row" style="margin-top:10px">
+        <div class="metric"><span class="metric-val" id="m-mc-mean">—</span><span class="metric-lbl">Điểm TB</span></div>
+        <div class="metric"><span class="metric-val" id="m-mc-sd">—</span><span class="metric-lbl">SD</span></div>
+        <div class="metric"><span class="metric-val" id="m-mc-pass">—</span><span class="metric-lbl">% đạt ≥60%</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="sec-title">Kết quả & dữ liệu mẫu (20 học sinh đầu)</div>
+    <div id="mc-preview" style="overflow-x:auto;margin-bottom:12px"></div>
+    <div class="out-box" id="mc-ai-out">Chạy mô phỏng để xem phân tích...</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     PAGE 8: Calibration & Model Fit
+     ═══════════════════════════════════════════════════════════ -->
+<div class="page" id="page-calib">
+  <div class="info-box">
+    <strong>Calibration & Model Fit</strong> — Đánh giá chất lượng mô hình dự đoán<br>
+    AUC-ROC, RMSE, Log-likelihood, Brier score, Calibration curve — các chỉ số chuẩn trong bài báo AIED
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="sec-title">Nhập dữ liệu dự đoán vs thực tế</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Mỗi dòng: predicted_prob,actual_label (0 hoặc 1)</p>
+      <textarea id="calib-data" rows="10" style="font-family:monospace;font-size:11px">0.82, 1
+0.71, 1
+0.45, 0
+0.60, 1
+0.33, 0
+0.88, 1
+0.52, 0
+0.67, 1
+0.29, 0
+0.91, 1
+0.43, 0
+0.74, 1
+0.58, 1
+0.35, 0
+0.80, 1
+0.49, 0
+0.77, 1
+0.62, 0
+0.87, 1
+0.40, 0</textarea>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <button class="btn btn-p btn-sm" onclick="runCalibration()">▶ Tính model fit</button>
+        <button class="btn btn-teal btn-sm" onclick="runCalibAnalysis()">✦ AI nhận xét</button>
+        <button class="btn btn-out btn-sm" onclick="generateCalibData()">Tạo dữ liệu mẫu</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sec-title">Chỉ số Model Fit</div>
+      <div class="metric-row" style="flex-wrap:wrap">
+        <div class="metric"><span class="metric-val" id="m-auc">—</span><span class="metric-lbl">AUC-ROC</span></div>
+        <div class="metric"><span class="metric-val" id="m-rmse">—</span><span class="metric-lbl">RMSE</span></div>
+        <div class="metric"><span class="metric-val" id="m-brier">—</span><span class="metric-lbl">Brier Score</span></div>
+        <div class="metric"><span class="metric-val" id="m-acc-c">—</span><span class="metric-lbl">Accuracy</span></div>
+        <div class="metric"><span class="metric-val" id="m-ll">—</span><span class="metric-lbl">Log-Loss</span></div>
+      </div>
+      <canvas id="chart-roc" height="200" style="margin-top:10px"></canvas>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="sec-title">Calibration curve</div>
+      <canvas id="chart-calib" height="200"></canvas>
+    </div>
+    <div class="card">
+      <div class="sec-title">AI phân tích model fit cho bài báo</div>
+      <div class="out-box" id="calib-ai-out" style="min-height:180px">Chạy tính toán model fit rồi nhấn "AI nhận xét"...</div>
+    </div>
+  </div>
+</div>
+
+</div><!-- .content -->
+</main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+const API = 'https://api.anthropic.com/v1/messages';
+const MODEL = 'claude-sonnet-4-20250514';
+const allResults = {};
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('on'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
+    item.classList.add('on');
+    document.getElementById('page-' + item.dataset.page)?.classList.add('on');
+  });
+});
+
+// ── AI helper ────────────────────────────────────────────────────────────────
+async function askAI(prompt, outId) {
+  const el = document.getElementById(outId);
+  el.textContent = '⟳ AI đang phân tích...';
+  try {
+    const r = await fetch(API, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model: MODEL, max_tokens: 1000,
+        system: 'Bạn là chuyên gia đo lường giáo dục và AI trong EdTech. Phân tích ngắn gọn bằng tiếng Việt, chính xác, phù hợp để đưa vào bài báo khoa học chuẩn IEEE/Springer. Dùng thuật ngữ chuyên ngành đúng, có số liệu khi có thể.',
+        messages: [{role:'user', content: prompt}]
+      })
+    });
+    const d = await r.json();
+    el.textContent = d.content?.[0]?.text || 'Lỗi API';
+  } catch(e) { el.textContent = 'Lỗi kết nối: ' + e.message; }
+}
+
+function destroyChart(id) { Chart.getChart(id)?.destroy(); }
+
+// ════════════════════════════════════════════════════════════
+// IRT
+// ════════════════════════════════════════════════════════════
+function irt3pl(theta, a, b, c) { return c + (1-c) / (1 + Math.exp(-a*(theta-b))); }
+function irtFisher(theta, a, b, c) {
+  const P = irt3pl(theta,a,b,c);
+  return a*a * ((P-c)/(1-c))**2 * (1-P)/P;
+}
+
+function irtSlide() {
+  const a = +document.getElementById('irt-a').value;
+  const b = +document.getElementById('irt-b').value;
+  const c = +document.getElementById('irt-c').value;
+  const th= +document.getElementById('irt-th').value;
+  document.getElementById('v-irt-a').textContent = a.toFixed(2);
+  document.getElementById('v-irt-b').textContent = b.toFixed(2);
+  document.getElementById('v-irt-c').textContent = c.toFixed(2);
+  document.getElementById('v-irt-th').textContent = th.toFixed(2);
+  const P = irt3pl(th,a,b,c);
+  const FI = irtFisher(th,a,b,c);
+  document.getElementById('m-pright').textContent = P.toFixed(3);
+  document.getElementById('m-fisher').textContent = FI.toFixed(3);
+  document.getElementById('m-semeas').textContent = (1/Math.sqrt(FI)).toFixed(3);
+  drawICC(a,b,c,th);
+}
+
+function drawICC(a,b,c,th) {
+  destroyChart('chart-icc');
+  const thetas = Array.from({length:81},(_,i)=>-4+i*0.1);
+  const probs = thetas.map(t=>irt3pl(t,a,b,c));
+  const fi = thetas.map(t=>irtFisher(t,a,b,c));
+  new Chart(document.getElementById('chart-icc'), {
+    data: {
+      labels: thetas.map(t=>t.toFixed(1)),
+      datasets: [
+        {type:'line',label:'P(đúng)',data:probs,borderColor:'#1a3a5c',tension:.4,yAxisID:'y',pointRadius:0,borderWidth:2},
+        {type:'line',label:'Fisher Info',data:fi,borderColor:'#e8a020',tension:.4,yAxisID:'y1',pointRadius:0,borderDash:[5,5],borderWidth:1.5},
+        {type:'scatter',label:`θ=${th.toFixed(1)}`,data:[{x:th,y:irt3pl(th,a,b,c)}],borderColor:'#D85A30',backgroundColor:'#D85A30',pointRadius:7,yAxisID:'y'}
+      ]
+    },
+    options:{plugins:{legend:{labels:{font:{size:11}}}},scales:{
+      x:{ticks:{maxTicksLimit:9,font:{size:10}},title:{display:true,text:'θ (năng lực)'}},
+      y:{min:0,max:1,title:{display:true,text:'P(đúng)'}},
+      y1:{position:'right',min:0,title:{display:true,text:'Fisher'},grid:{drawOnChartArea:false}}
+    }}
+  });
+}
+
+function irtPreset(t) {
+  const presets = {
+    easy:  {a:1.2, b:-1.5, c:0.25},
+    hard:  {a:1.8, b: 1.8, c:0.25},
+    poor:  {a:0.3, b: 0.0, c:0.30}
+  };
+  const p = presets[t];
+  document.getElementById('irt-a').value = p.a;
+  document.getElementById('irt-b').value = p.b;
+  document.getElementById('irt-c').value = p.c;
+  irtSlide();
+}
+
+function runBatchIRT() {
+  const lines = document.getElementById('irt-batch').value.trim().split('\n');
+  const items = lines.map((l,i) => {
+    const [a,b,c] = l.split(',').map(Number);
+    return {i:i+1, a, b, c,
+      p0: irt3pl(0,a,b,c).toFixed(3),
+      fi: irtFisher(0,a,b,c).toFixed(3),
+      quality: a>=1.5&&b>=-2&&b<=2&&c<=0.25 ? '<span class="badge b-green">Tốt</span>' : a<0.7 ? '<span class="badge b-red">Kém</span>' : '<span class="badge b-amber">TB</span>'
+    };
+  });
+  const tbody = items.map(it=>
+    `<tr><td>Câu ${it.i}</td><td>${it.a}</td><td>${it.b}</td><td>${it.c}</td><td>${it.p0}</td><td>${it.fi}</td><td>${it.quality}</td></tr>`
+  ).join('');
+  document.getElementById('irt-batch-result').innerHTML = `
+    <table class="tbl"><thead><tr><th>Item</th><th>a</th><th>b</th><th>c</th><th>P(θ=0)</th><th>Fisher</th><th>Chất lượng</th></tr></thead>
+    <tbody>${tbody}</tbody></table>`;
+  allResults.irtBatch = items;
+}
+
+async function runIRTAnalysis() {
+  const a=+document.getElementById('irt-a').value, b=+document.getElementById('irt-b').value,
+        c=+document.getElementById('irt-c').value, th=+document.getElementById('irt-th').value;
+  await askAI(
+    `Phân tích câu hỏi IRT 3PL: a=${a.toFixed(2)}, b=${b.toFixed(2)}, c=${c.toFixed(2)}, học sinh θ=${th.toFixed(2)}. P(đúng)=${irt3pl(th,a,b,c).toFixed(3)}, Fisher=${irtFisher(th,a,b,c).toFixed(3)}.
+    Nhận xét: (1) chất lượng câu hỏi theo tiêu chuẩn tâm lý đo lường, (2) phù hợp nhóm học sinh nào, (3) vị trí tối ưu trên thang năng lực, (4) gợi ý cải thiện nếu cần, (5) cách trình bày trong bài báo AIED.`,
+    'irt-ai-out'
+  );
+}
+
+// ════════════════════════════════════════════════════════════
+// BKT
+// ════════════════════════════════════════════════════════════
+let _bktResult = null;
+
+function bktSlide() {
+  ['bkt-l0','bkt-t','bkt-g','bkt-s'].forEach(id => {
+    document.getElementById('v-'+id).textContent = parseFloat(document.getElementById(id).value).toFixed(2);
+  });
+}
+
+function bktUpdate(L, obs, T, G, S) {
+  const Lobs = obs===1
+    ? (L*(1-S)) / (L*(1-S)+(1-L)*G)
+    : (L*S)     / (L*S    +(1-L)*(1-G));
+  return Lobs + (1-Lobs)*T;
+}
+
+function runBKT() {
+  const L0=+document.getElementById('bkt-l0').value, T=+document.getElementById('bkt-t').value,
+        G=+document.getElementById('bkt-g').value, S=+document.getElementById('bkt-s').value;
+  const seq = document.getElementById('bkt-seq').value.split(',').map(s=>+s.trim()).filter(n=>!isNaN(n));
+  let L = L0;
+  const traj = [L];
+  let masteryStep = null;
+  seq.forEach((obs,i) => {
+    L = bktUpdate(L, obs, T, G, S);
+    traj.push(L);
+    if (!masteryStep && L >= 0.95) masteryStep = i+1;
+  });
+  _bktResult = {traj, seq, L0, T, G, S, final:L, masteryStep};
+  allResults.bkt = _bktResult;
+
+  const acc = seq.length ? seq.filter(v=>v===1).length/seq.length : 0;
+  document.getElementById('m-bkt-final').textContent = L.toFixed(3);
+  document.getElementById('m-bkt-mastery').textContent = masteryStep ? `Q${masteryStep}` : '>'+seq.length;
+  document.getElementById('m-bkt-acc').textContent = (acc*100).toFixed(0)+'%';
+
+  destroyChart('chart-bkt');
+  const labels = ['L₀', ...seq.map((v,i)=>`Q${i+1}(${v===1?'✓':'✗'})`)];
+  new Chart(document.getElementById('chart-bkt'), {
+    data:{
+      labels,
+      datasets:[
+        {type:'line',label:'P(L)',data:traj,borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,.1)',fill:true,tension:.4,pointRadius:4,pointBackgroundColor:traj.map(v=>v>=0.95?'#1D9E75':'#1a3a5c')},
+        {type:'line',label:'Mastery 0.95',data:Array(traj.length).fill(0.95),borderColor:'#e8a020',borderDash:[6,3],pointRadius:0,borderWidth:1}
+      ]
+    },
+    options:{scales:{y:{min:0,max:1}},plugins:{legend:{labels:{font:{size:11}}}}}
+  });
+}
+
+function bktPreset(t) {
+  const presets = {fast:{l0:.05,t:.4,g:.15,s:.05}, slow:{l0:.05,t:.08,g:.25,s:.1}};
+  const p = presets[t];
+  document.getElementById('bkt-l0').value=p.l0;
+  document.getElementById('bkt-t').value=p.t;
+  document.getElementById('bkt-g').value=p.g;
+  document.getElementById('bkt-s').value=p.s;
+  bktSlide(); runBKT();
+}
+
+function runBKTem() {
+  const lines = document.getElementById('bkt-em-data').value.trim().split('\n');
+  const seqs = lines.map(l => l.split(',').map(s=>+s.trim()).filter(n=>!isNaN(n)));
+  let L0=0.1, T=0.2, G=0.2, S=0.1;
+  for(let iter=0; iter<20; iter++) {
+    let sumL0=0, nL0=0, sumT=0, nT=0, sumG=0, nG=0, sumS=0, nS=0;
+    seqs.forEach(seq => {
+      let L=L0; sumL0+=L0; nL0++;
+      seq.forEach(obs => {
+        const Lnew = bktUpdate(L,obs,T,G,S);
+        if(obs===0) { sumG += L*(G); sumS += L*(S); nG+=L; nS+=L; }
+        L = Lnew; sumT += L*(1-L)*T; nT += (1-L);
+      });
+    });
+    T = Math.max(0.01, Math.min(0.5, sumT/Math.max(nT,1)));
+    G = Math.max(0.01, Math.min(0.35, sumG/Math.max(nG,1)));
+    S = Math.max(0.01, Math.min(0.25, sumS/Math.max(nS,1)));
+    L0 = Math.max(0.01, Math.min(0.5, sumL0/Math.max(nL0,1)));
+  }
+  document.getElementById('bkt-em-result').innerHTML =
+    `<div class="card-sm"><strong>Ước lượng EM (20 iter):</strong><br>
+    L₀ = ${L0.toFixed(3)} · T = ${T.toFixed(3)} · G = ${G.toFixed(3)} · S = ${S.toFixed(3)}</div>`;
+  document.getElementById('bkt-l0').value=L0.toFixed(2);
+  document.getElementById('bkt-t').value=T.toFixed(2);
+  document.getElementById('bkt-g').value=G.toFixed(2);
+  document.getElementById('bkt-s').value=S.toFixed(2);
+  bktSlide(); runBKT();
+}
+
+async function runBKTAnalysis() {
+  if(!_bktResult) { runBKT(); }
+  const r = _bktResult;
+  await askAI(
+    `Kết quả BKT: L₀=${r.L0}, T=${r.T}, G=${r.G}, S=${r.S}. Chuỗi quan sát: ${r.seq.join(',')}. 
+    P(L) cuối: ${r.final.toFixed(3)}. Nắm mastery tại: ${r.masteryStep||'chưa đạt'}.
+    Trajectory: ${r.traj.map(v=>v.toFixed(2)).join('→')}.
+    Phân tích: (1) học sinh đã nắm kiến thức chưa, (2) tốc độ học, (3) tham số mô hình có hợp lý không, (4) chiến lược dạy học tiếp theo, (5) giải thích phù hợp cho mục Results trong bài báo.`,
+    'bkt-ai-out'
+  );
+}
+
+// ════════════════════════════════════════════════════════════
+// SM-2 Spaced Repetition
+// ════════════════════════════════════════════════════════════
+function sm2Slide() {
+  document.getElementById('v-sm2-ef').textContent = parseFloat(document.getElementById('sm2-ef').value).toFixed(1);
+}
+
+function runSM2() {
+  const qs = document.getElementById('sm2-q').value.split(',').map(s=>+s.trim()).filter(n=>!isNaN(n));
+  let EF = +document.getElementById('sm2-ef').value;
+  let interval = 1, rep = 0, totalDays = 0;
+  const schedule = [];
+
+  qs.forEach((q, idx) => {
+    const day = totalDays;
+    const efNew = Math.max(1.3, EF + (0.1 - (5-q)*(0.08 + (5-q)*0.02)));
+    let nextI;
+    if(q < 3) { rep=0; nextI=1; }
+    else { rep++; nextI = rep<=1 ? 1 : rep===2 ? 6 : Math.round(interval*EF); }
+    EF = efNew; interval = nextI; totalDays += nextI;
+    schedule.push({n:idx+1, q, day, ef:efNew.toFixed(2), interval:nextI, cumDay:totalDays});
+  });
+
+  allResults.sm2 = schedule;
+  document.getElementById('m-sm2-total').textContent = totalDays+'d';
+  document.getElementById('m-sm2-ef').textContent = EF.toFixed(2);
+  document.getElementById('m-sm2-reviews').textContent = qs.length;
+
+  document.getElementById('sm2-table').innerHTML = `
+    <table class="tbl" style="margin-top:6px"><thead><tr>
+      <th>Lần</th><th>Ngày</th><th>q</th><th>EF</th><th>Interval</th><th>Ngày tích lũy</th>
+    </tr></thead><tbody>
+    ${schedule.map(s=>`<tr>
+      <td>${s.n}</td><td>${s.day}</td>
+      <td><span class="badge ${s.q>=4?'b-green':s.q>=3?'b-amber':'b-red'}">${s.q}</span></td>
+      <td>${s.ef}</td><td>${s.interval}d</td><td>${s.cumDay}d</td>
+    </tr>`).join('')}</tbody></table>`;
+
+  destroyChart('chart-sm2');
+  new Chart(document.getElementById('chart-sm2'), {
+    data:{
+      labels: schedule.map(s=>`#${s.n}`),
+      datasets:[
+        {type:'bar',label:'Interval (ngày)',data:schedule.map(s=>s.interval),backgroundColor:'#1a3a5c',yAxisID:'y'},
+        {type:'line',label:'EF',data:schedule.map(s=>+s.ef),borderColor:'#e8a020',tension:.4,yAxisID:'y1',pointRadius:4}
+      ]
+    },
+    options:{plugins:{legend:{labels:{font:{size:11}}}},scales:{
+      y:{title:{display:true,text:'Interval (ngày)'}},
+      y1:{position:'right',min:1.3,max:3.0,title:{display:true,text:'EF'},grid:{drawOnChartArea:false}}
+    }}
+  });
+}
+
+async function runSM2Analysis() {
+  const qs = document.getElementById('sm2-q').value;
+  const ef = document.getElementById('sm2-ef').value;
+  runSM2();
+  await askAI(
+    `Phân tích SM-2 Spaced Repetition. EF ban đầu: ${ef}. Chuỗi q: ${qs}. Kết quả: tổng ${document.getElementById('m-sm2-total').textContent}, EF cuối ${document.getElementById('m-sm2-ef').textContent}.
+    Nhận xét: (1) học sinh có ổn định không, (2) vật liệu khó hay dễ, (3) so sánh với Leitner system, (4) gợi ý điều chỉnh lịch, (5) ứng dụng trong ActiveEdu để ôn tập bài học.`,
+    'sm2-ai-out'
+  );
+}
+
+// ════════════════════════════════════════════════════════════
+// Neural Network Visualizer
+// ════════════════════════════════════════════════════════════
+let _nnWeights = null;
+
+function sigmoid(x) { return 1/(1+Math.exp(-x)); }
+function relu(x) { return Math.max(0,x); }
+function tanh_(x) { return Math.tanh(x); }
+function activFn(name) { return {sigmoid,relu,tanh:tanh_}[name]||sigmoid; }
+
+function initWeights(layers) {
+  const w = [];
+  for(let i=0; i<layers.length-1; i++) {
+    const m = []; for(let r=0; r<layers[i+1]; r++) {
+      const row=[]; for(let c=0; c<layers[i]; c++) row.push((Math.random()-0.5)*2);
+      m.push(row);
+    }
+    w.push(m);
+  }
+  return w;
+}
+
+function forwardPass(inputs, weights, act) {
+  let h = inputs;
+  const activations = [h.slice()];
+  weights.forEach(W => {
+    h = W.map(row => act(row.reduce((s,w,j)=>s+w*h[j],0)));
+    activations.push(h.slice());
+  });
+  return activations;
+}
+
+function randomizeWeights() { _nnWeights=null; runNN(); }
+
+function runNN() {
+  const h1 = +document.getElementById('nn-h1').value||8;
+  const h2 = +document.getElementById('nn-h2').value||0;
+  const actName = document.getElementById('nn-act').value;
+  const inputs = document.getElementById('nn-input').value.split(',').map(Number).filter(n=>!isNaN(n));
+  const act = activFn(actName);
+  const layers = [inputs.length, h1, ...(h2>0?[h2]:[]), 1];
+
+  if(!_nnWeights || _nnWeights.length!==layers.length-1) _nnWeights = initWeights(layers);
+  const activations = forwardPass(inputs, _nnWeights, act);
+  const output = activations[activations.length-1][0];
+
+  document.getElementById('m-nn-out').textContent = output.toFixed(4);
+  document.getElementById('m-nn-params').textContent = _nnWeights.reduce((s,W)=>s+W.length*W[0].length,0);
+
+  allResults.nn = {layers, activations, output, actName};
+  drawNN(layers, activations);
+}
+
+function drawNN(layers, activations) {
+  destroyChart('chart-nn');
+  const canvas = document.getElementById('chart-nn');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth||400, H = 280;
+  canvas.width = W; canvas.height = H;
+  ctx.clearRect(0,0,W,H);
+
+  const maxN = Math.max(...layers);
+  const colX = layers.map((_,i) => 40 + (W-80)*i/(layers.length-1));
+
+  const nodePositions = layers.map((n,li) => {
+    const spacing = Math.min(40, (H-40)/Math.max(n,1));
+    const totalH = (n-1)*spacing;
+    return Array.from({length:n}, (_,ni) => ({
+      x: colX[li],
+      y: H/2 - totalH/2 + ni*spacing
+    }));
+  });
+
+  // Edges
+  nodePositions.forEach((col, li) => {
+    if(li===nodePositions.length-1) return;
+    col.forEach((from,fi) => {
+      nodePositions[li+1].forEach((to,ti) => {
+        const w = _nnWeights?.[li]?.[ti]?.[fi] ?? 0;
+        ctx.strokeStyle = w>0 ? `rgba(26,58,92,${Math.min(Math.abs(w)/2,.5)})` : `rgba(216,90,48,${Math.min(Math.abs(w)/2,.4)})`;
+        ctx.lineWidth = 0.5 + Math.abs(w)*0.5;
+        ctx.beginPath(); ctx.moveTo(from.x,from.y); ctx.lineTo(to.x,to.y); ctx.stroke();
+      });
+    });
+  });
+
+  // Nodes
+  nodePositions.forEach((col, li) => {
+    col.forEach((pos,ni) => {
+      const val = activations[li]?.[ni] ?? 0;
+      const r = Math.min(14, Math.max(6, 8));
+      const intensity = Math.min(1, Math.abs(val));
+      ctx.beginPath(); ctx.arc(pos.x, pos.y, r, 0, Math.PI*2);
+      const h = val>0.5 ? `rgba(29,158,117,${.3+intensity*.7})` : val<0 ? `rgba(216,90,48,${.3+intensity*.7})` : `rgba(26,58,92,.2)`;
+      ctx.fillStyle = h;
+      ctx.strokeStyle = '#1a3a5c'; ctx.lineWidth=1; ctx.fill(); ctx.stroke();
+      if(li===0||li===nodePositions.length-1) {
+        ctx.fillStyle='#1a3a5c'; ctx.font='9px sans-serif'; ctx.textAlign='center';
+        ctx.fillText(val.toFixed(2), pos.x, pos.y+r+9);
+      }
+    });
+  });
+
+  // Labels
+  const lbls = ['Input', ...Array.from({length:layers.length-2},(_,i)=>`H${i+1}`), 'Output'];
+  ctx.fillStyle='rgba(0,0,0,.4)'; ctx.font='11px sans-serif'; ctx.textAlign='center';
+  colX.forEach((x,i) => ctx.fillText(lbls[i], x, 16));
+}
+
+async function runNNAnalysis() {
+  runNN();
+  const r = allResults.nn;
+  await askAI(
+    `Kiến trúc mạng nơ-ron: ${r.layers.join('→')} với activation ${r.actName}. Tổng tham số: ${document.getElementById('m-nn-params').textContent}. Output P(KC) = ${r.output.toFixed(4)}.
+    Phân tích: (1) kiến trúc này có phù hợp cho DKT trong ActiveEdu không, (2) so sánh với LSTM của DKT gốc (Piech 2015), (3) rủi ro overfitting với dataset nhỏ, (4) gợi ý kiến trúc tối ưu cho n<100 học sinh, (5) cách mô tả trong mục Methodology.`,
+    'nn-ai-out'
+  );
+}
+
+// ════════════════════════════════════════════════════════════
+// DKT (conceptual simulation)
+// ════════════════════════════════════════════════════════════
+function runDKT() {
+  const kcs = document.getElementById('dkt-kcs').value.split(',').map(s=>s.trim());
+  const seqStr = document.getElementById('dkt-seq').value;
+  const pairs = seqStr.split(',').map(s => {
+    const [ki,co] = s.trim().split(':');
+    return {kc:+ki, correct:+co};
+  }).filter(p=>!isNaN(p.kc)&&!isNaN(p.correct));
+
+  // Simulate DKT-like dynamics: simple exponential update
+  const nKC = kcs.length;
+  let probs = Array(nKC).fill(0.3);
+  const history = [probs.slice()];
+
+  pairs.forEach(({kc, correct}) => {
+    const lr = 0.15;
+    probs = probs.map((p,i) => {
+      const transfer = i===kc ? 0 : Math.random()*0.03; // transfer learning
+      const update = i===kc ? (correct===1 ? lr*(1-p) : -lr*p*0.5) : transfer;
+      return Math.max(0.05, Math.min(0.99, p+update));
+    });
+    history.push(probs.slice());
+  });
+
+  allResults.dkt = {kcs, pairs, history, finalProbs: probs};
+
+  // Heatmap
+  const hmWrap = document.getElementById('dkt-heatmap');
+  const nSteps = Math.min(history.length, 12);
+  let html = `<table class="matrix"><thead><tr><th>KC \\ Step</th>`;
+  for(let s=0; s<nSteps; s++) html += `<th>${s===0?'Init':'Q'+s}</th>`;
+  html += '</tr></thead><tbody>';
+  kcs.forEach((kc,ki) => {
+    html += `<tr><td style="font-size:11px;white-space:nowrap">${kc}</td>`;
+    for(let s=0; s<nSteps; s++) {
+      const v = history[s][ki];
+      const bg = v>=0.8?'#e1f5ee':v>=0.6?'#faeeda':v>=0.4?'#e6f1fb':'#fcebeb';
+      const fg = v>=0.8?'#085041':v>=0.6?'#633806':v>=0.4?'#0c447c':'#791f1f';
+      html += `<td style="background:${bg};color:${fg}">${(v*100).toFixed(0)}%</td>`;
+    }
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  hmWrap.innerHTML = html;
+
+  // Chart
+  destroyChart('chart-dkt');
+  new Chart(document.getElementById('chart-dkt'), {
+    data:{
+      labels: ['Init', ...pairs.map((_,i)=>`Q${i+1}`)].slice(0,history.length),
+      datasets: kcs.slice(0,4).map((kc,ki)=>({
+        type:'line', label:kc,
+        data: history.map(h=>+(h[ki]*100).toFixed(1)),
+        tension:.4, pointRadius:3, borderWidth:2
+      }))
+    },
+    options:{scales:{y:{min:0,max:100,title:{display:true,text:'P(correct) %'}}},
+      plugins:{legend:{labels:{font:{size:11}}}}}
+  });
+}
+
+async function runDKTAnalysis() {
+  runDKT();
+  const r = allResults.dkt;
+  const finalStr = r.kcs.map((kc,i)=>`${kc}:${(r.finalProbs[i]*100).toFixed(0)}%`).join(', ');
+  await askAI(
+    `Mô phỏng DKT trên ${r.kcs.length} Knowledge Components: [${r.kcs.join(', ')}]. Sau ${r.pairs.length} tương tác, P(correct) cuối: ${finalStr}.
+    Phân tích: (1) KCs nào học sinh đã nắm, KCs nào còn yếu, (2) DKT phát hiện được transfer learning không, (3) so sánh với BKT truyền thống, (4) hạn chế của mô phỏng conceptual này, (5) cần dữ liệu và tài nguyên gì để implement DKT thực sự với ActiveEdu.`,
+    'dkt-ai-out'
+  );
+}
+
+// ════════════════════════════════════════════════════════════
+// Model Comparison
+// ════════════════════════════════════════════════════════════
+function buildRadarChart() {
+  destroyChart('chart-radar');
+  const labels = ['Độ chính xác','Interpretability','Data cần','Tính đơn giản','Realtime','Phù hợp VN'];
+  const models = [
+    {name:'IRT',     data:[72,90,60,80,70,85], color:'#1a3a5c'},
+    {name:'BKT',     data:[70,85,75,85,85,90], color:'#1D9E75'},
+    {name:'DKT',     data:[85,40,30,40,50,45], color:'#534AB7'},
+    {name:'LLM',     data:[80,75,90,85,60,88], color:'#e8a020'},
+    {name:'SM-2',    data:[75,95,95,95,80,85], color:'#D85A30'},
+  ];
+  new Chart(document.getElementById('chart-radar'), {
+    type:'radar',
+    data:{
+      labels,
+      datasets: models.map(m=>({
+        label:m.name,
+        data:m.data,
+        borderColor:m.color,
+        backgroundColor:m.color+'20',
+        pointBackgroundColor:m.color,
+        pointRadius:3
+      }))
+    },
+    options:{scales:{r:{min:0,max:100,ticks:{font:{size:9}},pointLabels:{font:{size:10}}}},
+      plugins:{legend:{labels:{font:{size:11}}}}}
+  });
+}
+
+async function runModelComparison() {
+  buildRadarChart();
+  const data = document.getElementById('cmp-data').value;
+  const goal = document.getElementById('cmp-goal').value;
+  const goalLabel = {predict:'dự đoán kết quả học tập',adapt:'chọn nội dung thích ứng',early:'phát hiện sớm học sinh yếu',engage:'tối ưu engagement'}[goal];
+
+  // Populate static comparison table
+  document.getElementById('cmp-tbody').innerHTML = `
+    <tr><td><strong>IRT 3PL</strong></td><td><span class="badge b-blue">72%</span></td><td><span class="badge b-green">Cao</span></td><td><span class="badge b-amber">≥200 res</span></td><td><span class="badge b-green">Thấp</span></td><td><span class="badge b-green">Rất phù hợp</span></td><td>Calibrate câu hỏi, ước lượng năng lực</td></tr>
+    <tr><td><strong>BKT</strong></td><td><span class="badge b-blue">70%</span></td><td><span class="badge b-green">Rất cao</span></td><td><span class="badge b-green">≥50 obs</span></td><td><span class="badge b-green">Thấp</span></td><td><span class="badge b-green">Rất phù hợp</span></td><td>Tracking từng KC, mastery learning</td></tr>
+    <tr><td><strong>DKT (LSTM)</strong></td><td><span class="badge b-green">85%</span></td><td><span class="badge b-red">Thấp</span></td><td><span class="badge b-red">≥5,000 seq</span></td><td><span class="badge b-red">Cao</span></td><td><span class="badge b-amber">Trung bình</span></td><td>Dataset lớn, yêu cầu GPU</td></tr>
+    <tr><td><strong>LLM (Claude)</strong></td><td><span class="badge b-blue">80%</span></td><td><span class="badge b-blue">Trung bình</span></td><td><span class="badge b-green">Ít dữ liệu</span></td><td><span class="badge b-green">API</span></td><td><span class="badge b-amber">Trung bình</span></td><td>Personalized feedback, generative</td></tr>
+    <tr><td><strong>SM-2</strong></td><td><span class="badge b-blue">75%</span></td><td><span class="badge b-green">Rất cao</span></td><td><span class="badge b-green">≥10 items</span></td><td><span class="badge b-green">Rất thấp</span></td><td><span class="badge b-green">Rất phù hợp</span></td><td>Lịch ôn tập, flashcard</td></tr>`;
+
+  await askAI(
+    `So sánh mô hình AI giáo dục cho mục tiêu: ${goalLabel}. Dữ liệu: ${data}.
+    Phân tích 5 mô hình: IRT, BKT, DKT, LLM-based, SM-2. Đề xuất: (1) mô hình tốt nhất cho mục tiêu này, (2) lý do cụ thể, (3) mô hình kết hợp tối ưu, (4) roadmap triển khai từng bước cho ActiveEdu, (5) cách trình bày decision trong mục Methodology của bài báo AIED/IEEE.`,
+    'cmp-ai-out'
+  );
+}
+
+// ════════════════════════════════════════════════════════════
+// Monte Carlo
+// ════════════════════════════════════════════════════════════
+let _mcData = null;
+
+function randn() {
+  let u=0,v=0;
+  while(!u) u=Math.random();
+  while(!v) v=Math.random();
+  return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+}
+
+function runMonteCarlo() {
+  const N=+document.getElementById('mc-n').value;
+  const W=+document.getElementById('mc-weeks').value;
+  const mu=+document.getElementById('mc-theta').value;
+  const sd=+document.getElementById('mc-sd').value;
+  const mdl=document.getElementById('mc-model').value;
+
+  const students = Array.from({length:N},(_,i)=>{
+    const theta = mu + sd*randn();
+    let scores = [];
+    for(let w=0; w<W; w++){
+      let sc;
+      if(mdl==='irt') sc = irt3pl(theta,1.5,0,0.25)+Math.random()*0.1-0.05;
+      else if(mdl==='bkt') { let L=0.1+Math.random()*0.1; for(let q=0;q<5;q++) L=bktUpdate(L,Math.random()<irt3pl(theta,1.5,0,0.25)?1:0,0.2,0.2,0.1); sc=L; }
+      else sc = Math.random();
+      scores.push(Math.max(0,Math.min(1,sc)));
+    }
+    return {id:i+1, theta:+theta.toFixed(2), scores, avg:+(scores.reduce((a,b)=>a+b,0)/W).toFixed(3)};
+  });
+  _mcData = students;
+  allResults.mc = students;
+
+  const avgs = students.map(s=>s.avg);
+  const mean = +(avgs.reduce((a,b)=>a+b,0)/N).toFixed(3);
+  const sdVal = +(Math.sqrt(avgs.reduce((s,v)=>s+(v-mean)**2,0)/N)).toFixed(3);
+  const pass = +(avgs.filter(v=>v>=0.6).length/N*100).toFixed(0);
+
+  document.getElementById('m-mc-mean').textContent = (mean*100).toFixed(1)+'%';
+  document.getElementById('m-mc-sd').textContent = sdVal.toFixed(3);
+  document.getElementById('m-mc-pass').textContent = pass+'%';
+
+  // Histogram
+  destroyChart('chart-mc');
+  const bins = Array(10).fill(0);
+  avgs.forEach(v=>bins[Math.min(9,Math.floor(v*10))]++);
+  new Chart(document.getElementById('chart-mc'),{
+    type:'bar',
+    data:{labels:['0–10%','10–20%','20–30%','30–40%','40–50%','50–60%','60–70%','70–80%','80–90%','90–100%'],
+      datasets:[{data:bins,backgroundColor:bins.map((_,i)=>i>=6?'#1D9E75':i>=4?'#e8a020':'#D85A30'),borderRadius:4}]},
+    options:{plugins:{legend:{display:false}},scales:{y:{title:{display:true,text:'Số học sinh'}}}}
+  });
+
+  // Preview table
+  const preview = students.slice(0,20);
+  document.getElementById('mc-preview').innerHTML = `
+    <table class="tbl" style="font-size:11px"><thead><tr><th>#</th><th>θ</th>${Array.from({length:Math.min(W,6)},(_,w)=>`<th>T${w+1}</th>`).join('')}<th>TB</th></tr></thead>
+    <tbody>${preview.map(s=>`<tr><td>${s.id}</td><td>${s.theta}</td>${s.scores.slice(0,6).map(v=>`<td>${(v*100).toFixed(0)}%</td>`).join('')}<td><strong>${(s.avg*100).toFixed(0)}%</strong></td></tr>`).join('')}</tbody></table>`;
+}
+
+async function runMCAnalysis() {
+  if(!_mcData) runMonteCarlo();
+  const N=_mcData.length, mean=document.getElementById('m-mc-mean').textContent, pass=document.getElementById('m-mc-pass').textContent;
+  await askAI(
+    `Monte Carlo simulation: N=${N} học sinh, mô hình ${document.getElementById('mc-model').value}, θ~N(${document.getElementById('mc-theta').value},${document.getElementById('mc-sd').value}²). Kết quả: điểm TB ${mean}, SD ${document.getElementById('m-mc-sd').textContent}, ${pass} đạt ≥60%.
+    Phân tích: (1) phân phối có hợp lý không, (2) kết quả phù hợp thực tế lớp học VN không, (3) statistical power với N này, (4) sample size tối thiểu cần cho nghiên cứu có ý nghĩa, (5) cách báo cáo simulation study trong bài báo.`,
+    'mc-ai-out'
+  );
+}
+
+function exportMCData() {
+  if(!_mcData) { runMonteCarlo(); }
+  const W = +document.getElementById('mc-weeks').value;
+  const header = ['id','theta',...Array.from({length:W},(_,w)=>`week${w+1}`),'avg'].join(',');
+  const rows = _mcData.map(s=>[s.id,s.theta,...s.scores,s.avg].join(','));
+  const csv = [header,...rows].join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='mc_simulation.csv'; a.click();
+}
+
+// ════════════════════════════════════════════════════════════
+// Calibration
+// ════════════════════════════════════════════════════════════
+let _calibResult = null;
+
+function parseCalibData() {
+  return document.getElementById('calib-data').value.trim().split('\n')
+    .map(l=>{ const [p,y]=l.split(',').map(Number); return {p,y}; })
+    .filter(d=>!isNaN(d.p)&&!isNaN(d.y));
+}
+
+function runCalibration() {
+  const data = parseCalibData();
+  if(!data.length) return;
+
+  // Metrics
+  const n = data.length;
+  const rmse = Math.sqrt(data.reduce((s,d)=>s+(d.p-d.y)**2,0)/n);
+  const brier = data.reduce((s,d)=>s+(d.p-d.y)**2,0)/n;
+  const ll = -data.reduce((s,d)=>s+d.y*Math.log(Math.max(d.p,.001))+(1-d.y)*Math.log(Math.max(1-d.p,.001)),0)/n;
+  const acc = data.filter(d=>Math.round(d.p)===d.y).length/n;
+
+  // AUC (trapezoidal)
+  const sorted = [...data].sort((a,b)=>b.p-a.p);
+  let tp=0,fp=0,aucVal=0,prevTp=0,prevFp=0;
+  const pos=data.filter(d=>d.y===1).length, neg=n-pos;
+  sorted.forEach(d=>{ d.y===1?tp++:fp++; });
+  tp=0; fp=0;
+  sorted.forEach(d=>{ d.y===1?tp++:fp++;
+    aucVal += (fp-prevFp)/neg*(tp+prevTp)/2/pos;
+    prevTp=tp; prevFp=fp;
+  });
+
+  _calibResult = {data, rmse, brier, ll, acc, auc:aucVal, n};
+  allResults.calib = _calibResult;
+
+  document.getElementById('m-auc').textContent = aucVal.toFixed(3);
+  document.getElementById('m-rmse').textContent = rmse.toFixed(4);
+  document.getElementById('m-brier').textContent = brier.toFixed(4);
+  document.getElementById('m-acc-c').textContent = (acc*100).toFixed(1)+'%';
+  document.getElementById('m-ll').textContent = ll.toFixed(4);
+
+  // ROC chart
+  destroyChart('chart-roc');
+  const rocPts = [{x:0,y:0}];
+  let t2=0,f2=0;
+  [...data].sort((a,b)=>b.p-a.p).forEach(d=>{
+    d.y===1?t2++:f2++;
+    rocPts.push({x:f2/neg, y:t2/Math.max(pos,1)});
+  });
+  rocPts.push({x:1,y:1});
+  new Chart(document.getElementById('chart-roc'),{
+    type:'line',
+    data:{datasets:[
+      {label:`ROC (AUC=${aucVal.toFixed(3)})`,data:rocPts,borderColor:'#1a3a5c',backgroundColor:'rgba(26,58,92,.1)',fill:true,tension:0,pointRadius:0},
+      {label:'Random',data:[{x:0,y:0},{x:1,y:1}],borderColor:'#aaa',borderDash:[5,5],pointRadius:0}
+    ]},
+    options:{scales:{x:{type:'linear',min:0,max:1,title:{display:true,text:'False Positive Rate'}},
+      y:{min:0,max:1,title:{display:true,text:'True Positive Rate'}}},
+      plugins:{legend:{labels:{font:{size:11}}}}}
+  });
+
+  // Calibration curve
+  destroyChart('chart-calib');
+  const buckets = Array.from({length:10},(_,i)=>({lo:i*.1,hi:(i+1)*.1,preds:[],actuals:[]}));
+  data.forEach(d=>{ const b=Math.min(9,Math.floor(d.p*10)); buckets[b].preds.push(d.p); buckets[b].actuals.push(d.y); });
+  const calibPts = buckets.filter(b=>b.preds.length>0).map(b=>({
+    x: b.preds.reduce((a,v)=>a+v,0)/b.preds.length,
+    y: b.actuals.reduce((a,v)=>a+v,0)/b.actuals.length
+  }));
+  new Chart(document.getElementById('chart-calib'),{
+    type:'scatter',
+    data:{datasets:[
+      {label:'Calibration',data:calibPts,borderColor:'#D85A30',backgroundColor:'#D85A30',pointRadius:7},
+      {label:'Perfect',data:[{x:0,y:0},{x:1,y:1}],type:'line',borderColor:'#aaa',borderDash:[5,5],pointRadius:0}
+    ]},
+    options:{scales:{x:{min:0,max:1,title:{display:true,text:'Predicted'}},
+      y:{min:0,max:1,title:{display:true,text:'Actual'}}},
+      plugins:{legend:{labels:{font:{size:11}}}}}
+  });
+}
+
+function generateCalibData() {
+  const rows = Array.from({length:25},()=>{
+    const p = Math.random(); const y = Math.random()<p?1:0;
+    return `${p.toFixed(2)}, ${y}`;
+  }).join('\n');
+  document.getElementById('calib-data').value = rows;
+  runCalibration();
+}
+
+async function runCalibAnalysis() {
+  if(!_calibResult) runCalibration();
+  const r = _calibResult;
+  await askAI(
+    `Model fit metrics: AUC=${r.auc.toFixed(3)}, RMSE=${r.rmse.toFixed(4)}, Brier=${r.brier.toFixed(4)}, Accuracy=${(r.acc*100).toFixed(1)}%, Log-Loss=${r.ll.toFixed(4)}. N=${r.n} observations.
+    Phân tích: (1) mô hình có calibrated tốt không, (2) AUC này có ý nghĩa gì cho bài toán prediction trong giáo dục, (3) so sánh với baseline ngẫu nhiên và mô hình đơn giản, (4) cách cải thiện calibration (Platt scaling, isotonic regression), (5) cách báo cáo metrics này trong Results section của bài báo AIED theo chuẩn IEEE.`,
+    'calib-ai-out'
+  );
+}
+
+// ════════════════════════════════════════════════════════════
+// Export all results
+// ════════════════════════════════════════════════════════════
+function exportAllResults() {
+  const json = JSON.stringify(allResults, null, 2);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([json],{type:'application/json'}));
+  a.download = 'algo_lab_results.json'; a.click();
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+irtSlide();
+bktSlide();
+sm2Slide();
+buildRadarChart();
+</script>
+</body>
+</html>

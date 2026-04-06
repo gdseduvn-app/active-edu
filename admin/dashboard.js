@@ -2653,7 +2653,7 @@ const NOCO = {
     method = method || 'GET';
     params = params || '';
     const url = `${PROXY}/admin/${route}${path}${params ? '?' + params : ''}`;
-    const r = await fetch(url, {
+    const r = await adminFetch(url, {
       method,
       headers: adminHeaders(),
       body: body ? JSON.stringify(body) : undefined,
@@ -4120,7 +4120,7 @@ let _healthBannerShown = false;
 
 async function checkAPIHealth() {
   try {
-    const r = await fetch(PROXY + '/admin/articles?limit=1', {
+    const r = await adminFetch(PROXY + '/admin/articles?limit=1', {
       signal: AbortSignal.timeout(6000),
       headers: adminHeaders()
     });
@@ -4196,7 +4196,7 @@ async function _qmLoadExisting() {
   if (!_qmArticleId || !cfg().proxyUrl) return;
   try {
     const base = (cfg().proxyUrl || 'https://api.gds.edu.vn').replace(/\/$/, '');
-    const r = await fetch(
+    const r = await adminFetch(
       `${base}/admin/quiz?where=(ArticleId,eq,${_qmArticleId})&limit=1&fields=Id,Questions`,
       { headers: adminHeaders() }
     );
@@ -4488,7 +4488,7 @@ async function saveQuiz() {
 
   try {
     // Check if quiz already exists
-    const check = await fetch(
+    const check = await adminFetch(
       `${base}/admin/quiz?where=(ArticleId,eq,${_qmArticleId})&limit=1&fields=Id`,
       { headers: adminHeaders() }
     );
@@ -4498,13 +4498,13 @@ async function saveQuiz() {
 
     let r;
     if (existing) {
-      r = await fetch(`${base}/admin/quiz`, {
+      r = await adminFetch(`${base}/admin/quiz`, {
         method: 'PATCH',
         headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify([{ Id: existing.Id, Questions: payload }]),
       });
     } else {
-      r = await fetch(`${base}/admin/quiz`, {
+      r = await adminFetch(`${base}/admin/quiz`, {
         method: 'POST',
         headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ ArticleId: String(_qmArticleId), Questions: payload }),
@@ -4972,7 +4972,7 @@ async function loadCourses() {
   document.getElementById('module-builder').style.display = 'none';
 
   try {
-    const r = await fetch(`${PROXY}/admin/courses?limit=200&sort=-UpdatedAt`, { headers: adminHeaders() });
+    const r = await adminFetch(`${PROXY}/admin/courses?limit=200&sort=-UpdatedAt`, { headers: adminHeaders() });
     if (!r.ok) throw new Error(await r.text());
     const data = await r.json();
     _courses = data.list || [];
@@ -5120,7 +5120,7 @@ async function saveCourse() {
     showLoading(id ? 'Đang cập nhật...' : 'Đang tạo khoá học...');
     const method = id ? 'PATCH' : 'POST';
     const body = id ? [{ Id: parseInt(id), ...payload }] : payload;
-    const r = await fetch(`${PROXY}/admin/courses`, {
+    const r = await adminFetch(`${PROXY}/admin/courses`, {
       method,
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -5140,7 +5140,7 @@ async function deleteCourse(id, title) {
   try {
     showLoading('Đang xoá (cascade)...');
     // /safe endpoint: cascade delete modules, unlink articles, đảm bảo toàn vẹn FK
-    const r = await fetch(`${PROXY}/admin/courses/safe`, {
+    const r = await adminFetch(`${PROXY}/admin/courses/safe`, {
       method: 'DELETE',
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify([{ Id: id }]),
@@ -5209,7 +5209,7 @@ async function publishCourse() {
   if (!_workflowCourseId) return;
   try {
     showLoading('Đang xuất bản...');
-    const r = await fetch(`${PROXY}/admin/courses/publish`, {
+    const r = await adminFetch(`${PROXY}/admin/courses/publish`, {
       method: 'POST',
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ courseId: _workflowCourseId }),
@@ -5231,7 +5231,7 @@ async function unpublishCourse() {
   if (!confirm('Huỷ xuất bản khoá học? Sinh viên sẽ không thể truy cập cho đến khi xuất bản lại.')) return;
   try {
     showLoading('Đang huỷ xuất bản...');
-    const r = await fetch(`${PROXY}/admin/courses/unpublish`, {
+    const r = await adminFetch(`${PROXY}/admin/courses/unpublish`, {
       method: 'POST',
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ courseId: _workflowCourseId }),
@@ -5253,7 +5253,7 @@ async function concludeCourse() {
   if (!confirm('Kết thúc khoá học?\n⚠️ Khoá học sẽ chuyển sang chế độ Chỉ đọc cho tất cả sinh viên.')) return;
   try {
     showLoading('Đang kết thúc khoá học...');
-    const r = await fetch(`${PROXY}/admin/courses/conclude`, {
+    const r = await adminFetch(`${PROXY}/admin/courses/conclude`, {
       method: 'POST',
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ courseId: _workflowCourseId }),
@@ -5293,7 +5293,7 @@ async function loadEnrollments() {
   const tb = document.getElementById('enrollment-table');
   tb.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px">Đang tải...</td></tr>';
   try {
-    const r = await fetch(`${PROXY}/admin/courses/${_enrollCourseId}/enrollments`, { headers: adminHeaders() });
+    const r = await adminFetch(`${PROXY}/admin/courses/${_enrollCourseId}/enrollments`, { headers: adminHeaders() });
     const data = await r.json();
     _enrollments = data.list || [];
     if (!_enrollments.length) {
@@ -5362,7 +5362,7 @@ async function saveEnrollment() {
 
   try {
     showLoading('Đang ghi danh...');
-    const r = await fetch(`${PROXY}/admin/courses/${_enrollCourseId}/enrollments`, {
+    const r = await adminFetch(`${PROXY}/admin/courses/${_enrollCourseId}/enrollments`, {
       method: 'POST',
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -5389,7 +5389,7 @@ async function saveEnrollment() {
 async function toggleEnrollState(enrollId, newState) {
   try {
     showLoading('Đang cập nhật...');
-    const r = await fetch(`${PROXY}/admin/enrollments/${enrollId}`, {
+    const r = await adminFetch(`${PROXY}/admin/enrollments/${enrollId}`, {
       method: 'PATCH',
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ WorkflowState: newState }),
@@ -5404,7 +5404,7 @@ async function removeEnrollment(enrollId) {
   if (!confirm('Xoá ghi danh này?\nDữ liệu học tập của sinh viên vẫn được giữ lại.')) return;
   try {
     showLoading('Đang xoá...');
-    const r = await fetch(`${PROXY}/admin/enrollments/${enrollId}`, {
+    const r = await adminFetch(`${PROXY}/admin/enrollments/${enrollId}`, {
       method: 'DELETE',
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
     });
@@ -5442,7 +5442,7 @@ async function loadModules(courseId) {
   const container = document.getElementById('modules-list');
   container.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-muted)">Đang tải...</div>';
   try {
-    const r = await fetch(`${PROXY}/admin/modules?where=(CourseId,eq,${courseId})&sort=Id&limit=100`, { headers: adminHeaders() });
+    const r = await adminFetch(`${PROXY}/admin/modules?where=(CourseId,eq,${courseId})&sort=Id&limit=100`, { headers: adminHeaders() });
     if (!r.ok) throw new Error(await r.text());
     const data = await r.json();
     _modules = data.list || [];
@@ -5629,7 +5629,7 @@ async function loadModuleItems(moduleId, toggle = true) {
 
 async function toggleItemPublished(articleId, published, btnEl) {
   try {
-    const r = await fetch(`${PROXY}/admin/module-item/${articleId}`, {
+    const r = await adminFetch(`${PROXY}/admin/module-item/${articleId}`, {
       method: 'PATCH',
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ published }),
@@ -5739,7 +5739,7 @@ async function saveAddItem() {
   if (type === 'article') {
     try {
       showLoading('Đang gán bài học vào mô-đun...');
-      const r = await fetch(`${PROXY}/admin/articles`, {
+      const r = await adminFetch(`${PROXY}/admin/articles`, {
         method: 'PATCH',
         headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify([{ Id: parseInt(selectedId), ModuleId: moduleId }]),
@@ -5787,7 +5787,7 @@ async function saveModule() {
     showLoading(id ? 'Đang cập nhật...' : 'Đang tạo module...');
     const method = id ? 'PATCH' : 'POST';
     const body = id ? [{ Id: parseInt(id), ...payload }] : payload;
-    const r = await fetch(`${PROXY}/admin/modules`, {
+    const r = await adminFetch(`${PROXY}/admin/modules`, {
       method,
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -5807,7 +5807,7 @@ async function deleteModule(id, title) {
   try {
     showLoading('Đang xoá...');
     // /safe endpoint: unlink articles + exams, giữ toàn vẹn FK
-    const r = await fetch(`${PROXY}/admin/modules/safe`, {
+    const r = await adminFetch(`${PROXY}/admin/modules/safe`, {
       method: 'DELETE',
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify([{ Id: id }]),
@@ -5839,7 +5839,7 @@ async function loadQBanks() {
   if (listView) listView.style.display = '';
 
   try {
-    const r = await fetch(`${PROXY}/admin/question-banks?limit=200&sort=-UpdatedAt`, { headers: adminHeaders() });
+    const r = await adminFetch(`${PROXY}/admin/question-banks?limit=200&sort=-UpdatedAt`, { headers: adminHeaders() });
     if (!r.ok) throw new Error(await r.text());
     const data = await r.json();
     _qbanks = data.list || [];
@@ -5917,7 +5917,7 @@ async function saveQBank() {
     showLoading(id ? 'Đang cập nhật...' : 'Đang tạo...');
     const method = id ? 'PATCH' : 'POST';
     const body = id ? [{ Id: parseInt(id), ...payload }] : payload;
-    const r = await fetch(`${PROXY}/admin/question-banks`, {
+    const r = await adminFetch(`${PROXY}/admin/question-banks`, {
       method, headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
@@ -5933,7 +5933,7 @@ async function deleteQBank(id, title) {
   try {
     showLoading('Đang kiểm tra ràng buộc...');
     // /safe endpoint: chặn xoá nếu đang được dùng trong đề thi (FK integrity)
-    const r = await fetch(`${PROXY}/admin/question-banks/safe`, {
+    const r = await adminFetch(`${PROXY}/admin/question-banks/safe`, {
       method: 'DELETE',
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify([{ Id: id }]),
@@ -5960,7 +5960,7 @@ async function openQBankEditor(bankId) {
   document.getElementById('qbank-editor').scrollIntoView({ behavior: 'smooth' });
 
   try {
-    const r = await fetch(`${PROXY}/admin/question-banks/${bankId}`, { headers: adminHeaders() });
+    const r = await adminFetch(`${PROXY}/admin/question-banks/${bankId}`, { headers: adminHeaders() });
     const data = await r.json();
     _qbankQuestions = JSON.parse(data.Questions || '[]');
   } catch { _qbankQuestions = []; }
@@ -6082,7 +6082,7 @@ async function saveQBankQuestions() {
 
   try {
     showLoading('Đang lưu câu hỏi...');
-    const r = await fetch(`${PROXY}/admin/question-banks`, {
+    const r = await adminFetch(`${PROXY}/admin/question-banks`, {
       method: 'PATCH',
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify([{
@@ -6110,7 +6110,7 @@ async function loadExams() {
   tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-muted)">Đang tải...</td></tr>';
   document.getElementById('exam-section-builder').style.display = 'none';
   try {
-    const r = await fetch(`${PROXY}/admin/exams?limit=200&sort=-UpdatedAt`, { headers: adminHeaders() });
+    const r = await adminFetch(`${PROXY}/admin/exams?limit=200&sort=-UpdatedAt`, { headers: adminHeaders() });
     if (!r.ok) throw new Error(await r.text());
     const data = await r.json();
     _exams = data.list || [];
@@ -6164,7 +6164,7 @@ async function saveExam() {
     showLoading(id ? 'Đang cập nhật...' : 'Đang tạo...');
     const method = id ? 'PATCH' : 'POST';
     const body = id ? [{ Id: parseInt(id), ...payload }] : payload;
-    const r = await fetch(`${PROXY}/admin/exams`, {
+    const r = await adminFetch(`${PROXY}/admin/exams`, {
       method, headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
@@ -6180,7 +6180,7 @@ async function deleteExam(id, title) {
   try {
     showLoading('Đang xoá (cascade sections)...');
     // /safe endpoint: cascade delete ExamSections trước, rồi xoá Exam
-    const r = await fetch(`${PROXY}/admin/exams/safe`, {
+    const r = await adminFetch(`${PROXY}/admin/exams/safe`, {
       method: 'DELETE',
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify([{ Id: id }]),
@@ -6211,7 +6211,7 @@ async function loadExamSections(examId) {
   const listEl = document.getElementById('exam-sections-list');
   listEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-muted)">Đang tải...</div>';
   try {
-    const r = await fetch(`${PROXY}/admin/exam-sections?where=(ExamId,eq,${examId})&sort=Id&limit=50`, { headers: adminHeaders() });
+    const r = await adminFetch(`${PROXY}/admin/exam-sections?where=(ExamId,eq,${examId})&sort=Id&limit=50`, { headers: adminHeaders() });
     if (!r.ok) throw new Error(await r.text());
     const data = await r.json();
     _examSections = data.list || [];
@@ -6276,7 +6276,7 @@ async function openExamSectionModal() {
   // Load qbanks nếu chưa có
   if (!_qbanks.length) {
     try {
-      const r = await fetch(`${PROXY}/admin/question-banks?limit=200`, { headers: adminHeaders() });
+      const r = await adminFetch(`${PROXY}/admin/question-banks?limit=200`, { headers: adminHeaders() });
       const data = await r.json();
       _qbanks = data.list || [];
     } catch { }
@@ -6330,7 +6330,7 @@ async function saveExamSection() {
   try {
     showLoading('Đang thêm phần (kiểm tra ràng buộc)...');
     // /safe endpoint: validate ExamId tồn tại, BankId tồn tại, QuestionCount ≤ bank size, không trùng bank trong cùng đề
-    const r = await fetch(`${PROXY}/admin/exam-sections/safe`, {
+    const r = await adminFetch(`${PROXY}/admin/exam-sections/safe`, {
       method: 'POST',
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -6348,7 +6348,7 @@ async function deleteExamSection(id) {
   if (!confirm('Xoá phần này khỏi đề?')) return;
   try {
     showLoading('Đang xoá...');
-    const r = await fetch(`${PROXY}/admin/exam-sections`, {
+    const r = await adminFetch(`${PROXY}/admin/exam-sections`, {
       method: 'DELETE',
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify([{ Id: id }]),
@@ -6388,7 +6388,7 @@ async function loadAssessments() {
     const typeFilter = document.getElementById('assess-type-filter')?.value || '';
     let where = '';
     if (typeFilter) where = `?where=(AssessmentType,eq,${typeFilter})`;
-    const r = await fetch(`${PROXY}/admin/assessments-proxy${where}&sort=-Id&limit=200`, {
+    const r = await adminFetch(`${PROXY}/admin/assessments-proxy${where}&sort=-Id&limit=200`, {
       headers: adminHeaders(),
     });
     const data = await r.json();
@@ -6573,7 +6573,7 @@ async function openAssessmentModal(id = null) {
     subEl.textContent = `ID #${id}`;
     try {
       showLoading('Đang tải...');
-      const r = await fetch(`${PROXY}/admin/assessments-proxy/${id}`, { headers: adminHeaders() });
+      const r = await adminFetch(`${PROXY}/admin/assessments-proxy/${id}`, { headers: adminHeaders() });
       const a = await r.json();
       document.getElementById('am-id').value = a.Id;
       document.getElementById('am-title').value = a.Title || '';
@@ -6782,7 +6782,7 @@ async function saveAssessment() {
     showLoading('Đang lưu...');
     const url = id ? `/admin/assessments/${id}` : '/admin/assessments';
     const method = id ? 'PATCH' : 'POST';
-    const r = await fetch(`${PROXY}${url}`, {
+    const r = await adminFetch(`${PROXY}${url}`, {
       method,
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -6807,7 +6807,7 @@ async function deleteAssessment(id) {
   if (!confirm(`Xoá bài kiểm tra #${id}?\nThao tác này sẽ xoá tất cả kết quả nộp bài liên quan.`)) return;
   try {
     showLoading('Đang xoá...');
-    const r = await fetch(`${PROXY}/admin/assessments/${id}`, {
+    const r = await adminFetch(`${PROXY}/admin/assessments/${id}`, {
       method: 'DELETE',
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
     });
@@ -6829,7 +6829,7 @@ async function loadSubmissionsPanel(assessId, title) {
   tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px">Đang tải...</td></tr>';
 
   try {
-    const r = await fetch(`${PROXY}/admin/assessments/${assessId}/submissions`, { headers: adminHeaders() });
+    const r = await adminFetch(`${PROXY}/admin/assessments/${assessId}/submissions`, { headers: adminHeaders() });
     const data = await r.json();
     const list = data.list || [];
     if (!list.length) {
@@ -6907,7 +6907,7 @@ async function submitGrade() {
 
   try {
     showLoading('Đang lưu điểm...');
-    const r = await fetch(`${PROXY}/admin/submissions/${subId}/grade`, {
+    const r = await adminFetch(`${PROXY}/admin/submissions/${subId}/grade`, {
       method: 'PATCH',
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ score, feedback }),
@@ -6934,7 +6934,7 @@ async function loadActionLogs(subId, userName) {
   tb.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px">Đang tải...</td></tr>';
 
   try {
-    const r = await fetch(`${PROXY}/admin/assessments/${_activeAssessId}/action-logs?submissionId=${subId}`, {
+    const r = await adminFetch(`${PROXY}/admin/assessments/${_activeAssessId}/action-logs?submissionId=${subId}`, {
       headers: adminHeaders(),
     });
     const data = await r.json();
@@ -6970,7 +6970,7 @@ async function exportAssessmentCSV() {
   if (!_activeAssessId) return;
   try {
     showLoading('Đang xuất CSV...');
-    const r = await fetch(`${PROXY}/admin/assessments/${_activeAssessId}/export`, { headers: adminHeaders() });
+    const r = await adminFetch(`${PROXY}/admin/assessments/${_activeAssessId}/export`, { headers: adminHeaders() });
     if (!r.ok) throw new Error('Không thể xuất CSV');
     const blob = await r.blob();
     const a = document.createElement('a');
@@ -6998,7 +6998,7 @@ let _coachHistory = [];
 async function initAIAgentsPanel() {
   // Check AI connection
   try {
-    const r = await fetch(`${PROXY}/api/health`, { headers: adminHeaders() });
+    const r = await adminFetch(`${PROXY}/api/health`, { headers: adminHeaders() });
     const dot = document.getElementById('ai-status-dot');
     const txt = document.getElementById('ai-status-text');
     if (r.ok) {
@@ -7015,7 +7015,7 @@ async function initAIAgentsPanel() {
   } else if (sel) {
     // Fetch courses if not cached
     try {
-      const r = await fetch(`${PROXY}/admin/courses?limit=200&fields=Id,Title`, { headers: adminHeaders() });
+      const r = await adminFetch(`${PROXY}/admin/courses?limit=200&fields=Id,Title`, { headers: adminHeaders() });
       const data = await r.json();
       const courses = data.list || [];
       sel.innerHTML = '<option value="">-- Chọn khoá học --</option>' +
@@ -7035,7 +7035,7 @@ async function runCurriculumAgent() {
   resultEl.style.display = 'none';
 
   try {
-    const r = await fetch(`${PROXY}/ai/curriculum-agent`, {
+    const r = await adminFetch(`${PROXY}/ai/curriculum-agent`, {
       method: 'POST',
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt, questionCount: parseInt(document.getElementById('ca-nodes').value) || 10 }),
@@ -7111,7 +7111,7 @@ async function runAssessmentAgent() {
   _generatedQuestions = [];
 
   try {
-    const r = await fetch(`${PROXY}/ai/assessment-agent`, {
+    const r = await adminFetch(`${PROXY}/ai/assessment-agent`, {
       method: 'POST',
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -7172,7 +7172,7 @@ async function importGeneratedQuestions() {
   if (!name) return;
   try {
     showLoading('Đang tạo ngân hàng câu hỏi...');
-    const r = await fetch(`${PROXY}/admin/question-banks`, {
+    const r = await adminFetch(`${PROXY}/admin/question-banks`, {
       method: 'POST',
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ Title: name, Questions: JSON.stringify(_generatedQuestions), GroupName: 'AI Generated' }),
@@ -7216,7 +7216,7 @@ async function runCoachingAgent() {
   setAgentLoading(btn, true);
 
   try {
-    const r = await fetch(`${PROXY}/ai/coaching-agent`, {
+    const r = await adminFetch(`${PROXY}/ai/coaching-agent`, {
       method: 'POST',
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -7274,7 +7274,7 @@ async function runAnalyticsAgent() {
   resultEl.style.display = 'none';
 
   try {
-    const r = await fetch(`${PROXY}/ai/analytics-agent`, {
+    const r = await adminFetch(`${PROXY}/ai/analytics-agent`, {
       method: 'POST',
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ courseId: parseInt(courseId) }),
@@ -7335,7 +7335,7 @@ async function runContentAgent() {
   resultEl.style.display = 'none';
 
   try {
-    const r = await fetch(`${PROXY}/ai/content-agent`, {
+    const r = await adminFetch(`${PROXY}/ai/content-agent`, {
       method: 'POST',
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ content, action: _selectedContentAction }),
@@ -7615,7 +7615,7 @@ async function loadAdminStats() {
   const section = document.getElementById('admin-sys-stats');
   if (!section) return;
   try {
-    const r = await fetch(`${PROXY}/admin/stats`, { headers: adminHeaders() });
+    const r = await adminFetch(`${PROXY}/admin/stats`, { headers: adminHeaders() });
     if (!r.ok) return;
     const d = await r.json();
     const _s = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val ?? '—'; };
@@ -7640,7 +7640,7 @@ async function loadDriveSettings() {
   card.innerHTML = '<i class="fas fa-spinner fa-spin" style="color:var(--text-muted)"></i> Đang kiểm tra cấu hình Drive...';
 
   try {
-    const r = await fetch(`${PROXY}/admin/settings/drive`, { headers: adminHeaders() });
+    const r = await adminFetch(`${PROXY}/admin/settings/drive`, { headers: adminHeaders() });
     const d = await r.json();
 
     const folderId   = d.folder_id   || '';
@@ -7691,7 +7691,7 @@ async function saveDriveFolder() {
   resultEl.style.display = 'none';
 
   try {
-    const r = await fetch(`${PROXY}/admin/settings/drive`, {
+    const r = await adminFetch(`${PROXY}/admin/settings/drive`, {
       method:  'PATCH',
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body:    JSON.stringify({ folder_id: raw }),
@@ -7732,7 +7732,7 @@ async function testDriveConnection() {
   resultEl.style.display = 'none';
 
   try {
-    const r = await fetch(`${PROXY}/admin/settings/drive/test`, {
+    const r = await adminFetch(`${PROXY}/admin/settings/drive/test`, {
       method:  'POST',
       headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body:    JSON.stringify({ folder_id: raw }),
