@@ -14,7 +14,7 @@
 
 import * as fs from 'fs'
 import * as path from 'path'
-import { Pool } from 'pg'
+import { Pool, PoolClient } from 'pg'
 
 const MIGRATIONS_DIR = path.join(__dirname, 'migrations')
 
@@ -25,7 +25,7 @@ const pool = new Pool({
 })
 
 // ── Bootstrap migrations table ─────────────────────────────────────────────────
-async function ensureMigrationsTable(client: InstanceType<typeof Pool>['connect'] extends () => Promise<infer C> ? C : never): Promise<void> {
+async function ensureMigrationsTable(client: PoolClient): Promise<void> {
   await client.query(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       version     VARCHAR(255) PRIMARY KEY,

@@ -33,10 +33,10 @@ const MarkReadSchema = z.object({
 export async function notificationsRoutes(fastify: FastifyInstance) {
 
   // ── GET /api/v1/notifications — list my notifications ──────────────────────
-  fastify.get(
+  fastify.get<{ Querystring: { unread?: string; limit?: string; offset?: string } }>(
     '/',
     { preHandler: [fastify.authenticate] },
-    async (req: FastifyRequest<{ Querystring: { unread?: string; limit?: string; offset?: string } }>, reply: FastifyReply) => {
+    async (req, _reply) => {
       const userId = req.user.sub
       const onlyUnread = req.query.unread === 'true'
       const limit = Math.min(parseInt(req.query.limit || '20'), 50)
@@ -253,10 +253,10 @@ export async function notificationsRoutes(fastify: FastifyInstance) {
   )
 
   // ── DELETE /api/v1/notifications/:id — delete a notification ────────────────
-  fastify.delete(
+  fastify.delete<{ Params: { id: string } }>(
     '/:id',
     { preHandler: [fastify.authenticate] },
-    async (req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (req, reply) => {
       const result = await fastify.db.query(
         `DELETE FROM notifications WHERE id = $1 AND user_id = $2 RETURNING id`,
         [req.params.id, req.user.sub]

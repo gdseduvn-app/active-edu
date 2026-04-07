@@ -188,7 +188,7 @@ export async function authRoutes (
 
       // Issue access token (JWT RS256, 15 min)
       const accessToken = app.jwt.sign(
-        { sub: user.id, role: user.role, username: user.username },
+        { sub: user.id, role: user.role as 'student' | 'teacher' | 'admin' | 'observer', username: user.username },
         { expiresIn: ACCESS_TTL_SEC },
       )
 
@@ -259,7 +259,7 @@ export async function authRoutes (
 
       // Issue new access token
       const newAccessToken = app.jwt.sign(
-        { sub: userId, role: user.role, username: user.username },
+        { sub: userId, role: user.role as 'student' | 'teacher' | 'admin' | 'observer', username: user.username },
         { expiresIn: ACCESS_TTL_SEC },
       )
 

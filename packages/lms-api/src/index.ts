@@ -21,15 +21,34 @@ import { userRoutes } from './routes/users'
 import { lessonRoutes } from './routes/lessons'
 import { questionRoutes } from './routes/questions'
 import { quizRoutes } from './routes/quiz'
-import { eventsRoutes } from './routes/events'
+import { eventRoutes as eventsRoutes } from './routes/events'
 import { flashcardRoutes } from './routes/flashcards'
 import { gamificationRoutes } from './routes/gamification'
 import { analyticsRoutes } from './routes/analytics'
 import { notificationsRoutes } from './routes/notifications'
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Type augmentation — extend FastifyInstance with custom decorators
+// JWT payload type
 // ─────────────────────────────────────────────────────────────────────────────
+export interface JwtPayload {
+  sub:      string
+  role:     'student' | 'teacher' | 'admin' | 'observer'
+  username: string
+  email?:   string
+  iat?:     number
+  exp?:     number
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Type augmentation — @fastify/jwt + FastifyInstance decorators
+// ─────────────────────────────────────────────────────────────────────────────
+declare module '@fastify/jwt' {
+  interface FastifyJWT {
+    payload: JwtPayload
+    user:    JwtPayload
+  }
+}
+
 declare module 'fastify' {
   interface FastifyInstance {
     db: Pool
@@ -38,18 +57,6 @@ declare module 'fastify' {
     authorizeRole: (...roles: string[]) => (request: FastifyRequest, reply: FastifyReply) => Promise<void>
     authorizeTeacherOrSelf: (request: FastifyRequest, reply: FastifyReply) => Promise<void>
   }
-  interface FastifyRequest {
-    user: JwtPayload
-  }
-}
-
-interface JwtPayload {
-  sub:      string                                           // user UUID
-  role:     'student' | 'teacher' | 'admin' | 'observer'
-  username: string                                           // login name
-  email?:   string                                           // included in older tokens
-  iat:      number
-  exp:      number
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -99,7 +106,7 @@ export async function buildApp(): Promise<FastifyInstance> {
     max: 20,
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 5_000,
-    ssl: isProduction ? { rejectUnauthorized: false } : false,
+    ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : false,
   })
 
   db.on('error', (err) => {

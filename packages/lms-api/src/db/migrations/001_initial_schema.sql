@@ -150,7 +150,7 @@ CREATE INDEX idx_lm_snap_user ON learner_model_snapshots(user_id, created_at DES
 -- EVENTS (Append-only event log — BIGSERIAL for insert perf)
 -- ══════════════════════════════════════════════════════════
 CREATE TABLE events (
-  id           BIGSERIAL    PRIMARY KEY,
+  id           BIGSERIAL    NOT NULL,
   user_id      UUID         NOT NULL REFERENCES users(id),
   lesson_id    UUID         REFERENCES lessons(id),
   session_id   UUID,                              -- groups events in same session
@@ -163,14 +163,17 @@ CREATE TABLE events (
                )),
   payload      JSONB        NOT NULL DEFAULT '{}',
   processed    BOOLEAN      NOT NULL DEFAULT FALSE,
-  created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+  created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (id, created_at)
 ) PARTITION BY RANGE (created_at);
 
--- Monthly partitions (create via script)
+-- Monthly partitions (extend monthly via cron)
 CREATE TABLE events_2026_04 PARTITION OF events
   FOR VALUES FROM ('2026-04-01') TO ('2026-05-01');
 CREATE TABLE events_2026_05 PARTITION OF events
   FOR VALUES FROM ('2026-05-01') TO ('2026-06-01');
+CREATE TABLE events_2026_06 PARTITION OF events
+  FOR VALUES FROM ('2026-06-01') TO ('2026-07-01');
 
 CREATE INDEX idx_events_user    ON events(user_id, created_at DESC);
 CREATE INDEX idx_events_type    ON events(event_type, created_at DESC);
@@ -182,7 +185,7 @@ CREATE INDEX idx_events_proc    ON events(processed, created_at) WHERE processed
 CREATE TABLE agent_decisions (
   id                   BIGSERIAL    PRIMARY KEY,
   user_id              UUID         NOT NULL REFERENCES users(id),
-  trigger_event_id     BIGINT       REFERENCES events(id),
+  trigger_event_id     BIGINT,                             -- ref to events(id), no FK (partitioned table)
   rule_fired           VARCHAR(20)  NOT NULL,    -- R01..R10, DEFAULT
   next_lesson_id       UUID         REFERENCES lessons(id),
   reason               TEXT         NOT NULL,    -- Vietnamese explanation (XAI)
@@ -343,7 +346,7 @@ CREATE TABLE flashcard_reviews (
 );
 
 CREATE INDEX idx_fcr_due ON flashcard_reviews(user_id, next_review_at)
-  WHERE next_review_at <= NOW() + INTERVAL '1 day';
+;
 
 -- ══════════════════════════════════════════════════════════
 -- METACOGNITION JOURNALS

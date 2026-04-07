@@ -76,7 +76,7 @@ export async function agentRoutes(fastify: FastifyInstance) {
         `INSERT INTO agent_decisions
          (user_id, rule_fired, next_lesson_id, reason, overridden_by, override_reason, override_at, confidence)
          VALUES ($1, 'TEACHER_OVERRIDE', $2, $3, $4, $3, NOW(), 1.0)`,
-        [body.user_id, body.next_lesson_id, body.reason, req.user.id]
+        [body.user_id, body.next_lesson_id, body.reason, req.user.sub]
       )
       // Invalidate Redis cache
       await fastify.redis.del(`learner_model:${body.user_id}`)

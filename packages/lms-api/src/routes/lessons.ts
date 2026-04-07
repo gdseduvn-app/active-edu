@@ -80,7 +80,7 @@ export async function lessonRoutes(fastify: FastifyInstance) {
         [body.lesson_code, body.title, body.subject, body.grade, body.bloom_level,
          body.solo_target, body.knowledge_type, body.threshold_concept, body.lesson_model,
          body.difficulty_level, body.al_format, body.kolb_phase, body.html_content,
-         JSON.stringify(body.ilos), body.estimated_minutes, body.total_points, req.user.id]
+         JSON.stringify(body.ilos), body.estimated_minutes, body.total_points, req.user.sub]
       )
       // Trigger AURA pipeline for html_content
       if (body.html_content) {
