@@ -1,0 +1,88 @@
+name: CI/CD AdaptLearn LMS
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run lint -w packages/lms-api
+      - name: Test LMS API
+        run: npm test -w packages/lms-api
+
+  test-python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r packages/agent/requirements.txt
+      - run: cd packages/agent && python -m pytest --tb=short
+
+  build-and-push:
+    needs: [lint-and-test, test-python]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push LMS API
+        uses: docker/build-push-action@v5
+        with:
+          context: packages/lms-api
+          push: true
+          tags: |
+            thuthiem/lms-api:${{ github.sha }}
+            thuthiem/lms-api:latest
+
+      - name: Build and push Agent
+        uses: docker/build-push-action@v5
+        with:
+          context: packages/agent
+          push: true
+          tags: |
+            thuthiem/agent:${{ github.sha }}
+            thuthiem/agent:latest
+
+      - name: Build and push Frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: packages/frontend
+          push: true
+          tags: |
+            thuthiem/frontend:${{ github.sha }}
+            thuthiem/frontend:latest
+
+  deploy:
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to production
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            cd /opt/adaptlearn
+            docker compose pull
+            docker compose up -d --no-build
+            docker system prune -f
