@@ -8,7 +8,7 @@ Every decision is auditable and explainable in Vietnamese.
 from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Optional, Dict, List
 import uuid
 
 from .learner_model import should_trigger_rule, calculate_mastery, QuizAttempt
@@ -17,17 +17,17 @@ from .learner_model import should_trigger_rule, calculate_mastery, QuizAttempt
 @dataclass
 class PlannerDecision:
     rule_fired: str          # R01..R10 | DEFAULT
-    next_lesson_id: str | None
+    next_lesson_id: Optional[str]
     reason: str              # Vietnamese explanation
     confidence: float        # 0.0–1.0
     action: str              # 'continue' | 'repair' | 'downgrade' | 'upgrade' | 'alert'
-    metadata: dict[str, Any]
+    metadata: Dict[str, Any]
 
 
 async def plan_next_lesson(
-    learner_model: dict[str, Any],
-    current_lesson: dict[str, Any],
-    lesson_catalog: list[dict[str, Any]],
+    learner_model: Dict[str, Any],
+    current_lesson: Dict[str, Any],
+    lesson_catalog: List[Dict[str, Any]],
     db,  # database connection
 ) -> PlannerDecision:
     """
@@ -47,46 +47,45 @@ async def plan_next_lesson(
     action = 'continue'
     confidence = 0.9
 
-    match rule_code:
-        case 'R01':
-            # Insert Repair lesson before next
-            next_lesson = await _find_repair_lesson(current_lesson, learner_model, lesson_catalog, db)
-            action = 'repair'
-            confidence = 0.95
+    if rule_code == 'R01':
+        # Insert Repair lesson before next
+        next_lesson = await _find_repair_lesson(current_lesson, learner_model, lesson_catalog, db)
+        action = 'repair'
+        confidence = 0.95
 
-        case 'R02':
-            # Downgrade level
-            new_level = _downgrade_level(learner_model['current_level'])
-            next_lesson = await _find_lesson_at_level(current_lesson, new_level, lesson_catalog, db)
-            action = 'downgrade'
+    elif rule_code == 'R02':
+        # Downgrade level
+        new_level = _downgrade_level(learner_model['current_level'])
+        next_lesson = await _find_lesson_at_level(current_lesson, new_level, lesson_catalog, db)
+        action = 'downgrade'
 
-        case 'R03':
-            # Upgrade level
-            new_level = _upgrade_level(learner_model['current_level'])
-            next_lesson = await _find_lesson_at_level(current_lesson, new_level, lesson_catalog, db)
-            action = 'upgrade'
+    elif rule_code == 'R03':
+        # Upgrade level
+        new_level = _upgrade_level(learner_model['current_level'])
+        next_lesson = await _find_lesson_at_level(current_lesson, new_level, lesson_catalog, db)
+        action = 'upgrade'
 
-        case 'R04':
-            # Spaced repetition review
-            next_lesson = await _find_review_lesson(learner_model, lesson_catalog, db)
-            action = 'review'
+    elif rule_code == 'R04':
+        # Spaced repetition review
+        next_lesson = await _find_review_lesson(learner_model, lesson_catalog, db)
+        action = 'review'
 
-        case 'R05' | 'R06' | 'R07' | 'R09':
-            # Continue with model preference change
-            next_lesson = await _find_next_lesson(current_lesson, lesson_catalog, db)
-            action = 'continue'
-            confidence = 0.75
+    elif rule_code in ('R05', 'R06', 'R07', 'R09'):
+        # Continue with model preference change
+        next_lesson = await _find_next_lesson(current_lesson, lesson_catalog, db)
+        action = 'continue'
+        confidence = 0.75
 
-        case 'R10':
-            # At-risk: do NOT auto-change — alert teacher
-            next_lesson = None  # Wait for teacher override
-            action = 'alert'
-            confidence = 1.0
+    elif rule_code == 'R10':
+        # At-risk: do NOT auto-change — alert teacher
+        next_lesson = None  # Wait for teacher override
+        action = 'alert'
+        confidence = 1.0
 
-        case _:  # DEFAULT
-            next_lesson = await _find_next_lesson(current_lesson, lesson_catalog, db)
-            action = 'continue'
-            confidence = 0.85
+    else:  # DEFAULT
+        next_lesson = await _find_next_lesson(current_lesson, lesson_catalog, db)
+        action = 'continue'
+        confidence = 0.85
 
     return PlannerDecision(
         rule_fired=rule_code,

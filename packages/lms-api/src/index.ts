@@ -26,6 +26,13 @@ import { flashcardRoutes } from './routes/flashcards'
 import { gamificationRoutes } from './routes/gamification'
 import { analyticsRoutes } from './routes/analytics'
 import { notificationsRoutes } from './routes/notifications'
+import { privacyRoutes } from './routes/privacy'
+import { fileRoutes } from './routes/files'
+import { auraRoutes } from './routes/aura'
+import { examRoutes } from './routes/exams'
+import { websocketRoutes } from './routes/websocket'
+import { consentGuardPlugin } from './middleware/consent-guard'
+import { privacyAuditPlugin } from './middleware/privacy-audit'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // JWT payload type
@@ -300,8 +307,17 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(gamificationRoutes, { prefix: '/api/v1/gamification' })
   await app.register(analyticsRoutes,       { prefix: '/api/v1/analytics' })
   await app.register(notificationsRoutes,   { prefix: '/api/v1/notifications' })
+  await app.register(privacyRoutes,         { prefix: '/api/v1/privacy' })
+  await app.register(fileRoutes,            { prefix: '/api/v1/files' })
+  await app.register(auraRoutes,            { prefix: '/api/v1/aura' })
+  await app.register(examRoutes,            { prefix: '/api/v1/exams' })
+  await app.register(websocketRoutes,       { prefix: '/api/v1/ws' })
 
-  app.log.info('All routes registered')
+  // ── Privacy middleware (after routes, before requests) ──────────────────────
+  await app.register(consentGuardPlugin)
+  await app.register(privacyAuditPlugin)
+
+  app.log.info('All routes registered (including privacy/consent)')
 
   return app
 }

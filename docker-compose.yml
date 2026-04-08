@@ -98,6 +98,25 @@ services:
       - redis
     restart: unless-stopped
 
+  # ── Python Grader Service ────────────────────────────────
+  grader:
+    build:
+      context: ./packages/grader-service
+      dockerfile: Dockerfile
+    environment:
+      - INTERNAL_KEY=${INTERNAL_KEY}
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   # ── PostgreSQL ───────────────────────────────────────────
   postgres:
     image: postgres:15-alpine

@@ -123,18 +123,158 @@ export async function lessonRoutes(fastify: FastifyInstance) {
     }
   )
 
-  // GET /api/v1/lessons/std791 — browse YCCĐ catalog (from JSON file)
+  // DELETE /api/v1/lessons/:id — soft delete (admin only)
+  fastify.delete<{ Params: { id: string } }>(
+    '/:id',
+    { preHandler: [fastify.authenticate, fastify.authorizeRole('admin')] },
+    async (req, reply) => {
+      const result = await fastify.db.query(
+        `UPDATE lessons SET status = 'archived', deleted_at = NOW(), updated_at = NOW()
+         WHERE id = $1 AND deleted_at IS NULL RETURNING id`,
+        [req.params.id]
+      )
+      if (!result.rows[0]) return reply.status(404).send({ error: { code: 'LESSON_NOT_FOUND', message: 'Không tìm thấy bài học' } })
+      return { data: { success: true } }
+    }
+  )
+
+  // GET /api/v1/lessons/:id/preview — preview dưới góc nhìn học sinh
+  fastify.get<{ Params: { id: string } }>(
+    '/:id/preview',
+    { preHandler: [fastify.authenticate, fastify.authorizeRole('teacher', 'admin')] },
+    async (req, reply) => {
+      const result = await fastify.db.query(
+        `SELECT id, lesson_code, title, grade, subject, bloom_level, lesson_model,
+                html_content, ilos, tlas, assessment_tasks, estimated_minutes
+         FROM lessons WHERE id = $1 AND deleted_at IS NULL`,
+        [req.params.id]
+      )
+      if (!result.rows[0]) return reply.status(404).send({ error: { code: 'LESSON_NOT_FOUND', message: 'Không tìm thấy bài học' } })
+      return { data: { ...result.rows[0], _preview_mode: true, _role: 'student' } }
+    }
+  )
+
+  // POST /api/v1/lessons/:id/duplicate — nhân bản lesson (tạo draft mới)
+  fastify.post<{ Params: { id: string } }>(
+    '/:id/duplicate',
+    { preHandler: [fastify.authenticate, fastify.authorizeRole('teacher', 'admin')] },
+    async (req, reply) => {
+      const source = await fastify.db.query(
+        `SELECT * FROM lessons WHERE id = $1 AND deleted_at IS NULL`, [req.params.id]
+      )
+      if (!source.rows[0]) return reply.status(404).send({ error: { code: 'LESSON_NOT_FOUND', message: 'Không tìm thấy bài học' } })
+      const s = source.rows[0]
+      const newCode = s.lesson_code + '_copy'
+      const result = await fastify.db.query(
+        `INSERT INTO lessons (lesson_code, title, subject, grade, bloom_level, solo_target,
+         knowledge_type, threshold_concept, lesson_model, difficulty_level, al_format,
+         kolb_phase, html_content, ilos, tlas, assessment_tasks, estimated_minutes,
+         total_points, author_id, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, 'draft')
+         RETURNING id, lesson_code`,
+        [newCode, s.title + ' (Copy)', s.subject, s.grade, s.bloom_level, s.solo_target,
+         s.knowledge_type, s.threshold_concept, s.lesson_model, s.difficulty_level,
+         s.al_format, s.kolb_phase, s.html_content, JSON.stringify(s.ilos || []),
+         JSON.stringify(s.tlas || []), JSON.stringify(s.assessment_tasks || []),
+         s.estimated_minutes, s.total_points, req.user.sub]
+      )
+      return reply.status(201).send({ data: result.rows[0] })
+    }
+  )
+
+  // GET /api/v1/lessons/:id/analytics — thống kê bài học
+  fastify.get<{ Params: { id: string } }>(
+    '/:id/analytics',
+    { preHandler: [fastify.authenticate, fastify.authorizeRole('teacher', 'admin')] },
+    async (req, reply) => {
+      const { id } = req.params
+      const stats = await fastify.db.query(
+        `SELECT
+           COUNT(DISTINCT qa.user_id) as total_students,
+           AVG(qa.score_percent) as avg_score,
+           AVG(qa.time_taken_sec) as avg_duration_sec,
+           COUNT(CASE WHEN qa.passed = true THEN 1 END)::float / NULLIF(COUNT(*), 0) as completion_rate
+         FROM quiz_attempts qa WHERE qa.lesson_id = $1`,
+        [id]
+      )
+      const errors = await fastify.db.query(
+        `SELECT unnest(error_tags) as error_type, COUNT(*) as count
+         FROM quiz_attempts WHERE lesson_id = $1 AND error_tags != '{}'
+         GROUP BY error_type ORDER BY count DESC LIMIT 10`,
+        [id]
+      )
+      return { data: { ...stats.rows[0], top_errors: errors.rows } }
+    }
+  )
+
+  // GET /api/v1/lessons/:id/next — gọi Agent lấy bài tiếp theo
+  fastify.get<{ Params: { id: string } }>(
+    '/:id/next',
+    { preHandler: [fastify.authenticate] },
+    async (req, reply) => {
+      const userId = req.user.sub
+      // Try Agent service first
+      try {
+        const agentUrl = process.env['AGENT_URL'] || 'http://agent:8000'
+        const resp = await fetch(`${agentUrl}/api/v1/agent/learner/${userId}/next`, {
+          headers: { 'X-Internal-Key': process.env['INTERNAL_KEY'] || '' },
+        })
+        if (resp.ok) {
+          const data = await resp.json()
+          return { data }
+        }
+      } catch {
+        // Fallback: next_if_pass from current lesson
+      }
+      // Graceful degradation (FR-41-03): fallback to next_if_pass
+      const result = await fastify.db.query(
+        `SELECT l2.id, l2.lesson_code, l2.title, l2.bloom_level, l2.lesson_model
+         FROM lessons l1 JOIN lessons l2 ON l2.lesson_code = l1.next_if_pass
+         WHERE l1.id = $1 AND l2.deleted_at IS NULL`,
+        [req.params.id]
+      )
+      return {
+        data: result.rows[0] || null,
+        meta: { source: 'fallback_next_if_pass', reason: 'Agent unavailable — dùng lộ trình mặc định' }
+      }
+    }
+  )
+
+  // POST /api/v1/lessons/:id/complete — HS hoàn thành bài học
+  fastify.post<{ Params: { id: string } }>(
+    '/:id/complete',
+    { preHandler: [fastify.authenticate] },
+    async (req, reply) => {
+      const { final_score, time_spent_sec, model_used } = req.body as any
+      const userId = req.user.sub
+      const lessonId = req.params.id
+
+      // Publish lesson_completed event to Redis Streams
+      await fastify.redis.xadd('events:main', '*',
+        'event_type', 'lesson_completed',
+        'learner_id', userId,
+        'lesson_id', lessonId,
+        'payload', JSON.stringify({ final_score, time_spent_sec, model_used }),
+        'source', 'lms',
+        'ts', Date.now().toString()
+      )
+      return reply.status(202).send({ data: { accepted: true } })
+    }
+  )
+
+  // GET /api/v1/lessons/std791 — browse YCCĐ catalog
   fastify.get('/std791', { preHandler: [fastify.authenticate] }, async (req: FastifyRequest, reply) => {
-    const { grade, bloom_level, search, limit = 50 } = req.query as any
-    const result = await fastify.db.query(
-      `SELECT id, lesson_code, title, grade, bloom_level, yccđ_requirement,
-              lesson_model, difficulty_level, status
-       FROM lessons WHERE deleted_at IS NULL
-       ${grade ? 'AND grade = ' + parseInt(grade) : ''}
-       ${bloom_level ? 'AND bloom_level = ' + parseInt(bloom_level) : ''}
-       ORDER BY grade, lesson_code LIMIT $1`,
-      [limit]
-    )
+    const { grade, bloom_level, limit = 50 } = req.query as any
+    let sql = `SELECT id, lesson_code, title, grade, bloom_level, yccđ_requirement,
+                      lesson_model, difficulty_level, status
+               FROM lessons WHERE deleted_at IS NULL`
+    const params: any[] = []
+    let p = 1
+    if (grade) { sql += ` AND grade = $${p++}`; params.push(parseInt(grade)) }
+    if (bloom_level) { sql += ` AND bloom_level = $${p++}`; params.push(parseInt(bloom_level)) }
+    sql += ` ORDER BY grade, lesson_code LIMIT $${p++}`
+    params.push(limit)
+    const result = await fastify.db.query(sql, params)
     return { data: result.rows }
   })
 }

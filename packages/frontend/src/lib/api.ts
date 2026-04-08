@@ -39,6 +39,20 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
     throw new Error('Unauthorized')
   }
 
+  // NĐ 13/2023: Consent guard — redirect if not consented
+  if (res.status === 403) {
+    const err = await res.json().catch(() => ({ error: { code: '' } }))
+    if (err.error?.code === 'CONSENT_REQUIRED') {
+      window.location.href = '/consent'
+      throw new Error('Consent required')
+    }
+    if (err.error?.code === 'PARENT_CONSENT_REQUIRED') {
+      window.location.href = '/consent/waiting'
+      throw new Error('Parent consent required')
+    }
+    throw new Error(err.error?.message || 'Forbidden')
+  }
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: { message: res.statusText } }))
     throw new Error(err.error?.message || 'Request failed')
